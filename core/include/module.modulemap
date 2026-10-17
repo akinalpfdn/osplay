@@ -1,0 +1,4 @@
+module OsplayCore {
+    header "osplay/osplay.h"
+    export *
+}

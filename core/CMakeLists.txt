@@ -1,0 +1,36 @@
+cmake_minimum_required(VERSION 3.28)
+
+# The version lives in the public header so C, Swift and C# consumers see the same numbers.
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/include/osplay/osplay.h" _osplay_version_lines
+     REGEX "^#define OSPLAY_CORE_VERSION_(MAJOR|MINOR|PATCH) [0-9]+$")
+foreach(_line IN LISTS _osplay_version_lines)
+    string(REGEX MATCH "OSPLAY_CORE_VERSION_([A-Z]+) ([0-9]+)" _ "${_line}")
+    set(_osplay_version_${CMAKE_MATCH_1} "${CMAKE_MATCH_2}")
+endforeach()
+
+project(OsplayCore
+    VERSION "${_osplay_version_MAJOR}.${_osplay_version_MINOR}.${_osplay_version_PATCH}"
+    DESCRIPTION "Shared protocol, crypto and transport library for Osplay"
+    LANGUAGES CXX)
+
+option(OSPLAY_CORE_BUILD_TESTS "Build the core unit tests" ${PROJECT_IS_TOP_LEVEL})
+
+if(NOT TARGET osplay::warnings)
+    include(cmake/OsplayWarnings.cmake)
+endif()
+
+add_library(osplay_core STATIC
+    src/capi/version.cpp)
+add_library(osplay::core ALIAS osplay_core)
+
+target_include_directories(osplay_core
+    PUBLIC include
+    PRIVATE src)
+target_compile_features(osplay_core PUBLIC cxx_std_20)
+set_target_properties(osplay_core PROPERTIES CXX_EXTENSIONS OFF)
+target_link_libraries(osplay_core PRIVATE osplay::warnings)
+
+if(OSPLAY_CORE_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests/cpp)
+endif()
