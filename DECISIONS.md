@@ -68,3 +68,12 @@ choices the plan leaves open are logged here.
 **Revisit if:** A dependency requires a VS-generator-only feature.
 
 ---
+
+## 2026-10-17 — Branch and tag protection
+**Chosen:** User decision: only `akinalpfdn` may change `main`. Ruleset "main protection" blocks deletion, force push and any update (push or merge) for everyone, and requires a PR with green `macOS` and `Windows` checks. The repository admin role (only `akinalpfdn`) bypasses all of it, force push included. Ruleset "release tag protection" applies the same owner-only rule to creating, moving and deleting `v*` tags.
+**Alternatives:** Legacy branch protection; no bypass (owner bound by the rules too).
+**Why:** Outside contributors work through forks and PRs; merging stays with the owner. Rulesets are the current GitHub mechanism and cover tags too.
+**Trade-offs:** The bypass also applies to tools acting with the owner's credentials (gh CLI, Claude Code), so PR-per-phase stays a working rule rather than something GitHub enforces against the owner. Published tags can still be moved by the owner; the rule against doing that is a discipline, not a technical block.
+**Revisit if:** Another person gets write access, or releases need technically immutable tags.
+
+---

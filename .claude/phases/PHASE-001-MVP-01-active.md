@@ -21,7 +21,7 @@ A clean, empty-but-building monorepo with all hygiene and tooling in place.
 ## Acceptance Criteria
 - [ ] Fresh clone builds on macOS (terminal) and Windows (command line) by following `BUILDING.md` exactly.
   - macOS: verified on the M3 Air (2026-10-17).
-  - Windows: CI runs the same commands (VS 2026, MSVC); still needs one manual run on the developer PC.
+  - Windows: CI runs the same commands (VS 2026, MSVC); still needs one manual run on the developer PC. User decision (2026-10-17): treat as passing for now and run it later.
 - [x] Both CI jobs are green (PR #1, run 39027035895).
 - [x] Formatters and linters run in CI and fail on violations (each checker shown to fail on an injected violation).
 - [x] VDD license compatibility recorded with the chosen distribution approach.
@@ -36,3 +36,4 @@ A clean, empty-but-building monorepo with all hygiene and tooling in place.
 - WPF-UI is deferred to Phase 12 (first phase that uses it); Phase 0 shell only needs H.NotifyIcon + CommunityToolkit.Mvvm.
 - clang-tidy runs on core only; engine/helper get clang-tidy on Windows once they contain real Windows code (Phase 2).
 - Fresh-clone macOS steps of BUILDING.md verified on the M3 Air; Windows steps verified only through CI.
+- main and v* tags protected by rulesets; only akinalpfdn (admin bypass) can push, merge or force push.
