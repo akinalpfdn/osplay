@@ -13,11 +13,12 @@ The Windows engine can create and remove one virtual monitor with an exact custo
 - [x] Temporary developer console tool to drive it.
 
 ## Acceptance Criteria
-- [ ] With VDD installed, the tool creates one monitor at 2560×1664 at 60 Hz, visible in Display Settings.
-- [ ] The monitor disappears entirely when the session ends; no ghost monitor remains after reboot.
-- [ ] A non-admin user process can drive the helper; another user's process cannot connect to the pipe.
-- [ ] Invalid commands and out-of-range values are rejected and logged.
-  - Automated: protocol and request handler unit tests (rejection + log line). Live helper log check: pending on the PC.
+- [x] With VDD installed, the tool creates one monitor at 2560×1664 at 60 Hz, visible in Display Settings. (PC test 2)
+- [x] The monitor disappears entirely when the session ends; no ghost monitor remains after reboot. (PC test 1: Enter, X-close, kill, reboot)
+- [x] A non-admin user process can drive the helper; another user's process cannot connect to the pipe.
+  - Non-admin: verified on the PC. Other user: closed by design (user decision 2026-10-17, no second account) — DACL admits only SYSTEM and the console user's SID, and the helper re-checks client session and SID after connecting; an unidentifiable (anonymous) client was refused in PC test 1.
+- [x] Invalid commands and out-of-range values are rejected and logged.
+  - Unit tests plus PC test 1 (`Rejected request: truncated` in helper.log).
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
