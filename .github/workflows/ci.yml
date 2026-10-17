@@ -51,6 +51,29 @@ jobs:
           xcodebuild -project Osplay.xcodeproj -scheme Osplay -destination 'platform=macOS' \
             -derivedDataPath DerivedData -quiet test
 
+  macos-sanitizers:
+    name: macOS sanitizers
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install build tools
+        run: brew install cmake ninja
+
+      - name: Core — AddressSanitizer and UndefinedBehaviorSanitizer
+        working-directory: core
+        run: |
+          cmake --preset asan
+          cmake --build --preset asan
+          ctest --preset asan
+
+      - name: Core — ThreadSanitizer
+        working-directory: core
+        run: |
+          cmake --preset tsan
+          cmake --build --preset tsan
+          ctest --preset tsan
+
   windows:
     name: Windows
     runs-on: windows-2025
