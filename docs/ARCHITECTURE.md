@@ -59,5 +59,84 @@ Behavior measured on a MacBook Air M3, macOS 26.6, lid open (Phase 1):
 
 ## Virtual Display Driver control surface (Windows)
 
-To be written in Phase 2: configuration schema, named pipe commands, and which changes need a
-device restart.
+Findings from reading the driver source (VirtualDrivers/Virtual-Display-Driver, `master` at
+`d7244969`, file `Virtual Display Driver (HDR)/MttVDD/Driver.cpp`), Phase 2:
+
+| Aspect | Behavior |
+|--------|----------|
+| Device | Root-enumerated, hardware ID `Root\MttVDD` (`MttVDD.inf`), UMDF IddCx driver. |
+| Settings file | `vdd_settings.xml` in the directory named by `HKLM\SOFTWARE\MikeTheTech\VirtualDisplayDriver\VDDPATH`, default `C:\VirtualDisplayDriver`. Elements used: `monitors/count`, `gpu/friendlyname` (DXGI adapter description or `default`), `resolutions/resolution/{width,height,refresh_rate}`, `global/g_refresh_rate` (multiplies every resolution). |
+| When settings are read | Only in `EvtDriverDeviceAdd` (`loadSettings()`), i.e. when the device starts. |
+| Preferred mode | The first resolution in the file (`PreferredMonitorModeIdx = 0`). |
+| Monitor count | `count = 0` is coerced to 1. A monitor cannot be removed by count. |
+| Named pipe | `\\.\pipe\MTTVirtualDisplayPipe`, plain-text commands (`RELOAD_DRIVER`, `SETDISPLAYCOUNT n`, `SETGPU "name"`, `PING`, `GETSETTINGS`, logging and colour toggles). Its ACL is `D:(A;;GA;;;WD)` — any local user. |
+| `RELOAD_DRIVER` / `SETDISPLAYCOUNT` | Call `InitAdapter()` without re-reading settings; new counts or modes in the file are not applied until the device restarts. |
+
+Consequences for Osplay:
+
+- Every configuration change is **write the file, then (re)start the device**; ending a session is
+  **disable the device**, which removes the monitor. Both need administrator rights, hence the
+  helper service.
+- Osplay never uses the driver's pipe: it cannot change modes, and it is open to every user.
+- Osplay owns `vdd_settings.xml` and rewrites it before every session: one monitor, one mode (the
+  viewer's exact pixel size and refresh rate), no global refresh rates, hardware cursor on (the
+  pointer stays out of captured frames and is sent separately).
+- Osplay takes over the driver: other software using the same VDD installation will see its
+  monitor disabled outside Osplay sessions.
+
+## OsplayHelper service (Windows)
+
+`windows/helper/` is a LocalSystem service. It is the only Osplay component with administrator
+rights and accepts four commands from the engine:
+
+| Command | Effect |
+|---------|--------|
+| Configure (width, height, refresh, GPU name) | Validates the values, writes `vdd_settings.xml`; restarts the device if a monitor is present. |
+| Enable | Enables the device: the monitor appears with the configured mode. Requires a prior Configure. |
+| Disable | Disables the device: the monitor disappears. Persistent across reboots. |
+| Status | Reports whether the driver is installed, the monitor present and the configuration. |
+
+Safety rules:
+
+- **The monitor exists only while the client is connected.** The pipe accepts one client; when it
+  disconnects for any reason (session end, engine crash), the console user logs off or switches,
+  or the service stops, the helper disables the device. On service start it disables the device as
+  well, so a monitor left behind by a crash or by the driver's installer goes away.
+- **Only the console user can connect.** The pipe is created with `FILE_FLAG_FIRST_PIPE_INSTANCE`
+  (no squatting), `PIPE_REJECT_REMOTE_CLIENTS` and the DACL `D:P(A;;GA;;;SY)(A;;GRGW;;;<console
+  user SID>)`. After connecting, the helper checks again that the client's session is the active
+  console session and its token user is the console user (or SYSTEM).
+- **The engine checks the server.** The pipe server must run in session 0, where only services
+  run; otherwise the engine refuses it (`OSPLAY_ENGINE_ERROR_HELPER_NOT_TRUSTED`).
+- Every value is bounds-checked (width 640–7680, height 480–4320, refresh 24–240 Hz, GPU name ≤ 128
+  bytes of UTF-8 without control characters). Rejected requests are logged to
+  `%ProgramData%\Osplay\logs\helper.log` with the reason.
+
+### Pipe protocol
+
+All integers little-endian; one request and one response per pipe message; 512 bytes maximum.
+Implemented once in `windows/shared/src/helper_protocol.cpp`.
+
+```
+Request:  magic u32 = "OSPH" | version u16 = 1 | command u16 | payload_length u32 | payload
+Response: magic u32 = "OSPH" | version u16 = 1 | result u16  | payload_length u32 | payload
+
+Configure (command 1) payload:
+  width u32 | height u32 | refresh_millihertz u32 | gpu_name_length u16 | gpu_name (UTF-8)
+Enable (2), Disable (3), Status (4): no payload
+
+Response payload (always 16 bytes):
+  vdd_installed u8 | device_enabled u8 | configured u8 | reserved u8 |
+  width u32 | height u32 | refresh_millihertz u32
+
+Result codes: 0 Ok, 1 MalformedRequest, 2 UnsupportedVersion, 3 UnknownCommand,
+  4 ValueOutOfRange, 5 VddNotInstalled, 6 DeviceControlFailed, 7 ConfigWriteFailed, 8 NotConfigured
+```
+
+### Engine API
+
+`windows/engine/include/osplay/engine.h` exposes the virtual display as an opaque handle:
+`osplay_virtual_display_open` (connects to the helper), `_create_monitor`, `_remove_monitor`,
+`_status`, `_close`. Inside the engine, `VirtualDisplayProvider` is the interface;
+`HelperVirtualDisplayProvider` implements it over a `HelperChannel` (the named pipe in production,
+a fake in tests).
