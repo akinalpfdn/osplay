@@ -22,6 +22,17 @@ enum Theme {
         static let menuWidth: CGFloat = 320
     }
 
+    /// Debug test pattern shown on shared displays: full-frame motion and high-contrast edges.
+    enum TestPattern {
+        static let background = Color.black
+        static let bar = Color.white
+        static let accent = Color.orange
+        static let barWidthFraction: CGFloat = 0.08
+        /// Seconds for the bar to cross the display once.
+        static let sweepDuration: Double = 2
+        static let counterFont = Font.system(size: 96, weight: .bold, design: .monospaced)
+    }
+
     enum Symbol {
         static let menuBar = "display.2"
     }

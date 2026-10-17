@@ -1,0 +1,181 @@
+import CoreBridge
+import Foundation
+import Testing
+
+@testable import Osplay
+
+@MainActor
+@Suite("Host session")
+struct HostSessionTests {
+    private let monitors = [
+        MonitorDescription(
+            id: 3, widthPixels: 2560, heightPixels: 1440, refreshMillihertz: 60_000, physicalWidthMillimeters: 597,
+            physicalHeightMillimeters: 336, scalePercent: 100, name: "Left"),
+        MonitorDescription(
+            id: 7, widthPixels: 1920, heightPixels: 1080, refreshMillihertz: 144_000, physicalWidthMillimeters: 527,
+            physicalHeightMillimeters: 296, scalePercent: 100, name: "Right"),
+    ]
+
+    private struct Harness {
+        let core = FakeHostCore()
+        let lender = FakeDisplayLender()
+        let captures = FakeCaptureFactory()
+        let encoders = FakeEncoderFactory()
+
+        func session(permissions: FakePermissions = FakePermissions()) -> HostSession {
+            HostSession(
+                core: core, peerID: Data("peer".utf8), displays: lender, captures: captures, encoders: encoders,
+                permissions: permissions)
+        }
+    }
+
+    @Test("Viewer monitors become virtual displays, streams and running captures")
+    func startsStreamsForMonitors() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+
+        harness.core.emit(.viewerMonitors(monitors))
+        try await eventually {
+            harness.captures.captures.count == 2 && harness.captures.captures.allSatisfy(\.isRunning)
+        }
+
+        let streams = try #require(harness.core.configuredStreams.first)
+        #expect(streams.map(\.streamID) == [0, 1])
+        #expect(streams.map(\.monitorID) == [3, 7])
+        #expect(streams[1].width == 1920 && streams[1].refreshMillihertz == 144_000)
+        #expect(streams[0].bitrateKbps == Tunables.Encoding.bitrateKbps(width: 2560, height: 1440, frameRate: 60))
+        #expect(harness.lender.lentMonitors == [monitors])
+        #expect(harness.captures.captures.map(\.configuration.displayID) == [200, 201])
+        #expect(harness.captures.captures[0].configuration.width == 2560)
+        #expect(harness.encoders.encoders.map(\.configuration.frameRate) == [60, 144])
+
+        await session.stop()
+        #expect(await run.value == nil)
+    }
+
+    @Test("Captured frames reach the core, starting with a keyframe")
+    func pushesEncodedFrames() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        harness.core.emit(.viewerMonitors([monitors[0]]))
+        try await eventually { harness.captures.captures.first?.isRunning == true }
+
+        let capture = try #require(harness.captures.captures.first)
+        capture.deliverFrame(at: 1.0)
+        capture.deliverFrame(at: 1.016)
+        try await eventually { harness.core.pushedUnits.count == 2 }
+
+        let units = harness.core.pushedUnits
+        #expect(units.map(\.isKeyframe) == [true, false])
+        #expect(units[0].carriesParameterSets)
+        #expect(units.allSatisfy { $0.streamID == 0 })
+        #expect(units[0].captureTimeMicroseconds == 1_000_000)
+
+        await session.stop()
+        _ = await run.value
+    }
+
+    @Test("A keyframe request re-encodes the last frame when the screen is unchanged")
+    func keyframeRequestReencodesLastFrame() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        harness.core.emit(.viewerMonitors([monitors[0]]))
+        try await eventually { harness.captures.captures.first?.isRunning == true }
+        harness.captures.captures[0].deliverFrame(at: 1.0)
+        harness.captures.captures[0].deliverFrame(at: 1.016)
+
+        harness.core.emit(.keyframeRequested(streamID: 0))
+        try await eventually { harness.core.pushedUnits.count == 3 }
+
+        #expect(harness.encoders.encoders[0].forcedKeyframes == [true, false, true])
+        await session.stop()
+        _ = await run.value
+    }
+
+    @Test("Revoking Screen Recording mid-session ends it with that reason and cleans up")
+    func permissionRevokedMidSession() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        harness.core.emit(.viewerMonitors(monitors))
+        try await eventually {
+            harness.captures.captures.count == 2 && harness.captures.captures.allSatisfy(\.isRunning)
+        }
+
+        harness.captures.captures[1].fail(.permissionDenied)
+
+        #expect(await run.value == .stream(.capture(.permissionDenied)))
+        #expect(harness.core.isClosed)
+        #expect(!harness.lender.isLending)
+        #expect(harness.captures.captures.allSatisfy { !$0.isRunning })
+        #expect(harness.encoders.encoders.allSatisfy { $0.isInvalidated })
+    }
+
+    @Test("Without Screen Recording permission nothing starts")
+    func permissionMissing() async {
+        let harness = Harness()
+        let session = harness.session(permissions: FakePermissions(hasScreenRecordingAccess: false))
+
+        #expect(await session.run() == .screenRecordingPermissionMissing)
+        #expect(harness.core.isClosed)
+        #expect(harness.lender.lentMonitors.isEmpty)
+    }
+
+    @Test("A display failure closes the session with that reason")
+    func displayFailure() async {
+        let harness = Harness()
+        harness.lender.error = .creationFailed
+        let session = harness.session()
+        let run = Task { await session.run() }
+        harness.core.emit(.viewerMonitors(monitors))
+
+        #expect(await run.value == .display(.creationFailed))
+        #expect(harness.captures.captures.isEmpty)
+    }
+
+    @Test("The viewer leaving is an orderly end")
+    func viewerLeaves() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        harness.core.emit(.viewerMonitors([monitors[0]]))
+        try await eventually { harness.captures.captures.first?.isRunning == true }
+
+        harness.core.emit(.state(.closed, reason: .connectionClosed))
+
+        #expect(await run.value == nil)
+        #expect(!harness.lender.isLending)
+    }
+
+    @Test("Only as many displays as the Mac supports are lent")
+    func limitsDisplayCount() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        let third = MonitorDescription(
+            id: 9, widthPixels: 1280, heightPixels: 720, refreshMillihertz: 60_000, physicalWidthMillimeters: 300,
+            physicalHeightMillimeters: 170, scalePercent: 100, name: "Third")
+        harness.core.emit(.viewerMonitors(monitors + [third]))
+        try await eventually { harness.core.configuredStreams.count == 1 }
+
+        #expect(harness.lender.lentMonitors.first?.count == Tunables.VirtualDisplay.maximumDisplayCount)
+        await session.stop()
+        _ = await run.value
+    }
+}
+
+/// Polls `condition` until it holds; fails the test after 2 s.
+@MainActor
+private func eventually(_ condition: @MainActor () -> Bool) async throws {
+    let deadline = ContinuousClock.now + .seconds(2)
+    while !condition() {
+        guard ContinuousClock.now < deadline else {
+            Issue.record("condition not met within 2 s")
+            return
+        }
+        try await Task.sleep(for: .milliseconds(5))
+    }
+}
