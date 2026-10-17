@@ -39,6 +39,9 @@ Virtual display ─► Capture ─► Encoder ─► core: packetize ──UDP�
 - `core/src/protocol/` implements `docs/PROTOCOL.md`: control messages (`control_messages.hpp`)
   and media packets (`media_packets.hpp`), with one validation function per message shared by the
   encoder and the decoder. Media decoding does not allocate; payloads are views into the datagram.
+- `core/src/crypto/` implements PROTOCOL.md → Encryption: Monocypher wrappers (`primitives`), the
+  Noise XX `HandshakeState` and `CipherState` (`noise`), and media datagram sealing with a replay
+  window (`media_crypto`). Randomness comes from the platform through `crypto::RandomSource`.
 - `windows/CMakeLists.txt` adds `core` as a subdirectory and links it into the engine DLL.
 - The WPF shell loads the engine DLL through P/Invoke (from Phase 12).
 

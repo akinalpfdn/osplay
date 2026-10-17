@@ -11,14 +11,14 @@ endforeach()
 project(OsplayCore
     VERSION "${_osplay_version_MAJOR}.${_osplay_version_MINOR}.${_osplay_version_PATCH}"
     DESCRIPTION "Shared protocol, crypto and transport library for Osplay"
-    LANGUAGES CXX)
+    LANGUAGES C CXX)
 
 option(OSPLAY_CORE_BUILD_TESTS "Build the core unit tests" ${PROJECT_IS_TOP_LEVEL})
 option(OSPLAY_CORE_BUILD_FUZZER "Build the libFuzzer protocol fuzzer (Clang only)" OFF)
 
 if(OSPLAY_CORE_BUILD_FUZZER)
-    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        message(FATAL_ERROR "OSPLAY_CORE_BUILD_FUZZER requires Clang with libFuzzer")
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR "OSPLAY_CORE_BUILD_FUZZER requires Clang with libFuzzer for C and C++")
     endif()
     add_compile_options(-fsanitize=fuzzer-no-link,address,undefined -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address,undefined)
@@ -28,9 +28,17 @@ if(NOT TARGET osplay::warnings)
     include(cmake/OsplayWarnings.cmake)
 endif()
 
+# Third-party C, built without Osplay's warning policy (docs/THIRD_PARTY.md).
+add_library(osplay_monocypher STATIC third_party/monocypher/monocypher.c)
+target_include_directories(osplay_monocypher PUBLIC third_party/monocypher)
+
 add_library(osplay_core STATIC
+    src/capi/identity_capi.cpp
     src/capi/protocol_capi.cpp
     src/capi/version.cpp
+    src/crypto/media_crypto.cpp
+    src/crypto/noise.cpp
+    src/crypto/primitives.cpp
     src/protocol/control_codec.cpp
     src/protocol/media_codec.cpp
     src/protocol/text.cpp)
@@ -41,7 +49,7 @@ target_include_directories(osplay_core
     PRIVATE src)
 target_compile_features(osplay_core PUBLIC cxx_std_20)
 set_target_properties(osplay_core PROPERTIES CXX_EXTENSIONS OFF)
-target_link_libraries(osplay_core PRIVATE osplay::warnings)
+target_link_libraries(osplay_core PRIVATE osplay_monocypher osplay::warnings)
 
 if(OSPLAY_CORE_BUILD_TESTS)
     enable_testing()

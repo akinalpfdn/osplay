@@ -1,6 +1,6 @@
-// Fuzz entry point for every protocol decoder. Properties checked on any input:
-//   - decoding never crashes or reads out of bounds (run under ASan/UBSan);
-//   - whatever decodes re-encodes to exactly the same bytes (encoding is canonical).
+// Fuzz entry point for the protocol decoders. Properties checked on any input (run under
+// ASan/UBSan): nothing crashes or reads out of bounds, and whatever decodes re-encodes to exactly
+// the same bytes (encoding is canonical).
 #include "protocol/constants.hpp"
 #include "protocol/control_messages.hpp"
 #include "protocol/media_packets.hpp"
@@ -30,5 +30,6 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
             std::abort();
         }
     }
+
     return 0;
 }

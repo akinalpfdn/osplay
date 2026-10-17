@@ -1,8 +1,7 @@
 # Security model
 
-> Status: outline. The handshake and key handling are specified and implemented in Phases 3–5;
-> this page will then document them exactly. The fixed decisions are in
-> [`DEVPLAN.md`](../DEVPLAN.md) → Protocol Requirements → Security model.
+> The exact wire-level construction is in [`PROTOCOL.md`](PROTOCOL.md) → Encryption. Session
+> handling (trust decisions, refusing unknown keys) lands in Phase 5 and pairing UI in Phases 10–12.
 
 ## Goals
 
@@ -21,7 +20,13 @@
 - **Transport:** control (TCP) and media (UDP) are encrypted with keys from the Noise split,
   separate per direction and channel. UDP packets use a sliding replay window.
 - **No unencrypted mode** exists in release builds.
-- **Key storage:** macOS Keychain; Windows DPAPI-protected file.
+- **Key storage:** macOS Keychain; Windows DPAPI-protected file. Core never stores keys and wipes
+  secrets from memory when it is done with them.
+- **Randomness:** core has no access to the operating system; the platform supplies its CSPRNG
+  (`SecRandomCopyBytes`, `BCryptGenRandom`) through `osplay_random_source`.
+- **Primitives:** Monocypher 4.0.3 (X25519, ChaCha20-Poly1305, BLAKE2b), vendored and unmodified.
+- **Verification:** the handshake reproduces the published Noise XX test vectors byte for byte;
+  every network parser, the handshake reader and the media decryptor are fuzzed in CI.
 
 ## Non-goals
 

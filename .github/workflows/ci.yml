@@ -92,14 +92,19 @@ jobs:
 
       - name: Build the fuzzer (Clang, libFuzzer, ASan, UBSan)
         run: |
-          cmake -S core -B build/fuzz -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=clang++ \
+          cmake -S core -B build/fuzz -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
             -DOSPLAY_CORE_BUILD_FUZZER=ON -DOSPLAY_CORE_BUILD_TESTS=OFF
           cmake --build build/fuzz --parallel
 
-      - name: Fuzz the decoders for 60 seconds, seeded with the fixtures
+      - name: Seed the corpus with the protocol fixtures
         run: |
           mkdir -p build/corpus
           find protocol/fixtures -name '*.bin' | while read -r file; do
             cp "$file" "build/corpus/$(echo "${file#protocol/fixtures/}" | tr / _)"
           done
-          build/fuzz/fuzz/osplay_protocol_fuzzer -max_total_time=60 -max_len=4200 build/corpus
+
+      - name: Fuzz the protocol decoders for 30 seconds
+        run: build/fuzz/fuzz/osplay_protocol_fuzzer -max_total_time=30 -max_len=4200 build/corpus
+
+      - name: Fuzz the handshake reader and media opener for 30 seconds
+        run: build/fuzz/fuzz/osplay_crypto_fuzzer -max_total_time=30 -max_len=2048 build/corpus

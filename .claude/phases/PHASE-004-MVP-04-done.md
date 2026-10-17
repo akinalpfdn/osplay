@@ -1,5 +1,5 @@
 # Phase 004 (MVP-04) — Protocol codec and fixtures
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 3. Depends on: Phase 0.
 

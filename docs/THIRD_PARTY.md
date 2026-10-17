@@ -6,7 +6,9 @@ build (the phase is listed) and whenever its pinned version changes.
 | Component | Used for | License | Distributed with Osplay | Added in |
 |-----------|----------|---------|-------------------------|----------|
 | [Virtual Display Driver](https://github.com/VirtualDrivers/Virtual-Display-Driver) (MttVDD) | Windows virtual monitor | MIT | Yes — bundled signed binaries | Phase 2 (dev), Phase 14 (installer) |
-| [Monocypher](https://monocypher.org) 4 | X25519, ChaCha20-Poly1305, BLAKE2b | BSD-2-Clause or CC0-1.0 | Yes — vendored source | Phase 4 |
+| [Monocypher](https://monocypher.org) 4.0.3 | X25519, ChaCha20-Poly1305, BLAKE2b | BSD-2-Clause or CC0-1.0 | Yes — vendored source (`core/third_party/monocypher`) | Phase 4 |
+| [cacophony](https://github.com/haskell-cryptography/cacophony) Noise test vectors | Handshake tests | Unlicense | No — test data | Phase 4 |
+| [noise-c](https://github.com/rweather/noise-c) Noise test vectors | Handshake tests | MIT | No — test data | Phase 4 |
 | [Asio](https://think-async.com/Asio/) (standalone) | Sockets and timers in `core` | BSL-1.0 | Yes — vendored headers | Phase 5 |
 | [Sparkle](https://sparkle-project.org) 2 | macOS auto-updates | MIT | Yes — framework in the app | Phase 14 |
 | [WPF-UI](https://github.com/lepoco/wpfui) | Fluent controls, theme following | MIT | Yes — NuGet assembly | Phase 12 |
