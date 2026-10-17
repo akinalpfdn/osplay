@@ -36,7 +36,11 @@ typedef struct osplay_version {
  * new codes are only ever appended. Platforms map them to localized messages; core never produces
  * user-facing text.
  */
-/* Plain C enums: this header is consumed from C, Swift and C#. */
+/*
+ * Plain C enums: this header is consumed from C, Swift and C#. Each ends with a *_MAX_ENUM value
+ * so the C++ side can receive any 32-bit value from a binding without undefined behaviour; it is
+ * never a valid argument or result.
+ */
 /* NOLINTBEGIN(cppcoreguidelines-use-enum-class,performance-enum-size) */
 typedef enum osplay_result {
     OSPLAY_OK = 0,
@@ -64,12 +68,14 @@ typedef enum osplay_result {
     OSPLAY_ERROR_PAIRING_REJECTED = 22,
     OSPLAY_ERROR_PEER_BUSY = 23,
     OSPLAY_ERROR_INVALID_STATE = 24,
-    OSPLAY_ERROR_NETWORK = 25
+    OSPLAY_ERROR_NETWORK = 25,
+    OSPLAY_RESULT_MAX_ENUM = 0x7FFFFFFF
 } osplay_result;
 
 typedef enum osplay_wire_kind {
     OSPLAY_WIRE_CONTROL_MESSAGE = 1, /* one control message, without the TCP length prefix */
-    OSPLAY_WIRE_MEDIA_PACKET = 2     /* one plaintext media packet, without the AEAD tag */
+    OSPLAY_WIRE_MEDIA_PACKET = 2,    /* one plaintext media packet, without the AEAD tag */
+    OSPLAY_WIRE_KIND_MAX_ENUM = 0x7FFFFFFF
 } osplay_wire_kind;
 /* NOLINTEND(cppcoreguidelines-use-enum-class,performance-enum-size) */
 
