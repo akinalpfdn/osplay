@@ -89,7 +89,7 @@ final class FakeCapture: ScreenCapturing, @unchecked Sendable {
     /// Delivers a frame on the capture queue, as ScreenCaptureKit does.
     func deliverFrame(at seconds: Double) {
         let frame = CapturedFrame(
-            pixelBuffer: makePixelBuffer(), presentationTime: CMTime(seconds: seconds, preferredTimescale: 600))
+            pixelBuffer: makePixelBuffer(), presentationTime: CMTime(seconds: seconds, preferredTimescale: 1_000_000))
         queue.sync { output(.frame(frame)) }
     }
 

@@ -33,6 +33,7 @@ add_library(osplay_monocypher STATIC third_party/monocypher/monocypher.c)
 target_include_directories(osplay_monocypher PUBLIC third_party/monocypher)
 
 add_library(osplay_core STATIC
+    src/capi/clock_capi.cpp
     src/capi/identity_capi.cpp
     src/capi/protocol_capi.cpp
     src/capi/session_capi.cpp

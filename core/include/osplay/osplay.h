@@ -101,6 +101,15 @@ typedef struct osplay_random_source {
 osplay_version osplay_core_version(void);
 
 /*
+ * The core's monotonic clock in microseconds: the time base of osplay_access_unit.capture_time_us
+ * and of the session's clock offset. It keeps counting while the computer sleeps, unlike some
+ * platform media clocks (e.g. CMClock's host time on macOS), so platforms convert capture times
+ * to it: capture_time_us = osplay_clock_microseconds() - (media clock now - capture time).
+ * Thread-safe.
+ */
+uint64_t osplay_clock_microseconds(void);
+
+/*
  * Protocol diagnostics. Both functions are pure and thread-safe; `data` may be NULL only when
  * `length` is 0.
  *
@@ -240,7 +249,7 @@ typedef struct osplay_access_unit {
     uint8_t keyframe;     /* 0 or 1 */
     uint8_t codec_config; /* 1 if the unit carries SPS/PPS; requires keyframe */
     uint32_t frame_id;
-    uint64_t capture_time_us; /* host clock */
+    uint64_t capture_time_us; /* host's osplay_clock_microseconds() time base */
     const uint8_t* data;
     size_t length;
 } osplay_access_unit;

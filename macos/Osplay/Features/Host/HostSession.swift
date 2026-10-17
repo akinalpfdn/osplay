@@ -96,6 +96,11 @@ actor HostSession {
         core.close()
     }
 
+    /// Frames captured so far per stream, for diagnostics.
+    func capturedFrameCounts() -> [UInt8: UInt64] {
+        pipelines.mapValues(\.capturedFrameCount)
+    }
+
     /// Files written by the debug dump, once the session has ended.
     func dumpFiles() -> [URL] {
         dump?.finish() ?? []

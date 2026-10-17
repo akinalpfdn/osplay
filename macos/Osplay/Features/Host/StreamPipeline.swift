@@ -27,6 +27,8 @@ final class StreamPipeline: @unchecked Sendable {
     private var lastPresentationTime = CMTime.negativeInfinity
     private var keyframePending = true
     private var stopped = false
+    private let counterLock = NSLock()
+    private var captured: UInt64 = 0
 
     init(
         stream: StreamConfiguration, displayID: CGDirectDisplayID, captures: any ScreenCaptureMaking,
@@ -58,7 +60,9 @@ final class StreamPipeline: @unchecked Sendable {
                     sink(
                         AccessUnit(
                             streamID: streamID, isKeyframe: frame.isKeyframe, carriesParameterSets: frame.isKeyframe,
-                            captureTimeMicroseconds: frame.captureTimeMicroseconds, data: frame.data))
+                            captureTimeMicroseconds: CaptureClock.coreMicroseconds(
+                                fromHostMicroseconds: frame.captureTimeMicroseconds),
+                            data: frame.data))
                 case .failure(let error):
                     onFailure(.encoder(error))
                 }
@@ -81,6 +85,9 @@ final class StreamPipeline: @unchecked Sendable {
             throw .capture(error)
         }
     }
+
+    /// Frames ScreenCaptureKit delivered with new content so far.
+    var capturedFrameCount: UInt64 { counterLock.withLock { captured } }
 
     /// The next frame becomes a keyframe. An unchanged screen produces no frames, so the last one
     /// is encoded again right away; otherwise the viewer would wait until something moves.
@@ -107,6 +114,7 @@ final class StreamPipeline: @unchecked Sendable {
         guard !stopped else { return }
         switch event {
         case .frame(let frame):
+            counterLock.withLock { captured += 1 }
             lastFrame = frame
             encode(frame.pixelBuffer, at: max(frame.presentationTime, nextPresentationTime))
         case .stopped(let error):

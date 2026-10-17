@@ -71,7 +71,8 @@ struct HostSessionTests {
         #expect(units.map(\.isKeyframe) == [true, false])
         #expect(units[0].carriesParameterSets)
         #expect(units.allSatisfy { $0.streamID == 0 })
-        #expect(units[0].captureTimeMicroseconds == 1_000_000)
+        let spacing = Int64(units[1].captureTimeMicroseconds) - Int64(units[0].captureTimeMicroseconds)
+        #expect(abs(spacing - 16_000) < 1_000, "capture times keep their spacing in the core's clock")
 
         await session.stop()
         _ = await run.value
