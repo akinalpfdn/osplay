@@ -31,7 +31,7 @@ bool has_hardware_id(HDEVINFO set, SP_DEVINFO_DATA& data, const wchar_t* wanted)
     if (required == 0) {
         return false;
     }
-    std::vector<wchar_t> ids(required / sizeof(wchar_t) + 1, L'\0');
+    std::vector<wchar_t> ids((required / sizeof(wchar_t)) + 1, L'\0');
     if (!SetupDiGetDeviceRegistryPropertyW(
             set, &data, SPDRP_HARDWAREID, nullptr, reinterpret_cast<PBYTE>(ids.data()),
             static_cast<DWORD>(ids.size() * sizeof(wchar_t)), nullptr)) {
@@ -47,12 +47,12 @@ bool has_hardware_id(HDEVINFO set, SP_DEVINFO_DATA& data, const wchar_t* wanted)
 }
 
 std::optional<FoundDevice> find_vdd() {
-    DeviceInfoSet set(
-        SetupDiGetClassDevsW(nullptr, nullptr, nullptr, DIGCF_ALLCLASSES | DIGCF_PRESENT));
-    if (set.get() == INVALID_HANDLE_VALUE) {
-        set.release();
+    HDEVINFO raw_set =
+        SetupDiGetClassDevsW(nullptr, nullptr, nullptr, DIGCF_ALLCLASSES | DIGCF_PRESENT);
+    if (raw_set == INVALID_HANDLE_VALUE) {
         return std::nullopt;
     }
+    DeviceInfoSet set(raw_set);
     SP_DEVINFO_DATA data{};
     data.cbSize = sizeof(data);
     for (DWORD index = 0; SetupDiEnumDeviceInfo(set.get(), index, &data); ++index) {

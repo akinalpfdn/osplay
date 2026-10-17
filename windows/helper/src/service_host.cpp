@@ -102,8 +102,10 @@ void WINAPI service_main(DWORD /*argc*/, LPWSTR* /*argv*/) {
 bool run_as_service() {
     // The SCM takes a mutable name that must stay alive while the dispatcher runs.
     static std::wstring name(kServiceName);
-    const std::array<SERVICE_TABLE_ENTRYW, 2> table{
-        {{name.data(), service_main}, {nullptr, nullptr}}};
+    const std::array<SERVICE_TABLE_ENTRYW, 2> table{{
+        {.lpServiceName = name.data(), .lpServiceProc = service_main},
+        {.lpServiceName = nullptr, .lpServiceProc = nullptr},
+    }};
     return StartServiceCtrlDispatcherW(table.data()) != FALSE;
 }
 

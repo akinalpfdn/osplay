@@ -10,8 +10,8 @@
 #include <cwchar>
 #include <iostream>
 
-// NOLINTNEXTLINE(misc-use-internal-linkage,cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays):
-// entry point
+// Entry point: the signature is fixed by the C runtime.
+// NOLINTNEXTLINE(misc-use-internal-linkage,*-avoid-c-arrays)
 int wmain(int argc, wchar_t* argv[]) {
     if (argc == 2 && std::wcscmp(argv[1], L"--install") == 0) {
         return osplay::helper::install_service();

@@ -17,9 +17,9 @@ std::filesystem::path settings_directory() {
     if (RegGetValueW(HKEY_LOCAL_MACHINE, kVddRegistryKey, kVddRegistryPathValue, RRF_RT_REG_SZ,
                      nullptr, buffer.data(), &size) == ERROR_SUCCESS &&
         buffer[0] != L'\0') {
-        return std::filesystem::path(buffer.data());
+        return {buffer.data()};
     }
-    return std::filesystem::path(kVddDefaultDirectory);
+    return {kVddDefaultDirectory};
 }
 
 struct HandleCloser {

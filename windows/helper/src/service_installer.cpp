@@ -57,9 +57,11 @@ int install_service() {
     SERVICE_DESCRIPTIONW description_info{description.data()};
     ChangeServiceConfig2W(service.get(), SERVICE_CONFIG_DESCRIPTION, &description_info);
 
-    std::array<SC_ACTION, 3> actions{{{SC_ACTION_RESTART, kServiceRestartDelayMilliseconds},
-                                      {SC_ACTION_RESTART, kServiceRestartDelayMilliseconds},
-                                      {SC_ACTION_NONE, 0}}};
+    std::array<SC_ACTION, 3> actions{{
+        {.Type = SC_ACTION_RESTART, .Delay = kServiceRestartDelayMilliseconds},
+        {.Type = SC_ACTION_RESTART, .Delay = kServiceRestartDelayMilliseconds},
+        {.Type = SC_ACTION_NONE, .Delay = 0},
+    }};
     SERVICE_FAILURE_ACTIONSW failure{};
     failure.dwResetPeriod = 24 * 60 * 60;
     failure.cActions = static_cast<DWORD>(actions.size());

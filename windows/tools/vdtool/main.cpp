@@ -5,8 +5,10 @@
 #include <osplay/engine.h>
 
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <exception>
 #include <format>
 #include <iostream>
 #include <span>
@@ -88,7 +90,7 @@ int run(std::span<char*> args) {
             .width = static_cast<std::uint32_t>(std::strtoul(args[2], nullptr, 10)),
             .height = static_cast<std::uint32_t>(std::strtoul(args[3], nullptr, 10)),
             .refresh_millihertz =
-                static_cast<std::uint32_t>((std::strtod(args[4], nullptr) * 1000.0) + 0.5),
+                static_cast<std::uint32_t>(std::lround(std::strtod(args[4], nullptr) * 1000.0)),
             .gpu_name_utf8 = args.size() == 6 ? args[5] : nullptr,
         };
         ok = report("create", osplay_virtual_display_create_monitor(display, &config));
@@ -107,7 +109,13 @@ int run(std::span<char*> args) {
 
 } // namespace
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): entry point signature
+// Entry point: the signature is fixed by the C runtime.
+// NOLINTNEXTLINE(*-avoid-c-arrays)
 int main(int argc, char* argv[]) {
-    return run(std::span<char*>(argv, static_cast<std::size_t>(argc)));
+    try {
+        return run(std::span<char*>(argv, static_cast<std::size_t>(argc)));
+    } catch (const std::exception& error) {
+        std::cerr << "error: " << error.what() << '\n';
+        return 1;
+    }
 }
