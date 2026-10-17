@@ -52,6 +52,16 @@ open DerivedData/Build/Products/Debug/Osplay.app
 
 The app has no Dock icon; it appears as a display icon in the menu bar.
 
+If the clone lives in `~/Documents`, `~/Desktop` or `~/Downloads`, put the build folder elsewhere
+(for example `-derivedDataPath ~/Library/Developer/Xcode/DerivedData/Osplay`): from those folders
+video encoders take minutes to start (see `TROUBLESHOOTING.md`).
+
+Debug builds show a **Host media test** in the menu bar popover: it creates one or two virtual
+displays with a moving test pattern, captures and encodes them, streams them over loopback into
+an in-process viewer and shows frame rate, frame interval (p99 and maximum), bitrate and latency
+per stream. It needs Screen Recording permission. With "Save streams" on, the encoded streams are
+written to `~/Movies/Osplay` as `.h264` files.
+
 To work in Xcode, run `xcodegen generate` in `macos/` and open `Osplay.xcodeproj`. The project is
 generated from `macos/project.yml` and is not committed: re-run `xcodegen generate` after pulling
 changes or adding files.
