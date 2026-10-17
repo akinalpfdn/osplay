@@ -1,5 +1,5 @@
 # Phase 003 (MVP-03) — Windows virtual display through VDD and the helper service
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 2. Depends on: Phase 0.
 
