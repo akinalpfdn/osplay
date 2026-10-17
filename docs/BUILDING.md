@@ -70,7 +70,8 @@ The C++ tests and the Swift tests (`swift test`) both read `protocol/fixtures/ma
 libFuzzer, which Apple's Clang lacks; CI runs it on Linux. Locally, with Homebrew's LLVM:
 
 ```sh
-cmake -S core -B build/fuzz -G Ninja -DCMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
+cmake -S core -B build/fuzz -G Ninja -DCMAKE_C_COMPILER="$(brew --prefix llvm)/bin/clang" \
+  -DCMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
   -DOSPLAY_CORE_BUILD_FUZZER=ON -DOSPLAY_CORE_BUILD_TESTS=OFF
 cmake --build build/fuzz
 build/fuzz/fuzz/osplay_protocol_fuzzer -max_total_time=60 protocol/fixtures/control

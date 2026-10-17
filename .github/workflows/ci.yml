@@ -92,7 +92,7 @@ jobs:
 
       - name: Build the fuzzer (Clang, libFuzzer, ASan, UBSan)
         run: |
-          cmake -S core -B build/fuzz -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=clang++ \
+          cmake -S core -B build/fuzz -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
             -DOSPLAY_CORE_BUILD_FUZZER=ON -DOSPLAY_CORE_BUILD_TESTS=OFF
           cmake --build build/fuzz --parallel
 

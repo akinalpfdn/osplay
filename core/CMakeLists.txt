@@ -17,8 +17,8 @@ option(OSPLAY_CORE_BUILD_TESTS "Build the core unit tests" ${PROJECT_IS_TOP_LEVE
 option(OSPLAY_CORE_BUILD_FUZZER "Build the libFuzzer protocol fuzzer (Clang only)" OFF)
 
 if(OSPLAY_CORE_BUILD_FUZZER)
-    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        message(FATAL_ERROR "OSPLAY_CORE_BUILD_FUZZER requires Clang with libFuzzer")
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR "OSPLAY_CORE_BUILD_FUZZER requires Clang with libFuzzer for C and C++")
     endif()
     add_compile_options(-fsanitize=fuzzer-no-link,address,undefined -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address,undefined)
