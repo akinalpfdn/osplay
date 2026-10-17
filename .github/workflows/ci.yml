@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: macOS
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+      - name: Install build tools
+        run: brew install cmake ninja xcodegen
+
+      - name: Core — configure, build, test
+        working-directory: core
+        run: |
+          cmake --preset debug
+          cmake --build --preset debug
+          ctest --preset debug
+
+      - name: Format, lint and localization checks
+        run: scripts/lint.sh
+
+      - name: Swift package — build and test
+        run: swift test
+
+      - name: macOS app — generate, build, test
+        working-directory: macos
+        run: |
+          xcodegen generate
+          xcodebuild -project Osplay.xcodeproj -scheme Osplay -destination 'platform=macOS' \
+            -derivedDataPath DerivedData -quiet test
+
+  windows:
+    name: Windows
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: windows/app/global.json
+
+      - name: Native — configure, build, test
+        working-directory: windows
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          . ../scripts/windows/Enter-DevShell.ps1
+          cmake --preset debug
+          cmake --build --preset debug
+          ctest --preset debug
+
+      - name: Shell — format check
+        working-directory: windows/app
+        run: dotnet format Osplay.slnx --verify-no-changes
+
+      - name: Shell — build
+        working-directory: windows/app
+        run: dotnet build Osplay.slnx -c Release
