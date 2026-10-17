@@ -2,6 +2,11 @@
 
 #include "protocol/constants.hpp"
 
+// CMake includes Asio as a system header; SwiftPM cannot, so its warnings are silenced here.
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
+#endif
 #include <asio/connect.hpp>
 #include <asio/executor_work_guard.hpp>
 #include <asio/io_context.hpp>
@@ -10,6 +15,9 @@
 #include <asio/ip/v6_only.hpp>
 #include <asio/post.hpp>
 #include <asio/steady_timer.hpp>
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 #include <array>
 #include <atomic>
