@@ -1,0 +1,55 @@
+name: Bug report
+description: Something does not work as described.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please search existing issues first. Security issues go to the
+        private advisory form instead (see the issue chooser).
+  - type: dropdown
+    id: use-case
+    attributes:
+      label: Setup
+      options:
+        - Mac host → Windows viewer
+        - Windows host → Mac viewer
+        - Other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: osplay-version
+    attributes:
+      label: Osplay version (both devices)
+      placeholder: "Mac 0.1.0, Windows 0.1.0"
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS versions, Mac model, Windows GPU, wired or Wi-Fi, monitor resolutions.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Paste the output of "Copy diagnostics" from the app, if available.
+      render: text

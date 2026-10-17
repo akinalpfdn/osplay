@@ -1,0 +1,13 @@
+<!-- Single source of visual values for the shell. Light/dark dictionaries arrive with the shell UI. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+  <Color x:Key="Osplay.Color.Accent">#FF2F6FEB</Color>
+  <Color x:Key="Osplay.Color.OnAccent">#FFFFFFFF</Color>
+
+  <SolidColorBrush x:Key="Osplay.Brush.TrayIconBackground" Color="{StaticResource Osplay.Color.Accent}" />
+  <SolidColorBrush x:Key="Osplay.Brush.TrayIconForeground" Color="{StaticResource Osplay.Color.OnAccent}" />
+
+  <sys:Double x:Key="Osplay.FontSize.TrayIconGlyph">96</sys:Double>
+  <sys:String x:Key="Osplay.Tray.IconGlyph">O</sys:String>
+</ResourceDictionary>
