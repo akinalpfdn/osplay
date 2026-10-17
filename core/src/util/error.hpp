@@ -23,6 +23,15 @@ enum class Error : std::uint8_t {
     NonceExhausted = 14,
     InvalidKey = 15,
     RandomUnavailable = 16,
+    TimedOut = 17,
+    ConnectionClosed = 18,
+    PeerError = 19,
+    UnexpectedMessage = 20,
+    NotTrusted = 21,
+    PairingRejected = 22,
+    PeerBusy = 23,
+    InvalidState = 24,
+    NetworkError = 25,
 };
 
 } // namespace osplay

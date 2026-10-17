@@ -15,11 +15,13 @@ add_executable(osplay_core_tests
     capi_protocol_test.cpp
     crypto_primitives_test.cpp
     media_crypto_test.cpp
+    media_test.cpp
     noise_handshake_test.cpp
     noise_vectors_test.cpp
     protocol_codec_test.cpp
     protocol_fixture_test.cpp
     protocol_values_test.cpp
+    session_engine_test.cpp
     version_test.cpp)
 # Tests reach internal headers; only the C header is public API.
 target_include_directories(osplay_core_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)

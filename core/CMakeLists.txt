@@ -39,6 +39,11 @@ add_library(osplay_core STATIC
     src/crypto/media_crypto.cpp
     src/crypto/noise.cpp
     src/crypto/primitives.cpp
+    src/media/packetizer.cpp
+    src/media/reassembler.cpp
+    src/media/retransmit_cache.cpp
+    src/session/control_framer.cpp
+    src/session/session_engine.cpp
     src/protocol/control_codec.cpp
     src/protocol/media_codec.cpp
     src/protocol/text.cpp)
