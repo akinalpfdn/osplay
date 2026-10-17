@@ -13,11 +13,16 @@
 #include <asio/write.hpp>
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <array>
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
+#include <cstring>
 #include <deque>
-#include <functional>
+#include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -237,7 +242,11 @@ private:
             asio::buffer(*buffer), *source,
             [this, &socket, from_viewer, buffer, source](const asio::error_code& error,
                                                          std::size_t size) {
-                if (error) {
+                if (error == asio::error::operation_aborted || !socket.is_open()) {
+                    return;
+                }
+                if (error) { // e.g. ICMP port unreachable on Windows: keep relaying
+                    forward_datagrams(socket, from_viewer);
                     return;
                 }
                 {
