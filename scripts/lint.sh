@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Runs every formatter in check mode, clang-tidy on core and the localization check.
+# Runs every formatter in check mode, clang-tidy (core and portable Windows libraries) and the
+# localization check.
 # CI runs this exact script; run it before every commit. Requires: uv, CMake, Ninja, Xcode.
 set -euo pipefail
 
@@ -39,16 +40,22 @@ xcrun swift-format lint --strict --recursive --parallel \
 echo "==> localization"
 python3 scripts/check_localization.py
 
-echo "==> clang-tidy ${CLANG_TIDY_VERSION} (core)"
-build_dir="core/build/debug"
-if [[ ! -f "${build_dir}/compile_commands.json" ]]; then
-    (cd core && cmake --preset debug >/dev/null)
-fi
-tidy_args=(-p "${build_dir}" --quiet)
+tidy_extra=()
 if [[ "$(uname -s)" == "Darwin" ]]; then
     # The PyPI clang-tidy does not know where Xcode's SDK lives.
-    tidy_args+=("--extra-arg=-isysroot$(xcrun --show-sdk-path)")
+    tidy_extra+=("--extra-arg=-isysroot$(xcrun --show-sdk-path)")
 fi
-list_files 'core/src/*.cpp' | run_on_files uvx "clang-tidy@${CLANG_TIDY_VERSION}" "${tidy_args[@]}"
+
+echo "==> clang-tidy ${CLANG_TIDY_VERSION} (core)"
+if [[ ! -f core/build/debug/compile_commands.json ]]; then
+    (cd core && cmake --preset debug >/dev/null)
+fi
+python3 scripts/run_clang_tidy.py core/build/debug core/src -- ${tidy_extra[@]+"${tidy_extra[@]}"}
+
+echo "==> clang-tidy ${CLANG_TIDY_VERSION} (portable Windows libraries)"
+if [[ ! -f windows/build/portable/compile_commands.json ]]; then
+    (cd windows && cmake --preset portable >/dev/null)
+fi
+python3 scripts/run_clang_tidy.py windows/build/portable windows/ -- ${tidy_extra[@]+"${tidy_extra[@]}"}
 
 echo "All checks passed."

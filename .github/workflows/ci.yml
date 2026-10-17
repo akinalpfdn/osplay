@@ -31,6 +31,13 @@ jobs:
           cmake --build --preset debug
           ctest --preset debug
 
+      - name: Portable Windows libraries — configure, build, test
+        working-directory: windows
+        run: |
+          cmake --preset portable
+          cmake --build --preset portable
+          ctest --preset portable
+
       - name: Format, lint and localization checks
         run: scripts/lint.sh
 
@@ -57,7 +64,9 @@ jobs:
         with:
           global-json-file: windows/app/global.json
 
-      - name: Native — configure, build, test
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+      - name: Native — configure, build, test, clang-tidy
         working-directory: windows
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
@@ -65,6 +74,7 @@ jobs:
           cmake --preset debug
           cmake --build --preset debug
           ctest --preset debug
+          python ../scripts/run_clang_tidy.py windows/build/debug core/src windows/
 
       - name: Shell — format check
         working-directory: windows/app
