@@ -43,7 +43,7 @@ void Reassembler::add(const protocol::VideoFragment& fragment, TimePoint now) {
     auto [it, inserted] = pending_.try_emplace(fragment.frame_id);
     Pending& frame = it->second;
     if (inserted) {
-        frame.first_seen = now;
+        frame.last_progress = now;
     }
     if (frame.fragment_count == 0) {
         frame.fragment_count = fragment.fragment_count;
@@ -59,6 +59,7 @@ void Reassembler::add(const protocol::VideoFragment& fragment, TimePoint now) {
     std::ranges::copy(fragment.payload, frame.data.begin() + static_cast<std::ptrdiff_t>(offset));
     frame.have[fragment.fragment_index] = true;
     ++frame.fragments_received;
+    frame.last_progress = now;
     if (fragment.fragment_index + 1 == fragment.fragment_count) {
         frame.size = offset + fragment.payload.size();
     }
@@ -73,7 +74,7 @@ void Reassembler::add(const protocol::VideoFragment& fragment, TimePoint now) {
         } else {
             for (std::uint32_t id = *next_frame_id_; id < fragment.frame_id; ++id) {
                 Pending placeholder;
-                placeholder.first_seen = now;
+                placeholder.last_progress = now;
                 pending_.try_emplace(id, std::move(placeholder));
             }
         }
@@ -165,7 +166,8 @@ void Reassembler::tick(TimePoint now) {
             if (frame.complete()) {
                 continue;
             }
-            const auto elapsed = std::chrono::duration_cast<Microseconds>(now - frame.first_seen);
+            const auto elapsed =
+                std::chrono::duration_cast<Microseconds>(now - frame.last_progress);
             if (elapsed >= deadline()) {
                 drop_through(frame_id);
                 deliver_ready(); // a newer keyframe may already be complete

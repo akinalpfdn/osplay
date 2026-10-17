@@ -66,7 +66,9 @@ public:
 
 private:
     struct Pending {
-        TimePoint first_seen;
+        /// Last time this frame made progress (a new fragment, or the gap was found). NACK and
+        /// deadline count from here, so a large frame still arriving is not given up.
+        TimePoint last_progress;
         std::uint16_t fragment_count = 0; // 0 while only a gap placeholder
         std::uint16_t fragments_received = 0;
         std::vector<bool> have;

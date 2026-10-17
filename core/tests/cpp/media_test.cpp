@@ -202,6 +202,19 @@ TEST_F(ReassemblerTest, DropsAtTheDeadlineAndSkipsToTheNextKeyframe) {
     EXPECT_GE(reassembler.stats().frames_dropped, 2U);
 }
 
+TEST_F(ReassemblerTest, KeepsAFrameThatIsStillArrivingPastTheDeadline) {
+    feed(make(500, true));
+    const auto large = make(30 * protocol::kMaxVideoPayload, false);
+    for (const auto& fragment : large) {
+        reassembler.add(fragment, now);
+        now += milliseconds(2); // 60 ms in total, far beyond one frame interval
+        reassembler.tick(now);
+    }
+    EXPECT_EQ(sink.frame_ids, (std::vector<std::uint32_t>{0, 1}));
+    EXPECT_TRUE(sink.nacks.empty());
+    EXPECT_EQ(sink.keyframe_requests, 0);
+}
+
 TEST_F(ReassemblerTest, NacksWholeFramesThatNeverArrived) {
     feed(make(500, true));
     make(500, false); // frame 1: lost entirely
