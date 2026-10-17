@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Runs every formatter in check mode, clang-tidy (core and portable Windows libraries) and the
-# localization check.
+# Runs every formatter in check mode, clang-tidy (core and portable Windows libraries), the
+# localization check and the protocol fixture check.
 # CI runs this exact script; run it before every commit. Requires: uv, CMake, Ninja, Xcode.
 set -euo pipefail
 
@@ -35,10 +35,13 @@ list_files '*.h' '*.hpp' '*.c' '*.cpp' ':!:*/third_party/*' |
 
 echo "==> swift-format"
 xcrun swift-format lint --strict --recursive --parallel \
-    Package.swift macos/Osplay macos/OsplayTests macos/OsplayHardwareTests core/tests/swift
+    Package.swift macos/Osplay macos/OsplayTests macos/OsplayHardwareTests macos/CoreBridge macos/CoreBridgeTests
 
 echo "==> localization"
 python3 scripts/check_localization.py
+
+echo "==> protocol fixtures"
+python3 protocol/tools/generate_fixtures.py --check
 
 tidy_extra=()
 if [[ "$(uname -s)" == "Darwin" ]]; then

@@ -83,3 +83,23 @@ jobs:
       - name: Shell — build
         working-directory: windows/app
         run: dotnet build Osplay.slnx -c Release
+
+  fuzz:
+    name: Protocol fuzzing
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build the fuzzer (Clang, libFuzzer, ASan, UBSan)
+        run: |
+          cmake -S core -B build/fuzz -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=clang++ \
+            -DOSPLAY_CORE_BUILD_FUZZER=ON -DOSPLAY_CORE_BUILD_TESTS=OFF
+          cmake --build build/fuzz --parallel
+
+      - name: Fuzz the decoders for 60 seconds, seeded with the fixtures
+        run: |
+          mkdir -p build/corpus
+          find protocol/fixtures -name '*.bin' | while read -r file; do
+            cp "$file" "build/corpus/$(echo "${file#protocol/fixtures/}" | tr / _)"
+          done
+          build/fuzz/fuzz/osplay_protocol_fuzzer -max_total_time=60 -max_len=4200 build/corpus

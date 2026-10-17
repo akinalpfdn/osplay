@@ -113,3 +113,30 @@ choices the plan leaves open are logged here.
 **Revisit if:** Never needed; the split costs little.
 
 ---
+
+## 2026-10-17 — Protocol fixtures from an independent encoder
+**Chosen:** Binary fixtures are written by a Python encoder (`protocol/tools/generate_fixtures.py`) that follows `docs/PROTOCOL.md` and shares no code with the C++ codec. Tests check that every valid fixture decodes to the documented field values and re-encodes byte for byte, and that every malformed fixture fails with its documented error. CI fails if the files differ from the generator's output.
+**Alternatives:** Generating fixtures with the C++ encoder; hand-written hex files.
+**Why:** Fixtures produced by the implementation under test only prove it agrees with itself. Two independent encoders that agree byte for byte catch misreadings of the specification. A generator keeps 82 files reviewable as code.
+**Trade-offs:** A protocol change has to be made in the document, the generator and the codec.
+**Revisit if:** A third implementation (e.g. a C# decoder) appears; it would test against the same fixtures.
+
+---
+
+## 2026-10-17 — CoreBridge lives in the Swift package
+**Chosen:** `CoreBridge`, the Swift wrapper over the C API, is a target of the root Swift package (`macos/CoreBridge/`), not part of the app target. The app depends on the `CoreBridge` product; `swift test` runs the fixture tests through it.
+**Alternatives:** Keep CoreBridge in the app target (DEVPLAN's layout) and test it through the app's test bundle.
+**Why:** DEVPLAN asks for Swift tests via CoreBridge against the shared fixtures; as a package target they run with `swift test` in seconds, without building and hosting the app, and the wrapper's public API is explicit.
+**Trade-offs:** One more module boundary; CoreBridge types must be `public`.
+**Revisit if:** CoreBridge needs app-only frameworks.
+
+---
+
+## 2026-10-17 — MediaSetup control message
+**Chosen:** A 20th control message, MediaSetup (host → viewer: UDP port and session token), in addition to DEVPLAN's list.
+**Alternatives:** Put the token in Capabilities; advertise the UDP port through Bonjour.
+**Why:** DEVPLAN requires a session token issued over the control channel for the UDP association, and the viewer also needs the host's ephemeral UDP port. Capabilities are symmetric and sent by both sides; a dedicated host message keeps both concerns explicit.
+**Trade-offs:** None significant.
+**Revisit if:** Media moves to a different transport.
+
+---

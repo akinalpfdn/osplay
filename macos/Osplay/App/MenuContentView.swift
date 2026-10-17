@@ -1,4 +1,5 @@
 import AppKit
+import CoreBridge
 import SwiftUI
 
 struct MenuContentView: View {
