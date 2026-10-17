@@ -12,6 +12,12 @@ public enum CoreError: Error, Equatable, Sendable {
     case valueOutOfRange
     case invalidString
     case tooLarge
+    case decryptionFailed
+    case handshakeOutOfOrder
+    case replayed
+    case nonceExhausted
+    case invalidKey
+    case randomUnavailable
     /// A code added to the core after this app was built.
     case unknown(code: UInt32)
 
@@ -29,6 +35,12 @@ public enum CoreError: Error, Equatable, Sendable {
         case OSPLAY_ERROR_VALUE_OUT_OF_RANGE: self = .valueOutOfRange
         case OSPLAY_ERROR_INVALID_STRING: self = .invalidString
         case OSPLAY_ERROR_TOO_LARGE: self = .tooLarge
+        case OSPLAY_ERROR_DECRYPTION_FAILED: self = .decryptionFailed
+        case OSPLAY_ERROR_HANDSHAKE_OUT_OF_ORDER: self = .handshakeOutOfOrder
+        case OSPLAY_ERROR_REPLAYED: self = .replayed
+        case OSPLAY_ERROR_NONCE_EXHAUSTED: self = .nonceExhausted
+        case OSPLAY_ERROR_INVALID_KEY: self = .invalidKey
+        case OSPLAY_ERROR_RANDOM_UNAVAILABLE: self = .randomUnavailable
         default: self = .unknown(code: result.rawValue)
         }
     }
@@ -46,6 +58,12 @@ public enum CoreError: Error, Equatable, Sendable {
         case .valueOutOfRange: OSPLAY_ERROR_VALUE_OUT_OF_RANGE.rawValue
         case .invalidString: OSPLAY_ERROR_INVALID_STRING.rawValue
         case .tooLarge: OSPLAY_ERROR_TOO_LARGE.rawValue
+        case .decryptionFailed: OSPLAY_ERROR_DECRYPTION_FAILED.rawValue
+        case .handshakeOutOfOrder: OSPLAY_ERROR_HANDSHAKE_OUT_OF_ORDER.rawValue
+        case .replayed: OSPLAY_ERROR_REPLAYED.rawValue
+        case .nonceExhausted: OSPLAY_ERROR_NONCE_EXHAUSTED.rawValue
+        case .invalidKey: OSPLAY_ERROR_INVALID_KEY.rawValue
+        case .randomUnavailable: OSPLAY_ERROR_RANDOM_UNAVAILABLE.rawValue
         case .unknown(let code): code
         }
     }
