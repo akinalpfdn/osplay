@@ -1,0 +1,195 @@
+#include <osplay/win/helper_protocol.hpp>
+
+#include <gtest/gtest.h>
+
+#include <cstdint>
+#include <vector>
+
+namespace {
+
+using osplay::win::helper::Bytes;
+using osplay::win::helper::Command;
+using osplay::win::helper::DecodeError;
+using osplay::win::helper::MonitorConfig;
+using osplay::win::helper::Request;
+using osplay::win::helper::Response;
+using osplay::win::helper::ResultCode;
+namespace helper = osplay::win::helper;
+
+MonitorConfig valid_config() {
+    return MonitorConfig{
+        .width = 2560, .height = 1664, .refresh_millihertz = 60'000, .gpu_name = ""};
+}
+
+Request configure(MonitorConfig config) {
+    return Request{.command = Command::Configure, .config = std::move(config)};
+}
+
+DecodeError request_error(const Bytes& bytes) {
+    const auto decoded = helper::decode_request(bytes);
+    EXPECT_FALSE(decoded.has_value());
+    return decoded.has_value() ? DecodeError::Truncated : decoded.error();
+}
+
+TEST(HelperProtocol, StatusRequestHasPinnedByteLayout) {
+    const Bytes expected{'O', 'S', 'P', 'H', 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00};
+    EXPECT_EQ(helper::encode(Request{.command = Command::Status, .config = {}}), expected);
+}
+
+TEST(HelperProtocol, ConfigureRequestHasPinnedByteLayout) {
+    MonitorConfig config = valid_config();
+    config.gpu_name = "GPU";
+    const Bytes expected{'O',  'S',  'P',  'H',  0x01, 0x00, 0x01, 0x00, 0x11, 0x00,
+                         0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x80, 0x06, 0x00, 0x00,
+                         0x60, 0xEA, 0x00, 0x00, 0x03, 0x00, 'G',  'P',  'U'};
+    EXPECT_EQ(helper::encode(configure(config)), expected);
+}
+
+TEST(HelperProtocol, EveryRequestRoundTrips) {
+    MonitorConfig named = valid_config();
+    named.gpu_name = "NVIDIA GeForce RTX 4070 — Çalışma";
+    const std::vector<Request> requests{
+        configure(valid_config()),
+        configure(named),
+        Request{.command = Command::Enable, .config = {}},
+        Request{.command = Command::Disable, .config = {}},
+        Request{.command = Command::Status, .config = {}},
+    };
+    for (const Request& request : requests) {
+        const auto decoded = helper::decode_request(helper::encode(request));
+        ASSERT_TRUE(decoded.has_value());
+        EXPECT_EQ(decoded.value(), request);
+    }
+}
+
+TEST(HelperProtocol, ResponseRoundTrips) {
+    const Response response{
+        .result = ResultCode::Ok,
+        .status = {.vdd_installed = true,
+                   .device_enabled = true,
+                   .configured = true,
+                   .width = 2560,
+                   .height = 1664,
+                   .refresh_millihertz = 60'000},
+    };
+    const auto decoded = helper::decode_response(helper::encode(response));
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_EQ(decoded.value(), response);
+}
+
+TEST(HelperProtocol, RejectsTruncatedHeader) {
+    Bytes bytes = helper::encode(Request{.command = Command::Status, .config = {}});
+    bytes.resize(helper::kHeaderSize - 1);
+    EXPECT_EQ(request_error(bytes), DecodeError::Truncated);
+    EXPECT_EQ(request_error({}), DecodeError::Truncated);
+}
+
+TEST(HelperProtocol, RejectsBadMagic) {
+    Bytes bytes = helper::encode(Request{.command = Command::Status, .config = {}});
+    bytes[0] = 'X';
+    EXPECT_EQ(request_error(bytes), DecodeError::BadMagic);
+}
+
+TEST(HelperProtocol, RejectsOtherVersions) {
+    Bytes bytes = helper::encode(Request{.command = Command::Status, .config = {}});
+    bytes[4] = 2;
+    EXPECT_EQ(request_error(bytes), DecodeError::UnsupportedVersion);
+}
+
+TEST(HelperProtocol, RejectsUnknownCommands) {
+    Bytes bytes = helper::encode(Request{.command = Command::Status, .config = {}});
+    bytes[6] = 0x7F;
+    EXPECT_EQ(request_error(bytes), DecodeError::UnknownCommand);
+    bytes[6] = 0x00;
+    EXPECT_EQ(request_error(bytes), DecodeError::UnknownCommand);
+}
+
+TEST(HelperProtocol, RejectsPayloadLengthMismatch) {
+    Bytes bytes = helper::encode(Request{.command = Command::Status, .config = {}});
+    bytes.push_back(0);
+    EXPECT_EQ(request_error(bytes), DecodeError::LengthMismatch);
+
+    Bytes payload_on_enable = helper::encode(Request{.command = Command::Enable, .config = {}});
+    payload_on_enable[8] = 1;
+    payload_on_enable.push_back(0);
+    EXPECT_EQ(request_error(payload_on_enable), DecodeError::LengthMismatch);
+
+    Bytes configure_bytes = helper::encode(configure(valid_config()));
+    configure_bytes[24] = 5; // GPU name length larger than what follows
+    EXPECT_EQ(request_error(configure_bytes), DecodeError::LengthMismatch);
+}
+
+TEST(HelperProtocol, RejectsShortConfigurePayload) {
+    Bytes bytes = helper::encode(configure(valid_config()));
+    bytes.resize(bytes.size() - 2);
+    bytes[8] = static_cast<std::uint8_t>(bytes.size() - helper::kHeaderSize);
+    EXPECT_EQ(request_error(bytes), DecodeError::Truncated);
+}
+
+TEST(HelperProtocol, RejectsOversizedMessages) {
+    Bytes bytes(helper::kMaxMessageSize + 1, 0);
+    EXPECT_EQ(request_error(bytes), DecodeError::TooLarge);
+}
+
+TEST(HelperProtocol, RejectsOutOfRangeMonitorValues) {
+    const std::vector<MonitorConfig> invalid{
+        {.width = 639, .height = 1080, .refresh_millihertz = 60'000, .gpu_name = ""},
+        {.width = 7681, .height = 1080, .refresh_millihertz = 60'000, .gpu_name = ""},
+        {.width = 1920, .height = 479, .refresh_millihertz = 60'000, .gpu_name = ""},
+        {.width = 1920, .height = 4321, .refresh_millihertz = 60'000, .gpu_name = ""},
+        {.width = 1920, .height = 1080, .refresh_millihertz = 23'999, .gpu_name = ""},
+        {.width = 1920, .height = 1080, .refresh_millihertz = 240'001, .gpu_name = ""},
+    };
+    for (const MonitorConfig& config : invalid) {
+        EXPECT_FALSE(helper::is_valid(config));
+        EXPECT_EQ(request_error(helper::encode(configure(config))), DecodeError::ValueOutOfRange);
+    }
+}
+
+TEST(HelperProtocol, AcceptsBoundaryValues) {
+    EXPECT_TRUE(helper::is_valid(
+        {.width = 640, .height = 480, .refresh_millihertz = 24'000, .gpu_name = ""}));
+    EXPECT_TRUE(helper::is_valid(
+        {.width = 7680, .height = 4320, .refresh_millihertz = 240'000, .gpu_name = ""}));
+}
+
+TEST(HelperProtocol, RejectsUnsafeGpuNames) {
+    const std::vector<std::string> invalid{
+        std::string("line\nbreak"),
+        std::string("nul\0byte", 8),
+        std::string("\xC3"),         // truncated sequence
+        std::string("\xC0\xAF"),     // overlong encoding
+        std::string("\xED\xA0\x80"), // surrogate
+        std::string("\xFF"),         // invalid lead byte
+        std::string(helper::kMaxGpuNameBytes + 1, 'a'),
+    };
+    for (const std::string& name : invalid) {
+        MonitorConfig config = valid_config();
+        config.gpu_name = name;
+        EXPECT_FALSE(helper::is_valid(config));
+        EXPECT_EQ(request_error(helper::encode(configure(config))), DecodeError::InvalidGpuName);
+    }
+}
+
+TEST(HelperProtocol, RejectsResponsesWithUnknownCodesOrBadLength) {
+    Bytes bytes = helper::encode(Response{});
+    bytes[6] = 0x40;
+    EXPECT_FALSE(helper::decode_response(bytes).has_value());
+
+    Bytes truncated = helper::encode(Response{});
+    truncated.pop_back();
+    truncated[8] = static_cast<std::uint8_t>(truncated.size() - helper::kHeaderSize);
+    ASSERT_FALSE(helper::decode_response(truncated).has_value());
+    EXPECT_EQ(helper::decode_response(truncated).error(), DecodeError::LengthMismatch);
+}
+
+TEST(HelperProtocol, MapsDecodeErrorsToResultCodes) {
+    EXPECT_EQ(helper::result_for(DecodeError::UnsupportedVersion), ResultCode::UnsupportedVersion);
+    EXPECT_EQ(helper::result_for(DecodeError::UnknownCommand), ResultCode::UnknownCommand);
+    EXPECT_EQ(helper::result_for(DecodeError::ValueOutOfRange), ResultCode::ValueOutOfRange);
+    EXPECT_EQ(helper::result_for(DecodeError::InvalidGpuName), ResultCode::ValueOutOfRange);
+    EXPECT_EQ(helper::result_for(DecodeError::BadMagic), ResultCode::MalformedRequest);
+    EXPECT_EQ(helper::result_for(DecodeError::Truncated), ResultCode::MalformedRequest);
+}
+
+} // namespace

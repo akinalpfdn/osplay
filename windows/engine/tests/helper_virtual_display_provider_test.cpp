@@ -1,0 +1,140 @@
+#include "../src/display/helper_virtual_display_provider.hpp"
+
+#include <gtest/gtest.h>
+
+#include <deque>
+#include <vector>
+
+namespace {
+
+using osplay::engine::DisplayError;
+using osplay::engine::HelperChannel;
+using osplay::engine::HelperVirtualDisplayProvider;
+using osplay::engine::VirtualMonitorConfig;
+namespace helper = osplay::win::helper;
+namespace win = osplay::win;
+
+class FakeChannel final : public HelperChannel {
+public:
+    std::vector<helper::Request> requests;
+    std::deque<win::Expected<helper::Bytes, DisplayError>> replies;
+
+    win::Expected<helper::Bytes, DisplayError>
+    transact(std::span<const std::uint8_t> request) override {
+        const auto decoded = helper::decode_request(request);
+        EXPECT_TRUE(decoded.has_value());
+        if (decoded) {
+            requests.push_back(decoded.value());
+        }
+        auto reply = replies.front();
+        replies.pop_front();
+        return reply;
+    }
+
+    void reply(helper::ResultCode code, helper::MonitorStatus status = {}) {
+        replies.emplace_back(helper::encode(helper::Response{.result = code, .status = status}));
+    }
+};
+
+struct Fixture {
+    FakeChannel* channel = nullptr;
+    std::unique_ptr<HelperVirtualDisplayProvider> provider;
+
+    Fixture() {
+        auto owned = std::make_unique<FakeChannel>();
+        channel = owned.get();
+        provider = std::make_unique<HelperVirtualDisplayProvider>(std::move(owned));
+    }
+};
+
+VirtualMonitorConfig config() {
+    return {.width = 2560, .height = 1664, .refresh_millihertz = 60'000, .gpu_name = ""};
+}
+
+TEST(HelperVirtualDisplayProvider, CreateConfiguresThenEnables) {
+    Fixture f;
+    f.channel->reply(helper::ResultCode::Ok);
+    f.channel->reply(helper::ResultCode::Ok);
+
+    EXPECT_TRUE(f.provider->create_monitor(config()).has_value());
+
+    ASSERT_EQ(f.channel->requests.size(), 2U);
+    EXPECT_EQ(f.channel->requests[0].command, helper::Command::Configure);
+    EXPECT_EQ(f.channel->requests[0].config, config());
+    EXPECT_EQ(f.channel->requests[1].command, helper::Command::Enable);
+}
+
+TEST(HelperVirtualDisplayProvider, InvalidConfigNeverReachesTheHelper) {
+    Fixture f;
+    VirtualMonitorConfig bad = config();
+    bad.refresh_millihertz = 1;
+
+    const auto result = f.provider->create_monitor(bad);
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), DisplayError::InvalidArgument);
+    EXPECT_TRUE(f.channel->requests.empty());
+}
+
+TEST(HelperVirtualDisplayProvider, ConfigureFailureStopsBeforeEnable) {
+    Fixture f;
+    f.channel->reply(helper::ResultCode::ConfigWriteFailed);
+
+    const auto result = f.provider->create_monitor(config());
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), DisplayError::ConfigWriteFailed);
+    EXPECT_EQ(f.channel->requests.size(), 1U);
+}
+
+TEST(HelperVirtualDisplayProvider, MapsHelperResultCodes) {
+    EXPECT_EQ(osplay::engine::to_display_error(helper::ResultCode::VddNotInstalled),
+              DisplayError::VddNotInstalled);
+    EXPECT_EQ(osplay::engine::to_display_error(helper::ResultCode::DeviceControlFailed),
+              DisplayError::DeviceControlFailed);
+    EXPECT_EQ(osplay::engine::to_display_error(helper::ResultCode::UnsupportedVersion),
+              DisplayError::ProtocolMismatch);
+    EXPECT_EQ(osplay::engine::to_display_error(helper::ResultCode::ValueOutOfRange),
+              DisplayError::InvalidArgument);
+    EXPECT_EQ(osplay::engine::to_display_error(helper::ResultCode::NotConfigured),
+              DisplayError::Rejected);
+}
+
+TEST(HelperVirtualDisplayProvider, TransportErrorsPassThrough) {
+    Fixture f;
+    f.channel->replies.emplace_back(
+        win::Expected<helper::Bytes, DisplayError>::failure(DisplayError::ConnectionLost));
+
+    const auto result = f.provider->remove_monitor();
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), DisplayError::ConnectionLost);
+}
+
+TEST(HelperVirtualDisplayProvider, GarbledResponsesAreProtocolMismatches) {
+    Fixture f;
+    f.channel->replies.emplace_back(helper::Bytes{0x01, 0x02, 0x03});
+
+    const auto result = f.provider->status();
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), DisplayError::ProtocolMismatch);
+}
+
+TEST(HelperVirtualDisplayProvider, StatusReturnsHelperState) {
+    Fixture f;
+    const helper::MonitorStatus state{.vdd_installed = true,
+                                      .device_enabled = true,
+                                      .configured = true,
+                                      .width = 2560,
+                                      .height = 1664,
+                                      .refresh_millihertz = 60'000};
+    f.channel->reply(helper::ResultCode::Ok, state);
+
+    const auto result = f.provider->status();
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result.value(), state);
+}
+
+} // namespace
