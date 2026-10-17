@@ -5,6 +5,9 @@ import CoreGraphics
 @MainActor
 final class FakeVirtualDisplayProvider: VirtualDisplayProviding {
     var creationError: VirtualDisplayError?
+    /// Fails creation of the display with this index (0-based), to test partial failures.
+    var failingCreationIndex: Int?
+    var readinessError: VirtualDisplayError?
     private(set) var handles: [FakeVirtualDisplayHandle] = []
     private(set) var createdConfigurations: [VirtualDisplayConfiguration] = []
     private var nextDisplayID: CGDirectDisplayID = 100
@@ -17,8 +20,13 @@ final class FakeVirtualDisplayProvider: VirtualDisplayProviding {
         -> any VirtualDisplayHandle
     {
         if let creationError { throw creationError }
+        if failingCreationIndex == createdConfigurations.count { throw .creationFailed }
         createdConfigurations.append(configuration)
-        let handle = FakeVirtualDisplayHandle(displayID: nextDisplayID, configuration: configuration) {
+        let handle = FakeVirtualDisplayHandle(
+            displayID: nextDisplayID,
+            configuration: configuration,
+            readinessError: readinessError
+        ) {
             [weak self] handle in
             self?.handles.removeAll { $0 === handle }
         }
@@ -40,16 +48,25 @@ final class FakeVirtualDisplayHandle: VirtualDisplayHandle {
     private(set) var configuration: VirtualDisplayConfiguration
     private(set) var isActive = true
     private(set) var activated: [DisplayResolution] = []
+    private(set) var waitedUntilReady = false
+    private let readinessError: VirtualDisplayError?
     private let onDestroy: (FakeVirtualDisplayHandle) -> Void
 
     init(
         displayID: CGDirectDisplayID,
         configuration: VirtualDisplayConfiguration,
+        readinessError: VirtualDisplayError?,
         onDestroy: @escaping (FakeVirtualDisplayHandle) -> Void
     ) {
         self.displayID = displayID
         self.configuration = configuration
+        self.readinessError = readinessError
         self.onDestroy = onDestroy
+    }
+
+    func waitUntilReady() async throws(VirtualDisplayError) {
+        if let readinessError { throw readinessError }
+        waitedUntilReady = true
     }
 
     func availableResolutions() -> [DisplayResolution] {
@@ -62,6 +79,7 @@ final class FakeVirtualDisplayHandle: VirtualDisplayHandle {
 
     func activate(_ resolution: DisplayResolution) throws(VirtualDisplayError) {
         guard isActive else { throw .displayDestroyed }
+        guard waitedUntilReady else { throw .notReady }
         guard availableResolutions().contains(resolution) else { throw .resolutionUnavailable }
         activated.append(resolution)
     }

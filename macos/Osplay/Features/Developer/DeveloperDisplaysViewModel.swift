@@ -20,6 +20,7 @@
         var startsAtCrispResolution = true
         private(set) var rows: [DisplayRow] = []
         private(set) var errorMessage: String?
+        private(set) var isBusy = false
 
         private let provider: any VirtualDisplayProviding
 
@@ -28,19 +29,33 @@
             self.selectedResolution = Tunables.Developer.testResolutions[0]
         }
 
-        /// Replaces any existing test displays with `count` new ones.
-        func createDisplays(count: Int) {
+        /// Replaces any existing test displays with `count` new ones. All displays are created before
+        /// any resolution is changed, so a resolution problem never prevents the other display.
+        func createDisplays(count: Int) async {
+            isBusy = true
+            defer { isBusy = false }
             provider.destroyAll()
             errorMessage = nil
+
+            var created: [any VirtualDisplayHandle] = []
             do throws(VirtualDisplayError) {
                 for index in 0..<count {
-                    let handle = try provider.createDisplay(configuration(index: index))
-                    if startsAtCrispResolution, let crisp = handle.configuration.crispHiDPIResolution {
-                        try handle.activate(crisp)
-                    }
+                    created.append(try provider.createDisplay(configuration(index: index)))
                 }
             } catch {
                 errorMessage = error.message
+            }
+            refresh()
+
+            for handle in created {
+                do throws(VirtualDisplayError) {
+                    try await handle.waitUntilReady()
+                    if startsAtCrispResolution, let crisp = handle.configuration.crispHiDPIResolution {
+                        try handle.activate(crisp)
+                    }
+                } catch {
+                    errorMessage = error.message
+                }
             }
             refresh()
         }

@@ -11,6 +11,9 @@ enum Tunables {
         /// "Looks like" sizes offered as fractions of the remote monitor's native pixel size.
         /// macOS adds its own standard sizes on top of these.
         static let looksLikeScaleFactors: [Double] = [1.0, 0.75, 0.5]
+        /// How long to wait for a new display's modes to become visible to the app.
+        static let readinessTimeout: Duration = .seconds(3)
+        static let readinessPollInterval: Duration = .milliseconds(50)
     }
 
     #if DEBUG

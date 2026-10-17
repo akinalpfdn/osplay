@@ -30,3 +30,4 @@ The Mac app can create and remove up to two real virtual displays on the M3 MacB
 - Mode selection (`activate`) added to the handle: needed for that default, not listed in DEVPLAN Phase 1.
 - Hardware tests in a separate OsplayHardware scheme, not CI.
 - Vendor ID 0x3E70 ("OSP" EDID packing, unregistered); serial = FNV-1a(peerID ‖ monitorIndex), never 0.
+- Manual check found 'Create 2' made one display: the app could not see the new display's modes yet (CoreGraphics caches display info per process). Fixed with waitUntilReady + create-all-then-configure; regression hardware test added.

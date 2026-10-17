@@ -16,6 +16,8 @@ extension VirtualDisplayError {
             String(localized: "error.virtualDisplay.settingsRejected")
         case .resolutionUnavailable:
             String(localized: "error.virtualDisplay.resolutionUnavailable")
+        case .notReady:
+            String(localized: "error.virtualDisplay.notReady")
         case .displayDestroyed:
             String(localized: "error.virtualDisplay.displayDestroyed")
         case .reconfigurationFailed(let code):

@@ -59,11 +59,28 @@ struct CGVirtualDisplayProviderHardwareTests {
         let handle = try provider.createDisplay(configuration(index: 0))
         let crisp = try #require(handle.configuration.crispHiDPIResolution)
 
-        #expect(try await Self.waitUntil { handle.availableResolutions().contains(crisp) })
+        try await handle.waitUntilReady()
+        #expect(handle.availableResolutions().contains(crisp))
         try handle.activate(crisp)
 
         #expect(try await Self.waitUntil { handle.currentResolution()?.pixels == crisp.pixels })
         #expect(handle.currentResolution()?.points == crisp.points)
+    }
+
+    @Test("A display created after modes were queried still reports its resolutions")
+    func modesVisibleForLaterDisplays() async throws {
+        let provider = CGVirtualDisplayProvider()
+        defer { provider.destroyAll() }
+        let first = try provider.createDisplay(configuration(index: 0))
+        try await first.waitUntilReady()
+        #expect(!first.availableResolutions().isEmpty)
+
+        let second = try provider.createDisplay(configuration(index: 1))
+        try await second.waitUntilReady()
+
+        let crisp = try #require(second.configuration.crispHiDPIResolution)
+        #expect(second.availableResolutions().contains(crisp))
+        try second.activate(crisp)
     }
 
     @Test("A recreated display with the same identity returns to the same position")

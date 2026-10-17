@@ -97,6 +97,31 @@ private final class CGVirtualDisplayHandle: VirtualDisplayHandle {
 
     var isActive: Bool { display != nil }
 
+    func waitUntilReady() async throws(VirtualDisplayError) {
+        let tunables = Tunables.VirtualDisplay.self
+        let clock = ContinuousClock()
+        let deadline = clock.now + tunables.readinessTimeout
+        while !isReady {
+            guard isActive else { throw .displayDestroyed }
+            guard clock.now < deadline else {
+                Log.virtualDisplay.error("Display \(self.displayID) modes not visible after timeout")
+                throw .notReady
+            }
+            // Sleeping on the main actor lets the run loop deliver the window server notifications
+            // that make the modes visible. Cancellation ends the wait like a timeout.
+            do {
+                try await Task.sleep(for: tunables.readinessPollInterval)
+            } catch {
+                throw .notReady
+            }
+        }
+    }
+
+    /// The native 1× mode is always generated, so its presence means this configuration's modes are visible.
+    private var isReady: Bool {
+        availableResolutions().contains { !$0.isHiDPI && $0.pixels == configuration.pixelSize }
+    }
+
     func availableResolutions() -> [DisplayResolution] {
         guard isActive else { return [] }
         return DisplayModes.available(for: displayID).map(\.resolution)

@@ -239,6 +239,23 @@
         }
       }
     },
+    "error.virtualDisplay.notReady" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS has not finished setting up the display yet. Wait a moment and try again."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS ekranı henüz hazırlamayı bitirmedi. Biraz bekleyip tekrar deneyin."
+          }
+        }
+      }
+    },
     "error.virtualDisplay.reconfigurationFailed %lld" : {
       "extractionState" : "manual",
       "localizations" : {

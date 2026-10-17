@@ -55,6 +55,7 @@ Behavior measured on a MacBook Air M3, macOS 26.6, lid open (Phase 1):
 | On a display identity it has not seen, macOS picks the largest 2× mode: a 2560×1440 monitor starts at a 5120×2880 backing. | Osplay activates the "crisp" HiDPI resolution (looks like half size, backing = remote pixels) when it wants a default, instead of rendering and scaling four times the pixels. |
 | Vendor, product and serial number identify the display; a recreated display with the same identity returns to its previous position and resolution. | Identity is derived from the peer ID and remote monitor index (FNV-1a, never serial 0). |
 | `applySettings` on a live display changes its modes without changing its display ID. | Remote monitor changes do not recreate the display. |
+| A process that has already read display information (every AppKit app does at launch) sees **no modes** for a display it creates later, until it processes window server notifications on its run loop — a few hundred milliseconds in an app. A command-line process without `NSApplication` never sees them, although other processes do. | `VirtualDisplayHandle.waitUntilReady()` waits (asynchronously, with a timeout) before any resolution is read or changed. Displays are created first and configured afterwards, so one slow display does not block the other. |
 
 ## Virtual Display Driver control surface (Windows)
 

@@ -25,6 +25,10 @@ protocol VirtualDisplayHandle: AnyObject {
     var displayID: CGDirectDisplayID { get }
     var isActive: Bool { get }
 
+    /// Waits until this process can see the display's resolutions. A new display exists for the
+    /// window server immediately, but an app learns its modes only after processing window server
+    /// notifications; until then resolution queries return nothing. Call before `activate`.
+    func waitUntilReady() async throws(VirtualDisplayError)
     /// Resolutions the user can currently pick, largest first.
     func availableResolutions() -> [DisplayResolution]
     func currentResolution() -> DisplayResolution?
@@ -50,6 +54,7 @@ enum VirtualDisplayError: Error, Equatable, Sendable {
     case creationFailed
     case settingsRejected
     case resolutionUnavailable
+    case notReady
     case displayDestroyed
     case reconfigurationFailed(CGError.RawValue)
 }

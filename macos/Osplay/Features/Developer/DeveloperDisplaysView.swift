@@ -20,11 +20,12 @@
                     .disabled(!viewModel.isHiDPI)
 
                 HStack(spacing: Theme.Spacing.small) {
-                    Button("developer.createOne") { viewModel.createDisplays(count: 1) }
-                    Button("developer.createTwo") { viewModel.createDisplays(count: 2) }
+                    Button("developer.createOne") { create(count: 1) }
+                    Button("developer.createTwo") { create(count: 2) }
                     Button("developer.removeAll", role: .destructive) { viewModel.removeAll() }
                         .disabled(viewModel.rows.isEmpty)
                 }
+                .disabled(viewModel.isBusy)
 
                 if viewModel.rows.isEmpty {
                     Text("developer.noDisplays")
@@ -54,6 +55,10 @@
                 }
             }
             .onAppear { viewModel.refresh() }
+        }
+
+        private func create(count: Int) {
+            Task { [viewModel] in await viewModel.createDisplays(count: count) }
         }
     }
 
