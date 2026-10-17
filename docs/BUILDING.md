@@ -39,7 +39,7 @@ cmake --build --preset debug
 ctest --preset debug
 cd ..
 
-# Shared core as a Swift package (Swift tests)
+# Shared core and its Swift wrapper (CoreBridge) as a Swift package
 swift test
 
 # Menu bar app
@@ -55,6 +55,26 @@ The app has no Dock icon; it appears as a display icon in the menu bar.
 To work in Xcode, run `xcodegen generate` in `macos/` and open `Osplay.xcodeproj`. The project is
 generated from `macos/project.yml` and is not committed: re-run `xcodegen generate` after pulling
 changes or adding files.
+
+### Protocol fixtures and fuzzing
+
+`protocol/fixtures/` is generated from `docs/PROTOCOL.md` by an independent Python encoder:
+
+```sh
+python3 protocol/tools/generate_fixtures.py          # rewrite the fixtures after a protocol change
+python3 protocol/tools/generate_fixtures.py --check  # what scripts/lint.sh runs
+```
+
+The C++ tests and the Swift tests (`swift test`) both read `protocol/fixtures/manifest.tsv`. Every
+`ctest` run also replays the fixtures through the fuzz entry point. Real fuzzing needs Clang with
+libFuzzer, which Apple's Clang lacks; CI runs it on Linux. Locally, with Homebrew's LLVM:
+
+```sh
+cmake -S core -B build/fuzz -G Ninja -DCMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
+  -DOSPLAY_CORE_BUILD_FUZZER=ON -DOSPLAY_CORE_BUILD_TESTS=OFF
+cmake --build build/fuzz
+build/fuzz/fuzz/osplay_protocol_fuzzer -max_total_time=60 protocol/fixtures/control
+```
 
 ### Hardware tests (virtual displays)
 
@@ -221,5 +241,7 @@ format a C++ file with the pinned version from `scripts/lint.sh`, for example
 
 - **macOS** — core CMake build and tests, portable Windows libraries and tests, `scripts/lint.sh`,
   `swift test`, app build and tests.
+- **Protocol fuzzing** (Linux) — 60 seconds of libFuzzer with ASan and UBSan on every decoder,
+  seeded with the fixtures.
 - **Windows** — core, engine, helper and developer tool with MSVC (`/W4 /WX`), all native tests,
   clang-tidy on core and Windows code, `dotnet format` check, shell build with analyzers as errors.

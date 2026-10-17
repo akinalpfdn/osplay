@@ -21,7 +21,7 @@ Virtual display ─► Capture ─► Encoder ─► core: packetize ──UDP�
 | Path | Contents |
 |------|----------|
 | `core/` | Shared C++20 library: protocol, crypto, transport, media, session, flat C API (`core/include/osplay/osplay.h`) |
-| `Package.swift` | Exposes `core` to Swift as the `OsplayCore` module |
+| `Package.swift` | Swift package: the C++ core as the `OsplayCore` module and its Swift wrapper `CoreBridge` (`macos/CoreBridge/`) |
 | `macos/` | Swift menu bar app, generated with XcodeGen from `macos/project.yml` |
 | `windows/engine/` | Native engine DLL (`OsplayEngine.dll`): capture, encode, decode, present, discovery |
 | `windows/helper/` | `OsplayHelper` Windows service for privileged virtual display driver operations |
@@ -34,7 +34,11 @@ Virtual display ─► Capture ─► Encoder ─► core: packetize ──UDP�
 
 - `core` is a static library. CMake (`core/CMakeLists.txt`) is the reference build; SwiftPM
   (`Package.swift`) compiles the same sources for the macOS app.
-- The macOS app links `core` through the local Swift package.
+- The macOS app links `core` through the local Swift package's `CoreBridge` product; Swift code
+  never calls the C API directly.
+- `core/src/protocol/` implements `docs/PROTOCOL.md`: control messages (`control_messages.hpp`)
+  and media packets (`media_packets.hpp`), with one validation function per message shared by the
+  encoder and the decoder. Media decoding does not allocate; payloads are views into the datagram.
 - `windows/CMakeLists.txt` adds `core` as a subdirectory and links it into the engine DLL.
 - The WPF shell loads the engine DLL through P/Invoke (from Phase 12).
 
