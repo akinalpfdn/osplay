@@ -132,6 +132,214 @@ osplay_result osplay_identity_device_id(const uint8_t* public_key, uint8_t* devi
 osplay_result osplay_protocol_reencode(osplay_wire_kind kind, const uint8_t* data, size_t length,
                                        uint8_t* out, size_t capacity, size_t* out_length);
 
+/*
+ * Sessions (docs/PROTOCOL.md "Session flow"). A session is one host and one viewer over a TCP
+ * control connection and a UDP media socket, both driven by one I/O thread owned by the session.
+ *
+ * Threading: every callback runs on that I/O thread, must return quickly and must not call
+ * osplay_session_destroy. The command functions may be called from any thread except a callback;
+ * they wait (at most 5 s) until the I/O thread has executed them. Pointers passed to callbacks are
+ * valid only for the duration of the call; copy what you keep.
+ */
+/* NOLINTBEGIN(cppcoreguidelines-use-enum-class,performance-enum-size) */
+typedef enum osplay_session_state {
+    OSPLAY_SESSION_CONNECTING = 1,
+    OSPLAY_SESSION_HANDSHAKING = 2,
+    OSPLAY_SESSION_AWAITING_PAIRING = 3,
+    OSPLAY_SESSION_NEGOTIATING = 4,
+    OSPLAY_SESSION_STREAMING = 5,
+    OSPLAY_SESSION_PAUSED = 6,
+    OSPLAY_SESSION_CLOSED = 7,
+    OSPLAY_SESSION_STATE_MAX_ENUM = 0x7FFFFFFF
+} osplay_session_state;
+
+typedef enum osplay_trust {
+    OSPLAY_TRUST_TRUSTED = 1, /* known key: no pairing code */
+    OSPLAY_TRUST_UNKNOWN = 2, /* first contact: show the pairing code */
+    OSPLAY_TRUST_BLOCKED = 3, /* refuse the session */
+    OSPLAY_TRUST_MAX_ENUM = 0x7FFFFFFF
+} osplay_trust;
+
+typedef enum osplay_log_level {
+    OSPLAY_LOG_DEBUG = 1,
+    OSPLAY_LOG_INFO = 2,
+    OSPLAY_LOG_WARNING = 3,
+    OSPLAY_LOG_ERROR = 4,
+    OSPLAY_LOG_LEVEL_MAX_ENUM = 0x7FFFFFFF
+} osplay_log_level;
+
+typedef enum osplay_platform {
+    OSPLAY_PLATFORM_MACOS = 1,
+    OSPLAY_PLATFORM_WINDOWS = 2,
+    OSPLAY_PLATFORM_MAX_ENUM = 0x7FFFFFFF
+} osplay_platform;
+
+typedef enum osplay_h264_profile {
+    OSPLAY_H264_BASELINE = 66,
+    OSPLAY_H264_MAIN = 77,
+    OSPLAY_H264_HIGH = 100,
+    OSPLAY_H264_PROFILE_MAX_ENUM = 0x7FFFFFFF
+} osplay_h264_profile;
+
+typedef enum osplay_cursor_mode {
+    OSPLAY_CURSOR_IN_VIDEO = 0,
+    OSPLAY_CURSOR_SEPARATE = 1,
+    OSPLAY_CURSOR_MODE_MAX_ENUM = 0x7FFFFFFF
+} osplay_cursor_mode;
+/* NOLINTEND(cppcoreguidelines-use-enum-class,performance-enum-size) */
+
+#define OSPLAY_CODEC_H264_ANNEX_B 1u /* osplay_capabilities.codecs bit */
+#define OSPLAY_MAX_STRING_BYTES 64   /* UTF-8 bytes in a device or monitor name */
+#define OSPLAY_MAX_MONITORS 4
+#define OSPLAY_MAX_STREAMS 4
+
+/* Strings are NUL-terminated UTF-8 without control characters. */
+typedef struct osplay_monitor {
+    uint8_t monitor_id;
+    uint16_t width_px;
+    uint16_t height_px;
+    uint32_t refresh_millihertz;
+    uint16_t physical_width_mm;
+    uint16_t physical_height_mm;
+    uint16_t scale_percent;
+    const char* name;
+} osplay_monitor;
+
+typedef struct osplay_capabilities {
+    uint32_t codecs; /* OSPLAY_CODEC_* bits */
+    uint8_t max_streams;
+    uint8_t flags; /* 0 in protocol v1 */
+    uint16_t max_width;
+    uint16_t max_height;
+    uint16_t max_refresh_hz;
+} osplay_capabilities;
+
+typedef struct osplay_session_config {
+    osplay_platform platform;
+    const char* device_name;
+    osplay_capabilities capabilities;
+    const osplay_monitor* monitors; /* viewer: the monitors it offers; host: NULL */
+    size_t monitor_count;
+} osplay_session_config;
+
+typedef struct osplay_stream_config {
+    uint8_t stream_id;
+    uint8_t monitor_id;
+    uint16_t width;
+    uint16_t height;
+    uint32_t refresh_millihertz;
+    osplay_h264_profile profile; /* the codec is H.264 Annex B in protocol v1 */
+    osplay_cursor_mode cursor_mode;
+    uint32_t bitrate_kbps;
+} osplay_stream_config;
+
+/* One encoded frame. `frame_id` is set by the viewer callback and ignored when pushing. */
+typedef struct osplay_access_unit {
+    uint8_t stream_id;
+    uint8_t keyframe;     /* 0 or 1 */
+    uint8_t codec_config; /* 1 if the unit carries SPS/PPS; requires keyframe */
+    uint32_t frame_id;
+    uint64_t capture_time_us; /* host clock */
+    const uint8_t* data;
+    size_t length;
+} osplay_access_unit;
+
+typedef struct osplay_stream_stats {
+    uint8_t stream_id;
+    uint16_t loss_permille;
+    uint32_t frames_per_second;
+    uint32_t bitrate_kbps;
+    uint32_t latency_us; /* viewer: capture to delivery; 0 if unknown */
+    uint64_t frames_dropped;
+    uint64_t retransmitted_fragments;
+    uint64_t keyframe_requests;
+} osplay_stream_stats;
+
+typedef struct osplay_session_stats {
+    uint32_t rtt_us;
+    int64_t clock_offset_us; /* peer clock minus local clock */
+    uint64_t datagrams_rejected;
+    const osplay_stream_stats* streams;
+    size_t stream_count;
+} osplay_session_stats;
+
+typedef struct osplay_peer_info {
+    osplay_platform platform;
+    uint8_t protocol_minor;
+    const char* device_name;
+} osplay_peer_info;
+
+/*
+ * `on_state` and `on_trust_query` are required; any other member may be NULL. Keys are
+ * OSPLAY_KEY_SIZE bytes.
+ */
+typedef struct osplay_session_callbacks {
+    void* context;
+    /* `reason` is OSPLAY_OK unless the session closed because of an error. */
+    void (*on_state)(void* context, osplay_session_state state, osplay_result reason);
+    void (*on_peer)(void* context, const osplay_peer_info* peer);
+    /* Answer from memory: the I/O thread waits for it. */
+    osplay_trust (*on_trust_query)(void* context, const uint8_t* peer_public_key);
+    /* First pairing: show `code` (6 digits), then call osplay_session_confirm_pairing. */
+    void (*on_pairing_code)(void* context, uint32_t code, const uint8_t* peer_public_key);
+    /* Both users accepted: store the key as trusted. */
+    void (*on_paired)(void* context, const uint8_t* peer_public_key);
+    /* Host: the viewer's monitors; answer with osplay_session_configure_streams. */
+    void (*on_viewer_monitors)(void* context, const osplay_monitor* monitors, size_t count);
+    /* Viewer: a stream the host is about to send. */
+    void (*on_stream_config)(void* context, const osplay_stream_config* config);
+    /* Host: encode a keyframe for this stream next. */
+    void (*on_keyframe_request)(void* context, uint8_t stream_id);
+    /* Viewer: a complete frame, in order. */
+    void (*on_access_unit)(void* context, const osplay_access_unit* unit);
+    void (*on_stats)(void* context, const osplay_session_stats* stats);
+    void (*on_log)(void* context, osplay_log_level level, const char* message);
+} osplay_session_callbacks;
+
+typedef struct osplay_session osplay_session;
+
+/*
+ * Creates a host session listening for one viewer on an ephemeral TCP port (IPv4 and IPv6).
+ * `secret_key` is the device identity. `random` and `callbacks` are copied; their contexts must
+ * outlive the session.
+ */
+osplay_result osplay_host_session_create(const osplay_session_config* config,
+                                         const uint8_t* secret_key,
+                                         const osplay_random_source* random,
+                                         const osplay_session_callbacks* callbacks,
+                                         osplay_session** out_session);
+
+/* Creates a viewer session connecting to `host` (name or address) on `port`. */
+osplay_result osplay_viewer_session_create(const osplay_session_config* config,
+                                           const uint8_t* secret_key,
+                                           const osplay_random_source* random,
+                                           const osplay_session_callbacks* callbacks,
+                                           const char* host, uint16_t port,
+                                           osplay_session** out_session);
+
+/* Sends Bye when possible, closes the sockets and joins the I/O thread. NULL is ignored. */
+void osplay_session_destroy(osplay_session* session);
+
+/* Host: the TCP port to advertise over Bonjour. */
+osplay_result osplay_session_control_port(const osplay_session* session, uint16_t* out_port);
+
+/* Answers on_pairing_code with the local user's decision (`accepted` is 0 or 1). */
+osplay_result osplay_session_confirm_pairing(osplay_session* session, uint8_t accepted);
+
+/* Host: starts one stream per config, once, after on_viewer_monitors. */
+osplay_result osplay_session_configure_streams(osplay_session* session,
+                                               const osplay_stream_config* streams, size_t count);
+
+/*
+ * Host: queues one encoded frame and returns without waiting for the network. The data is
+ * copied. Frames for a paused stream, or pushed before streaming starts, are dropped.
+ */
+osplay_result osplay_session_push_access_unit(osplay_session* session,
+                                              const osplay_access_unit* unit);
+
+osplay_result osplay_session_pause_stream(osplay_session* session, uint8_t stream_id);
+osplay_result osplay_session_resume_stream(osplay_session* session, uint8_t stream_id);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

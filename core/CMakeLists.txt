@@ -35,6 +35,7 @@ target_include_directories(osplay_monocypher PUBLIC third_party/monocypher)
 add_library(osplay_core STATIC
     src/capi/identity_capi.cpp
     src/capi/protocol_capi.cpp
+    src/capi/session_capi.cpp
     src/capi/version.cpp
     src/crypto/media_crypto.cpp
     src/crypto/noise.cpp
