@@ -52,6 +52,11 @@
             VStack(alignment: .leading, spacing: Theme.Spacing.small) {
                 Text("developer.hostTest.stream \(Int(row.id)) \(row.size)")
                     .font(Theme.Typography.caption)
+                if let captured = row.capturedFramesPerSecond {
+                    Text("developer.hostTest.captured \(captured.formatted(.number.precision(.fractionLength(1))))")
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(.secondary)
+                }
                 if let pacing = row.pacing {
                     Text(
                         "developer.hostTest.pacing \(pacing.framesPerSecond.formatted(.number.precision(.fractionLength(1)))) \(pacing.p99IntervalMilliseconds.formatted(.number.precision(.fractionLength(1)))) \(pacing.maximumIntervalMilliseconds.formatted(.number.precision(.fractionLength(1))))"

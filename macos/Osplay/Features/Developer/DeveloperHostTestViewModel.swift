@@ -12,6 +12,9 @@
         struct StreamRow: Identifiable, Equatable {
             let id: UInt8
             let size: String
+            /// Frames ScreenCaptureKit delivered per second on the host.
+            let capturedFramesPerSecond: Double?
+            /// Frame arrivals at the viewer.
             let pacing: PacingMeter.Summary?
             let bitrateKbps: Int
             let latencyMilliseconds: Double?
@@ -32,11 +35,12 @@
         private let patterns = TestPatternWindows()
         private var session: HostSession?
         private var viewer: CoreSession?
+        private var probe = ViewerProbe()
         private var tasks: [Task<Void, Never>] = []
-        private var meters: [UInt8: PacingMeter] = [:]
-        private var streams: [UInt8: StreamConfiguration] = [:]
         private var bitrates: [UInt8: Int] = [:]
-        private var latencies: [UInt8: Double] = [:]
+        private var lastCaptureCounts: [UInt8: UInt64] = [:]
+        private var lastCaptureSample: ContinuousClock.Instant?
+        private var captureRates: [UInt8: Double] = [:]
 
         init(
             provider: any VirtualDisplayProviding, captures: any ScreenCaptureMaking, encoders: any VideoEncoderMaking,
@@ -94,12 +98,14 @@
                 core: host, peerID: Tunables.Developer.testPeerID, displays: VirtualDisplayLender(provider: provider),
                 captures: captures, encoders: encoders, permissions: permissions,
                 dumpDirectory: dumpsEnabled ? Tunables.Developer.dumpDirectory : nil)
+            let probe = ViewerProbe()
             self.session = session
             self.viewer = viewer
-            meters = [:]
-            streams = [:]
+            self.probe = probe
             bitrates = [:]
-            latencies = [:]
+            lastCaptureCounts = [:]
+            lastCaptureSample = nil
+            captureRates = [:]
             rows = []
 
             tasks = [
@@ -113,16 +119,18 @@
                         self?.handleHost(event)
                     }
                 },
-                Task { [weak self] in
+                // Detached so arrival times are taken as frames arrive, not when the main actor
+                // gets to them while it is busy drawing the menu.
+                Task.detached(priority: .userInitiated) {
                     for await event in viewer.events {
-                        self?.handleViewer(event)
+                        probe.handle(event)
                     }
                 },
                 Task { [weak self] in
                     while !Task.isCancelled {
                         // Cancellation ends the loop through the condition above.
                         try? await Task.sleep(for: Tunables.Developer.statisticsRefreshInterval)
-                        self?.refreshRows()
+                        await self?.refreshRows(captured: session.capturedFrameCounts())
                     }
                 },
             ]
@@ -153,28 +161,25 @@
             }
         }
 
-        private func handleViewer(_ event: SessionEvent) {
-            switch event {
-            case .streamConfiguration(let stream):
-                streams[stream.streamID] = stream
-            case .accessUnit(let unit):
-                meters[unit.streamID, default: PacingMeter()].record(
-                    arrivalAt: Double(DispatchTime.now().uptimeNanoseconds) / 1_000_000_000)
-            case .statistics(let statistics):
-                for stream in statistics.streams where stream.latencyMicroseconds > 0 {
-                    latencies[stream.streamID] = Double(stream.latencyMicroseconds) / 1000
+        private func refreshRows(captured counts: [UInt8: UInt64]) {
+            let now = ContinuousClock.now
+            if let last = lastCaptureSample {
+                let elapsed = (now - last).components
+                let seconds = Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
+                for (id, count) in counts where seconds > 0 && count >= lastCaptureCounts[id, default: 0] {
+                    captureRates[id] = Double(count - lastCaptureCounts[id, default: 0]) / seconds
                 }
-            default:
-                break
             }
-        }
+            lastCaptureCounts = counts
+            lastCaptureSample = now
 
-        private func refreshRows() {
-            rows = streams.keys.sorted().compactMap { id in
-                guard let stream = streams[id] else { return nil }
+            let snapshot = probe.snapshot()
+            rows = snapshot.streams.keys.sorted().compactMap { id in
+                guard let stream = snapshot.streams[id] else { return nil }
                 return StreamRow(
-                    id: id, size: "\(stream.width)×\(stream.height)", pacing: meters[id]?.summary,
-                    bitrateKbps: bitrates[id] ?? 0, latencyMilliseconds: latencies[id])
+                    id: id, size: "\(stream.width)×\(stream.height)", capturedFramesPerSecond: captureRates[id],
+                    pacing: snapshot.pacing[id], bitrateKbps: bitrates[id] ?? 0,
+                    latencyMilliseconds: snapshot.latencies[id])
             }
         }
 
@@ -193,6 +198,45 @@
         private func show(_ error: HostSessionError) {
             errorMessage = error.message
             needsScreenRecordingPermission = error.needsScreenRecordingPermission
+        }
+    }
+
+    /// The in-process viewer's measurements, written from its event task and read by the UI.
+    private final class ViewerProbe: @unchecked Sendable {
+        // @unchecked: every field is guarded by `lock`.
+        struct Snapshot {
+            let streams: [UInt8: StreamConfiguration]
+            let pacing: [UInt8: PacingMeter.Summary]
+            let latencies: [UInt8: Double]
+        }
+
+        private let lock = NSLock()
+        private var streams: [UInt8: StreamConfiguration] = [:]
+        private var meters: [UInt8: PacingMeter] = [:]
+        private var latencies: [UInt8: Double] = [:]
+
+        func handle(_ event: SessionEvent) {
+            let arrival = Double(DispatchTime.now().uptimeNanoseconds) / 1_000_000_000
+            lock.withLock {
+                switch event {
+                case .streamConfiguration(let stream):
+                    streams[stream.streamID] = stream
+                case .accessUnit(let unit):
+                    meters[unit.streamID, default: PacingMeter()].record(arrivalAt: arrival)
+                case .statistics(let statistics):
+                    for stream in statistics.streams where stream.latencyMicroseconds > 0 {
+                        latencies[stream.streamID] = Double(stream.latencyMicroseconds) / 1000
+                    }
+                default:
+                    break
+                }
+            }
+        }
+
+        func snapshot() -> Snapshot {
+            lock.withLock {
+                Snapshot(streams: streams, pacing: meters.compactMapValues(\.summary), latencies: latencies)
+            }
         }
     }
 #endif

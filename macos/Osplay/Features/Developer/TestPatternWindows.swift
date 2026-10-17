@@ -1,8 +1,10 @@
 #if DEBUG
     import AppKit
-    import SwiftUI
+    import QuartzCore
 
     /// Fills displays with a moving test pattern so captures produce a frame on every refresh.
+    /// Core Animation runs the motion in the render server, so a busy main thread cannot make the
+    /// pattern itself stutter and distort the measurement.
     @MainActor
     final class TestPatternWindows {
         private var windows: [NSWindow] = []
@@ -14,7 +16,7 @@
                 let window = NSWindow(
                     contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false, screen: screen)
                 window.isReleasedWhenClosed = false
-                window.contentView = NSHostingView(rootView: TestPatternView())
+                window.contentView = Self.patternView(size: screen.frame.size)
                 window.setFrame(screen.frame, display: true)
                 window.orderFrontRegardless()
                 windows.append(window)
@@ -25,26 +27,42 @@
             windows.forEach { $0.close() }
             windows.removeAll()
         }
-    }
 
-    private struct TestPatternView: View {
-        var body: some View {
-            TimelineView(.animation) { context in
-                let seconds = context.date.timeIntervalSinceReferenceDate
-                Canvas { canvas, size in
-                    canvas.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Theme.TestPattern.background))
-                    let sweep = Theme.TestPattern.sweepDuration
-                    let progress = seconds.truncatingRemainder(dividingBy: sweep) / sweep
-                    let barWidth = size.width * Theme.TestPattern.barWidthFraction
-                    let bar = CGRect(x: (size.width - barWidth) * progress, y: 0, width: barWidth, height: size.height)
-                    canvas.fill(Path(bar), with: .color(Theme.TestPattern.bar))
-                    canvas.draw(
-                        Text(verbatim: String(format: "%.3f", seconds.truncatingRemainder(dividingBy: 1000)))
-                            .font(Theme.TestPattern.counterFont)
-                            .foregroundStyle(Theme.TestPattern.accent),
-                        at: CGPoint(x: size.width / 2, y: size.height / 2))
-                }
-            }
+        private static func patternView(size: CGSize) -> NSView {
+            let view = NSView(frame: CGRect(origin: .zero, size: size))
+            view.wantsLayer = true
+            guard let root = view.layer else { return view }
+            root.backgroundColor = NSColor(Theme.TestPattern.background).cgColor
+
+            let barWidth = size.width * Theme.TestPattern.barWidthFraction
+            let bar = CALayer()
+            bar.backgroundColor = NSColor(Theme.TestPattern.bar).cgColor
+            bar.bounds = CGRect(x: 0, y: 0, width: barWidth, height: size.height)
+            bar.position = CGPoint(x: barWidth / 2, y: size.height / 2)
+            root.addSublayer(bar)
+
+            let sweep = CABasicAnimation(keyPath: "position.x")
+            sweep.fromValue = barWidth / 2
+            sweep.toValue = size.width - barWidth / 2
+            sweep.duration = Theme.TestPattern.sweepDuration
+            sweep.repeatCount = .infinity
+            bar.add(sweep, forKey: "sweep")
+
+            // A second, vertical motion so every frame differs across the whole display.
+            let marker = CALayer()
+            marker.backgroundColor = NSColor(Theme.TestPattern.accent).cgColor
+            marker.bounds = CGRect(
+                x: 0, y: 0, width: size.width, height: size.height * Theme.TestPattern.barWidthFraction)
+            marker.position = CGPoint(x: size.width / 2, y: 0)
+            root.addSublayer(marker)
+
+            let fall = CABasicAnimation(keyPath: "position.y")
+            fall.fromValue = 0
+            fall.toValue = size.height
+            fall.duration = Theme.TestPattern.sweepDuration * 1.5
+            fall.repeatCount = .infinity
+            marker.add(fall, forKey: "fall")
+            return view
         }
     }
 

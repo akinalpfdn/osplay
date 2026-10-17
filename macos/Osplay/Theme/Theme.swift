@@ -30,7 +30,6 @@ enum Theme {
         static let barWidthFraction: CGFloat = 0.08
         /// Seconds for the bar to cross the display once.
         static let sweepDuration: Double = 2
-        static let counterFont = Font.system(size: 96, weight: .bold, design: .monospaced)
     }
 
     enum Symbol {
