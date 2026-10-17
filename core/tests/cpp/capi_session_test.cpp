@@ -64,53 +64,52 @@ struct Side {
     }
 
     osplay_session_callbacks callbacks() {
-        osplay_session_callbacks callbacks{};
-        callbacks.context = this;
-        callbacks.on_state = [](void* context, osplay_session_state state,
-                                osplay_result /*reason*/) {
-            update(context, [state](Side& side) { side.state = state; });
+        osplay_session_callbacks result{};
+        result.context = this;
+        result.on_state = [](void* context, osplay_session_state new_state,
+                             osplay_result /*reason*/) {
+            update(context, [new_state](Side& side) { side.state = new_state; });
         };
-        callbacks.on_peer = [](void* context, const osplay_peer_info* peer) {
+        result.on_peer = [](void* context, const osplay_peer_info* peer) {
             update(context,
                    [name = std::string(peer->device_name)](Side& side) { side.peer_name = name; });
         };
-        callbacks.on_trust_query = [](void* /*context*/, const uint8_t* /*key*/) {
+        result.on_trust_query = [](void* /*context*/, const uint8_t* /*key*/) {
             return OSPLAY_TRUST_UNKNOWN;
         };
-        callbacks.on_pairing_code = [](void* context, uint32_t code, const uint8_t* /*key*/) {
+        result.on_pairing_code = [](void* context, uint32_t code, const uint8_t* /*key*/) {
             update(context, [code](Side& side) { side.codes.push_back(code); });
         };
-        callbacks.on_paired = [](void* context, const uint8_t* key) {
+        result.on_paired = [](void* context, const uint8_t* key) {
             std::array<uint8_t, OSPLAY_KEY_SIZE> copy{};
             std::memcpy(copy.data(), key, copy.size());
             update(context, [copy](Side& side) { side.paired.push_back(copy); });
         };
-        callbacks.on_viewer_monitors = [](void* context, const osplay_monitor* monitors,
-                                          size_t count) {
-            update(context, [monitors, count](Side& side) {
+        result.on_viewer_monitors = [](void* context, const osplay_monitor* received,
+                                       size_t count) {
+            update(context, [received, count](Side& side) {
                 for (size_t i = 0; i < count; ++i) {
-                    side.monitor_names.emplace_back(monitors[i].name);
-                    side.monitors.push_back(monitors[i]);
+                    side.monitor_names.emplace_back(received[i].name);
+                    side.monitors.push_back(received[i]);
                     side.monitors.back().name = nullptr; // the callback's string is gone afterwards
                 }
             });
         };
-        callbacks.on_stream_config = [](void* context, const osplay_stream_config* config) {
-            update(context,
-                   [config = *config](Side& side) { side.stream_configs.push_back(config); });
+        result.on_stream_config = [](void* context, const osplay_stream_config* config) {
+            update(context, [copy = *config](Side& side) { side.stream_configs.push_back(copy); });
         };
-        callbacks.on_access_unit = [](void* context, const osplay_access_unit* unit) {
+        result.on_access_unit = [](void* context, const osplay_access_unit* unit) {
             uint32_t index = 0;
             std::memcpy(&index, unit->data, sizeof(index));
             const auto expected = osplay::test::synthetic_frame(index, unit->keyframe == 1);
-            const bool intact = unit->length == expected.size() &&
-                                std::memcmp(unit->data, expected.data(), expected.size()) == 0;
-            update(context, [index, intact](Side& side) {
+            const bool matches = unit->length == expected.size() &&
+                                 std::memcmp(unit->data, expected.data(), expected.size()) == 0;
+            update(context, [index, matches](Side& side) {
                 side.frames.push_back(index);
-                side.intact = side.intact && intact;
+                side.intact = side.intact && matches;
             });
         };
-        return callbacks;
+        return result;
     }
 };
 
