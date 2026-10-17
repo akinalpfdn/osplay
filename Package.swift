@@ -1,13 +1,13 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-// Exposes the shared C++ core to Swift. Only the C header in core/include is public; the
-// CMake build in core/ is the reference build and must list the same sources.
+// The shared C++ core and its Swift wrapper. Only the C header in core/include is public C API;
+// the CMake build in core/ is the reference build and must list the same sources.
 let package = Package(
     name: "OsplayCore",
     platforms: [.macOS(.v14)],
     products: [
-        .library(name: "OsplayCore", targets: ["OsplayCore"])
+        .library(name: "CoreBridge", targets: ["CoreBridge"])
     ],
     targets: [
         .target(
@@ -17,10 +17,15 @@ let package = Package(
             publicHeadersPath: "include",
             cxxSettings: [.headerSearchPath("src")]
         ),
-        .testTarget(
-            name: "OsplayCoreTests",
+        .target(
+            name: "CoreBridge",
             dependencies: ["OsplayCore"],
-            path: "core/tests/swift/OsplayCoreTests"
+            path: "macos/CoreBridge"
+        ),
+        .testTarget(
+            name: "CoreBridgeTests",
+            dependencies: ["CoreBridge", "OsplayCore"],
+            path: "macos/CoreBridgeTests"
         ),
     ],
     cxxLanguageStandard: .cxx20
