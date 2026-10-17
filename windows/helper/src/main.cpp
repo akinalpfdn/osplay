@@ -24,13 +24,11 @@ int wmain(int argc, wchar_t* argv[]) {
             return 0;
         }
         if (GetLastError() == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) {
-            std::cerr << "OsplayHelper runs as a Windows service. Use --install or --uninstall.
-                         ";
-                return 2;
+            std::cerr << "OsplayHelper runs as a Windows service. Use --install or --uninstall.\n";
+            return 2;
         }
         return static_cast<int>(GetLastError());
     }
-    std::cerr << "Usage: OsplayHelper.exe [--install | --uninstall]
-                 ";
-        return 2;
+    std::cerr << "Usage: OsplayHelper.exe [--install | --uninstall]\n";
+    return 2;
 }

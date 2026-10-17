@@ -20,8 +20,9 @@ using ServiceHandle = std::unique_ptr<std::remove_pointer_t<SC_HANDLE>, ServiceH
 int fail(const char* what) {
     const DWORD error = GetLastError();
     std::cerr << what << " failed (error " << error << ")"
-              << (error == ERROR_ACCESS_DENIED ? ": run from an administrator command line" : "") << '
-'; return static_cast<int>(error == 0 ? 1 : error);
+              << (error == ERROR_ACCESS_DENIED ? ": run from an administrator command line" : "")
+              << '\n';
+    return static_cast<int>(error == 0 ? 1 : error);
 }
 
 } // namespace
@@ -46,9 +47,8 @@ int install_service() {
                        command.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr));
     if (!service) {
         if (GetLastError() == ERROR_SERVICE_EXISTS) {
-            std::cerr << "The service is already installed. Run --uninstall first.
-                         ";
-                return static_cast<int>(ERROR_SERVICE_EXISTS);
+            std::cerr << "The service is already installed. Run --uninstall first.\n";
+            return static_cast<int>(ERROR_SERVICE_EXISTS);
         }
         return fail("CreateServiceW");
     }
@@ -69,9 +69,8 @@ int install_service() {
     if (!StartServiceW(service.get(), 0, nullptr)) {
         return fail("StartServiceW");
     }
-    std::cout << "OsplayHelper installed and started.
-                 ";
-        return 0;
+    std::cout << "OsplayHelper installed and started.\n";
+    return 0;
 }
 
 int uninstall_service() {
@@ -96,9 +95,8 @@ int uninstall_service() {
     if (!DeleteService(service.get())) {
         return fail("DeleteService");
     }
-    std::cout << "OsplayHelper stopped and removed.
-                 ";
-        return 0;
+    std::cout << "OsplayHelper stopped and removed.\n";
+    return 0;
 }
 
 } // namespace osplay::helper
