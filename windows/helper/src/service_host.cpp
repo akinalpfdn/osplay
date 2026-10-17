@@ -9,6 +9,7 @@
 #include <osplay/win/helper_request_handler.hpp>
 
 #include <windows.h>
+
 #include <wtsapi32.h>
 
 #include <array>

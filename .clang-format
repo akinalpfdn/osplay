@@ -20,10 +20,13 @@ IncludeCategories:
     Priority: 2
   - Regex: '^<(gtest|gmock|asio|monocypher)'
     Priority: 3
-  - Regex: '^<.*\.h>'
+  # windows.h must precede every other Windows SDK header.
+  - Regex: '^<windows\.h>'
     Priority: 4
-  - Regex: '^<'
+  - Regex: '^<.*\.h>'
     Priority: 5
+  - Regex: '^<'
+    Priority: 6
 InsertNewlineAtEOF: true
 SortIncludes: CaseSensitive
 SpaceAfterTemplateKeyword: true

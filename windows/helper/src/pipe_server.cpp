@@ -31,7 +31,12 @@ struct LocalFreer {
 };
 
 std::string narrow(const std::wstring& text) {
-    return {text.begin(), text.end()}; // SIDs are ASCII
+    std::string result;
+    result.reserve(text.size());
+    for (const wchar_t c : text) {
+        result.push_back(static_cast<char>(c)); // SIDs are ASCII
+    }
+    return result;
 }
 
 } // namespace
