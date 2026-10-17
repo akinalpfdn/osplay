@@ -72,7 +72,9 @@ void Reassembler::add(const protocol::VideoFragment& fragment, TimePoint now) {
             drop_through(fragment.frame_id - 1);
         } else {
             for (std::uint32_t id = *next_frame_id_; id < fragment.frame_id; ++id) {
-                pending_.try_emplace(id, Pending{.first_seen = now});
+                Pending placeholder;
+                placeholder.first_seen = now;
+                pending_.try_emplace(id, std::move(placeholder));
             }
         }
     }
