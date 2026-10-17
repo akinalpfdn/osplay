@@ -75,6 +75,7 @@ cmake -S core -B build/fuzz -G Ninja -DCMAKE_C_COMPILER="$(brew --prefix llvm)/b
   -DOSPLAY_CORE_BUILD_FUZZER=ON -DOSPLAY_CORE_BUILD_TESTS=OFF
 cmake --build build/fuzz
 build/fuzz/fuzz/osplay_protocol_fuzzer -max_total_time=60 protocol/fixtures/control
+build/fuzz/fuzz/osplay_crypto_fuzzer -max_total_time=60 protocol/fixtures/control
 ```
 
 ### Hardware tests (virtual displays)
@@ -242,7 +243,7 @@ format a C++ file with the pinned version from `scripts/lint.sh`, for example
 
 - **macOS** — core CMake build and tests, portable Windows libraries and tests, `scripts/lint.sh`,
   `swift test`, app build and tests.
-- **Protocol fuzzing** (Linux) — 60 seconds of libFuzzer with ASan and UBSan on every decoder,
-  seeded with the fixtures.
+- **Protocol fuzzing** (Linux) — libFuzzer with ASan and UBSan, seeded with the fixtures: 30 seconds
+  on the protocol decoders, 30 seconds on the handshake reader and media opener.
 - **Windows** — core, engine, helper and developer tool with MSVC (`/W4 /WX`), all native tests,
   clang-tidy on core and Windows code, `dotnet format` check, shell build with analyzers as errors.
