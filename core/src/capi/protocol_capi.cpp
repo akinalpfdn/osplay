@@ -21,6 +21,12 @@ static_assert(static_cast<int>(Error::TrailingBytes) == OSPLAY_ERROR_TRAILING_BY
 static_assert(static_cast<int>(Error::ValueOutOfRange) == OSPLAY_ERROR_VALUE_OUT_OF_RANGE);
 static_assert(static_cast<int>(Error::InvalidString) == OSPLAY_ERROR_INVALID_STRING);
 static_assert(static_cast<int>(Error::TooLarge) == OSPLAY_ERROR_TOO_LARGE);
+static_assert(static_cast<int>(Error::DecryptionFailed) == OSPLAY_ERROR_DECRYPTION_FAILED);
+static_assert(static_cast<int>(Error::HandshakeOutOfOrder) == OSPLAY_ERROR_HANDSHAKE_OUT_OF_ORDER);
+static_assert(static_cast<int>(Error::Replayed) == OSPLAY_ERROR_REPLAYED);
+static_assert(static_cast<int>(Error::NonceExhausted) == OSPLAY_ERROR_NONCE_EXHAUSTED);
+static_assert(static_cast<int>(Error::InvalidKey) == OSPLAY_ERROR_INVALID_KEY);
+static_assert(static_cast<int>(Error::RandomUnavailable) == OSPLAY_ERROR_RANDOM_UNAVAILABLE);
 static_assert(OSPLAY_PROTOCOL_VERSION == osplay::protocol::kVersion);
 static_assert(OSPLAY_MAX_CONTROL_MESSAGE_SIZE == osplay::protocol::kMaxControlMessageSize);
 static_assert(OSPLAY_MAX_MEDIA_PLAINTEXT_SIZE == osplay::protocol::kMaxMediaPlaintextSize);

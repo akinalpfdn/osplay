@@ -49,7 +49,13 @@ typedef enum osplay_result {
     OSPLAY_ERROR_TRAILING_BYTES = 7,
     OSPLAY_ERROR_VALUE_OUT_OF_RANGE = 8,
     OSPLAY_ERROR_INVALID_STRING = 9,
-    OSPLAY_ERROR_TOO_LARGE = 10
+    OSPLAY_ERROR_TOO_LARGE = 10,
+    OSPLAY_ERROR_DECRYPTION_FAILED = 11,
+    OSPLAY_ERROR_HANDSHAKE_OUT_OF_ORDER = 12,
+    OSPLAY_ERROR_REPLAYED = 13,
+    OSPLAY_ERROR_NONCE_EXHAUSTED = 14,
+    OSPLAY_ERROR_INVALID_KEY = 15,
+    OSPLAY_ERROR_RANDOM_UNAVAILABLE = 16
 } osplay_result;
 
 typedef enum osplay_wire_kind {
@@ -57,6 +63,19 @@ typedef enum osplay_wire_kind {
     OSPLAY_WIRE_MEDIA_PACKET = 2     /* one plaintext media packet, without the AEAD tag */
 } osplay_wire_kind;
 /* NOLINTEND(cppcoreguidelines-use-enum-class,performance-enum-size) */
+
+#define OSPLAY_KEY_SIZE 32
+#define OSPLAY_DEVICE_ID_SIZE 16
+
+/*
+ * Cryptographically secure random bytes from the platform (SecRandomCopyBytes on macOS,
+ * BCryptGenRandom on Windows). `fill` writes exactly `length` bytes and returns OSPLAY_OK, or
+ * returns any other code to report failure. It may be called from any thread.
+ */
+typedef struct osplay_random_source {
+    osplay_result (*fill)(void* context, uint8_t* buffer, size_t length);
+    void* context;
+} osplay_random_source;
 
 /*
  * Version of the core library that is actually linked. Comparing it with the
@@ -74,6 +93,21 @@ osplay_version osplay_core_version(void);
  */
 osplay_result osplay_protocol_validate(osplay_wire_kind kind, const uint8_t* data, size_t length,
                                        uint8_t* out_type);
+
+/*
+ * Device identity: a static X25519 key pair. Platforms store the 32-byte secret (Keychain, DPAPI);
+ * core never persists it. All buffers are OSPLAY_KEY_SIZE bytes unless stated otherwise.
+ *
+ * osplay_identity_generate creates a new key pair from `random`.
+ */
+osplay_result osplay_identity_generate(const osplay_random_source* random, uint8_t* secret_key,
+                                       uint8_t* public_key);
+
+/* Validates a stored secret (an all-zero secret is rejected) and derives its public key. */
+osplay_result osplay_identity_public_key(const uint8_t* secret_key, uint8_t* public_key);
+
+/* The device ID advertised over Bonjour (OSPLAY_DEVICE_ID_SIZE bytes, see PROTOCOL.md). */
+osplay_result osplay_identity_device_id(const uint8_t* public_key, uint8_t* device_id);
 
 /*
  * Decodes and re-encodes. Encoding is canonical, so a valid input comes back byte for byte.
