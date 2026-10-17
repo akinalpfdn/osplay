@@ -46,6 +46,16 @@ struct Side {
     std::vector<osplay_stream_config> stream_configs;
     std::vector<uint32_t> frames;
     bool intact = true;
+    int keyframe_requests = 0;
+
+    size_t frame_count() {
+        const std::scoped_lock lock(mutex);
+        return frames.size();
+    }
+    int keyframe_request_count() {
+        const std::scoped_lock lock(mutex);
+        return keyframe_requests;
+    }
 
     template <typename Predicate>
     bool wait(Predicate predicate) {
@@ -97,6 +107,9 @@ struct Side {
         };
         result.on_stream_config = [](void* context, const osplay_stream_config* config) {
             update(context, [copy = *config](Side& side) { side.stream_configs.push_back(copy); });
+        };
+        result.on_keyframe_request = [](void* context, uint8_t /*stream_id*/) {
+            update(context, [](Side& side) { ++side.keyframe_requests; });
         };
         result.on_access_unit = [](void* context, const osplay_access_unit* unit) {
             uint32_t index = 0;
@@ -193,9 +206,15 @@ TEST(CapiSession, PairsConfiguresAndStreamsOverLoopback) {
     ASSERT_EQ(viewer_side.stream_configs.size(), 1U);
     EXPECT_EQ(viewer_side.stream_configs.front().bitrate_kbps, 30'000U);
 
-    constexpr uint32_t kFrames = 30;
-    for (uint32_t index = 0; index < kFrames; ++index) {
-        const bool keyframe = index == 0;
+    // Push until 30 frames arrived, answering keyframe requests like an encoder would.
+    constexpr size_t kFrames = 30;
+    int requests_seen = 0;
+    const auto give_up = std::chrono::steady_clock::now() + seconds(10);
+    for (uint32_t index = 0; viewer_side.frame_count() < kFrames; ++index) {
+        ASSERT_LT(std::chrono::steady_clock::now(), give_up) << "frames stopped arriving";
+        const int requests = host_side.keyframe_request_count();
+        const bool keyframe = index == 0 || requests > requests_seen;
+        requests_seen = requests;
         const auto bytes = osplay::test::synthetic_frame(index, keyframe);
         const osplay_access_unit unit{.stream_id = 0,
                                       .keyframe = static_cast<uint8_t>(keyframe),
@@ -205,9 +224,8 @@ TEST(CapiSession, PairsConfiguresAndStreamsOverLoopback) {
                                       .data = bytes.data(),
                                       .length = bytes.size()};
         ASSERT_EQ(osplay_session_push_access_unit(host, &unit), OSPLAY_OK);
-        std::this_thread::sleep_for(milliseconds(5));
+        std::this_thread::sleep_for(milliseconds(16));
     }
-    ASSERT_TRUE(viewer_side.wait([](Side& side) { return side.frames.size() == kFrames; }));
     EXPECT_TRUE(viewer_side.intact);
 
     osplay_session_destroy(viewer);

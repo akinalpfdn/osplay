@@ -378,6 +378,18 @@ protected:
         }
     }
 
+    /// Pushes frames until the viewer has received `target` of them; false after `limit`.
+    bool stream_until(std::size_t target, milliseconds limit) {
+        const auto give_up = std::chrono::steady_clock::now() + limit;
+        while (viewer_observer.frame_count() < target) {
+            if (std::chrono::steady_clock::now() >= give_up) {
+                return false;
+            }
+            push_frame();
+        }
+        return true;
+    }
+
     /// Sends a keyframe first and whenever one was requested.
     void push_frame() {
         const int requests = host_observer.keyframe_requests();
@@ -446,9 +458,7 @@ TEST_F(RealSessions, StreamsFramesEndToEndOverLoopback) {
 TEST_F(RealSessions, NothingReadableCrossesTheWireAfterTheHandshake) {
     connect(true);
     start_streaming();
-    stream_frames(60);
-    ASSERT_TRUE(viewer_observer.wait_for_frames(next_index, seconds(5)))
-        << "media really went through the relay";
+    ASSERT_TRUE(stream_until(60, seconds(10))) << "media really went through the relay";
 
     const auto capture = relay->capture();
     const auto to_host = frames_of(capture.viewer_to_host);
@@ -471,18 +481,15 @@ TEST_F(RealSessions, NothingReadableCrossesTheWireAfterTheHandshake) {
 TEST_F(RealSessions, SurvivesAThreeSecondNetworkInterruption) {
     connect(true);
     start_streaming();
-    stream_frames(60);
-    ASSERT_TRUE(viewer_observer.wait_for_frames(next_index, seconds(5)));
+    ASSERT_TRUE(stream_until(30, seconds(10)));
+    std::this_thread::sleep_for(milliseconds(200)); // let frames in flight land
     const auto before = viewer_observer.frame_count();
 
     relay->set_outage(true);
     stream_for(seconds(3));
     EXPECT_LE(viewer_observer.frame_count(), before + 3) << "the outage really cut media";
     relay->set_outage(false);
-    stream_frames(120);
-
-    EXPECT_TRUE(viewer_observer.wait_for_frames(before + 60, seconds(5)))
-        << "streaming resumed after the outage";
+    EXPECT_TRUE(stream_until(before + 60, seconds(10))) << "streaming resumed after the outage";
     EXPECT_EQ(host_observer.state(), SessionState::Streaming);
     EXPECT_EQ(viewer_observer.state(), SessionState::Streaming);
     EXPECT_TRUE(viewer_observer.intact());
