@@ -26,5 +26,5 @@ Two `core` instances can mutually authenticate and derive transport keys.
 - Pairing code = BLAKE2b-256(label || h) first 8 bytes LE mod 10^6.
 - Media replay window 1024; sealer refuses repeated/decreasing sequence numbers (nonce reuse guard).
 - core error enum moved to osplay::Error (protocol::Error is an alias); codes 11–16 appended.
-- Fuzz entry point now also feeds the handshake reader and the media opener.
+- Fuzzing split into two targets: protocol decoders (~13M inputs / 30 s in CI) and crypto parsers (handshake reader + media opener, ~10k / 30 s); one shared target dropped the decoders to ~600 inputs/s.
 - CoreBridge: DeviceIdentity (generate via SecRandomCopyBytes, restore, device ID).
