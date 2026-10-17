@@ -1,5 +1,5 @@
 # Phase 005 (MVP-05) — Crypto and handshake
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 4. Depends on: Phase 3.
 
