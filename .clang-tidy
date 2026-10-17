@@ -17,11 +17,14 @@ Checks: >
   -readability-magic-numbers,
   -cppcoreguidelines-pro-type-reinterpret-cast,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
   -misc-include-cleaner,
   -modernize-use-trailing-return-type,
   -readability-identifier-length,
-  -portability-avoid-pragma-once
-# Byte-level codecs use reinterpret_cast and pointer arithmetic on bounded spans; magic numbers
+  -portability-avoid-pragma-once,
+  -clang-analyzer-optin.core.EnumCastOutOfRange
+# Byte-level codecs use reinterpret_cast, pointer arithmetic and indexing on spans whose bounds
+# are checked explicitly in one reader per codec (and fuzzed from Phase 3 on); magic numbers
 # are reviewed by hand because wire offsets are documented in PROTOCOL.md next to their constants.
 WarningsAsErrors: '*'
 HeaderFilterRegex: '.*/(core|windows)/(include|src|engine|helper)/.*'
@@ -51,6 +54,11 @@ CheckOptions:
   - key: readability-identifier-naming.TypedefIgnoredRegexp
     value: '^osplay_[a-z0-9_]+$'
   - key: modernize-use-using.IgnoreExternC
+    value: true
+  - key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value: true
+  # Win32 functions return BOOL; `if (!CreateFoo())` is the idiom.
+  - key: readability-implicit-bool-conversion.AllowIntegerConditions
     value: true
   - key: cppcoreguidelines-macro-usage.AllowedRegexp
     value: '^OSPLAY_[A-Z0-9_]+$'

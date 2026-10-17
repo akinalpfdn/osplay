@@ -87,11 +87,23 @@ DEVELOPMENT_TEAM = <your team ID>
 
 Then run `xcodegen generate` again.
 
+### Portable Windows libraries
+
+The Windows helper protocol, request handling and provider logic do not depend on Windows headers.
+Build and test them on a Mac too:
+
+```sh
+cd windows
+cmake --preset portable
+cmake --build --preset portable
+ctest --preset portable
+```
+
 ### Formatting and lint
 
 ```sh
 scripts/format.sh   # apply clang-format and swift-format in place
-scripts/lint.sh     # check formatting, run clang-tidy on core, check translations
+scripts/lint.sh     # check formatting, run clang-tidy, check translations
 ```
 
 `scripts/lint.sh` is exactly what CI runs. Tool versions are pinned inside it and fetched with `uv`
@@ -136,7 +148,66 @@ dotnet run --project Osplay.App -c Release
 The shell starts without a window and shows an "O" icon in the notification area; right-click it
 to quit. Windows may hide new icons in the overflow menu (the `^` arrow on the taskbar).
 
-Build outputs land in `windows/build/<preset>/` for native code and in `bin/` folders for .NET.
+Build outputs land in `windows/build/<preset>/` for native code (executables and
+`OsplayEngine.dll` in `windows/build/<preset>/bin/`) and in `bin/` folders for .NET.
+
+### Virtual monitor (developer setup)
+
+The Windows host's virtual monitor needs the Virtual Display Driver and the OsplayHelper service.
+The installer will set both up from Phase 14 on; until then, once per machine:
+
+1. Install the Virtual Display Driver. `winget install VirtualDrivers.Virtual-Display-Driver`
+   only downloads and unpacks the package; it does **not** install the driver. Either:
+
+   - download the **Virtual Driver Control** app from the
+     [driver's releases](https://github.com/VirtualDrivers/Virtual-Display-Driver/releases), run
+     it and click **Install**; or
+   - from an **administrator** command line in the unpacked winget package, create the device with
+     the bundled `devcon` (the folder is named `x86` but holds the x64 driver):
+
+     ```powershell
+     .\devcon.exe install SignedDrivers\x86\VDD\MttVDD.inf Root\MttVDD
+     ```
+
+   Windows adds an 800×600 monitor as soon as the driver is installed; OsplayHelper disables it
+   again when it starts.
+
+2. Install the helper service from the same administrator command line, after building:
+
+   ```powershell
+   cd windows\build\debug\bin
+   .\OsplayHelper.exe --install
+   ```
+
+   The service points at this build folder. Run `.\OsplayHelper.exe --uninstall` before deleting
+   or moving the folder, and reinstall after rebuilding the helper. Its log is
+   `%ProgramData%\Osplay\logs\helper.log`.
+
+3. Drive the monitor from a **normal** (non-administrator) command line with the developer tool:
+
+   ```powershell
+   cd windows\build\debug\bin
+   .\OsplayVdTool.exe status
+   .\OsplayVdTool.exe create 2560 1664 60
+   ```
+
+   `create` adds a monitor, sets exactly that mode and keeps it until you press Enter or close the
+   tool. Closing the tool any other way (Ctrl+C, crash) removes the monitor too.
+
+4. To check that the helper rejects malformed requests, send it garbage from PowerShell. .NET pipe
+   clients connect anonymously by default, which the helper refuses, so request identification:
+
+   ```powershell
+   $p = [System.IO.Pipes.NamedPipeClientStream]::new('.', 'OsplayHelper',
+       [System.IO.Pipes.PipeDirection]::InOut, [System.IO.Pipes.PipeOptions]::None,
+       [System.Security.Principal.TokenImpersonationLevel]::Identification)
+   $p.Connect(2000); $p.Write([byte[]](1,2,3,4), 0, 4); $p.Flush(); $p.Dispose()
+   Get-Content "$env:ProgramData\Osplay\logs\helper.log" -Tail 3   # Rejected request: truncated
+   ```
+
+> The driver's own documentation warns that major GPU or chipset driver updates can scramble
+> display priority while it is installed. If the screen goes black after such an update, boot into
+> Safe Mode and uninstall the Virtual Display Driver from Device Manager → Display adapters.
 
 ### Formatting
 
@@ -148,6 +219,7 @@ format a C++ file with the pinned version from `scripts/lint.sh`, for example
 
 `.github/workflows/ci.yml` has two jobs:
 
-- **macOS** — core CMake build and tests, `scripts/lint.sh`, `swift test`, app build and tests.
-- **Windows** — core, engine and helper with MSVC (`/W4 /WX`) and core tests, `dotnet format`
-  check, shell build with analyzers as errors.
+- **macOS** — core CMake build and tests, portable Windows libraries and tests, `scripts/lint.sh`,
+  `swift test`, app build and tests.
+- **Windows** — core, engine, helper and developer tool with MSVC (`/W4 /WX`), all native tests,
+  clang-tidy on core and Windows code, `dotnet format` check, shell build with analyzers as errors.

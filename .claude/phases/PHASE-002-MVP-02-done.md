@@ -1,5 +1,5 @@
 # Phase 002 (MVP-02) — macOS virtual displays (go/no-go gate)
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 1. Depends on: Phase 0.
 
@@ -12,15 +12,15 @@ The Mac app can create and remove up to two real virtual displays on the M3 MacB
 - [x] Temporary developer menu (debug builds only) to create/remove 1 or 2 test displays at chosen resolutions.
 
 ## Acceptance Criteria
-- [ ] With the lid open on the M3 Air, two virtual displays appear simultaneously in System Settings → Displays.
-  - Automated on the M3 Air (hardware test): both online at once next to the built-in screen. System Settings view: manual check pending.
-- [ ] Windows can be dragged onto both; Mission Control treats them as separate displays.
-- [ ] HiDPI "looks like" modes are selectable.
-  - Automated: crisp 2× mode listed and activated through the API. System Settings picker: manual check pending.
-- [ ] Removing and recreating with the same identity restores the previous arrangement.
-  - Automated: same identity returns to the same origin. After a manual rearrangement: manual check pending.
-- [ ] Destroying the provider removes the displays and windows move back to the built-in screen.
-  - Automated: displays go offline after destroyAll. Window migration: manual check pending.
+- [x] With the lid open on the M3 Air, two virtual displays appear simultaneously in System Settings → Displays.
+  - Automated on the M3 Air (hardware test): both online at once next to the built-in screen. System Settings view: verified manually by the user (2026-10-17).
+- [x] Windows can be dragged onto both; Mission Control treats them as separate displays. (manual, user, 2026-10-17)
+- [x] HiDPI "looks like" modes are selectable.
+  - Automated: crisp 2× mode listed and activated through the API. System Settings picker: verified manually by the user (2026-10-17).
+- [x] Removing and recreating with the same identity restores the previous arrangement.
+  - Automated: same identity returns to the same origin. After a manual rearrangement: verified manually by the user (2026-10-17).
+- [x] Destroying the provider removes the displays and windows move back to the built-in screen.
+  - Automated: displays go offline after destroyAll. Window migration: verified manually by the user (2026-10-17).
 - [x] **If two simultaneous displays cannot be created, stop and document findings before any further phase.**
 
 ## Decisions Made This Phase

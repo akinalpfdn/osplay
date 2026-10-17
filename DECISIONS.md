@@ -95,3 +95,21 @@ choices the plan leaves open are logged here.
 **Revisit if:** CI gets a dedicated Mac with a known display setup.
 
 ---
+
+## 2026-10-17 — Windows virtual monitor control
+**Chosen:** OsplayHelper owns the Virtual Display Driver: it rewrites `vdd_settings.xml` (one monitor, one exact mode) and enables or disables the driver's device through SetupAPI. The monitor is tied to the helper's single pipe client: when that client disconnects, the console user changes or the service starts or stops, the device is disabled. The driver's own named pipe is not used.
+**Alternatives:** Driving VDD through its pipe (`SETDISPLAYCOUNT`, `RELOAD_DRIVER`); keeping the device enabled with a hidden monitor; forking VDD.
+**Why:** The driver reads its settings only when the device starts and coerces a count of 0 to 1 (source reading, Phase 2), so neither modes nor removal are possible through the pipe; its pipe also accepts any local user. Tying the monitor to the client connection guarantees that a crashed engine never leaves an invisible monitor that windows move onto.
+**Trade-offs:** Every session start and resolution change restarts the device (a short display reconfiguration). Osplay conflicts with other software that uses the same VDD installation.
+**Revisit if:** Device restarts prove too slow or disruptive on real hardware (then: fork VDD or a minimal IddCx driver, per DEVPLAN risks).
+
+---
+
+## 2026-10-17 — Portable Windows libraries
+**Chosen:** The helper protocol, request handler, settings renderer and engine provider logic live in Windows-header-free libraries (`windows/shared`, `osplay_engine_logic`) that build, test and get clang-tidy on macOS and Linux through the `portable` preset, as well as on Windows.
+**Alternatives:** Keep all Windows code Windows-only and rely on the Windows CI job.
+**Why:** The maintainer develops on a Mac; logic that can be tested locally gets tested before CI and catches errors earlier than a remote MSVC build.
+**Trade-offs:** Windows-specific layers (SetupAPI, pipes, service) stay thin and are verified only on Windows.
+**Revisit if:** Never needed; the split costs little.
+
+---
