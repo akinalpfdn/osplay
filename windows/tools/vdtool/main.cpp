@@ -117,12 +117,12 @@ int main(int argc, char* argv[]) {
         return run(std::span<char*>(argv, static_cast<std::size_t>(argc)));
     } catch (const std::exception& error) {
         // C stdio cannot throw, unlike iostreams.
-        std::fputs("error: ", stderr);
-        std::fputs(error.what(), stderr);
-        std::fputs("\n", stderr);
+        static_cast<void>(std::fputs("error: ", stderr));
+        static_cast<void>(std::fputs(error.what(), stderr));
+        static_cast<void>(std::fputs("\n", stderr));
         return 1;
     } catch (...) {
-        std::fputs("error: unknown exception\n", stderr);
+        static_cast<void>(std::fputs("error: unknown exception\n", stderr));
         return 1;
     }
 }
