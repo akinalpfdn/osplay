@@ -15,6 +15,7 @@
 #include <atomic>
 #include <chrono>
 #include <deque>
+#include <exception>
 #include <functional>
 #include <future>
 #include <memory>
@@ -50,7 +51,16 @@ public:
     Impl(Impl&&) = delete;
     Impl& operator=(Impl&&) = delete;
 
-    ~Impl() override { stop(); }
+    ~Impl() override {
+        try {
+            stop();
+        } catch (...) {
+            // Only joining the I/O thread can throw, and a session that cannot stop its own thread
+            // is unrecoverable; this makes the implicit terminate of a noexcept destructor
+            // explicit.
+            std::terminate();
+        }
+    }
 
     void set_tick_interval(Microseconds interval) { tick_interval_ = interval; }
 

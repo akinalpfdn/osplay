@@ -32,6 +32,7 @@ enum class Error : std::uint8_t {
     PeerBusy = 23,
     InvalidState = 24,
     NetworkError = 25,
+    Internal = 26,
 };
 
 } // namespace osplay

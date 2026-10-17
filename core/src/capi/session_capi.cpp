@@ -342,6 +342,16 @@ osplay_result create_session(const osplay_session_config* config, const uint8_t*
     return OSPLAY_OK;
 }
 
+/// No C++ exception may cross the C boundary: only allocation and thread creation can throw.
+template <typename Body>
+osplay_result guarded(const Body& body) noexcept {
+    try {
+        return body();
+    } catch (...) {
+        return OSPLAY_ERROR_INTERNAL;
+    }
+}
+
 osplay_result to_status_result(const osplay::Status<Error>& status) {
     return status ? OSPLAY_OK : to_result(status.error());
 }
@@ -355,13 +365,15 @@ osplay_result osplay_host_session_create(const osplay_session_config* config,
                                          const osplay_random_source* random,
                                          const osplay_session_callbacks* callbacks,
                                          osplay_session** out_session) {
-    return create_session(config, secret_key, random, callbacks, protocol::Role::Host, out_session,
-                          [](session::SessionConfig session_config,
-                             osplay::crypto::KeyPair identity, osplay_session& handle) {
-                              return osplay::transport::AsioSession::create_host(
-                                  std::move(session_config), std::move(identity), handle.random,
-                                  handle.observer);
-                          });
+    return guarded([&]() -> osplay_result {
+        return create_session(
+            config, secret_key, random, callbacks, protocol::Role::Host, out_session,
+            [](session::SessionConfig session_config, osplay::crypto::KeyPair identity,
+               osplay_session& handle) {
+                return osplay::transport::AsioSession::create_host(
+                    std::move(session_config), std::move(identity), handle.random, handle.observer);
+            });
+    });
 }
 
 osplay_result osplay_viewer_session_create(const osplay_session_config* config,
@@ -370,21 +382,23 @@ osplay_result osplay_viewer_session_create(const osplay_session_config* config,
                                            const osplay_session_callbacks* callbacks,
                                            const char* host, uint16_t port,
                                            osplay_session** out_session) {
-    if (host == nullptr || *host == '\0' || port == 0) {
-        if (out_session != nullptr) {
-            *out_session = nullptr;
+    return guarded([&]() -> osplay_result {
+        if (host == nullptr || *host == '\0' || port == 0) {
+            if (out_session != nullptr) {
+                *out_session = nullptr;
+            }
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
         }
-        return OSPLAY_ERROR_INVALID_ARGUMENT;
-    }
-    const std::string host_name(host);
-    return create_session(
-        config, secret_key, random, callbacks, protocol::Role::Viewer, out_session,
-        [&host_name, port](session::SessionConfig session_config, osplay::crypto::KeyPair identity,
-                           osplay_session& handle) {
-            return osplay::transport::AsioSession::create_viewer(std::move(session_config),
-                                                                 std::move(identity), handle.random,
-                                                                 handle.observer, host_name, port);
-        });
+        const std::string host_name(host);
+        return create_session(
+            config, secret_key, random, callbacks, protocol::Role::Viewer, out_session,
+            [&host_name, port](session::SessionConfig session_config,
+                               osplay::crypto::KeyPair identity, osplay_session& handle) {
+                return osplay::transport::AsioSession::create_viewer(
+                    std::move(session_config), std::move(identity), handle.random, handle.observer,
+                    host_name, port);
+            });
+    });
 }
 
 void osplay_session_destroy(osplay_session* session) {
@@ -401,67 +415,79 @@ osplay_result osplay_session_control_port(const osplay_session* session, uint16_
 }
 
 osplay_result osplay_session_confirm_pairing(osplay_session* session, uint8_t accepted) {
-    if (session == nullptr || accepted > 1) {
-        return OSPLAY_ERROR_INVALID_ARGUMENT;
-    }
-    return to_status_result(session->session->confirm_pairing(accepted == 1));
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr || accepted > 1) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        return to_status_result(session->session->confirm_pairing(accepted == 1));
+    });
 }
 
 osplay_result osplay_session_configure_streams(osplay_session* session,
                                                const osplay_stream_config* streams, size_t count) {
-    if (session == nullptr || streams == nullptr || count == 0 || count > protocol::kMaxStreams) {
-        return OSPLAY_ERROR_INVALID_ARGUMENT;
-    }
-    std::vector<protocol::StreamConfig> converted;
-    for (const auto& stream : std::span(streams, count)) {
-        const auto profile = profile_from(stream.profile);
-        const auto cursor_mode = cursor_mode_from(stream.cursor_mode);
-        if (!profile || !cursor_mode) {
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr || streams == nullptr || count == 0 ||
+            count > protocol::kMaxStreams) {
             return OSPLAY_ERROR_INVALID_ARGUMENT;
         }
-        converted.push_back({.stream_id = stream.stream_id,
-                             .monitor_id = stream.monitor_id,
-                             .width = stream.width,
-                             .height = stream.height,
-                             .refresh_millihertz = stream.refresh_millihertz,
-                             .codec = protocol::Codec::H264,
-                             .profile = *profile,
-                             .cursor_mode = *cursor_mode,
-                             .bitrate_kbps = stream.bitrate_kbps});
-    }
-    return to_status_result(session->session->configure_streams(converted));
+        std::vector<protocol::StreamConfig> converted;
+        for (const auto& stream : std::span(streams, count)) {
+            const auto profile = profile_from(stream.profile);
+            const auto cursor_mode = cursor_mode_from(stream.cursor_mode);
+            if (!profile || !cursor_mode) {
+                return OSPLAY_ERROR_INVALID_ARGUMENT;
+            }
+            converted.push_back({.stream_id = stream.stream_id,
+                                 .monitor_id = stream.monitor_id,
+                                 .width = stream.width,
+                                 .height = stream.height,
+                                 .refresh_millihertz = stream.refresh_millihertz,
+                                 .codec = protocol::Codec::H264,
+                                 .profile = *profile,
+                                 .cursor_mode = *cursor_mode,
+                                 .bitrate_kbps = stream.bitrate_kbps});
+        }
+        return to_status_result(session->session->configure_streams(converted));
+    });
 }
 
 osplay_result osplay_session_push_access_unit(osplay_session* session,
                                               const osplay_access_unit* unit) {
-    if (session == nullptr || unit == nullptr || unit->data == nullptr || unit->length == 0 ||
-        unit->keyframe > 1 || unit->codec_config > 1 ||
-        (unit->codec_config == 1 && unit->keyframe == 0)) {
-        return OSPLAY_ERROR_INVALID_ARGUMENT;
-    }
-    if (unit->length > std::size_t{protocol::kMaxFragmentsPerFrame} * protocol::kMaxVideoPayload) {
-        return OSPLAY_ERROR_TOO_LARGE;
-    }
-    session->session->push_access_unit({.stream_id = unit->stream_id,
-                                        .keyframe = unit->keyframe == 1,
-                                        .codec_config = unit->codec_config == 1,
-                                        .capture_time_us = unit->capture_time_us,
-                                        .data = std::span(unit->data, unit->length)});
-    return OSPLAY_OK;
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr || unit == nullptr || unit->data == nullptr || unit->length == 0 ||
+            unit->keyframe > 1 || unit->codec_config > 1 ||
+            (unit->codec_config == 1 && unit->keyframe == 0)) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        if (unit->length >
+            std::size_t{protocol::kMaxFragmentsPerFrame} * protocol::kMaxVideoPayload) {
+            return OSPLAY_ERROR_TOO_LARGE;
+        }
+        session->session->push_access_unit({.stream_id = unit->stream_id,
+                                            .keyframe = unit->keyframe == 1,
+                                            .codec_config = unit->codec_config == 1,
+                                            .capture_time_us = unit->capture_time_us,
+                                            .data = std::span(unit->data, unit->length)});
+        return OSPLAY_OK;
+    });
 }
 
 osplay_result osplay_session_pause_stream(osplay_session* session, uint8_t stream_id) {
-    if (session == nullptr) {
-        return OSPLAY_ERROR_INVALID_ARGUMENT;
-    }
-    return to_status_result(session->session->pause_stream(stream_id));
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        return to_status_result(session->session->pause_stream(stream_id));
+    });
 }
 
 osplay_result osplay_session_resume_stream(osplay_session* session, uint8_t stream_id) {
-    if (session == nullptr) {
-        return OSPLAY_ERROR_INVALID_ARGUMENT;
-    }
-    return to_status_result(session->session->resume_stream(stream_id));
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        return to_status_result(session->session->resume_stream(stream_id));
+    });
 }
 
 } // extern "C"

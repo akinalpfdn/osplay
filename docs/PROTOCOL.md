@@ -452,6 +452,7 @@ Decoding and encoding report these codes, which are also the values of `osplay_r
 | 23 | PEER_BUSY | the peer is in another session |
 | 24 | INVALID_STATE | the command is not valid in the session's current state |
 | 25 | NETWORK | a socket could not be opened, connected or used |
+| 26 | INTERNAL | the core could not allocate memory or start its I/O thread |
 
 ## Fixtures
 

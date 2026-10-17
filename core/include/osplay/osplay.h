@@ -69,6 +69,7 @@ typedef enum osplay_result {
     OSPLAY_ERROR_PEER_BUSY = 23,
     OSPLAY_ERROR_INVALID_STATE = 24,
     OSPLAY_ERROR_NETWORK = 25,
+    OSPLAY_ERROR_INTERNAL = 26,
     OSPLAY_RESULT_MAX_ENUM = 0x7FFFFFFF
 } osplay_result;
 

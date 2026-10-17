@@ -36,6 +36,7 @@ static_assert(static_cast<int>(Error::PairingRejected) == OSPLAY_ERROR_PAIRING_R
 static_assert(static_cast<int>(Error::PeerBusy) == OSPLAY_ERROR_PEER_BUSY);
 static_assert(static_cast<int>(Error::InvalidState) == OSPLAY_ERROR_INVALID_STATE);
 static_assert(static_cast<int>(Error::NetworkError) == OSPLAY_ERROR_NETWORK);
+static_assert(static_cast<int>(Error::Internal) == OSPLAY_ERROR_INTERNAL);
 static_assert(OSPLAY_PROTOCOL_VERSION == osplay::protocol::kVersion);
 static_assert(OSPLAY_MAX_CONTROL_MESSAGE_SIZE == osplay::protocol::kMaxControlMessageSize);
 static_assert(OSPLAY_MAX_MEDIA_PLAINTEXT_SIZE == osplay::protocol::kMaxMediaPlaintextSize);
