@@ -2,6 +2,9 @@ import AppKit
 import SwiftUI
 
 struct MenuContentView: View {
+    #if DEBUG
+        let developerDisplays: DeveloperDisplaysViewModel
+    #endif
     private let coreVersion = CoreVersion.linked
 
     var body: some View {
@@ -11,6 +14,10 @@ struct MenuContentView: View {
             Text("menu.coreVersion \(coreVersion.description)")
                 .font(Theme.Typography.caption)
                 .foregroundStyle(.secondary)
+            #if DEBUG
+                Divider()
+                DeveloperDisplaysView(viewModel: developerDisplays)
+            #endif
             Divider()
             Button("menu.quit") {
                 NSApplication.shared.terminate(nil)

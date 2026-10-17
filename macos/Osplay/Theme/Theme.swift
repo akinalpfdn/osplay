@@ -10,11 +10,16 @@ enum Theme {
 
     enum Typography {
         static let title = Font.headline
+        static let sectionTitle = Font.subheadline.weight(.semibold)
         static let caption = Font.caption
     }
 
+    enum Colors {
+        static let error = Color(.errorText)
+    }
+
     enum Size {
-        static let menuWidth: CGFloat = 240
+        static let menuWidth: CGFloat = 320
     }
 
     enum Symbol {
