@@ -34,7 +34,7 @@ list_files '*.h' '*.hpp' '*.c' '*.cpp' ':!:*/third_party/*' |
 
 echo "==> swift-format"
 xcrun swift-format lint --strict --recursive --parallel \
-    Package.swift macos/Osplay macos/OsplayTests core/tests/swift
+    Package.swift macos/Osplay macos/OsplayTests macos/OsplayHardwareTests core/tests/swift
 
 echo "==> localization"
 python3 scripts/check_localization.py

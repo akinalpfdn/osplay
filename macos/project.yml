@@ -37,6 +37,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.akinalpfdn.osplay
         PRODUCT_NAME: Osplay
         INFOPLIST_FILE: Osplay/Resources/Info.plist
+        SWIFT_OBJC_BRIDGING_HEADER: Osplay/Services/VirtualDisplay/CGVirtualDisplayPrivate.h
         ENABLE_HARDENED_RUNTIME: YES
         COMBINE_HIDPI_IMAGES: YES
   OsplayTests:
@@ -52,6 +53,19 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         BUNDLE_LOADER: $(TEST_HOST)
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/Osplay.app/Contents/MacOS/Osplay
+  OsplayHardwareTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: OsplayHardwareTests
+    dependencies:
+      - target: Osplay
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akinalpfdn.osplay.hardwaretests
+        GENERATE_INFOPLIST_FILE: YES
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Osplay.app/Contents/MacOS/Osplay
 schemes:
   Osplay:
     build:
@@ -63,3 +77,13 @@ schemes:
       gatherCoverageData: true
       targets:
         - OsplayTests
+  # Creates real virtual displays on the machine running it; not part of CI.
+  OsplayHardware:
+    build:
+      targets:
+        Osplay: all
+        OsplayHardwareTests: [test]
+    test:
+      config: Debug
+      targets:
+        - OsplayHardwareTests

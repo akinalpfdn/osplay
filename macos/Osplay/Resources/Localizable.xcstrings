@@ -18,6 +18,312 @@
         }
       }
     },
+    "developer.createOne" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create 1"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 oluştur"
+          }
+        }
+      }
+    },
+    "developer.createTwo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create 2"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 oluştur"
+          }
+        }
+      }
+    },
+    "developer.crispDefault" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start at sharp 2× size"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keskin 2× boyutla başlat"
+          }
+        }
+      }
+    },
+    "developer.displayName %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay Test %lld"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay Test %lld"
+          }
+        }
+      }
+    },
+    "developer.hiDPI" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HiDPI"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HiDPI"
+          }
+        }
+      }
+    },
+    "developer.noDisplays" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No test displays"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test ekranı yok"
+          }
+        }
+      }
+    },
+    "developer.removeAll" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove all"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tümünü kaldır"
+          }
+        }
+      }
+    },
+    "developer.resolution" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resolution"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çözünürlük"
+          }
+        }
+      }
+    },
+    "developer.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developer"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geliştirici"
+          }
+        }
+      }
+    },
+    "error.virtualDisplay.creationFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS did not create the virtual display. Quit Osplay, open it again and retry."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS sanal ekranı oluşturmadı. Osplay'den çıkıp yeniden açın ve tekrar deneyin."
+          }
+        }
+      }
+    },
+    "error.virtualDisplay.displayDestroyed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The display has already been removed."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ekran zaten kaldırılmış."
+          }
+        }
+      }
+    },
+    "error.virtualDisplay.duplicateIdentity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A display for this monitor already exists."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu monitör için zaten bir ekran var."
+          }
+        }
+      }
+    },
+    "error.virtualDisplay.invalidConfiguration" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These display settings are not supported."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu ekran ayarları desteklenmiyor."
+          }
+        }
+      }
+    },
+    "error.virtualDisplay.notReady" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS has not finished setting up the display yet. Wait a moment and try again."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS ekranı henüz hazırlamayı bitirmedi. Biraz bekleyip tekrar deneyin."
+          }
+        }
+      }
+    },
+    "error.virtualDisplay.reconfigurationFailed %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS could not change the resolution (error %lld). Try again from System Settings → Displays."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS çözünürlüğü değiştiremedi (hata %lld). Sistem Ayarları → Ekranlar üzerinden tekrar deneyin."
+          }
+        }
+      }
+    },
+    "error.virtualDisplay.resolutionUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This resolution is not available for the display."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu çözünürlük bu ekranda kullanılamıyor."
+          }
+        }
+      }
+    },
+    "error.virtualDisplay.settingsRejected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS rejected the display's resolutions. Try a different resolution."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS ekranın çözünürlüklerini kabul etmedi. Farklı bir çözünürlük deneyin."
+          }
+        }
+      }
+    },
+    "error.virtualDisplay.tooManyDisplays %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay can add at most %lld displays."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay en fazla %lld ekran ekleyebilir."
+          }
+        }
+      }
+    },
     "menu.coreVersion %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -48,6 +354,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Osplay'den Çık"
+          }
+        }
+      }
+    },
+    "resolution.hiDPI %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ (HiDPI, %2$@ px)"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ (HiDPI, %2$@ piksel)"
           }
         }
       }
