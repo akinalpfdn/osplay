@@ -30,15 +30,6 @@ struct LocalFreer {
     void operator()(void* memory) const noexcept { LocalFree(memory); }
 };
 
-std::string narrow(const std::wstring& text) {
-    std::string result;
-    result.reserve(text.size());
-    for (const wchar_t c : text) {
-        result.push_back(static_cast<char>(c)); // SIDs are ASCII
-    }
-    return result;
-}
-
 } // namespace
 
 PipeServer::PipeServer(protocol::RequestHandler& handler, protocol::HelperLog& log,
@@ -104,8 +95,8 @@ void PipeServer::serve_one_client() {
         }
     }
 
-    if (!pipe_client_is_console_user(pipe.get(), *console_sid)) {
-        log_.warning("Refused a pipe client that is not the console user " + narrow(*console_sid));
+    if (const ClientCheck check = check_pipe_client(pipe.get(), *console_sid); !check.accepted) {
+        log_.warning("Refused pipe client: " + check.reason);
         DisconnectNamedPipe(pipe.get());
         return;
     }

@@ -6,8 +6,9 @@ namespace osplay::engine {
 
 namespace helper = win::helper;
 
-HelperVirtualDisplayProvider::HelperVirtualDisplayProvider(std::unique_ptr<HelperChannel> channel)
-    : channel_(std::move(channel)) {}
+HelperVirtualDisplayProvider::HelperVirtualDisplayProvider(
+    std::unique_ptr<HelperChannel> channel, std::unique_ptr<DisplayModeApplier> mode_applier)
+    : channel_(std::move(channel)), mode_applier_(std::move(mode_applier)) {}
 
 win::Status<DisplayError>
 HelperVirtualDisplayProvider::create_monitor(const VirtualMonitorConfig& config) {
@@ -19,7 +20,19 @@ HelperVirtualDisplayProvider::create_monitor(const VirtualMonitorConfig& config)
     if (!configured) {
         return configured;
     }
-    return send_expecting_ok({.command = helper::Command::Enable, .config = {}});
+    const auto enabled = send_expecting_ok({.command = helper::Command::Enable, .config = {}});
+    if (!enabled) {
+        return enabled;
+    }
+    // Windows gives a new monitor its own default mode; the exact mode is set from the user
+    // session.
+    const auto applied = mode_applier_->apply(config);
+    if (!applied) {
+        // A monitor with the wrong size is worse than none: remove it and report why.
+        static_cast<void>(remove_monitor());
+        return applied;
+    }
+    return win::Status<DisplayError>::ok();
 }
 
 win::Status<DisplayError> HelperVirtualDisplayProvider::remove_monitor() {

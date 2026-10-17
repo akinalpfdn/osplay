@@ -44,10 +44,11 @@ public:
 
 class FakeLog final : public HelperLog {
 public:
+    std::vector<std::string> infos;
     std::vector<std::string> warnings;
     std::vector<std::string> errors;
 
-    void info(std::string_view /*message*/) override {}
+    void info(std::string_view message) override { infos.emplace_back(message); }
     void warning(std::string_view message) override { warnings.emplace_back(message); }
     void error(std::string_view message) override { errors.emplace_back(message); }
 };
@@ -105,6 +106,12 @@ TEST_F(RequestHandlerTest, DisableRemovesMonitor) {
 
     EXPECT_EQ(handler.handle(simple(Command::Disable)).result, ResultCode::Ok);
     EXPECT_FALSE(device.enabled);
+}
+
+TEST_F(RequestHandlerTest, DisableWithoutMonitorChangesNothingAndLogsNothing) {
+    EXPECT_EQ(handler.handle(simple(Command::Disable)).result, ResultCode::Ok);
+    EXPECT_TRUE(device.changes.empty());
+    EXPECT_TRUE(log.infos.empty());
 }
 
 TEST_F(RequestHandlerTest, ResetRemovesMonitorAndForgetsConfiguration) {

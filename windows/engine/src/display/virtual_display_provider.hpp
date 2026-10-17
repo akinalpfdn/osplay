@@ -18,6 +18,8 @@ enum class DisplayError : std::uint8_t {
     DeviceControlFailed,
     ConfigWriteFailed,
     Rejected,
+    MonitorNotFound,
+    ModeChangeFailed,
 };
 
 using VirtualMonitorConfig = win::helper::MonitorConfig;

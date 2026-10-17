@@ -140,3 +140,12 @@ Result codes: 0 Ok, 1 MalformedRequest, 2 UnsupportedVersion, 3 UnknownCommand,
 `_status`, `_close`. Inside the engine, `VirtualDisplayProvider` is the interface;
 `HelperVirtualDisplayProvider` implements it over a `HelperChannel` (the named pipe in production,
 a fake in tests).
+
+Creating a monitor is three steps: the helper writes the settings (Configure) and enables the
+device (Enable); then the engine sets the mode. Windows gives a new monitor its own default mode
+(800×600 for this driver, measured on the developer PC) even when the driver offers only the
+requested one, and display settings belong to the user's session, which a session-0 service cannot
+change. `GdiDisplayModeApplier` therefore finds the monitor — the active CCD path whose adapter
+interface path starts with the driver device's instance ID (`ROOT\DISPLAY\0000` →
+`\\?\ROOT#DISPLAY#0000#`) — waits up to 5 s for it to join the desktop, applies the mode with
+`ChangeDisplaySettingsExW` and reads it back. If that fails, the monitor is removed again.

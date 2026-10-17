@@ -8,6 +8,9 @@ enable_testing()
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../core" core)
 add_subdirectory(shared)
+if(WIN32)
+    add_subdirectory(platform)
+endif()
 add_subdirectory(engine)
 
 if(WIN32)

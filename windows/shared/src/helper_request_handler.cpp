@@ -94,7 +94,10 @@ Response RequestHandler::disable() {
     if (!device_.is_installed()) {
         return with(ResultCode::VddNotInstalled);
     }
-    if (device_.is_enabled() && !device_.set_enabled(false)) {
+    if (!device_.is_enabled()) {
+        return with(ResultCode::Ok);
+    }
+    if (!device_.set_enabled(false)) {
         log_.error("Could not disable the virtual display device");
         return with(ResultCode::DeviceControlFailed);
     }

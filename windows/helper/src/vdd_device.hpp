@@ -15,6 +15,8 @@ public:
     bool set_enabled(bool enabled) override;
 
 private:
+    bool try_set_enabled(bool enabled);
+
     win::helper::HelperLog& log_;
 };
 

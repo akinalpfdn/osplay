@@ -35,7 +35,9 @@ typedef enum osplay_engine_result {
     OSPLAY_ENGINE_ERROR_DEVICE_CONTROL_FAILED = 8,
     OSPLAY_ENGINE_ERROR_CONFIG_WRITE_FAILED = 9,
     OSPLAY_ENGINE_ERROR_REJECTED = 10,
-    OSPLAY_ENGINE_ERROR_INTERNAL = 11
+    OSPLAY_ENGINE_ERROR_INTERNAL = 11,
+    OSPLAY_ENGINE_ERROR_MONITOR_NOT_FOUND = 12,
+    OSPLAY_ENGINE_ERROR_MODE_CHANGE_FAILED = 13
 } osplay_engine_result;
 
 /* Version of the core library linked into the engine. Thread-safe. */
@@ -65,7 +67,9 @@ typedef struct osplay_virtual_monitor_status {
 OSPLAY_ENGINE_API osplay_engine_result
 osplay_virtual_display_open(osplay_virtual_display** out_display);
 
-/* Adds the virtual monitor with exactly this mode, replacing any previous configuration. */
+/* Adds the virtual monitor and sets exactly this mode, replacing any previous configuration.
+ * Blocks until the monitor has joined the desktop (a few seconds at most). If the mode cannot be
+ * set, the monitor is removed again and the error is returned. */
 OSPLAY_ENGINE_API osplay_engine_result osplay_virtual_display_create_monitor(
     osplay_virtual_display* display, const osplay_virtual_monitor_config* config);
 

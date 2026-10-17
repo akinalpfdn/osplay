@@ -30,6 +30,7 @@ struct ServiceState {
     SERVICE_STATUS status{};
     UniqueHandle stop_event;
     UniqueHandle session_changed_event;
+    const char* stop_reason = "unknown";
 };
 ServiceState g_state; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
@@ -50,6 +51,8 @@ DWORD WINAPI control_handler(DWORD control, DWORD event_type, LPVOID /*event_dat
     switch (control) {
     case SERVICE_CONTROL_STOP:
     case SERVICE_CONTROL_SHUTDOWN:
+        g_state.stop_reason =
+            control == SERVICE_CONTROL_STOP ? "stop requested" : "system shutdown";
         report(SERVICE_STOP_PENDING, kServiceStopTimeoutMilliseconds);
         SetEvent(g_state.stop_event.get());
         return NO_ERROR;
@@ -93,7 +96,7 @@ void WINAPI service_main(DWORD /*argc*/, LPWSTR* /*argv*/) {
     server.run();
 
     handler.reset();
-    log.info("Service stopped");
+    log.info(std::string("Service stopped: ") + g_state.stop_reason);
     report(SERVICE_STOPPED);
 }
 

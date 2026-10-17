@@ -17,11 +17,20 @@ public:
     transact(std::span<const std::uint8_t> request) = 0;
 };
 
+/// Applies the configured mode to the virtual monitor once it exists. Display settings belong to
+/// the user's session, so this runs in the engine, not in the session-0 helper service.
+class DisplayModeApplier {
+public:
+    virtual ~DisplayModeApplier() = default;
+    [[nodiscard]] virtual win::Status<DisplayError> apply(const VirtualMonitorConfig& config) = 0;
+};
+
 /// VirtualDisplayProvider backed by the OsplayHelper service. The channel stays open for the
 /// provider's lifetime; the helper removes the monitor when it closes.
 class HelperVirtualDisplayProvider final : public VirtualDisplayProvider {
 public:
-    explicit HelperVirtualDisplayProvider(std::unique_ptr<HelperChannel> channel);
+    HelperVirtualDisplayProvider(std::unique_ptr<HelperChannel> channel,
+                                 std::unique_ptr<DisplayModeApplier> mode_applier);
 
     win::Status<DisplayError> create_monitor(const VirtualMonitorConfig& config) override;
     win::Status<DisplayError> remove_monitor() override;
@@ -32,6 +41,7 @@ private:
     win::Status<DisplayError> send_expecting_ok(const win::helper::Request& request);
 
     std::unique_ptr<HelperChannel> channel_;
+    std::unique_ptr<DisplayModeApplier> mode_applier_;
 };
 
 [[nodiscard]] DisplayError to_display_error(win::helper::ResultCode code);

@@ -9,6 +9,7 @@ target_link_libraries(osplay_engine_logic PUBLIC osplay::win_shared PRIVATE ospl
 if(WIN32)
     add_library(osplay_engine SHARED
         src/capi/engine_capi.cpp
+        src/display/gdi_display_mode_applier.cpp
         src/display/pipe_helper_channel.cpp)
 
     target_include_directories(osplay_engine
@@ -19,7 +20,7 @@ if(WIN32)
         WIN32_LEAN_AND_MEAN)
     target_link_libraries(osplay_engine
         PUBLIC osplay::core
-        PRIVATE osplay_engine_logic osplay::warnings)
+        PRIVATE osplay_engine_logic osplay::win_platform osplay::warnings user32)
     set_target_properties(osplay_engine PROPERTIES
         OUTPUT_NAME OsplayEngine
         CXX_EXTENSIONS OFF)

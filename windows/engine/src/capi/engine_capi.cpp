@@ -1,3 +1,4 @@
+#include "../display/gdi_display_mode_applier.hpp"
 #include "../display/helper_virtual_display_provider.hpp"
 #include "../display/pipe_helper_channel.hpp"
 
@@ -36,6 +37,10 @@ osplay_engine_result to_result(DisplayError error) {
         return OSPLAY_ENGINE_ERROR_CONFIG_WRITE_FAILED;
     case DisplayError::Rejected:
         return OSPLAY_ENGINE_ERROR_REJECTED;
+    case DisplayError::MonitorNotFound:
+        return OSPLAY_ENGINE_ERROR_MONITOR_NOT_FOUND;
+    case DisplayError::ModeChangeFailed:
+        return OSPLAY_ENGINE_ERROR_MODE_CHANGE_FAILED;
     }
     return OSPLAY_ENGINE_ERROR_INTERNAL;
 }
@@ -70,7 +75,7 @@ osplay_engine_result osplay_virtual_display_open(osplay_virtual_display** out_di
         }
         auto display = std::make_unique<osplay_virtual_display>();
         display->provider = std::make_unique<osplay::engine::HelperVirtualDisplayProvider>(
-            std::move(channel.value()));
+            std::move(channel.value()), std::make_unique<osplay::engine::GdiDisplayModeApplier>());
         *out_display = display.release(); // ownership passes to the caller until _close
         return OSPLAY_ENGINE_OK;
     });

@@ -156,15 +156,21 @@ Build outputs land in `windows/build/<preset>/` for native code (executables and
 The Windows host's virtual monitor needs the Virtual Display Driver and the OsplayHelper service.
 The installer will set both up from Phase 14 on; until then, once per machine:
 
-1. Install the Virtual Display Driver from an **administrator** PowerShell command line:
+1. Install the Virtual Display Driver. `winget install VirtualDrivers.Virtual-Display-Driver`
+   only downloads and unpacks the package; it does **not** install the driver. Either:
 
-   ```powershell
-   winget install --id=VirtualDrivers.Virtual-Display-Driver -e
-   ```
+   - download the **Virtual Driver Control** app from the
+     [driver's releases](https://github.com/VirtualDrivers/Virtual-Display-Driver/releases), run
+     it and click **Install**; or
+   - from an **administrator** command line in the unpacked winget package, create the device with
+     the bundled `devcon` (the folder is named `x86` but holds the x64 driver):
 
-   (Or use the Virtual Driver Control app from the
-   [driver's releases](https://github.com/VirtualDrivers/Virtual-Display-Driver/releases).)
-   The driver adds a monitor right away; OsplayHelper disables it again when it starts.
+     ```powershell
+     .\devcon.exe install SignedDrivers\x86\VDD\MttVDD.inf Root\MttVDD
+     ```
+
+   Windows adds an 800×600 monitor as soon as the driver is installed; OsplayHelper disables it
+   again when it starts.
 
 2. Install the helper service from the same administrator command line, after building:
 
@@ -185,8 +191,19 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    .\OsplayVdTool.exe create 2560 1664 60
    ```
 
-   `create` adds a monitor with exactly that mode and keeps it until you press Enter or close the
+   `create` adds a monitor, sets exactly that mode and keeps it until you press Enter or close the
    tool. Closing the tool any other way (Ctrl+C, crash) removes the monitor too.
+
+4. To check that the helper rejects malformed requests, send it garbage from PowerShell. .NET pipe
+   clients connect anonymously by default, which the helper refuses, so request identification:
+
+   ```powershell
+   $p = [System.IO.Pipes.NamedPipeClientStream]::new('.', 'OsplayHelper',
+       [System.IO.Pipes.PipeDirection]::InOut, [System.IO.Pipes.PipeOptions]::None,
+       [System.Security.Principal.TokenImpersonationLevel]::Identification)
+   $p.Connect(2000); $p.Write([byte[]](1,2,3,4), 0, 4); $p.Flush(); $p.Dispose()
+   Get-Content "$env:ProgramData\Osplay\logs\helper.log" -Tail 3   # Rejected request: truncated
+   ```
 
 > The driver's own documentation warns that major GPU or chipset driver updates can scramble
 > display priority while it is installed. If the screen goes black after such an update, boot into

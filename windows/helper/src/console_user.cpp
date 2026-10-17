@@ -5,6 +5,7 @@
 
 #include <exception>
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace osplay::helper {
@@ -39,6 +40,15 @@ std::optional<std::wstring> token_user_sid(HANDLE token) {
 
 } // namespace
 
+std::string narrow(const std::wstring& text) {
+    std::string result;
+    result.reserve(text.size());
+    for (const wchar_t c : text) {
+        result.push_back(static_cast<char>(c)); // SIDs are ASCII
+    }
+    return result;
+}
+
 std::optional<std::wstring> console_user_sid() {
     const DWORD session = WTSGetActiveConsoleSessionId();
     if (session == 0xFFFFFFFF) {
@@ -52,14 +62,18 @@ std::optional<std::wstring> console_user_sid() {
     return token_user_sid(token.get());
 }
 
-bool pipe_client_is_console_user(HANDLE pipe, const std::wstring& console_sid) {
+ClientCheck check_pipe_client(HANDLE pipe, const std::wstring& console_sid) {
     ULONG client_session = 0;
-    if (!GetNamedPipeClientSessionId(pipe, &client_session) ||
-        client_session != WTSGetActiveConsoleSessionId()) {
-        return false;
+    if (!GetNamedPipeClientSessionId(pipe, &client_session)) {
+        return {.accepted = false, .reason = "client session unknown"};
+    }
+    if (client_session != WTSGetActiveConsoleSessionId()) {
+        return {.accepted = false,
+                .reason = "client in session " + std::to_string(client_session) +
+                          ", not the console session"};
     }
     if (!ImpersonateNamedPipeClient(pipe)) {
-        return false;
+        return {.accepted = false, .reason = "cannot identify the client"};
     }
     HANDLE raw_token = nullptr;
     const BOOL opened = OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE, &raw_token);
@@ -68,11 +82,21 @@ bool pipe_client_is_console_user(HANDLE pipe, const std::wstring& console_sid) {
         std::terminate();
     }
     if (!opened) {
-        return false;
+        // Anonymous connections (the .NET default) cannot be identified.
+        return {.accepted = false,
+                .reason =
+                    "client did not allow identification (connect with SECURITY_IDENTIFICATION)"};
     }
     const UniqueHandle token(raw_token);
     const auto client_sid = token_user_sid(token.get());
-    return client_sid && (*client_sid == console_sid || *client_sid == kLocalSystemSid);
+    if (!client_sid) {
+        return {.accepted = false, .reason = "client user unknown"};
+    }
+    if (*client_sid != console_sid && *client_sid != kLocalSystemSid) {
+        return {.accepted = false,
+                .reason = "client user " + narrow(*client_sid) + " is not the console user"};
+    }
+    return {.accepted = true, .reason = {}};
 }
 
 } // namespace osplay::helper

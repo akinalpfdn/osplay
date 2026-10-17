@@ -8,6 +8,7 @@
 namespace {
 
 using osplay::engine::DisplayError;
+using osplay::engine::DisplayModeApplier;
 using osplay::engine::HelperChannel;
 using osplay::engine::HelperVirtualDisplayProvider;
 using osplay::engine::VirtualMonitorConfig;
@@ -36,14 +37,29 @@ public:
     }
 };
 
+class FakeModeApplier final : public DisplayModeApplier {
+public:
+    std::vector<VirtualMonitorConfig> applied;
+    win::Status<DisplayError> result = win::Status<DisplayError>::ok();
+
+    win::Status<DisplayError> apply(const VirtualMonitorConfig& config) override {
+        applied.push_back(config);
+        return result;
+    }
+};
+
 struct Fixture {
     FakeChannel* channel = nullptr;
+    FakeModeApplier* applier = nullptr;
     std::unique_ptr<HelperVirtualDisplayProvider> provider;
 
     Fixture() {
-        auto owned = std::make_unique<FakeChannel>();
-        channel = owned.get();
-        provider = std::make_unique<HelperVirtualDisplayProvider>(std::move(owned));
+        auto owned_channel = std::make_unique<FakeChannel>();
+        auto owned_applier = std::make_unique<FakeModeApplier>();
+        channel = owned_channel.get();
+        applier = owned_applier.get();
+        provider = std::make_unique<HelperVirtualDisplayProvider>(std::move(owned_channel),
+                                                                  std::move(owned_applier));
     }
 };
 
@@ -62,6 +78,35 @@ TEST(HelperVirtualDisplayProvider, CreateConfiguresThenEnables) {
     EXPECT_EQ(f.channel->requests[0].command, helper::Command::Configure);
     EXPECT_EQ(f.channel->requests[0].config, config());
     EXPECT_EQ(f.channel->requests[1].command, helper::Command::Enable);
+    ASSERT_EQ(f.applier->applied.size(), 1U);
+    EXPECT_EQ(f.applier->applied[0], config());
+}
+
+TEST(HelperVirtualDisplayProvider, ModeFailureRemovesTheMonitor) {
+    Fixture f;
+    f.applier->result = win::Status<DisplayError>::failure(DisplayError::ModeChangeFailed);
+    f.channel->reply(helper::ResultCode::Ok); // configure
+    f.channel->reply(helper::ResultCode::Ok); // enable
+    f.channel->reply(helper::ResultCode::Ok); // disable
+
+    const auto result = f.provider->create_monitor(config());
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), DisplayError::ModeChangeFailed);
+    ASSERT_EQ(f.channel->requests.size(), 3U);
+    EXPECT_EQ(f.channel->requests[2].command, helper::Command::Disable);
+}
+
+TEST(HelperVirtualDisplayProvider, EnableFailureSkipsTheModeChange) {
+    Fixture f;
+    f.channel->reply(helper::ResultCode::Ok);
+    f.channel->reply(helper::ResultCode::DeviceControlFailed);
+
+    const auto result = f.provider->create_monitor(config());
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), DisplayError::DeviceControlFailed);
+    EXPECT_TRUE(f.applier->applied.empty());
 }
 
 TEST(HelperVirtualDisplayProvider, InvalidConfigNeverReachesTheHelper) {
