@@ -18,7 +18,7 @@
 
 namespace {
 
-constexpr std::array<std::string_view, 14> kResultNames{
+constexpr std::array<std::string_view, 15> kResultNames{
     "ok",
     "invalid argument",
     "helper service not running (install it with OsplayHelper.exe --install)",
@@ -33,6 +33,7 @@ constexpr std::array<std::string_view, 14> kResultNames{
     "internal error",
     "the virtual monitor did not appear on the desktop",
     "Windows did not accept the display mode",
+    "the helper is serving another client (one session at a time)",
 };
 
 std::string_view describe(osplay_engine_result result) {

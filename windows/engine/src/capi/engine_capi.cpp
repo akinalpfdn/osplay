@@ -21,6 +21,8 @@ osplay_engine_result to_result(DisplayError error) {
         return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
     case DisplayError::HelperUnavailable:
         return OSPLAY_ENGINE_ERROR_HELPER_UNAVAILABLE;
+    case DisplayError::HelperBusy:
+        return OSPLAY_ENGINE_ERROR_HELPER_BUSY;
     case DisplayError::HelperAccessDenied:
         return OSPLAY_ENGINE_ERROR_HELPER_ACCESS_DENIED;
     case DisplayError::HelperNotTrusted:

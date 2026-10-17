@@ -10,6 +10,7 @@ namespace osplay::engine {
 enum class DisplayError : std::uint8_t {
     InvalidArgument,
     HelperUnavailable,
+    HelperBusy,
     HelperAccessDenied,
     HelperNotTrusted,
     ProtocolMismatch,

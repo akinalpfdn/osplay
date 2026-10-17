@@ -98,6 +98,8 @@ rights and accepts four commands from the engine:
 
 Safety rules:
 
+- **One client at a time.** A second engine that connects while a session is active waits up to
+  2 s and then gets `OSPLAY_ENGINE_ERROR_HELPER_BUSY`.
 - **The monitor exists only while the client is connected.** The pipe accepts one client; when it
   disconnects for any reason (session end, engine crash), the console user logs off or switches,
   or the service stops, the helper disables the device. On service start it disables the device as

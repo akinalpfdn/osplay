@@ -37,7 +37,8 @@ typedef enum osplay_engine_result {
     OSPLAY_ENGINE_ERROR_REJECTED = 10,
     OSPLAY_ENGINE_ERROR_INTERNAL = 11,
     OSPLAY_ENGINE_ERROR_MONITOR_NOT_FOUND = 12,
-    OSPLAY_ENGINE_ERROR_MODE_CHANGE_FAILED = 13
+    OSPLAY_ENGINE_ERROR_MODE_CHANGE_FAILED = 13,
+    OSPLAY_ENGINE_ERROR_HELPER_BUSY = 14
 } osplay_engine_result;
 
 /* Version of the core library linked into the engine. Thread-safe. */
