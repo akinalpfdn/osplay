@@ -26,9 +26,8 @@ Control (TCP)  frame = u32 length | payload
 Media (UDP)    datagram = media header (12 bytes, in clear) | AEAD(media body)
 ```
 
-Encryption (Noise `XX_25519_ChaChaPoly_BLAKE2b`, transport keys, nonces, replay window) is
-specified in Phase 4 and added to this document then. This version defines the plaintext messages
-and packets that the encryption layer carries; the fixtures are plaintext.
+The messages and packets below are defined in plaintext; "Encryption" specifies how they are
+protected on the wire. The protocol fixtures are plaintext.
 
 ### Common prefix
 
@@ -323,6 +322,65 @@ Sent at most at the stream's refresh rate; the newest position wins.
 Every fragment but the last carries exactly 1155 bytes; the last carries the remainder. A shape is
 sent when it changes and again with every keyframe, so a viewer that joined late recovers.
 
+## Encryption
+
+### Handshake
+
+Noise Protocol Framework revision 34, pattern **`Noise_XX_25519_ChaChaPoly_BLAKE2b`**, prologue
+empty. The viewer connects and is the **initiator**; the host is the **responder**. The three Noise
+messages travel as HandshakeMessage (0x02) payloads, steps 1–3, after both Hello messages. The
+implementation is validated against the published XX vectors of cacophony and noise-c
+(`core/tests/data/`).
+
+- Static keys are the devices' identities. A DH result of all zeros (low-order peer key) aborts
+  the handshake.
+- The handshake payloads are empty in version 1.
+- Any failure (authentication, order, size) ends the handshake; it is never resumed.
+
+### Pairing code
+
+Both devices show the same six-digit code after the handshake:
+
+```
+digest = BLAKE2b-256("Osplay pairing code v1" || handshake_hash)
+code   = (first 8 bytes of digest as u64 little-endian) mod 1000000, shown with leading zeros
+```
+
+`handshake_hash` is the final Noise `h` (64 bytes). Any change to the transcript changes the code.
+
+### Session keys
+
+From the final chaining key `ck`, using Noise's HKDF (HMAC-BLAKE2b, two outputs; each truncated to
+32 bytes):
+
+| Keys | Derivation | Use |
+|------|------------|-----|
+| control i→r, control r→i | Noise `Split()`: HKDF(ck, empty) | control channel, as Noise transport messages |
+| media i→r, media r→i | HKDF(ck, "Osplay media keys v1") | media channel |
+
+First output: initiator to responder; second: responder to initiator. The four keys differ.
+
+### Control channel after the handshake
+
+Each frame payload is a Noise transport message: `ChaCha20-Poly1305(key, nonce, ad = empty,
+control message) || tag`. The nonce is the CipherState counter (0, 1, 2, … per direction), encoded
+as 32 zero bits followed by the 64-bit counter little-endian. TCP delivers in order, so a replayed,
+reordered or altered frame fails authentication and ends the session.
+
+### Media channel
+
+```
+datagram = media header (12 bytes, clear)
+         | ChaCha20-Poly1305(media key of the sender's direction,
+                             nonce = 32 zero bits || sequence (u64 LE),
+                             ad = media header, plaintext = media body)
+         | tag (16 bytes)
+```
+
+A sender never repeats a sequence number. A receiver keeps a sliding window of the last 1024
+sequence numbers: datagrams older than the window or already seen are dropped (`REPLAYED`); others
+may arrive in any order. The window only moves after a datagram authenticates.
+
 ## Error codes
 
 Decoding and encoding report these codes, which are also the values of `osplay_result` in
@@ -341,6 +399,12 @@ Decoding and encoding report these codes, which are also the values of `osplay_r
 | 8 | VALUE_OUT_OF_RANGE | a field violates its documented range, a reserved field is not 0, or a size limit is exceeded |
 | 9 | INVALID_STRING | a string is not valid UTF-8, contains control characters or is too long |
 | 10 | TOO_LARGE | input is larger than the largest valid message or datagram |
+| 11 | DECRYPTION_FAILED | authentication failed: wrong key, altered or forged data |
+| 12 | HANDSHAKE_OUT_OF_ORDER | a handshake step was used out of order, or after a failure |
+| 13 | REPLAYED | a media datagram was already received or is older than the replay window |
+| 14 | NONCE_EXHAUSTED | a cipher reached its last nonce |
+| 15 | INVALID_KEY | an all-zero secret key, or a peer key producing an all-zero shared secret |
+| 16 | RANDOM_UNAVAILABLE | the platform's random source failed |
 
 ## Fixtures
 

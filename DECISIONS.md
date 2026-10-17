@@ -140,3 +140,21 @@ choices the plan leaves open are logged here.
 **Revisit if:** Media moves to a different transport.
 
 ---
+
+## 2026-10-17 — Platform-supplied randomness for core
+**Chosen:** Core obtains random bytes through an injected `crypto::RandomSource`; the C API takes an `osplay_random_source` callback that platforms back with `SecRandomCopyBytes` / `BCryptGenRandom`.
+**Alternatives:** `std::random_device`; calling OS APIs from core.
+**Why:** DEVPLAN keeps platform headers out of core. `std::random_device` is not guaranteed to be cryptographically secure (some toolchains have shipped deterministic implementations). Injection also makes the handshake reproducible in tests, which is how the published Noise vectors are checked.
+**Trade-offs:** Every API that needs randomness takes a source; platforms must wire it.
+**Revisit if:** Core gains a portable, vetted CSPRNG dependency.
+
+---
+
+## 2026-10-17 — Session key derivation and pairing code
+**Chosen:** Control channel keys are Noise's standard `Split()`; media keys come from a second HKDF over the final chaining key with the label "Osplay media keys v1". The pairing code is BLAKE2b-256("Osplay pairing code v1" || handshake hash), first 8 bytes little-endian, mod 10^6. The viewer is the Noise initiator.
+**Alternatives:** Using the Split keys for both channels with separate nonce spaces; deriving media keys from the Split keys; a pairing code from the first bytes of the hash without a label.
+**Why:** DEVPLAN requires separate keys per direction and per channel. Keeping the control channel exactly Noise transport lets the published vectors cover it. Labels give domain separation, so no derived value can be confused with another use of the same secret.
+**Trade-offs:** The media derivation is an Osplay extension that other Noise libraries would need to replicate; it is documented in PROTOCOL.md.
+**Revisit if:** A Noise revision standardises extra key derivation.
+
+---
