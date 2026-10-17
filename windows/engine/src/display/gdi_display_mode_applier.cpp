@@ -59,19 +59,24 @@ std::optional<std::wstring> find_gdi_device_name(const std::wstring& prefix) {
         return std::nullopt;
     }
     for (const DISPLAYCONFIG_PATH_INFO& path : *paths) {
-        DISPLAYCONFIG_ADAPTER_NAME adapter{};
-        adapter.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME;
-        adapter.header.size = sizeof(adapter);
-        adapter.header.adapterId = path.sourceInfo.adapterId;
+        DISPLAYCONFIG_ADAPTER_NAME adapter{
+            .header = {.type = DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME,
+                       .size = static_cast<UINT32>(sizeof(DISPLAYCONFIG_ADAPTER_NAME)),
+                       .adapterId = path.sourceInfo.adapterId,
+                       .id = 0},
+            .adapterDevicePath = {},
+        };
         if (DisplayConfigGetDeviceInfo(&adapter.header) != ERROR_SUCCESS ||
             _wcsnicmp(std::data(adapter.adapterDevicePath), prefix.c_str(), prefix.size()) != 0) {
             continue;
         }
-        DISPLAYCONFIG_SOURCE_DEVICE_NAME source{};
-        source.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
-        source.header.size = sizeof(source);
-        source.header.adapterId = path.sourceInfo.adapterId;
-        source.header.id = path.sourceInfo.id;
+        DISPLAYCONFIG_SOURCE_DEVICE_NAME source{
+            .header = {.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME,
+                       .size = static_cast<UINT32>(sizeof(DISPLAYCONFIG_SOURCE_DEVICE_NAME)),
+                       .adapterId = path.sourceInfo.adapterId,
+                       .id = path.sourceInfo.id},
+            .viewGdiDeviceName = {},
+        };
         if (DisplayConfigGetDeviceInfo(&source.header) == ERROR_SUCCESS) {
             return std::wstring(std::data(source.viewGdiDeviceName));
         }
