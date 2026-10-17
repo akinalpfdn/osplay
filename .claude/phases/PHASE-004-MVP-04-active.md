@@ -15,8 +15,8 @@ The complete wire format exists as a pure, tested library and a written specific
 
 ## Acceptance Criteria
 - [x] Round-trip tests pass for every message type. (fixtures + boundary round trips, all 19+4 types)
-- [ ] Malformed fixtures are rejected with specific error codes, never crash; a fuzz target exists for the decoder.
-- [ ] Swift and C++ suites pass on CI against identical fixtures.
+- [x] Malformed fixtures are rejected with specific error codes, never crash; a fuzz target exists for the decoder. (54 malformed fixtures, every error code covered; libFuzzer job: 21M inputs in 60 s, no findings)
+- [x] Swift and C++ suites pass on CI against identical fixtures. (CI run 39052488446)
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
