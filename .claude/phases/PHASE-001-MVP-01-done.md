@@ -1,5 +1,5 @@
 # Phase 001 (MVP-01) — Repository scaffolding
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 0. Depends on: Nothing.
 

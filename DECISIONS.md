@@ -77,3 +77,21 @@ choices the plan leaves open are logged here.
 **Revisit if:** Another person gets write access, or releases need technically immutable tags.
 
 ---
+
+## 2026-10-17 — macOS virtual display default resolution
+**Chosen:** Virtual displays are created with "looks like" modes at 1, ¾ and ½ of the remote monitor's pixel size and, when HiDPI is on, a 2× backing limit. Whoever creates a display picks the "crisp" HiDPI resolution (looks like half size, backing exactly the remote pixel size) as the default instead of macOS's own choice.
+**Alternatives:** Let macOS choose; limit `maxPixels` to the native size so no larger backing exists.
+**Why:** Measured in Phase 1: on a new identity macOS selects the largest 2× mode, i.e. a 5120×2880 backing for a 2560×1440 monitor — four times the pixels the stream carries, rendered and then scaled down during capture, for each of two displays on a MacBook Air. Capping `maxPixels` would remove the ¾ "more space" HiDPI option users expect.
+**Trade-offs:** The default looks like a small 1280×720 desktop on a 1440p monitor; users who want more space pick a larger size in System Settings, which macOS then remembers per identity.
+**Revisit if:** Phase 11 per-peer HiDPI settings define a different default, or capture cost at 2× backing turns out negligible.
+
+---
+
+## 2026-10-17 — Hardware tests outside CI
+**Chosen:** Tests that create real virtual displays live in `OsplayHardwareTests`, run through a separate `OsplayHardware` scheme, manually on a Mac and after macOS updates.
+**Alternatives:** Run them in the default scheme and CI; no automated hardware tests.
+**Why:** They change the developer's screen layout while running, and hosted CI runners are not a reliable stand-in for the M3 Air the go/no-go decision is about. Logic is covered by unit tests with a fake provider in CI.
+**Trade-offs:** A private-API break is only caught when someone runs the scheme.
+**Revisit if:** CI gets a dedicated Mac with a known display setup.
+
+---

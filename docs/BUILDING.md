@@ -56,6 +56,22 @@ To work in Xcode, run `xcodegen generate` in `macos/` and open `Osplay.xcodeproj
 generated from `macos/project.yml` and is not committed: re-run `xcodegen generate` after pulling
 changes or adding files.
 
+### Hardware tests (virtual displays)
+
+`OsplayHardwareTests` drive the real window server: two virtual displays briefly appear while
+they run, and windows may jump between screens. They are not part of CI or the default scheme.
+Run them on a Mac after touching `macos/Osplay/Services/VirtualDisplay/` and after every macOS
+update, because they use a private API:
+
+```sh
+cd macos
+xcodebuild -project Osplay.xcodeproj -scheme OsplayHardware -destination 'platform=macOS' \
+  -derivedDataPath DerivedData test
+```
+
+Debug builds also show a **Developer** section in the menu bar popover for creating one or two
+test displays by hand.
+
 ### Code signing for local development
 
 The committed configuration signs ad hoc, so any clone builds without an Apple account. macOS
