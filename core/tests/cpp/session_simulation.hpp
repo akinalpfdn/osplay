@@ -13,6 +13,7 @@
 #include <cstring>
 #include <deque>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 

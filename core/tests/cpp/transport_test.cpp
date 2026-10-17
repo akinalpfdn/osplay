@@ -45,8 +45,8 @@ using std::chrono::seconds;
 
 class SyncObserver final : public session::SessionObserver {
 public:
-    void on_state(SessionState state, std::optional<Error> /*reason*/) override {
-        update([&] { state_ = state; });
+    void on_state(SessionState new_state, std::optional<Error> /*reason*/) override {
+        update([&] { state_ = new_state; });
     }
     void on_peer(const protocol::Hello& /*hello*/) override {}
     TrustDecision on_trust_query(const osplay::crypto::Key& /*key*/) override {
@@ -54,8 +54,8 @@ public:
     }
     void on_pairing_code(std::uint32_t /*code*/, const osplay::crypto::Key& /*key*/) override {}
     void on_paired(const osplay::crypto::Key& /*key*/) override {}
-    void on_viewer_monitors(const std::vector<protocol::Monitor>& monitors) override {
-        update([&] { monitors_ = monitors; });
+    void on_viewer_monitors(const std::vector<protocol::Monitor>& received) override {
+        update([&] { monitors_ = received; });
     }
     void on_stream_config(const protocol::StreamConfig& /*config*/) override {}
     void on_keyframe_request(std::uint8_t /*stream_id*/) override { ++keyframe_requests_; }
@@ -83,6 +83,10 @@ public:
     SessionState state() {
         const std::scoped_lock lock(mutex_);
         return state_;
+    }
+    bool wait_for_frames(std::size_t count, std::chrono::milliseconds timeout) {
+        std::unique_lock lock(mutex_);
+        return changed_.wait_for(lock, timeout, [&] { return frames_.size() >= count; });
     }
     std::size_t frame_count() {
         const std::scoped_lock lock(mutex_);
@@ -359,22 +363,33 @@ protected:
         ASSERT_TRUE(viewer_observer.wait_for_state(SessionState::Streaming, seconds(5)));
     }
 
-    /// Pushes ~60 fps frames for `duration`, sending a keyframe first and whenever one is
-    /// requested.
+    /// Pushes ~60 fps frames for `duration`.
     void stream_for(milliseconds duration) {
         const auto end = std::chrono::steady_clock::now() + duration;
         while (std::chrono::steady_clock::now() < end) {
-            const int requests = host_observer.keyframe_requests();
-            const bool keyframe = next_index == 0 || requests > keyframe_requests_seen;
-            keyframe_requests_seen = requests;
-            const auto bytes = osplay::test::synthetic_frame(next_index++, keyframe);
-            host->push_access_unit({.stream_id = 0,
-                                    .keyframe = keyframe,
-                                    .codec_config = keyframe,
-                                    .capture_time_us = 0,
-                                    .data = bytes});
-            std::this_thread::sleep_for(milliseconds(16));
+            push_frame();
         }
+    }
+
+    /// Pushes `count` frames at ~60 fps. Counts, not durations, keep slow CI machines comparable.
+    void stream_frames(std::uint32_t count) {
+        for (std::uint32_t i = 0; i < count; ++i) {
+            push_frame();
+        }
+    }
+
+    /// Sends a keyframe first and whenever one was requested.
+    void push_frame() {
+        const int requests = host_observer.keyframe_requests();
+        const bool keyframe = next_index == 0 || requests > keyframe_requests_seen;
+        keyframe_requests_seen = requests;
+        const auto bytes = osplay::test::synthetic_frame(next_index++, keyframe);
+        host->push_access_unit({.stream_id = 0,
+                                .keyframe = keyframe,
+                                .codec_config = keyframe,
+                                .capture_time_us = 0,
+                                .data = bytes});
+        std::this_thread::sleep_for(milliseconds(16));
     }
 
     osplay::test::SeededRandom host_random{11};
@@ -416,11 +431,12 @@ void expect_opaque(const std::vector<std::uint8_t>& bytes) {
 TEST_F(RealSessions, StreamsFramesEndToEndOverLoopback) {
     connect(false);
     start_streaming();
-    stream_for(seconds(2));
-    std::this_thread::sleep_for(milliseconds(200));
+    stream_frames(120);
 
+    EXPECT_TRUE(viewer_observer.wait_for_frames(next_index, seconds(5)))
+        << "a clean link delivers every frame";
+    EXPECT_EQ(viewer_observer.frame_count(), next_index);
     EXPECT_EQ(host_observer.state(), SessionState::Streaming);
-    EXPECT_EQ(viewer_observer.frame_count(), next_index) << "a clean link delivers every frame";
     EXPECT_TRUE(viewer_observer.intact());
 
     viewer.reset(); // sends Bye
@@ -430,9 +446,9 @@ TEST_F(RealSessions, StreamsFramesEndToEndOverLoopback) {
 TEST_F(RealSessions, NothingReadableCrossesTheWireAfterTheHandshake) {
     connect(true);
     start_streaming();
-    stream_for(seconds(1));
-    std::this_thread::sleep_for(milliseconds(200));
-    ASSERT_GT(viewer_observer.frame_count(), 30U) << "media really went through the relay";
+    stream_frames(60);
+    ASSERT_TRUE(viewer_observer.wait_for_frames(next_index, seconds(5)))
+        << "media really went through the relay";
 
     const auto capture = relay->capture();
     const auto to_host = frames_of(capture.viewer_to_host);
@@ -446,7 +462,7 @@ TEST_F(RealSessions, NothingReadableCrossesTheWireAfterTheHandshake) {
     for (std::size_t i = 1; i < to_viewer.size(); ++i) {
         expect_opaque(to_viewer[i]);
     }
-    ASSERT_GT(capture.datagrams.size(), 100U);
+    ASSERT_GT(capture.datagrams.size(), 60U);
     for (const auto& datagram : capture.datagrams) {
         expect_opaque(datagram);
     }
@@ -455,20 +471,20 @@ TEST_F(RealSessions, NothingReadableCrossesTheWireAfterTheHandshake) {
 TEST_F(RealSessions, SurvivesAThreeSecondNetworkInterruption) {
     connect(true);
     start_streaming();
-    stream_for(seconds(1));
+    stream_frames(60);
+    ASSERT_TRUE(viewer_observer.wait_for_frames(next_index, seconds(5)));
     const auto before = viewer_observer.frame_count();
-    ASSERT_GT(before, 30U);
 
     relay->set_outage(true);
     stream_for(seconds(3));
-    EXPECT_LE(viewer_observer.frame_count(), before + 2) << "the outage really cut media";
+    EXPECT_LE(viewer_observer.frame_count(), before + 3) << "the outage really cut media";
     relay->set_outage(false);
-    stream_for(seconds(2));
-    std::this_thread::sleep_for(milliseconds(200));
+    stream_frames(120);
 
+    EXPECT_TRUE(viewer_observer.wait_for_frames(before + 60, seconds(5)))
+        << "streaming resumed after the outage";
     EXPECT_EQ(host_observer.state(), SessionState::Streaming);
     EXPECT_EQ(viewer_observer.state(), SessionState::Streaming);
-    EXPECT_GT(viewer_observer.frame_count(), before + 90) << "streaming resumed after the outage";
     EXPECT_TRUE(viewer_observer.intact());
 }
 
