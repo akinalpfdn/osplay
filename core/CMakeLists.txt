@@ -14,13 +14,26 @@ project(OsplayCore
     LANGUAGES CXX)
 
 option(OSPLAY_CORE_BUILD_TESTS "Build the core unit tests" ${PROJECT_IS_TOP_LEVEL})
+option(OSPLAY_CORE_BUILD_FUZZER "Build the libFuzzer protocol fuzzer (Clang only)" OFF)
+
+if(OSPLAY_CORE_BUILD_FUZZER)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR "OSPLAY_CORE_BUILD_FUZZER requires Clang with libFuzzer")
+    endif()
+    add_compile_options(-fsanitize=fuzzer-no-link,address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
 
 if(NOT TARGET osplay::warnings)
     include(cmake/OsplayWarnings.cmake)
 endif()
 
 add_library(osplay_core STATIC
-    src/capi/version.cpp)
+    src/capi/protocol_capi.cpp
+    src/capi/version.cpp
+    src/protocol/control_codec.cpp
+    src/protocol/media_codec.cpp
+    src/protocol/text.cpp)
 add_library(osplay::core ALIAS osplay_core)
 
 target_include_directories(osplay_core
@@ -34,3 +47,5 @@ if(OSPLAY_CORE_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests/cpp)
 endif()
+
+add_subdirectory(fuzz)
