@@ -42,6 +42,9 @@ enum Tunables {
         /// Buffers ScreenCaptureKit may have in flight; one stays with the encoder and one is kept
         /// as the last frame for keyframe re-sends, so this must leave room for both.
         static let queueDepth = 5
+        /// Capture may run this much faster than the stream's refresh rate; the display itself
+        /// limits it to real changes, so this only absorbs timing jitter.
+        static let frameRateHeadroom = 2.0
         /// A new virtual display appears in ScreenCaptureKit's display list shortly after creation.
         static let displayLookupTimeout: Duration = .seconds(3)
         static let displayLookupInterval: Duration = .milliseconds(100)

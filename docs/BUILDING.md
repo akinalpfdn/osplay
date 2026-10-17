@@ -101,6 +101,18 @@ xcodebuild -project Osplay.xcodeproj -scheme OsplayHardware -destination 'platfo
   -derivedDataPath DerivedData test
 ```
 
+`HostPipelineHardwareTests` also captures and encodes two 2560×1440 at 60 Hz virtual displays for
+ten seconds and expects at least 58 fps with a 99th-percentile frame interval under 33 ms. The test
+host must have Screen Recording permission (grant it to the debug Osplay app once; a stable signing
+identity keeps it, see below). The measured figures are written to
+`$TMPDIR/osplay-host-pipeline.txt`. Build outside `~/Documents` (see `TROUBLESHOOTING.md`):
+
+```sh
+xcodebuild -project Osplay.xcodeproj -scheme OsplayHardware -destination 'platform=macOS' \
+  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/OsplayHardware test
+cat "$TMPDIR/osplay-host-pipeline.txt"
+```
+
 Debug builds also show a **Developer** section in the menu bar popover for creating one or two
 test displays by hand.
 

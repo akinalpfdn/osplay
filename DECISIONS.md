@@ -213,3 +213,12 @@ choices the plan leaves open are logged here.
 
 ---
 
+## 2026-10-18 — Capture interval with headroom
+**Chosen:** `SCStreamConfiguration.minimumFrameInterval` is half the stream's frame interval (`Tunables.Capture.frameRateHeadroom = 2`).
+**Alternatives:** Exactly one frame interval (1/60 s).
+**Why:** Measured on the M3 Air with two 1440p60 virtual displays: with exactly 1/60 s ScreenCaptureKit dropped frames that arrived slightly early (56.3 fps, frequent 33 ms gaps); with headroom 59.1 fps and a p99 interval of 21.5 ms. The virtual display's refresh rate still caps the frame rate, so the headroom adds no frames.
+**Trade-offs:** If a display ever refreshes faster than the stream, capture could exceed the stream's rate.
+**Revisit if:** Virtual displays run at a higher refresh than their stream.
+
+---
+

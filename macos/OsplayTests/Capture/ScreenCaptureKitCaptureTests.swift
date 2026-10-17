@@ -15,7 +15,9 @@ struct ScreenCaptureKitCaptureTests {
         #expect(configuration.height == 1440)
         #expect(configuration.pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)
         #expect(configuration.showsCursor)
-        #expect(abs(configuration.minimumFrameInterval.seconds - 1.0 / 60) < 0.000_01)
+        #expect(
+            abs(configuration.minimumFrameInterval.seconds - 1.0 / (60 * Tunables.Capture.frameRateHeadroom)) < 0.000_01
+        )
         #expect(configuration.queueDepth == Tunables.Capture.queueDepth)
     }
 

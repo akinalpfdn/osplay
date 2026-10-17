@@ -52,7 +52,10 @@ final class ScreenCaptureKitCapture: NSObject, ScreenCapturing, @unchecked Senda
         stream.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         stream.colorMatrix = CGDisplayStream.yCbCrMatrix_ITU_R_709_2
         stream.colorSpaceName = CGColorSpace.itur_709
-        stream.minimumFrameInterval = CMTime(seconds: 1 / configuration.frameRate, preferredTimescale: 600_000)
+        // A frame that arrives a little early must not be dropped: with an interval of exactly one
+        // refresh, display timing jitter makes ScreenCaptureKit skip frames.
+        stream.minimumFrameInterval = CMTime(
+            seconds: 1 / (configuration.frameRate * Tunables.Capture.frameRateHeadroom), preferredTimescale: 600_000)
         stream.queueDepth = Tunables.Capture.queueDepth
         stream.showsCursor = configuration.showsCursor
         stream.scalesToFit = true

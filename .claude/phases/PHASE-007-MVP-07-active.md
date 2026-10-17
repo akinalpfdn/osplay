@@ -13,9 +13,9 @@ The Mac captures its virtual displays and produces encoded streams into `core`.
 - [x] Debug option to dump a stream to an `.h264` file for inspection.
 
 ## Acceptance Criteria
-- [ ] Two simultaneous 2560×1440 at 60 Hz streams run with stable frame pacing.
-- [ ] Dumped files play correctly in a standard player.
-- [ ] Revoking Screen Recording permission mid-session stops cleanly with a surfaced error.
+- [x] Two simultaneous 2560×1440 at 60 Hz streams run with stable frame pacing.
+- [x] Dumped files play correctly in a standard player.
+- [x] Revoking Screen Recording permission mid-session stops cleanly with a surfaced error.
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
@@ -23,3 +23,5 @@ The Mac captures its virtual displays and produces encoded streams into `core`.
 - Low-latency rate control with a realtime fallback; only essential encoder properties are mandatory.
 - Acceptance harness: debug "Host media test" streams over loopback into an in-process core viewer.
 - Encoder creation stalls for minutes when the app runs from ~/Documents (sandbox extension); build outside it.
+- Capture interval has 2× headroom; measured 59.1 fps, p99 21.5 ms for two 1440p60 streams (HostPipelineHardwareTests).
+- Capture timestamps are converted to the core's clock (osplay_clock_microseconds); CMClock host time stops during sleep.
