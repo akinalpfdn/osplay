@@ -158,3 +158,30 @@ choices the plan leaves open are logged here.
 **Revisit if:** A Noise revision standardises extra key derivation.
 
 ---
+
+## 2026-10-17 — Sans-I/O session engine under a thin Asio transport
+**Chosen:** The whole session protocol (handshake, pairing, negotiation, heartbeat, loss recovery) is a `SessionEngine` that takes bytes, datagrams and time and produces bytes, datagrams and callbacks; `AsioSession` only moves bytes and runs a 2 ms timer on one I/O thread per session.
+**Alternatives:** Protocol logic inside Asio completion handlers; one shared I/O thread for all sessions.
+**Why:** Loss, reordering, outages and timeouts can be tested deterministically and fast with a simulated network and clock, which the acceptance criteria require (5% loss, 3 s outage). One thread per session matches DEVPLAN ("core owns one I/O thread") and there is one session per device.
+**Trade-offs:** A command from the platform waits for the I/O thread (bounded by 5 s); real-socket behaviour is covered by a smaller set of loopback and relay tests.
+**Revisit if:** A device needs several concurrent sessions.
+
+---
+
+## 2026-10-17 — One PairingConfirm per side, also for trusted peers
+**Chosen:** After the handshake each side sends exactly one PairingConfirm: immediately when it trusts the peer's key, after the user decides when the key is unknown.
+**Alternatives:** PairingConfirm only during a first pairing.
+**Why:** Trust is decided per side. A Mac that still trusts a Windows PC whose user removed the pairing must not start streaming; an explicit answer from both sides makes the state machine the same for both cases.
+**Trade-offs:** One extra small message per connection.
+**Revisit if:** Never expected.
+
+---
+
+## 2026-10-17 — MAX_ENUM sentinels in the C API
+**Chosen:** Every C enum in `osplay.h` ends with `*_MAX_ENUM = 0x7FFFFFFF`; values from bindings are range-checked.
+**Alternatives:** Taking `uint32_t` parameters instead of enum types.
+**Why:** Swift and C# can pass any 32-bit value. Without the sentinel, an out-of-range value is undefined behaviour in C++ (UBSan reported it in Phase 5). The sentinel keeps typed parameters and the existing bindings unchanged (the same convention as Vulkan).
+**Trade-offs:** One unused value per enum that bindings will see.
+**Revisit if:** The header moves to C23 enums with a fixed underlying type.
+
+---

@@ -68,6 +68,25 @@ private:
     std::uint32_t counter_ = 0;
 };
 
+/// Deterministic bytes from a seed; different seeds give different streams.
+class SeededRandom final : public crypto::RandomSource {
+public:
+    explicit SeededRandom(std::uint64_t seed) : state_(seed * 0x9E3779B97F4A7C15ULL + 1) {}
+
+    bool fill(std::span<std::uint8_t> out) override {
+        for (std::uint8_t& byte : out) {
+            state_ ^= state_ << 13U;
+            state_ ^= state_ >> 7U;
+            state_ ^= state_ << 17U;
+            byte = static_cast<std::uint8_t>(state_);
+        }
+        return true;
+    }
+
+private:
+    std::uint64_t state_;
+};
+
 inline crypto::KeyPair key_pair(crypto::RandomSource& random) {
     auto pair = crypto::KeyPair::generate(random);
     if (!pair) {

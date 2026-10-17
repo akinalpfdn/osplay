@@ -42,6 +42,17 @@ Virtual display ─► Capture ─► Encoder ─► core: packetize ──UDP�
 - `core/src/crypto/` implements PROTOCOL.md → Encryption: Monocypher wrappers (`primitives`), the
   Noise XX `HandshakeState` and `CipherState` (`noise`), and media datagram sealing with a replay
   window (`media_crypto`). Randomness comes from the platform through `crypto::RandomSource`.
+- `core/src/media/` splits access units into fragments (`packetizer`), keeps recent frames for
+  retransmission (`retransmit_cache`) and rebuilds frames on the viewer (`reassembler`: in-order
+  delivery, NACK, deadline, wait for keyframe).
+- `core/src/session/` is the session protocol without I/O (`SessionEngine`): bytes, datagrams,
+  time and commands go in; bytes, datagrams and observer callbacks come out. Tests drive it with a
+  simulated lossy network and clock. Every tunable is in `session_config.hpp`.
+- `core/src/transport/` runs one `SessionEngine` over Asio sockets (`AsioSession`): one I/O thread
+  per session owns the TCP control connection, the UDP media socket and a 2 ms timer. Callbacks run
+  on that thread; commands from other threads are posted to it.
+- `core/src/capi/` is the flat C API. `osplay_session` wraps an `AsioSession` and forwards its
+  callbacks to C function pointers.
 - `windows/CMakeLists.txt` adds `core` as a subdirectory and links it into the engine DLL.
 - The WPF shell loads the engine DLL through P/Invoke (from Phase 12).
 

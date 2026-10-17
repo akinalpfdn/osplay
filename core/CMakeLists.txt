@@ -35,10 +35,17 @@ target_include_directories(osplay_monocypher PUBLIC third_party/monocypher)
 add_library(osplay_core STATIC
     src/capi/identity_capi.cpp
     src/capi/protocol_capi.cpp
+    src/capi/session_capi.cpp
     src/capi/version.cpp
     src/crypto/media_crypto.cpp
     src/crypto/noise.cpp
     src/crypto/primitives.cpp
+    src/media/packetizer.cpp
+    src/media/reassembler.cpp
+    src/media/retransmit_cache.cpp
+    src/session/control_framer.cpp
+    src/session/session_engine.cpp
+    src/transport/asio_session.cpp
     src/protocol/control_codec.cpp
     src/protocol/media_codec.cpp
     src/protocol/text.cpp)
@@ -50,6 +57,19 @@ target_include_directories(osplay_core
 target_compile_features(osplay_core PUBLIC cxx_std_20)
 set_target_properties(osplay_core PROPERTIES CXX_EXTENSIONS OFF)
 target_link_libraries(osplay_core PRIVATE osplay_monocypher osplay::warnings)
+
+# Asio is header-only; SYSTEM keeps its headers out of Osplay's warning policy. The tests use it
+# too (a recording relay), so it is an interface target rather than settings on osplay_core.
+find_package(Threads REQUIRED)
+add_library(osplay_asio INTERFACE)
+target_include_directories(osplay_asio SYSTEM INTERFACE third_party/asio/include)
+target_compile_definitions(osplay_asio INTERFACE ASIO_STANDALONE ASIO_NO_DEPRECATED)
+target_link_libraries(osplay_asio INTERFACE Threads::Threads)
+if(WIN32)
+    target_compile_definitions(osplay_asio INTERFACE _WIN32_WINNT=0x0A00 WIN32_LEAN_AND_MEAN NOMINMAX)
+    target_link_libraries(osplay_asio INTERFACE ws2_32 mswsock)
+endif()
+target_link_libraries(osplay_core PRIVATE osplay_asio)
 
 if(OSPLAY_CORE_BUILD_TESTS)
     enable_testing()

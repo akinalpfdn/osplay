@@ -13,20 +13,24 @@ FetchContent_MakeAvailable(googletest)
 add_executable(osplay_core_tests
     capi_identity_test.cpp
     capi_protocol_test.cpp
+    capi_session_test.cpp
     crypto_primitives_test.cpp
     media_crypto_test.cpp
+    media_test.cpp
     noise_handshake_test.cpp
     noise_vectors_test.cpp
     protocol_codec_test.cpp
     protocol_fixture_test.cpp
     protocol_values_test.cpp
+    session_engine_test.cpp
+    transport_test.cpp
     version_test.cpp)
 # Tests reach internal headers; only the C header is public API.
 target_include_directories(osplay_core_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_compile_definitions(osplay_core_tests PRIVATE
     OSPLAY_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../../protocol/fixtures"
     OSPLAY_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../data")
-target_link_libraries(osplay_core_tests PRIVATE osplay::core osplay::warnings GTest::gtest_main)
+target_link_libraries(osplay_core_tests PRIVATE osplay::core osplay_asio osplay::warnings GTest::gtest_main)
 set_target_properties(osplay_core_tests PROPERTIES CXX_EXTENSIONS OFF)
 
 include(GoogleTest)
