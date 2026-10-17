@@ -70,7 +70,7 @@ messages (4112 with the 16-byte AEAD tag). A control message is:
 |-----:|------|-----------|------|
 | 0x01 | Hello | both | first message on a connection, plaintext |
 | 0x02 | HandshakeMessage | both | Noise XX messages 1–3, plaintext |
-| 0x03 | PairingConfirm | both | first pairing only, after the user confirms the code |
+| 0x03 | PairingConfirm | both | once per side after the handshake (see "Session flow") |
 | 0x04 | Capabilities | both | after the handshake |
 | 0x05 | ViewerMonitors | viewer → host | monitors the viewer lends |
 | 0x06 | StreamConfig | host → viewer | one per stream |
@@ -322,6 +322,42 @@ Sent at most at the stream's refresh rate; the newest position wins.
 Every fragment but the last carries exactly 1155 bytes; the last carries the remainder. A shape is
 sent when it changes and again with every keyframe, so a viewer that joined late recovers.
 
+## Session flow
+
+1. The viewer connects to the host's control port. Both sides send **Hello**; a different major
+   version ends the connection with Error 1.
+2. **Noise XX** (viewer = initiator) in three HandshakeMessages. Everything after it is encrypted.
+   The handshake must finish within 10 s.
+3. **Pairing.** Each side checks the peer's static key against its own trust store:
+   - trusted: it sends PairingConfirm(accepted) at once;
+   - unknown: it shows the pairing code and sends PairingConfirm once the user decides;
+   - blocked: it sends Error 3 and closes.
+
+   Each side sends exactly one PairingConfirm. The session continues only when both accepted; a
+   rejection ends it with Error 2. A first pairing stores the key on both sides.
+4. **Negotiation.** Both send Capabilities; the viewer sends ViewerMonitors. The host answers with
+   MediaSetup followed by one StreamConfig per stream.
+5. **UDP association.** The viewer sends UdpHello to the MediaSetup port on the host's address
+   every 250 ms until media flows, then once per second as a keepalive. The host sends media to the
+   source of the latest valid UdpHello (so it follows a viewer whose address changes). On the first
+   one it sends StreamStart for every stream and starts with a keyframe.
+6. **Streaming.** Every second each side sends Ping (RTT and clock offset) and the viewer sends a
+   ReceiverReport per stream. A side that has sent nothing for 1 s sends Heartbeat. A side that has
+   received nothing for **10 s** closes with a timeout, so shorter network interruptions are survived
+   without user action.
+7. **Close.** Bye, then the TCP connection closes after the queued data.
+
+### Loss recovery
+
+- The viewer delivers frames of a stream in frame_id order.
+- Timing starts when the first fragment of a frame arrives, or when a later frame shows that a
+  frame is missing entirely. A frame still incomplete after half a frame interval is NACKed once;
+  a frame of which nothing arrived is NACKed as the range (0, 4096).
+- The host keeps the last 16 frames (at most 8 MiB) for retransmission.
+- A frame still incomplete after a frame interval plus max(RTT, 2 ms) is dropped. The viewer then discards frames until the next keyframe and sends KeyframeRequest
+  (reason 2), at most every 250 ms per stream. More than 8 frames in flight has the same effect.
+- The host turns requests closer together than 100 ms into a single keyframe.
+
 ## Encryption
 
 ### Handshake
@@ -405,6 +441,15 @@ Decoding and encoding report these codes, which are also the values of `osplay_r
 | 14 | NONCE_EXHAUSTED | a cipher reached its last nonce |
 | 15 | INVALID_KEY | an all-zero secret key, or a peer key producing an all-zero shared secret |
 | 16 | RANDOM_UNAVAILABLE | the platform's random source failed |
+| 17 | TIMED_OUT | the handshake or the peer stopped responding (see "Session flow") |
+| 18 | CONNECTION_CLOSED | the peer ended the session (Bye) or the connection closed |
+| 19 | PEER_ERROR | the peer sent an Error message |
+| 20 | UNEXPECTED_MESSAGE | a valid message arrived in a state where it is not allowed |
+| 21 | NOT_TRUSTED | the peer's key is blocked locally |
+| 22 | PAIRING_REJECTED | a user rejected the pairing code |
+| 23 | PEER_BUSY | the peer is in another session |
+| 24 | INVALID_STATE | the command is not valid in the session's current state |
+| 25 | NETWORK | a socket could not be opened, connected or used |
 
 ## Fixtures
 
