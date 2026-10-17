@@ -7,9 +7,11 @@
 
 #include <windows.h>
 
-#include <cstdio>
 #include <cwchar>
+#include <iostream>
 
+// NOLINTNEXTLINE(misc-use-internal-linkage,cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays):
+// entry point
 int wmain(int argc, wchar_t* argv[]) {
     if (argc == 2 && std::wcscmp(argv[1], L"--install") == 0) {
         return osplay::helper::install_service();
@@ -22,12 +24,13 @@ int wmain(int argc, wchar_t* argv[]) {
             return 0;
         }
         if (GetLastError() == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) {
-            std::fprintf(stderr,
-                         "OsplayHelper runs as a Windows service. Use --install or --uninstall.\n");
-            return 2;
+            std::cerr << "OsplayHelper runs as a Windows service. Use --install or --uninstall.
+                         ";
+                return 2;
         }
         return static_cast<int>(GetLastError());
     }
-    std::fprintf(stderr, "Usage: OsplayHelper.exe [--install | --uninstall]\n");
-    return 2;
+    std::cerr << "Usage: OsplayHelper.exe [--install | --uninstall]
+                 ";
+        return 2;
 }

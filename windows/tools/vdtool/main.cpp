@@ -5,9 +5,12 @@
 #include <osplay/engine.h>
 
 #include <array>
-#include <cstdio>
+#include <cstdint>
 #include <cstdlib>
-#include <cstring>
+#include <format>
+#include <iostream>
+#include <span>
+#include <string>
 #include <string_view>
 
 namespace {
@@ -27,76 +30,84 @@ constexpr std::array<std::string_view, 12> kResultNames{
     "internal error",
 };
 
-const char* describe(osplay_engine_result result) {
+std::string_view describe(osplay_engine_result result) {
     const auto index = static_cast<std::size_t>(result);
-    return index < kResultNames.size() ? kResultNames.at(index).data() : "unknown result";
+    return index < kResultNames.size() ? kResultNames.at(index) : "unknown result";
 }
 
-int report(const char* step, osplay_engine_result result) {
-    std::printf("%s: %s\n", step, describe(result));
-    return result == OSPLAY_ENGINE_OK ? 0 : 1;
+bool report(std::string_view step, osplay_engine_result result) {
+    std::cout << step << ": " << describe(result) << '\n';
+    return result == OSPLAY_ENGINE_OK;
+}
+
+std::string_view yes_no(std::uint8_t flag) {
+    return flag != 0 ? "yes" : "no";
 }
 
 void print_status(osplay_virtual_display* display) {
     osplay_virtual_monitor_status status{};
-    if (report("status", osplay_virtual_display_status(display, &status)) != 0) {
+    if (!report("status", osplay_virtual_display_status(display, &status))) {
         return;
     }
-    std::printf("  driver installed: %s\n  monitor present:  %s\n  configured:       %s",
-                status.driver_installed ? "yes" : "no", status.monitor_present ? "yes" : "no",
-                status.configured ? "yes" : "no");
+    std::cout << "  driver installed: " << yes_no(status.driver_installed) << '\n'
+              << "  monitor present:  " << yes_no(status.monitor_present) << '\n'
+              << "  configured:       " << yes_no(status.configured);
     if (status.configured != 0) {
-        std::printf(" (%ux%u @ %.3f Hz)", status.width, status.height,
-                    status.refresh_millihertz / 1000.0);
+        std::cout << std::format(" ({}x{} @ {:.3f} Hz)", status.width, status.height,
+                                 status.refresh_millihertz / 1000.0);
     }
-    std::printf("\n");
+    std::cout << '\n';
 }
 
 int usage() {
-    std::fprintf(stderr, "Usage:\n  OsplayVdTool status\n  OsplayVdTool create <width> <height> "
-                         "<refresh-hz> [gpu name]\n");
+    std::cerr << "Usage:\n  OsplayVdTool status\n"
+                 "  OsplayVdTool create <width> <height> <refresh-hz> [gpu name]\n";
     return 2;
 }
 
-} // namespace
-
-int main(int argc, char* argv[]) {
-    if (argc < 2) {
+int run(std::span<char*> args) {
+    if (args.size() < 2) {
         return usage();
     }
-    const std::string_view command(argv[1]);
-    if (command != "status" && command != "create") {
-        return usage();
-    }
-    if (command == "create" && argc != 5 && argc != 6) {
+    const std::string_view command(args[1]);
+    const bool create = command == "create";
+    if ((command != "status" && !create) || (create && args.size() != 5 && args.size() != 6)) {
         return usage();
     }
 
     osplay_virtual_display* display = nullptr;
-    if (report("connect", osplay_virtual_display_open(&display)) != 0) {
+    if (!report("connect", osplay_virtual_display_open(&display))) {
         return 1;
     }
 
-    int exit_code = 0;
-    if (command == "status") {
+    bool ok = true;
+    if (!create) {
         print_status(display);
     } else {
         const osplay_virtual_monitor_config config{
-            .width = static_cast<uint32_t>(std::strtoul(argv[2], nullptr, 10)),
-            .height = static_cast<uint32_t>(std::strtoul(argv[3], nullptr, 10)),
+            .width = static_cast<std::uint32_t>(std::strtoul(args[2], nullptr, 10)),
+            .height = static_cast<std::uint32_t>(std::strtoul(args[3], nullptr, 10)),
             .refresh_millihertz =
-                static_cast<uint32_t>(std::strtod(argv[4], nullptr) * 1000.0 + 0.5),
-            .gpu_name_utf8 = argc == 6 ? argv[5] : nullptr,
+                static_cast<std::uint32_t>((std::strtod(args[4], nullptr) * 1000.0) + 0.5),
+            .gpu_name_utf8 = args.size() == 6 ? args[5] : nullptr,
         };
-        exit_code = report("create", osplay_virtual_display_create_monitor(display, &config));
+        ok = report("create", osplay_virtual_display_create_monitor(display, &config));
         print_status(display);
-        if (exit_code == 0) {
-            std::printf(
-                "The virtual monitor stays while this tool runs. Press Enter to remove it...\n");
-            static_cast<void>(std::getchar());
-            exit_code = report("remove", osplay_virtual_display_remove_monitor(display));
+        if (ok) {
+            std::cout
+                << "The virtual monitor stays while this tool runs. Press Enter to remove it...\n";
+            std::string ignored;
+            std::getline(std::cin, ignored);
+            ok = report("remove", osplay_virtual_display_remove_monitor(display));
         }
     }
     osplay_virtual_display_close(display);
-    return exit_code;
+    return ok ? 0 : 1;
+}
+
+} // namespace
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): entry point signature
+int main(int argc, char* argv[]) {
+    return run(std::span<char*>(argv, static_cast<std::size_t>(argc)));
 }

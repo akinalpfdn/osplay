@@ -10,7 +10,7 @@
 namespace osplay::helper {
 namespace {
 
-constexpr wchar_t kLocalSystemSid[] = L"S-1-5-18";
+constexpr const wchar_t* kLocalSystemSid = L"S-1-5-18";
 
 struct HandleCloser {
     void operator()(HANDLE handle) const noexcept { CloseHandle(handle); }

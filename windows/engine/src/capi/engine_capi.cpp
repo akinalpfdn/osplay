@@ -42,7 +42,7 @@ osplay_engine_result to_result(DisplayError error) {
 
 /// No C++ exception may cross the C boundary.
 template <typename Body>
-osplay_engine_result guarded(Body&& body) noexcept {
+osplay_engine_result guarded(const Body& body) noexcept {
     try {
         return body();
     } catch (...) {
@@ -127,15 +127,13 @@ osplay_engine_result osplay_virtual_display_status(osplay_virtual_display* displ
 }
 
 void osplay_virtual_display_close(osplay_virtual_display* display) {
-    // Taking ownership back; closing the pipe makes the helper remove the monitor.
+    // Taking ownership back; closing the pipe also makes the helper remove the monitor.
     const std::unique_ptr<osplay_virtual_display> owned(display);
-    if (!owned) {
-        return;
-    }
-    try {
-        static_cast<void>(owned->provider->remove_monitor());
-    } catch (
-        ...) { // NOLINT(bugprone-empty-catch): the helper removes the monitor when the pipe closes
+    if (owned) {
+        static_cast<void>(guarded([&] {
+            const auto removed = owned->provider->remove_monitor();
+            return removed ? OSPLAY_ENGINE_OK : to_result(removed.error());
+        }));
     }
 }
 

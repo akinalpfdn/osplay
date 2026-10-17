@@ -57,12 +57,13 @@ PipeHelperChannel::~PipeHelperChannel() {
 win::Expected<win::helper::Bytes, DisplayError>
 PipeHelperChannel::transact(std::span<const std::uint8_t> request) {
     using Result = win::Expected<win::helper::Bytes, DisplayError>;
+    // TransactNamedPipe takes a non-const input buffer, so send a copy.
+    win::helper::Bytes outgoing(request.begin(), request.end());
     win::helper::Bytes response(win::helper::kMaxMessageSize);
     DWORD received = 0;
-    // TransactNamedPipe only reads the input buffer; its signature is simply not const-correct.
-    if (!TransactNamedPipe(pipe_, const_cast<std::uint8_t*>(request.data()),
-                           static_cast<DWORD>(request.size()), response.data(),
-                           static_cast<DWORD>(response.size()), &received, nullptr)) {
+    if (!TransactNamedPipe(pipe_, outgoing.data(), static_cast<DWORD>(outgoing.size()),
+                           response.data(), static_cast<DWORD>(response.size()), &received,
+                           nullptr)) {
         const DWORD error = GetLastError();
         return Result::failure(error == ERROR_MORE_DATA ? DisplayError::ProtocolMismatch
                                                         : DisplayError::ConnectionLost);

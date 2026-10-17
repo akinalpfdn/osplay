@@ -19,7 +19,7 @@ inline constexpr std::uint32_t kMagic = 0x4850'534F; // "OSPH" as little-endian 
 inline constexpr std::uint16_t kVersion = 1;
 inline constexpr std::size_t kHeaderSize = 12;
 inline constexpr std::size_t kMaxMessageSize = 512;
-inline constexpr wchar_t kPipeName[] = L"\\\\.\\pipe\\OsplayHelper";
+inline constexpr const wchar_t* kPipeName = L"\\\\.\\pipe\\OsplayHelper";
 
 // Bounds for virtual monitor settings; anything outside is rejected before it reaches the driver.
 inline constexpr std::uint32_t kMinWidth = 640;

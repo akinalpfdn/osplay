@@ -6,8 +6,7 @@
 
 #include <shlobj.h>
 
-#include <array>
-#include <cstdio>
+#include <format>
 #include <fstream>
 #include <string>
 #include <system_error>
@@ -28,10 +27,8 @@ std::filesystem::path log_directory() {
 std::string utc_timestamp() {
     SYSTEMTIME now{};
     GetSystemTime(&now);
-    std::array<char, 32> text{};
-    std::snprintf(text.data(), text.size(), "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ", now.wYear,
-                  now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds);
-    return text.data();
+    return std::format("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z", now.wYear, now.wMonth,
+                       now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds);
 }
 
 } // namespace
@@ -54,7 +51,7 @@ void FileLog::write(std::string_view level, std::string_view message) {
         return;
     }
 
-    const std::lock_guard lock(mutex_);
+    const std::scoped_lock lock(mutex_);
     std::error_code size_error;
     if (std::filesystem::file_size(path_, size_error) > kMaxLogFileBytes && !size_error) {
         std::error_code ignored;
