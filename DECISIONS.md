@@ -267,3 +267,39 @@ choices the plan leaves open are logged here.
 
 ---
 
+
+## 2026-10-18 — User decision: Windows viewer hotkey Ctrl+Alt+Shift+V
+**Chosen:** Ctrl+Alt+Shift+V hides and shows the Windows viewer.
+**Alternatives:** Ctrl+Alt+V.
+**Why:** On Turkish and other AltGr layouts Ctrl+Alt is AltGr, so Ctrl+Alt+V would collide with typing.
+**Trade-offs:** A four-key chord; it becomes configurable with the settings UI.
+**Revisit if:** Users report a conflict.
+
+---
+
+## 2026-10-18 — User decision: Phase 9 two-stream test through a temporary IP connection
+**Chosen:** A debug "Host for a remote viewer" on the Mac and `OsplayViewerTest --connect HOST PORT` on Windows; both trust any peer and are removed when Phase 10 adds discovery.
+**Alternatives:** Wait for Phase 10 to test two streams; a Windows-only test with two virtual monitors.
+**Why:** The Windows host streams one monitor only, so two real streams need the Mac host; discovery does not exist yet.
+**Trade-offs:** Throwaway code in both apps; the debug host trusts any viewer while it runs.
+**Revisit if:** Phase 10 starts.
+
+---
+
+## 2026-10-18 — Windows viewer presents from one decode thread per stream
+**Chosen:** Each stream's thread decodes (MF H.264 decoder on D3D11), converts with the video processor and presents a `FLIP_DISCARD` swap chain (waitable, maximum latency 1) at once on a borderless window without a redirection bitmap; one UI thread owns only windows, the hotkey and display changes.
+**Alternatives:** A DirectComposition or composition swap chain; a pixel shader for NV12 → RGB; presenting all streams from the UI thread.
+**Why:** A plain flip-model window that covers its monitor is what DWM promotes to independent flip, which removes a composition frame of latency. Separate threads keep one slow monitor from delaying the other. The video processor is the hardware path the encoder side already uses.
+**Trade-offs:** Overlays drawn above the window (notifications) drop it back to composition while visible; no custom scaling filter.
+**Revisit if:** PresentMon shows composed flip on common setups, or the video processor is slow on some GPUs.
+
+---
+
+## 2026-10-18 — Viewer monitor ids by desktop position, matched by GDI name
+**Chosen:** Offered monitors are numbered left to right (then top to bottom); after a display change they are matched by GDI device name to decide which are still attached.
+**Alternatives:** Ids from the CCD target id; matching by EDID name.
+**Why:** Position ids are small, stable while nothing changes and match what the user sees; GDI names survive the renumbering an unplug causes. EDID names are not unique when two identical monitors are attached.
+**Trade-offs:** Windows may reuse a GDI name for a different monitor plugged in later during the same session.
+**Revisit if:** Monitor ids need to persist across sessions (per-monitor settings).
+
+---

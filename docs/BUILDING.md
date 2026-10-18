@@ -276,6 +276,35 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    | AMD | AMF MFT | not tested |
    | Intel | Quick Sync MFT | not tested |
 
+6. Test the viewer pipeline (decode, present, hide/show, unplug). `--list` shows the monitors the
+   viewer offers; `--loopback` hosts a virtual monitor through the helper and views it on one
+   physical monitor; `--connect` views another computer:
+
+   ```powershell
+   cd windows\build\debug\bin
+   .\OsplayViewerTest.exe --list
+   .\OsplayViewerTest.exe --loopback --monitor 1 --seconds 60
+   .\OsplayViewerTest.exe --connect 192.168.1.20 52100 --seconds 120
+   ```
+
+   For `--connect` to a Mac, start **Host for a remote viewer** in the debug menu of the Mac app; it
+   shows the exact command with the Mac's address and port (temporary until discovery in Phase 10).
+   With two monitors attached the Mac hosts two virtual displays, one per monitor. Every second the
+   tool prints, per stream, frames presented, decode errors and latency; Ctrl+Alt+Shift+V hides and
+   shows the windows (the host pauses the streams while hidden). Unplug one monitor during the run
+   and only its stream stops.
+
+   To confirm independent flip, run [PresentMon](https://github.com/GameTechDev/PresentMon) in a
+   second terminal while streaming: `PresentMon.exe --process_name OsplayViewerTest.exe` must show
+   `Hardware: Independent Flip` (or `Hardware Composed: Independent Flip`) in the `PresentMode`
+   column for each window.
+
+   Measured so far (Phase 9 acceptance: two streams with independent flip):
+
+   | Setup | Result |
+   |-------|--------|
+   | NVIDIA, two monitors, Mac host | not tested |
+
 > The driver's own documentation warns that major GPU or chipset driver updates can scramble
 > display priority while it is installed. If the screen goes black after such an update, boot into
 > Safe Mode and uninstall the Virtual Display Driver from Device Manager → Display adapters.
@@ -294,5 +323,5 @@ format a C++ file with the pinned version from `scripts/lint.sh`, for example
   `swift test`, app build and tests.
 - **Protocol fuzzing** (Linux) — libFuzzer with ASan and UBSan, seeded with the fixtures: 30 seconds
   on the protocol decoders, 30 seconds on the handshake reader and media opener.
-- **Windows** — core, engine, helper and developer tool with MSVC (`/W4 /WX`), all native tests,
+- **Windows** — core, engine, helper and developer tools with MSVC (`/W4 /WX`), all native tests,
   clang-tidy on core and Windows code, `dotnet format` check, shell build with analyzers as errors.
