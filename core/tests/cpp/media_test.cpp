@@ -1,3 +1,4 @@
+#include "media/cursor.hpp"
 #include "media/packetizer.hpp"
 #include "media/rate_limiter.hpp"
 #include "media/reassembler.hpp"
@@ -244,6 +245,91 @@ TEST_F(ReassemblerTest, TooManyFramesInFlightForceAKeyframe) {
     }
     reassembler.tick(now);
     EXPECT_TRUE(reassembler.waiting_for_keyframe());
+}
+
+// --- Cursor shapes
+// ---------------------------------------------------------------------------------
+
+media::CursorShape shape(std::uint32_t id, std::uint16_t width, std::uint16_t height,
+                         const std::vector<std::uint8_t>& bgra) {
+    return {.stream_id = 1,
+            .shape_id = id,
+            .width = width,
+            .height = height,
+            .hotspot_x = 1,
+            .hotspot_y = 2,
+            .bgra = bgra};
+}
+
+TEST(CursorShape, SplitsAndReassemblesOutOfOrder) {
+    const auto bgra = frame_bytes(std::size_t{48} * 48 * 4, 3);
+    std::vector<protocol::CursorShapeFragment> fragments;
+    ASSERT_TRUE(media::split_cursor_shape(shape(5, 48, 48, bgra), fragments).has_value());
+    ASSERT_EQ(fragments.size(), 8U); // 9216 bytes / 1155
+    EXPECT_EQ(fragments.back().payload.size(), 9216 - 7 * protocol::kMaxCursorShapePayload);
+
+    media::CursorShapeAssembler assembler;
+    std::optional<media::CursorShape> completed;
+    for (std::size_t i = fragments.size(); i-- > 0;) {
+        EXPECT_FALSE(completed.has_value());
+        completed = assembler.add(fragments[i]);
+    }
+    ASSERT_TRUE(completed.has_value());
+    EXPECT_EQ(completed->shape_id, 5U);
+    EXPECT_EQ(completed->hotspot_y, 2);
+    EXPECT_TRUE(std::ranges::equal(completed->bgra, bgra));
+    EXPECT_FALSE(assembler.add(fragments[0]).has_value()) << "a resent shape is delivered once";
+}
+
+TEST(CursorShape, ANewerShapeAbandonsTheOneInProgress) {
+    const auto first = frame_bytes(std::size_t{32} * 32 * 4, 1);
+    const auto second = frame_bytes(std::size_t{16} * 16 * 4, 2);
+    std::vector<protocol::CursorShapeFragment> old_fragments;
+    std::vector<protocol::CursorShapeFragment> new_fragments;
+    ASSERT_TRUE(media::split_cursor_shape(shape(1, 32, 32, first), old_fragments).has_value());
+    ASSERT_TRUE(media::split_cursor_shape(shape(2, 16, 16, second), new_fragments).has_value());
+
+    media::CursorShapeAssembler assembler;
+    EXPECT_FALSE(assembler.add(old_fragments[0]).has_value());
+    std::optional<media::CursorShape> completed;
+    for (const auto& fragment : new_fragments) {
+        completed = assembler.add(fragment);
+    }
+    ASSERT_TRUE(completed.has_value());
+    EXPECT_EQ(completed->shape_id, 2U);
+}
+
+TEST(CursorShape, InconsistentFragmentsAreIgnored) {
+    const auto bgra = frame_bytes(std::size_t{32} * 32 * 4, 1);
+    std::vector<protocol::CursorShapeFragment> fragments;
+    ASSERT_TRUE(media::split_cursor_shape(shape(1, 32, 32, bgra), fragments).has_value());
+    media::CursorShapeAssembler assembler;
+    EXPECT_FALSE(assembler.add(fragments[0]).has_value());
+
+    auto resized = fragments[1];
+    resized.width = 31;
+    EXPECT_FALSE(assembler.add(resized).has_value());
+    auto short_payload = fragments[1];
+    short_payload.payload = short_payload.payload.first(10);
+    EXPECT_FALSE(assembler.add(short_payload).has_value());
+    EXPECT_FALSE(assembler.add(fragments[0]).has_value()) << "duplicate";
+
+    std::optional<media::CursorShape> completed;
+    for (std::size_t i = 1; i < fragments.size(); ++i) {
+        completed = assembler.add(fragments[i]);
+    }
+    EXPECT_TRUE(completed.has_value());
+}
+
+TEST(CursorShape, RejectsInvalidImages) {
+    std::vector<protocol::CursorShapeFragment> fragments;
+    const auto bgra = frame_bytes(16, 0);
+    EXPECT_EQ(media::split_cursor_shape(shape(1, 2, 3, bgra), fragments).error(),
+              osplay::Error::InvalidArgument)
+        << "size does not match";
+    const auto big = frame_bytes(std::size_t{257} * 1 * 4, 0);
+    EXPECT_EQ(media::split_cursor_shape(shape(1, 257, 1, big), fragments).error(),
+              osplay::Error::InvalidArgument);
 }
 
 } // namespace

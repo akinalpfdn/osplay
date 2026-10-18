@@ -479,4 +479,20 @@ void AsioSession::push_access_unit(const media::AccessUnit& unit) {
     });
 }
 
+void AsioSession::push_cursor_shape(const media::CursorShape& shape) {
+    auto bytes = std::make_shared<std::vector<std::uint8_t>>(shape.bgra.begin(), shape.bgra.end());
+    impl_->post([impl = impl_.get(), shape, bytes] {
+        media::CursorShape copy = shape;
+        copy.bgra = *bytes;
+        // Fails only before streaming starts; the next keyframe brings the current shape anyway.
+        static_cast<void>(impl->engine().push_cursor_shape(copy, Impl::now()));
+    });
+}
+
+void AsioSession::push_cursor_position(const protocol::CursorPosition& position) {
+    impl_->post([impl = impl_.get(), position] {
+        static_cast<void>(impl->engine().push_cursor_position(position, Impl::now()));
+    });
+}
+
 } // namespace osplay::transport

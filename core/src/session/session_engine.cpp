@@ -74,6 +74,9 @@ struct SessionEngine::HostStream {
     std::uint64_t bytes_in_window = 0;
     std::uint64_t retransmitted = 0;
     std::uint64_t keyframe_requests = 0;
+    /// The current cursor shape, resent after every keyframe; `cursor_shape.bgra` views this.
+    std::vector<std::uint8_t> cursor_image;
+    std::optional<media::CursorShape> cursor_shape;
 };
 
 class SessionEngine::ReassemblyAdapter final : public media::ReassemblySink {
@@ -119,6 +122,9 @@ struct SessionEngine::ViewerStream {
     std::uint64_t dropped_at_last_report = 0;
     std::uint16_t last_loss_permille = 0;
     std::uint32_t last_latency_us = 0;
+    media::CursorShapeAssembler cursor_assembler;
+    std::optional<std::uint64_t> last_cursor_time;
+    std::optional<TimePoint> missing_shape_since;
 };
 
 void SessionEngine::ReassemblyAdapter::on_frame(const media::CompletedFrame& frame) {
@@ -733,6 +739,91 @@ void SessionEngine::send_fragments(const std::vector<protocol::VideoFragment>& f
     }
 }
 
+Status<Error> SessionEngine::push_cursor_shape(const media::CursorShape& shape, TimePoint now) {
+    static_cast<void>(now);
+    const auto it = host_streams_.find(shape.stream_id);
+    if (config_.role != protocol::Role::Host || it == host_streams_.end() ||
+        (state_ != SessionState::Streaming && state_ != SessionState::Paused)) {
+        return Status<Error>::failure(Error::InvalidState);
+    }
+    if (const auto valid = media::split_cursor_shape(shape, cursor_fragments_); !valid) {
+        return valid;
+    }
+    HostStream& stream = *it->second;
+    stream.cursor_image.assign(shape.bgra.begin(), shape.bgra.end());
+    stream.cursor_shape = shape;
+    stream.cursor_shape->bgra = stream.cursor_image;
+    send_cursor_shape(stream);
+    return Status<Error>::ok();
+}
+
+Status<Error> SessionEngine::push_cursor_position(const protocol::CursorPosition& position,
+                                                  TimePoint now) {
+    static_cast<void>(now);
+    const auto it = host_streams_.find(position.stream_id);
+    if (config_.role != protocol::Role::Host || it == host_streams_.end() ||
+        (state_ != SessionState::Streaming && state_ != SessionState::Paused)) {
+        return Status<Error>::failure(Error::InvalidState);
+    }
+    const HostStream& stream = *it->second;
+    if (stream.started && !stream.paused &&
+        !seal_and_send({.sequence = next_sequence_++, .body = position})) {
+        log(LogLevel::Error, "Could not send a cursor position");
+    }
+    return Status<Error>::ok();
+}
+
+void SessionEngine::send_cursor_shape(const HostStream& stream) {
+    if (!stream.cursor_shape || !stream.started || stream.paused) {
+        return;
+    }
+    if (!media::split_cursor_shape(*stream.cursor_shape, cursor_fragments_)) {
+        return; // validated when it was pushed
+    }
+    for (const auto& fragment : cursor_fragments_) {
+        if (!seal_and_send({.sequence = next_sequence_++, .body = fragment})) {
+            log(LogLevel::Error, "Could not send a cursor shape fragment");
+            return;
+        }
+    }
+}
+
+void SessionEngine::deliver_cursor_shape(const protocol::CursorShapeFragment& fragment) {
+    const auto it = viewer_streams_.find(fragment.stream_id);
+    if (it == viewer_streams_.end() || !it->second->started) {
+        return;
+    }
+    if (const auto shape = it->second->cursor_assembler.add(fragment)) {
+        observer_.on_cursor_shape(*shape);
+    }
+}
+
+void SessionEngine::deliver_cursor_position(const protocol::CursorPosition& position,
+                                            TimePoint now) {
+    const auto it = viewer_streams_.find(position.stream_id);
+    if (it == viewer_streams_.end() || !it->second->started) {
+        return;
+    }
+    ViewerStream& stream = *it->second;
+    if (stream.last_cursor_time && position.capture_time_us < *stream.last_cursor_time) {
+        return; // reordered: a newer position was already shown
+    }
+    stream.last_cursor_time = position.capture_time_us;
+    observer_.on_cursor_position(position);
+
+    // The shape travels without retransmission; when it was lost, a keyframe brings it again.
+    if (!position.visible || stream.cursor_assembler.completed_shape() == position.shape_id) {
+        stream.missing_shape_since.reset();
+        return;
+    }
+    if (!stream.missing_shape_since) {
+        stream.missing_shape_since = now;
+    } else if (now - *stream.missing_shape_since >= config_.tunables.missing_cursor_shape_grace) {
+        stream.adapter.set_now(now);
+        stream.adapter.on_keyframe_needed();
+    }
+}
+
 void SessionEngine::send_udp_hello() {
     if (session_token_ &&
         !seal_and_send({.sequence = next_sequence_++,
@@ -757,6 +848,9 @@ Status<Error> SessionEngine::push_access_unit(const media::AccessUnit& unit, Tim
     }
     stream.cache.store(frame_id.value(), unit);
     send_fragments(fragments_);
+    if (unit.keyframe) {
+        send_cursor_shape(stream); // a viewer that joined or lost packets gets the cursor back
+    }
     ++stream.frames_in_window;
     stream.bytes_in_window += unit.data.size();
     static_cast<void>(now);
@@ -779,25 +873,29 @@ void SessionEngine::on_datagram(std::span<std::uint8_t> datagram, TimePoint now)
         return;
     }
     const bool host = config_.role == protocol::Role::Host;
-    std::visit(Overloaded{
-                   [&](const protocol::UdpHello& hello) {
-                       if (!host || !session_token_ || hello.session_token != *session_token_) {
-                           ++datagrams_rejected_;
-                           return;
-                       }
-                       transport_.accept_media_source(); // also follows the viewer to a new address
-                       media_peer_bound_ = true;
-                       start_streams_if_ready(now);
-                   },
-                   [&](const protocol::VideoFragment& fragment) {
-                       host ? static_cast<void>(++datagrams_rejected_)
-                            : deliver_fragment(fragment, now);
-                   },
-                   [&](const auto& /*cursor*/) {
-                       // Cursor packets arrive with the Windows host (Phase 8).
-                   },
-               },
-               packet.value().body);
+    std::visit(
+        Overloaded{
+            [&](const protocol::UdpHello& hello) {
+                if (!host || !session_token_ || hello.session_token != *session_token_) {
+                    ++datagrams_rejected_;
+                    return;
+                }
+                transport_.accept_media_source(); // also follows the viewer to a new address
+                media_peer_bound_ = true;
+                start_streams_if_ready(now);
+            },
+            [&](const protocol::VideoFragment& fragment) {
+                host ? static_cast<void>(++datagrams_rejected_) : deliver_fragment(fragment, now);
+            },
+            [&](const protocol::CursorPosition& position) {
+                host ? static_cast<void>(++datagrams_rejected_)
+                     : deliver_cursor_position(position, now);
+            },
+            [&](const protocol::CursorShapeFragment& fragment) {
+                host ? static_cast<void>(++datagrams_rejected_) : deliver_cursor_shape(fragment);
+            },
+        },
+        packet.value().body);
 }
 
 void SessionEngine::start_streams_if_ready(TimePoint now) {

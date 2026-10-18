@@ -66,6 +66,10 @@ public:
     /// Copies the access unit and queues it; returns without waiting for the network.
     void push_access_unit(const media::AccessUnit& unit);
 
+    /// Copies the shape and queues it; returns without waiting.
+    void push_cursor_shape(const media::CursorShape& shape);
+    void push_cursor_position(const protocol::CursorPosition& position);
+
     class Impl;
 
 private:
