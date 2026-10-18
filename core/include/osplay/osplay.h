@@ -383,6 +383,9 @@ osplay_result osplay_session_push_cursor_shape(osplay_session* session,
 osplay_result osplay_session_push_cursor_position(osplay_session* session,
                                                   const osplay_cursor_position* position);
 
+/* Viewer: the decoder failed; asks the host for a keyframe. Rate-limited per stream. */
+osplay_result osplay_session_request_keyframe(osplay_session* session, uint8_t stream_id);
+
 osplay_result osplay_session_pause_stream(osplay_session* session, uint8_t stream_id);
 osplay_result osplay_session_resume_stream(osplay_session* session, uint8_t stream_id);
 

@@ -128,6 +128,11 @@ public final class CoreSession: Sendable {
         try check(handle.withPointer { osplay_session_push_cursor_position($0, &raw) })
     }
 
+    /// Viewer: the decoder failed; asks the host for a keyframe (rate-limited by the core).
+    public func requestKeyframe(_ streamID: UInt8) throws(CoreError) {
+        try check(handle.withPointer { osplay_session_request_keyframe($0, streamID) })
+    }
+
     public func pauseStream(_ streamID: UInt8) throws(CoreError) {
         try check(handle.withPointer { osplay_session_pause_stream($0, streamID) })
     }

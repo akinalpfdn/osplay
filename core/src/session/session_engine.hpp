@@ -136,6 +136,8 @@ public:
     /// Host: where the cursor is; positions are not retransmitted, the next one replaces it.
     [[nodiscard]] Status<Error> push_cursor_position(const protocol::CursorPosition& position,
                                                      TimePoint now);
+    /// Viewer: the decoder failed; asks the host for a keyframe (rate-limited per stream).
+    [[nodiscard]] Status<Error> request_keyframe(std::uint8_t stream_id, TimePoint now);
     [[nodiscard]] Status<Error> pause_stream(std::uint8_t stream_id, TimePoint now);
     [[nodiscard]] Status<Error> resume_stream(std::uint8_t stream_id, TimePoint now);
     /// Sends Bye (when the channel is encrypted) and closes.

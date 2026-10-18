@@ -595,6 +595,22 @@ void SessionEngine::update_streaming_state() {
     set_state(any_active ? SessionState::Streaming : SessionState::Paused);
 }
 
+Status<Error> SessionEngine::request_keyframe(std::uint8_t stream_id, TimePoint now) {
+    const auto it = viewer_streams_.find(stream_id);
+    if (config_.role != protocol::Role::Viewer || it == viewer_streams_.end() ||
+        (state_ != SessionState::Streaming && state_ != SessionState::Paused)) {
+        return Status<Error>::failure(Error::InvalidState);
+    }
+    ViewerStream& stream = *it->second;
+    if (stream.started && !stream.paused && stream.keyframe_limiter.allow(now)) {
+        ++stream.keyframe_requests;
+        send(protocol::KeyframeRequest{.stream_id = stream_id,
+                                       .reason = protocol::KeyframeReason::DecoderError},
+             now);
+    }
+    return Status<Error>::ok();
+}
+
 Status<Error> SessionEngine::pause_stream(std::uint8_t stream_id, TimePoint now) {
     const bool host = config_.role == protocol::Role::Host;
     const bool known =

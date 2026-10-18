@@ -540,6 +540,15 @@ osplay_result osplay_session_push_cursor_position(osplay_session* session,
     });
 }
 
+osplay_result osplay_session_request_keyframe(osplay_session* session, uint8_t stream_id) {
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        return to_status_result(session->session->request_keyframe(stream_id));
+    });
+}
+
 osplay_result osplay_session_pause_stream(osplay_session* session, uint8_t stream_id) {
     return guarded([&]() -> osplay_result {
         if (session == nullptr) {

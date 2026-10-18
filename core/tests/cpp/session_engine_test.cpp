@@ -450,4 +450,20 @@ TEST(SessionEngine, InvalidCursorShapesAreRejected) {
               Error::InvalidState);
 }
 
+TEST(SessionEngine, DecoderErrorsRequestKeyframesAtALimitedRate) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+    const int before = sim.host.observer.keyframe_requests;
+
+    for (int i = 0; i < 5; ++i) {
+        ASSERT_TRUE(sim.viewer.engine.request_keyframe(0, sim.network.now).has_value());
+    }
+    sim.run_for(milliseconds(100));
+
+    EXPECT_EQ(sim.host.observer.keyframe_requests, before + 1) << "one per 250 ms";
+    EXPECT_EQ(sim.viewer.engine.request_keyframe(5, sim.network.now).error(), Error::InvalidState);
+    EXPECT_EQ(sim.host.engine.request_keyframe(0, sim.network.now).error(), Error::InvalidState);
+}
+
 } // namespace
