@@ -80,6 +80,7 @@ enum Tunables {
             /// Viewer loopback: the virtual display it hosts and views.
             static let loopbackMonitor = (width: 1920, height: 1080, refreshMillihertz: UInt32(60_000))
             static let loopbackDeviceName = "Osplay Loopback"
+            static let remoteHostDeviceName = "Osplay Remote Host Test"
             static let freezeDelay: Duration = .seconds(5)
             /// Frame intervals the pacing statistics cover (5 s at 60 fps).
             static let pacingWindow = 300

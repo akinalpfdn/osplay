@@ -1,0 +1,47 @@
+#if DEBUG
+    import SwiftUI
+
+    /// Debug-only controls for hosting a viewer on another machine.
+    struct DeveloperRemoteHostView: View {
+        @Bindable var viewModel: DeveloperRemoteHostViewModel
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
+                Text("developer.remoteHost.title")
+                    .font(Theme.Typography.sectionTitle)
+
+                HStack(spacing: Theme.Spacing.small) {
+                    Button("developer.hostTest.start") { viewModel.start() }
+                        .disabled(viewModel.isRunning)
+                    Button("developer.hostTest.stop", role: .destructive) { viewModel.stop() }
+                        .disabled(!viewModel.isRunning)
+                }
+
+                if viewModel.isRunning {
+                    Text("developer.remoteHost.hint")
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(.secondary)
+                    ForEach(viewModel.endpoints, id: \.self) { endpoint in
+                        Text(verbatim: "OsplayViewerTest.exe --connect \(endpoint)")
+                            .font(Theme.Typography.caption.monospaced())
+                            .textSelection(.enabled)
+                    }
+                    Text(
+                        "developer.remoteHost.status \(viewModel.streamCount) \((Double(viewModel.bitrateKbps) / 1000).formatted(.number.precision(.fractionLength(1))))"
+                    )
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(.secondary)
+                }
+
+                if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Colors.error)
+                    if viewModel.needsScreenRecordingPermission {
+                        Button("permission.screenRecording.open") { viewModel.openScreenRecordingSettings() }
+                    }
+                }
+            }
+        }
+    }
+#endif

@@ -1,0 +1,23 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSLocalNetworkUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay streams screens between your computers on this network."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay, bu ağdaki bilgisayarlarınız arasında ekran yayınlar."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

@@ -426,6 +426,57 @@
         }
       }
     },
+    "developer.remoteHost.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Run this on the other computer; any viewer is trusted while this runs."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bunu diğer bilgisayarda çalıştırın; bu açıkken her görüntüleyiciye güvenilir."
+          }
+        }
+      }
+    },
+    "developer.remoteHost.status %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streams: %1$lld · %2$@ Mbit/s"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Akış: %1$lld · %2$@ Mbit/s"
+          }
+        }
+      }
+    },
+    "developer.remoteHost.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host for a remote viewer"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uzak görüntüleyici için yayın"
+          }
+        }
+      }
+    },
     "developer.removeAll" : {
       "extractionState" : "manual",
       "localizations" : {
