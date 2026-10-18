@@ -6,6 +6,7 @@ struct MenuContentView: View {
     #if DEBUG
         let developerDisplays: DeveloperDisplaysViewModel
         let developerHostTest: DeveloperHostTestViewModel
+        let developerLoopback: DeveloperLoopbackViewModel
     #endif
     private let coreVersion = CoreVersion.linked
 
@@ -21,6 +22,8 @@ struct MenuContentView: View {
                 DeveloperDisplaysView(viewModel: developerDisplays)
                 Divider()
                 DeveloperHostTestView(viewModel: developerHostTest)
+                Divider()
+                DeveloperLoopbackView(viewModel: developerLoopback)
             #endif
             Divider()
             Button("menu.quit") {

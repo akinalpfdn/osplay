@@ -77,6 +77,10 @@ enum Tunables {
             /// Host media test: the monitor the in-process viewer offers (Phase 6 acceptance size).
             static let hostTestMonitor = (width: 2560, height: 1440, refreshMillihertz: UInt32(60_000))
             static let hostTestDeviceName = "Osplay Host Test"
+            /// Viewer loopback: the virtual display it hosts and views.
+            static let loopbackMonitor = (width: 1920, height: 1080, refreshMillihertz: UInt32(60_000))
+            static let loopbackDeviceName = "Osplay Loopback"
+            static let freezeDelay: Duration = .seconds(5)
             /// Frame intervals the pacing statistics cover (5 s at 60 fps).
             static let pacingWindow = 300
             static let statisticsRefreshInterval: Duration = .milliseconds(500)
