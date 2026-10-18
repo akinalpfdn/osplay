@@ -31,7 +31,7 @@ if(WIN32)
     target_link_libraries(osplay_engine
         PUBLIC osplay::core
         PRIVATE osplay_engine_logic osplay::win_platform osplay::warnings user32 ole32 bcrypt d3d11 dxgi
-            mfplat mfuuid propsys)
+            mfplat mfuuid propsys winmm)
     set_target_properties(osplay_engine PROPERTIES
         OUTPUT_NAME OsplayEngine
         CXX_EXTENSIONS OFF)

@@ -15,6 +15,7 @@
 #include <dxgi1_2.h>
 #include <mfapi.h>
 #include <objbase.h>
+#include <timeapi.h>
 #include <wrl/client.h>
 
 #include <algorithm>
@@ -58,6 +59,38 @@ public:
 private:
     bool com_;
     bool media_foundation_;
+};
+
+/// 1 ms timer resolution while capturing: waits otherwise round up to 15.6 ms and frames miss
+/// their slot. Windows 11 ignores the request for processes without visible windows unless they
+/// opt out of timer-resolution throttling.
+class PrecisionTimerScope {
+public:
+    PrecisionTimerScope() : active_(enable()) {}
+    ~PrecisionTimerScope() {
+        if (active_) {
+            static_cast<void>(timeEndPeriod(1));
+        }
+    }
+    PrecisionTimerScope(const PrecisionTimerScope&) = delete;
+    PrecisionTimerScope& operator=(const PrecisionTimerScope&) = delete;
+    PrecisionTimerScope(PrecisionTimerScope&&) = delete;
+    PrecisionTimerScope& operator=(PrecisionTimerScope&&) = delete;
+
+private:
+    static bool enable() {
+        PROCESS_POWER_THROTTLING_STATE throttling{};
+        throttling.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+        throttling.ControlMask = PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
+        throttling.StateMask = 0;
+        // Best effort: older Windows versions refuse it and keep the coarse resolution.
+        static_cast<void>(SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling,
+                                                &throttling,
+                                                static_cast<DWORD>(sizeof(throttling))));
+        return timeBeginPeriod(1) == TIMERR_NOERROR;
+    }
+
+    bool active_;
 };
 
 std::int64_t performance_counter() {
@@ -371,6 +404,7 @@ DuplicationPipeline::start(const StreamSettings& settings, PipelineSink& sink) {
     DuplicationPipeline* owner = pipeline.get();
     pipeline->thread_ = std::thread([owner, settings, &sink, &started] {
         const MediaThreadScope scope;
+        const PrecisionTimerScope timer;
         Worker worker;
         worker.owner = owner;
         worker.sink = &sink;
