@@ -13,8 +13,14 @@ target_link_libraries(osplay_engine_logic PUBLIC osplay::win_shared osplay::core
 if(WIN32)
     add_library(osplay_engine SHARED
         src/capi/engine_capi.cpp
+        src/capi/host_capi.cpp
+        src/capture/duplication_pipeline.cpp
+        src/capture/dxgi_output.cpp
         src/display/gdi_display_mode_applier.cpp
-        src/display/pipe_helper_channel.cpp)
+        src/display/pipe_helper_channel.cpp
+        src/display/vdd_monitor.cpp
+        src/encode/mf_h264_encoder.cpp
+        src/encode/nv12_converter.cpp)
 
     target_include_directories(osplay_engine
         PUBLIC include
@@ -24,7 +30,8 @@ if(WIN32)
         WIN32_LEAN_AND_MEAN)
     target_link_libraries(osplay_engine
         PUBLIC osplay::core
-        PRIVATE osplay_engine_logic osplay::win_platform osplay::warnings user32)
+        PRIVATE osplay_engine_logic osplay::win_platform osplay::warnings user32 ole32 bcrypt d3d11 dxgi
+            mfplat mfuuid propsys)
     set_target_properties(osplay_engine PROPERTIES
         OUTPUT_NAME OsplayEngine
         CXX_EXTENSIONS OFF)

@@ -17,4 +17,13 @@ inline constexpr double kBitsPerPixel = 0.1;
 inline constexpr std::uint32_t kMinBitrateKbps = 2'000;
 inline constexpr std::uint32_t kMaxBitrateKbps = 80'000;
 
+/// Desktop Duplication: waits for a new frame, and how fast to poll while the encoder works.
+inline constexpr unsigned kIdleAcquireMilliseconds = 16;
+inline constexpr unsigned kEncoderPollMilliseconds = 1;
+/// After a frame went to the encoder, its output is expected within this time.
+inline constexpr std::int64_t kEncoderBusyMilliseconds = 40;
+/// While duplication is unavailable (secure desktop, mode change): retry spacing and idle sleep.
+inline constexpr unsigned long long kDuplicationRetryMilliseconds = 100;
+inline constexpr unsigned kDuplicationIdleMilliseconds = 10;
+
 } // namespace osplay::engine

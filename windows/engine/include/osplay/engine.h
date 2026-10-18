@@ -23,6 +23,7 @@ extern "C" {
 #endif
 
 /* Stable values: the shell maps each one to a localized message. Never renumber. */
+/* NOLINTBEGIN(cppcoreguidelines-use-enum-class,performance-enum-size): plain C for P/Invoke */
 typedef enum osplay_engine_result {
     OSPLAY_ENGINE_OK = 0,
     OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT = 1,
@@ -38,8 +39,14 @@ typedef enum osplay_engine_result {
     OSPLAY_ENGINE_ERROR_INTERNAL = 11,
     OSPLAY_ENGINE_ERROR_MONITOR_NOT_FOUND = 12,
     OSPLAY_ENGINE_ERROR_MODE_CHANGE_FAILED = 13,
-    OSPLAY_ENGINE_ERROR_HELPER_BUSY = 14
+    OSPLAY_ENGINE_ERROR_HELPER_BUSY = 14,
+    OSPLAY_ENGINE_ERROR_SESSION_FAILED = 15,      /* the core refused or ended the session */
+    OSPLAY_ENGINE_ERROR_CAPTURE_FAILED = 16,      /* Desktop Duplication could not run */
+    OSPLAY_ENGINE_ERROR_ENCODER_UNAVAILABLE = 17, /* no hardware H.264 encoder for the stream */
+    OSPLAY_ENGINE_ERROR_ENCODER_FAILED = 18,
+    OSPLAY_ENGINE_RESULT_MAX_ENUM = 0x7FFFFFFF
 } osplay_engine_result;
+/* NOLINTEND(cppcoreguidelines-use-enum-class,performance-enum-size) */
 
 /* Version of the core library linked into the engine. Thread-safe. */
 OSPLAY_ENGINE_API osplay_version osplay_engine_core_version(void);
@@ -82,6 +89,59 @@ OSPLAY_ENGINE_API osplay_engine_result osplay_virtual_display_status(
 
 /* Removes the monitor (if present) and releases the handle. Accepts NULL. */
 OSPLAY_ENGINE_API void osplay_virtual_display_close(osplay_virtual_display* display);
+
+/* --- Host session (Windows shares its screen) ------------------------------------------------ */
+
+/*
+ * A host session: listens for one viewer, adds the virtual monitor in the mode of the viewer's
+ * first monitor, captures it with Desktop Duplication, encodes it with the hardware H.264 encoder
+ * and sends the pointer as cursor packets. It needs the OsplayHelper service.
+ */
+typedef struct osplay_engine_host osplay_engine_host; /* opaque */
+
+typedef struct osplay_engine_host_config {
+    const uint8_t* secret_key;       /* the device identity, OSPLAY_KEY_SIZE bytes */
+    const char* device_name_utf8;    /* shown to the viewer */
+    const char* dump_directory_utf8; /* debug: also write the stream as .h264 here, or NULL */
+} osplay_engine_host_config;
+
+/*
+ * Callbacks run on engine threads and must return quickly; they must not call
+ * osplay_engine_host_destroy. `on_state` and `on_trust_query` are required.
+ */
+typedef struct osplay_engine_host_callbacks {
+    void* context;
+    /* `reason` is OSPLAY_OK unless the core closed the session because of an error. */
+    void (*on_state)(void* context, osplay_session_state state, osplay_result reason);
+    osplay_trust (*on_trust_query)(void* context, const uint8_t* peer_public_key);
+    void (*on_pairing_code)(void* context, uint32_t code, const uint8_t* peer_public_key);
+    void (*on_paired)(void* context, const uint8_t* peer_public_key);
+    /* The virtual monitor is streaming; its place on the desktop in desktop coordinates. */
+    void (*on_streaming)(void* context, int32_t left, int32_t top, int32_t right, int32_t bottom);
+    /* The engine ended the session; a closed state follows. */
+    void (*on_failed)(void* context, osplay_engine_result reason);
+    void (*on_stats)(void* context, const osplay_session_stats* stats);
+    void (*on_log)(void* context, osplay_log_level level, const char* message);
+} osplay_engine_host_callbacks;
+
+/* Connects to the helper service and starts listening on an ephemeral TCP port. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_start(
+    const osplay_engine_host_config* config, const osplay_engine_host_callbacks* callbacks,
+    osplay_engine_host** out_host);
+
+/* The TCP port to advertise. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_control_port(osplay_engine_host* host,
+                                                                       uint16_t* out_port);
+
+/* Answers on_pairing_code (`accepted` is 0 or 1). */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_confirm_pairing(osplay_engine_host* host,
+                                                                          uint8_t accepted);
+
+/* Ends the session with Bye without waiting; on_state reports CLOSED. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_stop(osplay_engine_host* host);
+
+/* Stops everything, removes the virtual monitor and releases the handle. Accepts NULL. */
+OSPLAY_ENGINE_API void osplay_engine_host_destroy(osplay_engine_host* host);
 
 #ifdef __cplusplus
 } /* extern "C" */
