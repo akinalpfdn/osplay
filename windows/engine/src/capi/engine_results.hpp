@@ -51,6 +51,10 @@ inline osplay_engine_result to_result(PipelineError error) {
         return OSPLAY_ENGINE_ERROR_ENCODER_UNAVAILABLE;
     case PipelineError::EncoderFailed:
         return OSPLAY_ENGINE_ERROR_ENCODER_FAILED;
+    case PipelineError::DecoderUnavailable:
+        return OSPLAY_ENGINE_ERROR_DECODER_UNAVAILABLE;
+    case PipelineError::PresentationFailed:
+        return OSPLAY_ENGINE_ERROR_PRESENTATION_FAILED;
     }
     return OSPLAY_ENGINE_ERROR_INTERNAL;
 }

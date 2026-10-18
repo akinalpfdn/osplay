@@ -27,6 +27,8 @@ enum class PipelineError : std::uint8_t {
     CaptureFailed,      ///< Desktop Duplication could not start or stopped for good
     EncoderUnavailable, ///< no hardware H.264 encoder accepts the stream
     EncoderFailed,      ///< the encoder failed while running
+    DecoderUnavailable, ///< viewer: no hardware H.264 decoder accepts the stream
+    PresentationFailed, ///< viewer: the window or swap chain could not be created
 };
 
 /// The virtual monitor's place on the desktop, in desktop coordinates.

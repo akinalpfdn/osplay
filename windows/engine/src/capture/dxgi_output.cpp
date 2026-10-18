@@ -63,6 +63,31 @@ open_duplication_target(const std::wstring& gdi_name) {
     return target;
 }
 
+ComPtr<IDXGIAdapter1> adapter_for_monitor(const MonitorRect& rect) {
+    ComPtr<IDXGIFactory1> factory;
+    if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))) {
+        return nullptr;
+    }
+    ComPtr<IDXGIAdapter1> adapter;
+    ComPtr<IDXGIAdapter1> first;
+    for (UINT a = 0; factory->EnumAdapters1(a, adapter.ReleaseAndGetAddressOf()) == S_OK; ++a) {
+        if (first == nullptr) {
+            first = adapter;
+        }
+        ComPtr<IDXGIOutput> output;
+        for (UINT o = 0; adapter->EnumOutputs(o, output.ReleaseAndGetAddressOf()) == S_OK; ++o) {
+            DXGI_OUTPUT_DESC desc{};
+            if (SUCCEEDED(output->GetDesc(&desc)) && desc.DesktopCoordinates.left == rect.left &&
+                desc.DesktopCoordinates.top == rect.top &&
+                desc.DesktopCoordinates.right == rect.right &&
+                desc.DesktopCoordinates.bottom == rect.bottom) {
+                return adapter;
+            }
+        }
+    }
+    return first;
+}
+
 bool refresh_duplication_output(DuplicationTarget& target, const std::wstring& gdi_name) {
     ComPtr<IDXGIDevice> dxgi_device;
     ComPtr<IDXGIAdapter> adapter;
