@@ -1,5 +1,5 @@
 # Phase 009 (MVP-09) — Windows host media pipeline
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 8. Depends on: Phase 2, Phase 5.
 
