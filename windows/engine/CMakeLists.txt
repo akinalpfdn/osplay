@@ -5,6 +5,7 @@ add_library(osplay_engine_logic STATIC
     src/host/stream_dump.cpp
     src/media/h264_stream.cpp
     src/media/pointer_shape.cpp
+    src/viewer/monitor_layout.cpp
     src/viewer/viewer_orchestrator.cpp)
 target_include_directories(osplay_engine_logic PUBLIC src)
 target_compile_features(osplay_engine_logic PUBLIC cxx_std_20)
@@ -45,6 +46,7 @@ if(OSPLAY_CORE_BUILD_TESTS)
         tests/h264_stream_test.cpp
         tests/helper_virtual_display_provider_test.cpp
         tests/host_orchestrator_test.cpp
+        tests/monitor_layout_test.cpp
         tests/pointer_shape_test.cpp
         tests/viewer_orchestrator_test.cpp)
     target_link_libraries(osplay_engine_tests PRIVATE osplay_engine_logic osplay::warnings GTest::gtest_main)
