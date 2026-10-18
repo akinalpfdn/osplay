@@ -1,5 +1,5 @@
 # Phase 008 (MVP-08) — macOS viewer pipeline
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 7. Depends on: Phase 6.
 
@@ -20,3 +20,4 @@ The Mac can receive and display a stream full screen on its built-in screen with
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
+- User decision: default viewer hotkey is ⌃⌥⌘V (toggle); configurable in Phase 11.

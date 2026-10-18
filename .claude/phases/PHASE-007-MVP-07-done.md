@@ -1,5 +1,5 @@
 # Phase 007 (MVP-07) — macOS host media pipeline
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 6. Depends on: Phase 1, Phase 5.
 
