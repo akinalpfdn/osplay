@@ -254,6 +254,28 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    Get-Content "$env:ProgramData\Osplay\logs\helper.log" -Tail 3   # Rejected request: truncated
    ```
 
+5. Test the host pipeline (capture, encode, cursor) from a normal command line. The helper must be
+   running; the tool adds the virtual monitor itself:
+
+   ```powershell
+   cd windows\build\debug\bin
+   .\OsplayHostTest.exe --seconds 60 --size 2560x1664 --hz 60 --dump $env:TEMP\osplay
+   ```
+
+   It connects an in-process viewer offering one monitor of that size, covers the virtual monitor
+   with a moving pattern (`--no-pattern` to use your own content) and prints one line per second:
+   frames per second, 99th-percentile and largest frame interval, bitrate, latency and cursor
+   packets. With `--dump` the stream is saved as `.h264` (VLC, mpv or ffplay) and every cursor shape
+   as `cursor-NNN.bmp`.
+
+   Measured so far (Phase 8 acceptance: stable 60 fps at 2560×1664):
+
+   | GPU | Encoder | Result |
+   |-----|---------|--------|
+   | NVIDIA (developer PC) | NVENC MFT | 60.0 fps, p99 frame interval 19–27 ms, max ≤ 30 ms; UAC, lock/unlock and orientation change recover; 25 cursor shapes correct |
+   | AMD | AMF MFT | not tested |
+   | Intel | Quick Sync MFT | not tested |
+
 > The driver's own documentation warns that major GPU or chipset driver updates can scramble
 > display priority while it is installed. If the screen goes black after such an update, boot into
 > Safe Mode and uninstall the Virtual Display Driver from Device Manager → Display adapters.

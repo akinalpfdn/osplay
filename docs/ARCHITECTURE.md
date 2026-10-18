@@ -233,3 +233,42 @@ change. `GdiDisplayModeApplier` therefore finds the monitor — the active CCD p
 interface path starts with the driver device's instance ID (`ROOT\DISPLAY\0000` →
 `\\?\ROOT#DISPLAY#0000#`) — waits up to 5 s for it to join the desktop, applies the mode with
 `ChangeDisplaySettingsExW` and reads it back. If that fails, the monitor is removed again.
+
+## Host media pipeline on Windows
+
+`osplay_engine_host_start` (`windows/engine/src/capi/host_capi.cpp`) runs a host session: the core
+session, the virtual monitor through the helper, and one `StreamPipeline`. `HostOrchestrator`
+(`src/host/`, portable and unit tested on every platform) mirrors macOS's `HostSession`: when the
+viewer offers its monitors it adds the virtual monitor in the first one's mode, starts the
+pipeline, configures one stream (separate cursor mode) and feeds access units and the cursor to the
+core. Core callbacks are handled on its worker thread, so the core's I/O thread never waits for the
+helper or the encoder.
+
+```
+VDD monitor ─► Desktop Duplication ─► BGRA copy ─► video processor (NV12) ─► async H.264 MFT ─► core
+              └► pointer position/shape ─► BGRA cursor ─► cursor packets ─────────────────────────┘
+```
+
+- **Device.** The DXGI output whose GDI name matches the VDD monitor (found through the CCD API,
+  `vdd_monitor.cpp`) decides the adapter; one D3D11 device on it (video support, multithread
+  protected) serves duplication, conversion and encoding.
+- **Capture** (`src/capture/`). One thread owns everything. `AcquireNextFrame` returns only when
+  the screen changes; each new frame is copied to a BGRA texture (released at once, kept for
+  keyframe re-sends). `DXGI_ERROR_ACCESS_LOST` (mode change, UAC, lock screen, full-screen apps)
+  recreates the duplication every 100 ms until it succeeds; a vanished output is looked up again on
+  the same adapter. Device removal ends the session.
+- **Convert and encode** (`src/encode/`). The D3D11 video processor converts BGRA to NV12 at the
+  stream size (scaling if the monitor's mode was changed by hand), BT.709 studio range. The first
+  hardware H.264 MFT from `MFTEnumEx` runs in async mode with a DXGI device manager, low-latency
+  mode, CBR, no B-frames and an endless GOP; `CODECAPI_AVEncVideoForceKeyFrame` answers keyframe
+  requests. Output keyframes get SPS/PPS put in front when the encoder omits them
+  (`media/h264_stream.cpp`).
+- **Cursor.** Desktop Duplication reports the pointer apart from the image. Shapes (monochrome,
+  colour, masked colour) become premultiplied BGRA (`media/pointer_shape.cpp`; screen-inverting
+  pixels become black with a white outline, larger than 256 px are cropped around the hotspot) and
+  positions are sent as the hotspot in stream pixels.
+- **Clocks.** Capture times come from `LastPresentTime` (QPC) and are converted to the core's clock
+  by their age.
+- **Debug tool.** `OsplayHostTest.exe` runs a host session with an in-process core viewer, a moving
+  pattern on the virtual monitor and a per-second report (BUILDING.md).
+

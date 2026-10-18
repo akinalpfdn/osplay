@@ -249,3 +249,21 @@ choices the plan leaves open are logged here.
 
 ---
 
+## 2026-10-18 — Windows host pipeline on one thread, orchestration portable
+**Chosen:** One pipeline thread owns the D3D11 device, Desktop Duplication, the video processor and the async Media Foundation encoder (events polled without blocking between frames). The session logic (`HostOrchestrator`), cursor conversion and keyframe repair are portable C++ in `osplay_engine_logic`, tested on macOS and Linux CI.
+**Alternatives:** Separate capture and encoder threads with a blocking MF event loop; orchestration inside the Windows-only C API code.
+**Why:** A single owner avoids cross-thread COM and texture hand-off problems and makes shutdown simple; polling adds at most 1 ms. The Windows code can only be compiled on CI, so everything that is not an API call lives where it can be unit tested.
+**Trade-offs:** A slow encoder output delays the next capture poll by up to 1 ms; the Win32 parts are verified only by the developer's manual run.
+**Revisit if:** Profiling shows the loop limits frame rate at higher refresh rates.
+
+---
+
+## 2026-10-18 — Screen-inverting cursor pixels as black with a white outline
+**Chosen:** Monochrome AND 1 / XOR 1 pixels and masked-colour XOR pixels, which invert the screen, are drawn opaque black with a one-pixel white outline.
+**Alternatives:** Opaque black only; opaque white; a separate inversion flag in the protocol.
+**Why:** BGRA cannot express inversion. The text beam is made of inverting pixels; black with an outline stays visible on light and dark content without a protocol change.
+**Trade-offs:** The beam looks slightly heavier than on Windows.
+**Revisit if:** The protocol gains a blend mode for cursors.
+
+---
+

@@ -1,6 +1,7 @@
 #include "../display/gdi_display_mode_applier.hpp"
 #include "../display/helper_virtual_display_provider.hpp"
 #include "../display/pipe_helper_channel.hpp"
+#include "engine_results.hpp"
 
 #include <osplay/engine.h>
 
@@ -13,49 +14,8 @@ struct osplay_virtual_display {
 
 namespace {
 
-using osplay::engine::DisplayError;
-
-osplay_engine_result to_result(DisplayError error) {
-    switch (error) {
-    case DisplayError::InvalidArgument:
-        return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
-    case DisplayError::HelperUnavailable:
-        return OSPLAY_ENGINE_ERROR_HELPER_UNAVAILABLE;
-    case DisplayError::HelperBusy:
-        return OSPLAY_ENGINE_ERROR_HELPER_BUSY;
-    case DisplayError::HelperAccessDenied:
-        return OSPLAY_ENGINE_ERROR_HELPER_ACCESS_DENIED;
-    case DisplayError::HelperNotTrusted:
-        return OSPLAY_ENGINE_ERROR_HELPER_NOT_TRUSTED;
-    case DisplayError::ProtocolMismatch:
-        return OSPLAY_ENGINE_ERROR_PROTOCOL_MISMATCH;
-    case DisplayError::ConnectionLost:
-        return OSPLAY_ENGINE_ERROR_CONNECTION_LOST;
-    case DisplayError::VddNotInstalled:
-        return OSPLAY_ENGINE_ERROR_VDD_NOT_INSTALLED;
-    case DisplayError::DeviceControlFailed:
-        return OSPLAY_ENGINE_ERROR_DEVICE_CONTROL_FAILED;
-    case DisplayError::ConfigWriteFailed:
-        return OSPLAY_ENGINE_ERROR_CONFIG_WRITE_FAILED;
-    case DisplayError::Rejected:
-        return OSPLAY_ENGINE_ERROR_REJECTED;
-    case DisplayError::MonitorNotFound:
-        return OSPLAY_ENGINE_ERROR_MONITOR_NOT_FOUND;
-    case DisplayError::ModeChangeFailed:
-        return OSPLAY_ENGINE_ERROR_MODE_CHANGE_FAILED;
-    }
-    return OSPLAY_ENGINE_ERROR_INTERNAL;
-}
-
-/// No C++ exception may cross the C boundary.
-template <typename Body>
-osplay_engine_result guarded(const Body& body) noexcept {
-    try {
-        return body();
-    } catch (...) {
-        return OSPLAY_ENGINE_ERROR_INTERNAL;
-    }
-}
+using osplay::engine::guarded;
+using osplay::engine::to_result;
 
 } // namespace
 

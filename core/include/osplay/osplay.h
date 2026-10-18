@@ -352,6 +352,13 @@ osplay_result osplay_viewer_session_create(const osplay_session_config* config,
                                            const char* host, uint16_t port,
                                            osplay_session** out_session);
 
+/*
+ * Sends Bye and closes the connection without waiting; on_state then reports CLOSED. Unlike
+ * osplay_session_destroy it may be called from a callback. Later commands fail with
+ * OSPLAY_ERROR_INVALID_STATE.
+ */
+osplay_result osplay_session_close(osplay_session* session);
+
 /* Sends Bye when possible, closes the sockets and joins the I/O thread. NULL is ignored. */
 void osplay_session_destroy(osplay_session* session);
 

@@ -485,6 +485,12 @@ void AsioSession::push_access_unit(const media::AccessUnit& unit) {
     });
 }
 
+void AsioSession::close() {
+    impl_->post([impl = impl_.get()] {
+        impl->engine().close(protocol::ByeReason::UserDisconnected, Impl::now());
+    });
+}
+
 void AsioSession::push_cursor_shape(const media::CursorShape& shape) {
     auto bytes = std::make_shared<std::vector<std::uint8_t>>(shape.bgra.begin(), shape.bgra.end());
     impl_->post([impl = impl_.get(), shape, bytes] {
