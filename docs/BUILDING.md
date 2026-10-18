@@ -272,7 +272,7 @@ The installer will set both up from Phase 14 on; until then, once per machine:
 
    | GPU | Encoder | Result |
    |-----|---------|--------|
-   | NVIDIA (developer PC) | NVENC MFT | pending |
+   | NVIDIA (developer PC) | NVENC MFT | 60.0 fps, p99 frame interval 19–27 ms, max ≤ 30 ms; UAC, lock/unlock and orientation change recover; 25 cursor shapes correct |
    | AMD | AMF MFT | not tested |
    | Intel | Quick Sync MFT | not tested |
 

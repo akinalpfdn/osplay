@@ -14,9 +14,9 @@ Windows captures its virtual monitor and produces an encoded stream and cursor s
 - [x] Debug `.h264` dump.
 
 ## Acceptance Criteria
-- [ ] Stable 60 fps stream at 2560×1664 on NVIDIA, AMD or Intel hardware (whichever the developer has; others recorded in a test matrix).
-- [ ] Mode change, UAC prompt and lock/unlock do not crash the pipeline; streaming resumes afterwards.
-- [ ] Cursor shapes (arrow, text beam, resize, custom app cursors) are transmitted correctly.
+- [x] Stable 60 fps stream at 2560×1664 on NVIDIA, AMD or Intel hardware (whichever the developer has; others recorded in a test matrix).
+- [x] Mode change, UAC prompt and lock/unlock do not crash the pipeline; streaming resumes afterwards.
+- [x] Cursor shapes (arrow, text beam, resize, custom app cursors) are transmitted correctly.
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
@@ -29,4 +29,4 @@ Windows captures its virtual monitor and produces an encoded stream and cursor s
 - Mode change cannot be done in Settings (VDD gets one mode): test with orientation/scale change of the virtual monitor or a primary-monitor mode change instead.
 - Animated cursors resend full shapes (~80 KB/s): acceptable; a viewer-side shape cache would need a protocol change (deferred).
 - PC run 2: 59–62 fps; orientation change survived without a gap; p99 occasionally 33.5–35 ms → 1 ms timer resolution (timeBeginPeriod + power-throttling opt-out) on the pipeline thread.
-
+- PC run 3: 60.0 fps steady, p99 19–27 ms, max ≤ 30 ms, latency ~29 ms. Acceptance met.
