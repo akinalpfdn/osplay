@@ -329,6 +329,8 @@ typedef struct osplay_session_callbacks {
     void (*on_cursor_shape)(void* context, const osplay_cursor_shape* shape);
     /* Viewer: the newest cursor position; older ones are dropped. */
     void (*on_cursor_position)(void* context, const osplay_cursor_position* position);
+    /* The peer stopped a stream for good (e.g. the viewer's monitor was unplugged). */
+    void (*on_stream_stopped)(void* context, uint8_t stream_id);
 } osplay_session_callbacks;
 
 typedef struct osplay_session osplay_session;
@@ -394,6 +396,9 @@ osplay_result osplay_session_push_cursor_position(osplay_session* session,
 osplay_result osplay_session_request_keyframe(osplay_session* session, uint8_t stream_id);
 
 osplay_result osplay_session_pause_stream(osplay_session* session, uint8_t stream_id);
+
+/* Ends one stream for good on both sides (the peer's on_stream_stopped); the session stays up. */
+osplay_result osplay_session_stop_stream(osplay_session* session, uint8_t stream_id);
 osplay_result osplay_session_resume_stream(osplay_session* session, uint8_t stream_id);
 
 #ifdef __cplusplus

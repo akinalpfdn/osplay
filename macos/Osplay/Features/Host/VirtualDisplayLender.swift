@@ -14,6 +14,7 @@ struct LentDisplay: Sendable, Hashable {
 protocol DisplayLending: AnyObject, Sendable {
     /// One display per monitor, ready and set to the crisp resolution. All or nothing.
     func lend(_ monitors: [MonitorDescription], peerID: Data) async throws(VirtualDisplayError) -> [LentDisplay]
+    func returnDisplay(_ displayID: CGDirectDisplayID)
     func returnAll()
 }
 
@@ -45,6 +46,10 @@ final class VirtualDisplayLender: DisplayLending {
             returnAll()
             throw error
         }
+    }
+
+    func returnDisplay(_ displayID: CGDirectDisplayID) {
+        provider.displays.first { $0.displayID == displayID }?.destroy()
     }
 
     func returnAll() {

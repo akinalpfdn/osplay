@@ -70,6 +70,8 @@ actor HostSession {
                 await startStreams(for: monitors)
             case .keyframeRequested(let streamID):
                 pipelines[streamID]?.requestKeyframe()
+            case .streamStopped(let streamID):
+                await stopStream(streamID)
             case .state(let state, let reason):
                 eventSink.yield(.state(state))
                 if state == .closed {
@@ -161,6 +163,13 @@ actor HostSession {
         failure = error
         Log.host.error("Host session failed: \(String(describing: error), privacy: .public)")
         core.close()
+    }
+
+    /// The viewer dropped one stream (e.g. its monitor was unplugged): only that display goes.
+    private func stopStream(_ streamID: UInt8) async {
+        guard let pipeline = pipelines.removeValue(forKey: streamID) else { return }
+        await pipeline.stop()
+        await displays.returnDisplay(pipeline.displayID)
     }
 
     private func stopStreams() async {

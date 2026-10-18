@@ -569,10 +569,11 @@ void SessionEngine::handle_stream_control(const ControlMessage& message, TimePoi
                        });
                    },
                    [&](const protocol::StreamStop& m) {
-                       if (host) {
-                           host_streams_.erase(m.stream_id);
-                       } else {
-                           viewer_streams_.erase(m.stream_id);
+                       const std::size_t erased = host ? host_streams_.erase(m.stream_id)
+                                                       : viewer_streams_.erase(m.stream_id);
+                       if (erased > 0) {
+                           observer_.on_stream_stopped(m.stream_id);
+                           update_streaming_state();
                        }
                    },
                    [&](const auto& /*other*/) {},
@@ -624,6 +625,24 @@ Status<Error> SessionEngine::pause_stream(std::uint8_t stream_id, TimePoint now)
         viewer_streams_.at(stream_id)->paused = true;
     }
     send(protocol::StreamPause{.stream_id = stream_id}, now);
+    update_streaming_state();
+    return Status<Error>::ok();
+}
+
+Status<Error> SessionEngine::stop_stream(std::uint8_t stream_id, TimePoint now) {
+    const bool host = config_.role == protocol::Role::Host;
+    const bool known =
+        host ? host_streams_.contains(stream_id) : viewer_streams_.contains(stream_id);
+    if (!known || (state_ != SessionState::Negotiating && state_ != SessionState::Streaming &&
+                   state_ != SessionState::Paused)) {
+        return Status<Error>::failure(Error::InvalidState);
+    }
+    if (host) {
+        host_streams_.erase(stream_id);
+    } else {
+        viewer_streams_.erase(stream_id);
+    }
+    send(protocol::StreamStop{.stream_id = stream_id}, now);
     update_streaming_state();
     return Status<Error>::ok();
 }

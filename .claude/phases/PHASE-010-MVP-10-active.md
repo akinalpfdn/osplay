@@ -20,3 +20,5 @@ Windows can present up to two streams full screen on chosen physical monitors.
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
+- User decision: Windows viewer hotkey default Ctrl+Alt+Shift+V (Ctrl+Alt is AltGr on Turkish layouts).
+- User decision: two-stream acceptance via a temporary IP connection (Mac debug "host for a remote viewer" + OsplayViewerTest.exe --connect), removed in Phase 10.

@@ -77,6 +77,12 @@ actor ViewerSession {
                 eventSink.yield(.statistics(statistics))
             case .log(let level, let message):
                 log(level, message)
+            case .streamStopped(let streamID):
+                if let entry = streams.removeValue(forKey: streamID) {
+                    entry.pipeline.stop()
+                    await entry.presenter.close()
+                    updatePowerAssertion()
+                }
             case .peer, .pairingCode, .paired, .viewerMonitors, .keyframeRequested:
                 break  // pairing UI arrives in Phase 10; the rest is host-only
             }

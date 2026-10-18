@@ -337,6 +337,8 @@ public enum SessionEvent: Sendable {
     case streamConfiguration(StreamConfiguration)
     /// Host: encode a keyframe for this stream next.
     case keyframeRequested(streamID: UInt8)
+    /// The peer stopped a stream for good (e.g. the viewer's monitor was unplugged).
+    case streamStopped(streamID: UInt8)
     /// Viewer: a complete frame, in order.
     case accessUnit(AccessUnit)
     /// Viewer: a new cursor image (separate cursor mode).

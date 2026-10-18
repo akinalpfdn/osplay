@@ -177,6 +177,9 @@ osplay_session_callbacks core_callbacks(osplay_engine_host* host) {
     callbacks.on_keyframe_request = [](void* context, uint8_t stream_id) {
         host_of(context)->orchestrator->on_keyframe_request(stream_id);
     };
+    callbacks.on_stream_stopped = [](void* context, uint8_t stream_id) {
+        host_of(context)->orchestrator->on_stream_stopped(stream_id);
+    };
     callbacks.on_stats = [](void* context, const osplay_session_stats* stats) {
         auto* self = host_of(context);
         if (self->callbacks.on_stats != nullptr) {

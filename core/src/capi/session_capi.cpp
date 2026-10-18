@@ -250,6 +250,12 @@ public:
         callbacks_.on_access_unit(callbacks_.context, &unit);
     }
 
+    void on_stream_stopped(std::uint8_t stream_id) override {
+        if (callbacks_.on_stream_stopped != nullptr) {
+            callbacks_.on_stream_stopped(callbacks_.context, stream_id);
+        }
+    }
+
     void on_cursor_shape(const osplay::media::CursorShape& shape) override {
         if (callbacks_.on_cursor_shape == nullptr) {
             return;
@@ -556,6 +562,15 @@ osplay_result osplay_session_request_keyframe(osplay_session* session, uint8_t s
             return OSPLAY_ERROR_INVALID_ARGUMENT;
         }
         return to_status_result(session->session->request_keyframe(stream_id));
+    });
+}
+
+osplay_result osplay_session_stop_stream(osplay_session* session, uint8_t stream_id) {
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        return to_status_result(session->session->stop_stream(stream_id));
     });
 }
 

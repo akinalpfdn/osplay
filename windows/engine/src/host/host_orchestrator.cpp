@@ -48,6 +48,14 @@ void HostOrchestrator::on_keyframe_request(std::uint8_t stream_id) {
     });
 }
 
+void HostOrchestrator::on_stream_stopped(std::uint8_t stream_id) {
+    post([this, stream_id] {
+        if (stream_id == kHostStreamId) {
+            stop_streaming();
+        }
+    });
+}
+
 void HostOrchestrator::on_session_closed() {
     post([this] { stop_streaming(); });
 }

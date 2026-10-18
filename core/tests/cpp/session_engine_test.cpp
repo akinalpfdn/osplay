@@ -466,4 +466,29 @@ TEST(SessionEngine, DecoderErrorsRequestKeyframesAtALimitedRate) {
     EXPECT_EQ(sim.host.engine.request_keyframe(0, sim.network.now).error(), Error::InvalidState);
 }
 
+TEST(SessionEngine, AViewerCanStopOneStreamAndTheHostIsTold) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+    ASSERT_EQ(sim.viewer.engine.state(), SessionState::Streaming);
+
+    ASSERT_TRUE(sim.viewer.engine.stop_stream(0, sim.network.now).has_value());
+    sim.run_for(milliseconds(100));
+
+    EXPECT_EQ(sim.host.observer.stopped_streams, (std::vector<std::uint8_t>{0}));
+    EXPECT_TRUE(sim.viewer.observer.stopped_streams.empty()) << "only the peer is told";
+    const auto bytes = osplay::test::synthetic_frame(9'999, true);
+    EXPECT_EQ(sim.host.engine
+                  .push_access_unit({.stream_id = 0,
+                                     .keyframe = true,
+                                     .codec_config = true,
+                                     .capture_time_us = 0,
+                                     .data = bytes},
+                                    sim.network.now)
+                  .error(),
+              Error::InvalidState);
+    EXPECT_EQ(sim.host.engine.state(), SessionState::Paused) << "the session stays up";
+    EXPECT_EQ(sim.viewer.engine.stop_stream(0, sim.network.now).error(), Error::InvalidState);
+}
+
 } // namespace

@@ -463,6 +463,12 @@ Status<Error> AsioSession::request_keyframe(std::uint8_t stream_id) {
         Status<Error>::failure(Error::InvalidState));
 }
 
+Status<Error> AsioSession::stop_stream(std::uint8_t stream_id) {
+    return impl_->run_sync(
+        [this, stream_id] { return impl_->engine().stop_stream(stream_id, Impl::now()); },
+        Status<Error>::failure(Error::InvalidState));
+}
+
 Status<Error> AsioSession::pause_stream(std::uint8_t stream_id) {
     return impl_->run_sync(
         [this, stream_id] { return impl_->engine().pause_stream(stream_id, Impl::now()); },

@@ -219,6 +219,20 @@ TEST(HostOrchestrator, ASessionCloseRemovesTheMonitor) {
     EXPECT_FALSE(h.core.closed);
 }
 
+TEST(HostOrchestrator, AStoppedStreamRemovesTheMonitorButKeepsTheSession) {
+    Harness h;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    const std::vector<osplay_monitor> monitors{monitor()};
+    orchestrator.on_viewer_monitors(monitors);
+    orchestrator.on_stream_stopped(1); // not this host's stream
+    orchestrator.wait_idle();
+    EXPECT_EQ(h.displays.removed, 0);
+    orchestrator.on_stream_stopped(0);
+    orchestrator.wait_idle();
+    EXPECT_EQ(h.displays.removed, 1);
+    EXPECT_FALSE(h.core.closed);
+}
+
 TEST(HostOrchestrator, ADisplayFailureClosesTheSessionWithTheReason) {
     Harness h;
     h.displays.create_error = DisplayError::HelperUnavailable;

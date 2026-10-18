@@ -151,6 +151,26 @@ struct HostSessionTests {
         #expect(!harness.lender.isLending)
     }
 
+    @Test("A stream the viewer stops ends its capture and returns only its display")
+    func viewerStopsOneStream() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        harness.core.emit(.viewerMonitors(monitors))
+        try await eventually {
+            harness.captures.captures.count == 2 && harness.captures.captures.allSatisfy(\.isRunning)
+        }
+
+        harness.core.emit(.streamStopped(streamID: 1))
+        try await eventually { !harness.captures.captures[1].isRunning }
+
+        #expect(harness.captures.captures[0].isRunning)
+        #expect(harness.lender.returnedDisplays == [201])
+        #expect(harness.encoders.encoders[1].isInvalidated)
+        await session.stop()
+        _ = await run.value
+    }
+
     @Test("Only as many displays as the Mac supports are lent")
     func limitsDisplayCount() async throws {
         let harness = Harness()

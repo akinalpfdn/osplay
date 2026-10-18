@@ -44,6 +44,7 @@ class SimulatedNetwork;
 class RecordingObserver final : public session::SessionObserver {
 public:
     std::vector<std::pair<std::uint32_t, std::vector<std::uint8_t>>> cursor_shapes;
+    std::vector<std::uint8_t> stopped_streams;
     std::vector<protocol::CursorPosition> cursor_positions;
     TrustDecision trust = TrustDecision::Trusted;
     std::vector<SessionState> states;
@@ -76,6 +77,9 @@ public:
         stream_configs.push_back(config);
     }
     void on_keyframe_request(std::uint8_t /*stream_id*/) override { ++keyframe_requests; }
+    void on_stream_stopped(std::uint8_t stream_id) override {
+        stopped_streams.push_back(stream_id);
+    }
     void on_access_unit(const media::CompletedFrame& frame) override {
         std::uint32_t index = 0;
         std::memcpy(&index, frame.data.data(), sizeof(index));
