@@ -1,0 +1,71 @@
+#pragma once
+
+// One capture → encode pipeline for the virtual monitor (Desktop Duplication and Media Foundation
+// on Windows, fakes in tests). The orchestrator only sees this interface.
+
+#include "media/pointer_shape.hpp"
+
+#include <osplay/win/expected.hpp>
+
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+
+namespace osplay::engine {
+
+struct StreamSettings {
+    std::uint32_t width = 0;
+    std::uint32_t height = 0;
+    std::uint32_t refresh_millihertz = 0;
+    std::uint32_t bitrate_kbps = 0;
+};
+
+enum class PipelineError : std::uint8_t {
+    MonitorNotFound,    ///< the virtual monitor's output is not visible to DXGI
+    CaptureFailed,      ///< Desktop Duplication could not start or stopped for good
+    EncoderUnavailable, ///< no hardware H.264 encoder accepts the stream
+    EncoderFailed,      ///< the encoder failed while running
+};
+
+/// The virtual monitor's place on the desktop, in desktop coordinates.
+struct MonitorRect {
+    std::int32_t left = 0;
+    std::int32_t top = 0;
+    std::int32_t right = 0;
+    std::int32_t bottom = 0;
+};
+
+/// Receives the pipeline's output on the pipeline's own thread. Calls must return quickly.
+class PipelineSink {
+public:
+    virtual ~PipelineSink() = default;
+    /// One access unit in Annex B; keyframes start with SPS and PPS.
+    virtual void on_access_unit(std::span<const std::uint8_t> annexb, bool keyframe,
+                                std::uint64_t capture_time_us) = 0;
+    virtual void on_cursor_shape(std::uint32_t shape_id, const CursorImage& image) = 0;
+    /// `x`/`y` are the hotspot in stream pixels.
+    virtual void on_cursor_position(bool visible, std::uint32_t shape_id, std::int32_t x,
+                                    std::int32_t y, std::uint64_t capture_time_us) = 0;
+    /// The pipeline stopped for good; no output follows.
+    virtual void on_pipeline_failed(PipelineError error) = 0;
+};
+
+class StreamPipeline {
+public:
+    virtual ~StreamPipeline() = default;
+    /// The next encoded frame is a keyframe; an unchanged screen is encoded again for it.
+    virtual void request_keyframe() = 0;
+    [[nodiscard]] virtual std::optional<MonitorRect> monitor_rect() const = 0;
+};
+
+class StreamPipelineFactory {
+public:
+    virtual ~StreamPipelineFactory() = default;
+    /// Starts capturing the virtual monitor and encoding it; `sink` must outlive the pipeline.
+    [[nodiscard]] virtual win::Expected<std::unique_ptr<StreamPipeline>, PipelineError>
+    start(const StreamSettings& settings, PipelineSink& sink) = 0;
+};
+
+} // namespace osplay::engine

@@ -1,10 +1,14 @@
 # Platform-independent engine logic, linked into the DLL and its tests.
 add_library(osplay_engine_logic STATIC
-    src/display/helper_virtual_display_provider.cpp)
+    src/display/helper_virtual_display_provider.cpp
+    src/host/host_orchestrator.cpp
+    src/host/stream_dump.cpp
+    src/media/h264_stream.cpp
+    src/media/pointer_shape.cpp)
 target_include_directories(osplay_engine_logic PUBLIC src)
 target_compile_features(osplay_engine_logic PUBLIC cxx_std_20)
 set_target_properties(osplay_engine_logic PROPERTIES CXX_EXTENSIONS OFF)
-target_link_libraries(osplay_engine_logic PUBLIC osplay::win_shared PRIVATE osplay::warnings)
+target_link_libraries(osplay_engine_logic PUBLIC osplay::win_shared osplay::core PRIVATE osplay::warnings)
 
 if(WIN32)
     add_library(osplay_engine SHARED
@@ -28,7 +32,10 @@ endif()
 
 if(OSPLAY_CORE_BUILD_TESTS)
     add_executable(osplay_engine_tests
-        tests/helper_virtual_display_provider_test.cpp)
+        tests/h264_stream_test.cpp
+        tests/helper_virtual_display_provider_test.cpp
+        tests/host_orchestrator_test.cpp
+        tests/pointer_shape_test.cpp)
     target_link_libraries(osplay_engine_tests PRIVATE osplay_engine_logic osplay::warnings GTest::gtest_main)
     set_target_properties(osplay_engine_tests PROPERTIES CXX_EXTENSIONS OFF)
     include(GoogleTest)
