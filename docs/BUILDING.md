@@ -113,8 +113,13 @@ xcodebuild -project Osplay.xcodeproj -scheme OsplayHardware -destination 'platfo
 cat "$TMPDIR/osplay-host-pipeline.txt"
 ```
 
+`ViewerLoopbackHardwareTests` runs the whole loopback (host a 1920×1080 virtual display, view it
+in a window) for ten seconds, expects at least 58 fps presented, then corrupts a frame and expects
+recovery within one second; figures go to `$TMPDIR/osplay-viewer-loopback.txt`.
+
 Debug builds also show a **Developer** section in the menu bar popover for creating one or two
-test displays by hand.
+test displays by hand, and a **Viewer loopback**: the Mac shows its own virtual display in a
+window or full screen on the built-in display. ⌃⌥⌘V hides or shows the viewer.
 
 ### Code signing for local development
 
