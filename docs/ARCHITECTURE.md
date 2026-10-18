@@ -110,6 +110,35 @@ ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─�
   The debug menu's "Host media test" runs the whole pipeline over loopback into an in-process
   viewer and shows pacing, bitrate and latency per stream.
 
+## Viewer pipeline on macOS
+
+`ViewerSession` (`macos/Osplay/Features/Viewer/`) is an actor that owns one viewer session: the
+core session, and per stream a `ViewerStreamPipeline` (decoder) and a presenter.
+
+```
+core access unit ─► decode queue ─► VideoToolbox ─► AVSampleBufferVideoRenderer (display immediately)
+core cursor shape/position ─► main actor ─► cursor layer above the video
+```
+
+- **Decode** (`Services/VideoDecoding/`). Annex B is split into NAL units; the SPS and PPS in
+  front of each keyframe build the format description, slices go to a realtime
+  `VTDecompressionSession` as 4-byte length-prefixed samples. Output is IOSurface-backed. After
+  any error (invalid data, decode failure) frames are dropped until the next keyframe, and the
+  pipeline asks the core for one (`osplay_session_request_keyframe`, at most one per 100 ms
+  locally and per 250 ms in the core).
+- **Present** (`Services/FramePresenting/`). Frames go from the decoder's thread straight to the
+  layer's renderer with `DisplayImmediately`; nothing waits for the main actor. Full screen is a
+  borderless window above the menu bar and Dock of the target display; the local pointer hides
+  after 2 s without movement. Separate-cursor streams draw the host's cursor in a layer mapped
+  onto the aspect-fitted video.
+- **Visibility.** ⌃⌥⌘V (Carbon `RegisterEventHotKey`, no Accessibility permission) hides or shows
+  the viewer from anywhere; hidden streams are paused so the host stops sending. The hotkey runs
+  on the main run loop, which no frame work touches, so it works even when frames stop.
+- **Power.** While a stream is visible, an `IOPMAssertion` prevents display sleep and a
+  latency-critical activity disables App Nap.
+- **Debug loopback.** The menu's "Viewer loopback" hosts a 1920×1080 virtual display and views
+  it on the same Mac (window or full screen), with corruption injection and a frame freeze.
+
 ## Virtual Display Driver control surface (Windows)
 
 Findings from reading the driver source (VirtualDrivers/Virtual-Display-Driver, `master` at

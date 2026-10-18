@@ -457,6 +457,12 @@ Status<Error> AsioSession::configure_streams(const std::vector<protocol::StreamC
         Status<Error>::failure(Error::InvalidState));
 }
 
+Status<Error> AsioSession::request_keyframe(std::uint8_t stream_id) {
+    return impl_->run_sync(
+        [this, stream_id] { return impl_->engine().request_keyframe(stream_id, Impl::now()); },
+        Status<Error>::failure(Error::InvalidState));
+}
+
 Status<Error> AsioSession::pause_stream(std::uint8_t stream_id) {
     return impl_->run_sync(
         [this, stream_id] { return impl_->engine().pause_stream(stream_id, Impl::now()); },
@@ -476,6 +482,22 @@ void AsioSession::push_access_unit(const media::AccessUnit& unit) {
         copy.data = *bytes;
         // Frames pushed before streaming starts or while paused are dropped on purpose.
         static_cast<void>(impl->engine().push_access_unit(copy, Impl::now()));
+    });
+}
+
+void AsioSession::push_cursor_shape(const media::CursorShape& shape) {
+    auto bytes = std::make_shared<std::vector<std::uint8_t>>(shape.bgra.begin(), shape.bgra.end());
+    impl_->post([impl = impl_.get(), shape, bytes] {
+        media::CursorShape copy = shape;
+        copy.bgra = *bytes;
+        // Fails only before streaming starts; the next keyframe brings the current shape anyway.
+        static_cast<void>(impl->engine().push_cursor_shape(copy, Impl::now()));
+    });
+}
+
+void AsioSession::push_cursor_position(const protocol::CursorPosition& position) {
+    impl_->post([impl = impl_.get(), position] {
+        static_cast<void>(impl->engine().push_cursor_position(position, Impl::now()));
     });
 }
 

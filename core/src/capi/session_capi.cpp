@@ -250,6 +250,35 @@ public:
         callbacks_.on_access_unit(callbacks_.context, &unit);
     }
 
+    void on_cursor_shape(const osplay::media::CursorShape& shape) override {
+        if (callbacks_.on_cursor_shape == nullptr) {
+            return;
+        }
+        const osplay_cursor_shape converted{.stream_id = shape.stream_id,
+                                            .shape_id = shape.shape_id,
+                                            .width = shape.width,
+                                            .height = shape.height,
+                                            .hotspot_x = shape.hotspot_x,
+                                            .hotspot_y = shape.hotspot_y,
+                                            .bgra = shape.bgra.data(),
+                                            .length = shape.bgra.size()};
+        callbacks_.on_cursor_shape(callbacks_.context, &converted);
+    }
+
+    void on_cursor_position(const protocol::CursorPosition& position) override {
+        if (callbacks_.on_cursor_position == nullptr) {
+            return;
+        }
+        const osplay_cursor_position converted{.stream_id = position.stream_id,
+                                               .visible =
+                                                   static_cast<std::uint8_t>(position.visible),
+                                               .shape_id = position.shape_id,
+                                               .x = position.x,
+                                               .y = position.y,
+                                               .capture_time_us = position.capture_time_us};
+        callbacks_.on_cursor_position(callbacks_.context, &converted);
+    }
+
     void on_stats(const session::SessionStats& stats) override {
         if (callbacks_.on_stats == nullptr) {
             return;
@@ -469,6 +498,54 @@ osplay_result osplay_session_push_access_unit(osplay_session* session,
                                             .capture_time_us = unit->capture_time_us,
                                             .data = std::span(unit->data, unit->length)});
         return OSPLAY_OK;
+    });
+}
+
+osplay_result osplay_session_push_cursor_shape(osplay_session* session,
+                                               const osplay_cursor_shape* shape) {
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr || shape == nullptr || shape->bgra == nullptr) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        const osplay::media::CursorShape converted{.stream_id = shape->stream_id,
+                                                   .shape_id = shape->shape_id,
+                                                   .width = shape->width,
+                                                   .height = shape->height,
+                                                   .hotspot_x = shape->hotspot_x,
+                                                   .hotspot_y = shape->hotspot_y,
+                                                   .bgra = std::span(shape->bgra, shape->length)};
+        // Validated here so a bad image fails synchronously instead of on the I/O thread.
+        std::vector<protocol::CursorShapeFragment> fragments;
+        if (!osplay::media::split_cursor_shape(converted, fragments)) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        session->session->push_cursor_shape(converted);
+        return OSPLAY_OK;
+    });
+}
+
+osplay_result osplay_session_push_cursor_position(osplay_session* session,
+                                                  const osplay_cursor_position* position) {
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr || position == nullptr || position->visible > 1) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        session->session->push_cursor_position({.stream_id = position->stream_id,
+                                                .visible = position->visible == 1,
+                                                .shape_id = position->shape_id,
+                                                .x = position->x,
+                                                .y = position->y,
+                                                .capture_time_us = position->capture_time_us});
+        return OSPLAY_OK;
+    });
+}
+
+osplay_result osplay_session_request_keyframe(osplay_session* session, uint8_t stream_id) {
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        return to_status_result(session->session->request_keyframe(stream_id));
     });
 }
 

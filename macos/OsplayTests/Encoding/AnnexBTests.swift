@@ -45,4 +45,24 @@ struct AnnexBTests {
             try [UInt8]().withUnsafeBytes { try AnnexB.fromLengthPrefixed($0, lengthSize: 3) }
         }
     }
+
+    @Test("Annex B splits into NAL units with three- and four-byte start codes")
+    func splitsNALUnits() throws {
+        let data = Data([0, 0, 0, 1, 0x67, 1, 0, 0, 1, 0x68, 2, 0, 0, 0, 1, 0x65, 3, 4])
+        let units = try AnnexB.nalUnits(in: data)
+        #expect(units == [Data([0x67, 1]), Data([0x68, 2]), Data([0x65, 3, 4])])
+        #expect(units.map(AnnexB.type(of:)) == [7, 8, 5])
+    }
+
+    @Test("Slices become length-prefixed; parameter sets and delimiters are left out")
+    func buildsLengthPrefixedSlices() {
+        let units = [Data([0x09, 0xF0]), Data([0x67, 1]), Data([0x68, 2]), Data([0x65, 3, 4])]
+        #expect([UInt8](AnnexB.lengthPrefixedSlices(units)) == [0, 0, 0, 3, 0x65, 3, 4])
+    }
+
+    @Test("Data that is not Annex B is rejected")
+    func rejectsGarbage() {
+        #expect(throws: AnnexB.ConversionError.truncated) { try AnnexB.nalUnits(in: Data([1, 2, 3, 4])) }
+        #expect(throws: AnnexB.ConversionError.emptyUnit) { try AnnexB.nalUnits(in: Data([0, 0, 1, 0, 0, 1, 0x65])) }
+    }
 }

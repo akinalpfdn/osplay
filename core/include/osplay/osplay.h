@@ -254,6 +254,27 @@ typedef struct osplay_access_unit {
     size_t length;
 } osplay_access_unit;
 
+/* A cursor image: premultiplied BGRA, rows top to bottom, no padding (width × height × 4 bytes). */
+typedef struct osplay_cursor_shape {
+    uint8_t stream_id;
+    uint32_t shape_id; /* changes whenever the image changes */
+    uint16_t width;    /* 1–256 */
+    uint16_t height;   /* 1–256 */
+    uint16_t hotspot_x;
+    uint16_t hotspot_y;
+    const uint8_t* bgra;
+    size_t length;
+} osplay_cursor_shape;
+
+typedef struct osplay_cursor_position {
+    uint8_t stream_id;
+    uint8_t visible; /* 0 or 1 */
+    uint32_t shape_id;
+    int32_t x; /* hotspot in stream pixels; may lie outside the stream */
+    int32_t y;
+    uint64_t capture_time_us; /* osplay_clock_microseconds() time base */
+} osplay_cursor_position;
+
 typedef struct osplay_stream_stats {
     uint8_t stream_id;
     uint16_t loss_permille;
@@ -304,6 +325,10 @@ typedef struct osplay_session_callbacks {
     void (*on_access_unit)(void* context, const osplay_access_unit* unit);
     void (*on_stats)(void* context, const osplay_session_stats* stats);
     void (*on_log)(void* context, osplay_log_level level, const char* message);
+    /* Viewer: a complete cursor image, for streams with separate cursor mode. */
+    void (*on_cursor_shape)(void* context, const osplay_cursor_shape* shape);
+    /* Viewer: the newest cursor position; older ones are dropped. */
+    void (*on_cursor_position)(void* context, const osplay_cursor_position* position);
 } osplay_session_callbacks;
 
 typedef struct osplay_session osplay_session;
@@ -346,6 +371,20 @@ osplay_result osplay_session_configure_streams(osplay_session* session,
  */
 osplay_result osplay_session_push_access_unit(osplay_session* session,
                                               const osplay_access_unit* unit);
+
+/*
+ * Host: a new cursor image (copied); it is sent now and again after every keyframe, so viewers
+ * that join late or lose packets recover it.
+ */
+osplay_result osplay_session_push_cursor_shape(osplay_session* session,
+                                               const osplay_cursor_shape* shape);
+
+/* Host: where the cursor is; send at most at the stream's refresh rate. Not retransmitted. */
+osplay_result osplay_session_push_cursor_position(osplay_session* session,
+                                                  const osplay_cursor_position* position);
+
+/* Viewer: the decoder failed; asks the host for a keyframe. Rate-limited per stream. */
+osplay_result osplay_session_request_keyframe(osplay_session* session, uint8_t stream_id);
 
 osplay_result osplay_session_pause_stream(osplay_session* session, uint8_t stream_id);
 osplay_result osplay_session_resume_stream(osplay_session* session, uint8_t stream_id);

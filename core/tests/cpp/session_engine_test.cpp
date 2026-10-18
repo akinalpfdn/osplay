@@ -312,4 +312,158 @@ TEST(SessionEngine, ByeClosesThePeerCleanly) {
     EXPECT_EQ(sim.host.observer.close_reason, Error::ConnectionClosed);
 }
 
+// --- Cursor
+// ----------------------------------------------------------------------------------------
+
+std::vector<std::uint8_t> cursor_image(std::uint16_t width, std::uint16_t height,
+                                       std::uint8_t seed) {
+    std::vector<std::uint8_t> bgra(std::size_t{width} * height * 4);
+    for (std::size_t i = 0; i < bgra.size(); ++i) {
+        bgra[i] = static_cast<std::uint8_t>(seed + i * 3);
+    }
+    return bgra;
+}
+
+TEST(SessionEngine, CursorShapesAndPositionsReachTheViewer) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+    ASSERT_EQ(sim.viewer.engine.state(), SessionState::Streaming);
+
+    const auto image = cursor_image(32, 40, 5);
+    ASSERT_TRUE(sim.host.engine
+                    .push_cursor_shape({.stream_id = 0,
+                                        .shape_id = 7,
+                                        .width = 32,
+                                        .height = 40,
+                                        .hotspot_x = 3,
+                                        .hotspot_y = 4,
+                                        .bgra = image},
+                                       sim.network.now)
+                    .has_value());
+    ASSERT_TRUE(sim.host.engine
+                    .push_cursor_position({.stream_id = 0,
+                                           .visible = true,
+                                           .shape_id = 7,
+                                           .x = 100,
+                                           .y = -5,
+                                           .capture_time_us = 1'000},
+                                          sim.network.now)
+                    .has_value());
+    sim.run_for(milliseconds(500));
+
+    ASSERT_EQ(sim.viewer.observer.cursor_shapes.size(), 1U) << "keyframe resends are not repeated";
+    EXPECT_EQ(sim.viewer.observer.cursor_shapes[0].first, 7U);
+    EXPECT_EQ(sim.viewer.observer.cursor_shapes[0].second, image);
+    ASSERT_EQ(sim.viewer.observer.cursor_positions.size(), 1U);
+    EXPECT_EQ(sim.viewer.observer.cursor_positions[0].y, -5);
+}
+
+TEST(SessionEngine, OlderCursorPositionsAreDropped) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+    for (const std::uint64_t time : {2'000U, 1'000U, 3'000U}) {
+        ASSERT_TRUE(sim.host.engine
+                        .push_cursor_position({.stream_id = 0,
+                                               .visible = true,
+                                               .shape_id = 1,
+                                               .x = static_cast<std::int32_t>(time),
+                                               .y = 0,
+                                               .capture_time_us = time},
+                                              sim.network.now)
+                        .has_value());
+    }
+    sim.run_for(milliseconds(100));
+
+    ASSERT_EQ(sim.viewer.observer.cursor_positions.size(), 2U);
+    EXPECT_EQ(sim.viewer.observer.cursor_positions[1].x, 3'000);
+}
+
+TEST(SessionEngine, ALostCursorShapeReturnsWhenPositionsNameIt) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+    sim.network.media_loss = 1.0;
+    const auto image = cursor_image(64, 64, 9);
+    ASSERT_TRUE(sim.host.engine
+                    .push_cursor_shape({.stream_id = 0,
+                                        .shape_id = 2,
+                                        .width = 64,
+                                        .height = 64,
+                                        .hotspot_x = 0,
+                                        .hotspot_y = 0,
+                                        .bgra = image},
+                                       sim.network.now)
+                    .has_value());
+    sim.run_for(milliseconds(50));
+    sim.network.media_loss = 0.0;
+    sim.run_for(milliseconds(500));
+    ASSERT_TRUE(sim.viewer.observer.cursor_shapes.empty())
+        << "frames recovered by NACK, no keyframe";
+
+    // The cursor moves: positions name shape 2, which the viewer lacks, so it asks for a keyframe.
+    for (int step = 0; step < 20; ++step) {
+        ASSERT_TRUE(sim.host.engine
+                        .push_cursor_position({.stream_id = 0,
+                                               .visible = true,
+                                               .shape_id = 2,
+                                               .x = step,
+                                               .y = 0,
+                                               .capture_time_us = static_cast<std::uint64_t>(step)},
+                                              sim.network.now)
+                        .has_value());
+        sim.run_for(milliseconds(16));
+    }
+    sim.run_for(milliseconds(300));
+
+    ASSERT_EQ(sim.viewer.observer.cursor_shapes.size(), 1U);
+    EXPECT_EQ(sim.viewer.observer.cursor_shapes[0].second, image);
+}
+
+TEST(SessionEngine, InvalidCursorShapesAreRejected) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+    const auto image = cursor_image(8, 8, 0);
+    EXPECT_EQ(sim.host.engine
+                  .push_cursor_shape({.stream_id = 0,
+                                      .shape_id = 1,
+                                      .width = 8,
+                                      .height = 8,
+                                      .hotspot_x = 8,
+                                      .hotspot_y = 0,
+                                      .bgra = image},
+                                     sim.network.now)
+                  .error(),
+              Error::InvalidArgument);
+    EXPECT_EQ(sim.host.engine
+                  .push_cursor_shape({.stream_id = 3,
+                                      .shape_id = 1,
+                                      .width = 8,
+                                      .height = 8,
+                                      .hotspot_x = 0,
+                                      .hotspot_y = 0,
+                                      .bgra = image},
+                                     sim.network.now)
+                  .error(),
+              Error::InvalidState);
+}
+
+TEST(SessionEngine, DecoderErrorsRequestKeyframesAtALimitedRate) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+    const int before = sim.host.observer.keyframe_requests;
+
+    for (int i = 0; i < 5; ++i) {
+        ASSERT_TRUE(sim.viewer.engine.request_keyframe(0, sim.network.now).has_value());
+    }
+    sim.run_for(milliseconds(100));
+
+    EXPECT_EQ(sim.host.observer.keyframe_requests, before + 1) << "one per 250 ms";
+    EXPECT_EQ(sim.viewer.engine.request_keyframe(5, sim.network.now).error(), Error::InvalidState);
+    EXPECT_EQ(sim.host.engine.request_keyframe(0, sim.network.now).error(), Error::InvalidState);
+}
+
 } // namespace

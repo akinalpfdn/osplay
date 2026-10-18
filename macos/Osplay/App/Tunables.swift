@@ -1,3 +1,4 @@
+import Carbon.HIToolbox
 import CoreBridge
 import Foundation
 
@@ -33,6 +34,22 @@ enum Tunables {
         }
     }
 
+    enum Viewer {
+        /// The local pointer hides after this many seconds without movement over a viewer.
+        static let cursorIdleDelay: TimeInterval = 2
+        /// Decoder errors closer together than this send one keyframe request (the core limits
+        /// requests to one per 250 ms as well).
+        static let keyframeRequestSpacing: Duration = .milliseconds(100)
+        static let powerAssertionReason = "Osplay is showing another computer's display"
+        /// The default toggle hotkey (User decision: ⌃⌥⌘V); configurable from Phase 11.
+        static let toggleHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_V), modifiers: [.control, .option, .command])
+
+        /// Debug loopback windows open at half the stream's size.
+        static func loopbackWindowSize(streamWidth: Int, streamHeight: Int) -> CGSize {
+            CGSize(width: streamWidth / 2, height: streamHeight / 2)
+        }
+    }
+
     enum Host {
         /// Virtual displays offer HiDPI "looks like" sizes; per-peer choice arrives in Phase 11.
         static let defaultHiDPI = true
@@ -60,6 +77,10 @@ enum Tunables {
             /// Host media test: the monitor the in-process viewer offers (Phase 6 acceptance size).
             static let hostTestMonitor = (width: 2560, height: 1440, refreshMillihertz: UInt32(60_000))
             static let hostTestDeviceName = "Osplay Host Test"
+            /// Viewer loopback: the virtual display it hosts and views.
+            static let loopbackMonitor = (width: 1920, height: 1080, refreshMillihertz: UInt32(60_000))
+            static let loopbackDeviceName = "Osplay Loopback"
+            static let freezeDelay: Duration = .seconds(5)
             /// Frame intervals the pacing statistics cover (5 s at 60 fps).
             static let pacingWindow = 300
             static let statisticsRefreshInterval: Duration = .milliseconds(500)

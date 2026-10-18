@@ -6,6 +6,7 @@ struct OsplayApp: App {
     #if DEBUG
         @State private var developerDisplays: DeveloperDisplaysViewModel
         @State private var developerHostTest: DeveloperHostTestViewModel
+        @State private var developerLoopback: DeveloperLoopbackViewModel
     #endif
 
     init() {
@@ -17,13 +18,16 @@ struct OsplayApp: App {
                 initialValue: DeveloperHostTestViewModel(
                     provider: dependencies.virtualDisplays, captures: dependencies.captures,
                     encoders: dependencies.encoders, permissions: dependencies.permissions))
+            _developerLoopback = State(initialValue: DeveloperLoopbackViewModel(dependencies: dependencies))
         #endif
     }
 
     var body: some Scene {
         MenuBarExtra {
             #if DEBUG
-                MenuContentView(developerDisplays: developerDisplays, developerHostTest: developerHostTest)
+                MenuContentView(
+                    developerDisplays: developerDisplays, developerHostTest: developerHostTest,
+                    developerLoopback: developerLoopback)
             #else
                 MenuContentView()
             #endif

@@ -273,6 +273,142 @@
         }
       }
     },
+    "developer.loopback.corrupt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corrupt a frame"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kare boz"
+          }
+        }
+      }
+    },
+    "developer.loopback.errors %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decode errors %1$lld · last recovery %2$@ ms"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çözme hatası %1$lld · son toparlanma %2$@ ms"
+          }
+        }
+      }
+    },
+    "developer.loopback.freeze" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freeze frames after 5 seconds"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kareleri 5 saniye sonra dondur"
+          }
+        }
+      }
+    },
+    "developer.loopback.fullScreen" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full screen on the built-in display"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dahili ekranda tam ekran"
+          }
+        }
+      }
+    },
+    "developer.loopback.hotkeyHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌃⌥⌘V hides or shows the viewer."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌃⌥⌘V viewer'ı gizler veya gösterir."
+          }
+        }
+      }
+    },
+    "developer.loopback.presented %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Presented %@ fps"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gösterilen %@ fps"
+          }
+        }
+      }
+    },
+    "developer.loopback.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viewer loopback"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viewer döngüsü"
+          }
+        }
+      }
+    },
+    "developer.loopback.windowTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay Loopback"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay Döngü"
+          }
+        }
+      }
+    },
     "developer.noDisplays" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -490,6 +626,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Diğer cihazla bağlantı kesildi (hata %lld). Yeniden bağlanmayı deneyin."
+          }
+        }
+      }
+    },
+    "error.hotkey.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ⌃⌥⌘V shortcut is used by another app, so it cannot hide the viewer."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌃⌥⌘V kısayolu başka bir uygulama tarafından kullanılıyor; viewer'ı gizleyemez."
           }
         }
       }

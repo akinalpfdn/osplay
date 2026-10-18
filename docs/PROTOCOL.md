@@ -320,7 +320,10 @@ Sent at most at the stream's refresh rate; the newest position wins.
 | payload | bytes | slice of the BGRA image (premultiplied alpha, rows top to bottom, no padding) |
 
 Every fragment but the last carries exactly 1155 bytes; the last carries the remainder. A shape is
-sent when it changes and again with every keyframe, so a viewer that joined late recovers.
+sent when it changes and again with every keyframe, so a viewer that joined late recovers. Shapes
+are not retransmitted: a viewer that keeps receiving visible positions naming a shape it lacks for
+100 ms sends KeyframeRequest (reason 2), which brings the shape again. A shape already delivered
+is not delivered again.
 
 ## Session flow
 

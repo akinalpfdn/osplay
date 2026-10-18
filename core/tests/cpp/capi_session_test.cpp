@@ -47,6 +47,9 @@ struct Side {
     std::vector<uint32_t> frames;
     bool intact = true;
     int keyframe_requests = 0;
+    std::vector<uint8_t> cursor_image;
+    uint32_t cursor_shape_id = 0;
+    std::vector<osplay_cursor_position> cursor_positions;
 
     size_t frame_count() {
         const std::scoped_lock lock(mutex);
@@ -107,6 +110,18 @@ struct Side {
         };
         result.on_stream_config = [](void* context, const osplay_stream_config* config) {
             update(context, [copy = *config](Side& side) { side.stream_configs.push_back(copy); });
+        };
+        result.on_cursor_shape = [](void* context, const osplay_cursor_shape* shape) {
+            update(context, [id = shape->shape_id,
+                             image = std::vector<uint8_t>(
+                                 shape->bgra, shape->bgra + shape->length)](Side& side) {
+                side.cursor_shape_id = id;
+                side.cursor_image = image;
+            });
+        };
+        result.on_cursor_position = [](void* context, const osplay_cursor_position* position) {
+            update(context,
+                   [copy = *position](Side& side) { side.cursor_positions.push_back(copy); });
         };
         result.on_keyframe_request = [](void* context, uint8_t /*stream_id*/) {
             update(context, [](Side& side) { ++side.keyframe_requests; });
@@ -227,6 +242,30 @@ TEST(CapiSession, PairsConfiguresAndStreamsOverLoopback) {
         std::this_thread::sleep_for(milliseconds(16));
     }
     EXPECT_TRUE(viewer_side.intact);
+
+    std::vector<uint8_t> cursor(std::size_t{24} * 24 * 4);
+    for (std::size_t i = 0; i < cursor.size(); ++i) {
+        cursor[i] = static_cast<uint8_t>(i);
+    }
+    const osplay_cursor_shape shape{.stream_id = 0,
+                                    .shape_id = 11,
+                                    .width = 24,
+                                    .height = 24,
+                                    .hotspot_x = 2,
+                                    .hotspot_y = 2,
+                                    .bgra = cursor.data(),
+                                    .length = cursor.size()};
+    ASSERT_EQ(osplay_session_push_cursor_shape(host, &shape), OSPLAY_OK);
+    const osplay_cursor_position position{
+        .stream_id = 0, .visible = 1, .shape_id = 11, .x = 640, .y = 360, .capture_time_us = 5};
+    ASSERT_EQ(osplay_session_push_cursor_position(host, &position), OSPLAY_OK);
+    ASSERT_TRUE(viewer_side.wait(
+        [](Side& side) { return side.cursor_shape_id == 11 && !side.cursor_positions.empty(); }));
+    EXPECT_EQ(viewer_side.cursor_image, cursor);
+    EXPECT_EQ(viewer_side.cursor_positions.front().x, 640);
+    osplay_cursor_shape bad = shape;
+    bad.length = 10;
+    EXPECT_EQ(osplay_session_push_cursor_shape(host, &bad), OSPLAY_ERROR_INVALID_ARGUMENT);
 
     osplay_session_destroy(viewer);
     EXPECT_TRUE(host_side.wait([](Side& side) { return side.state == OSPLAY_SESSION_CLOSED; }));

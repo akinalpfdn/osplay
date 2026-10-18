@@ -8,4 +8,6 @@ enum Log {
     static let capture = Logger(subsystem: subsystem, category: "Capture")
     static let encoding = Logger(subsystem: subsystem, category: "Encoding")
     static let host = Logger(subsystem: subsystem, category: "Host")
+    static let decoding = Logger(subsystem: subsystem, category: "Decoding")
+    static let viewer = Logger(subsystem: subsystem, category: "Viewer")
 }

@@ -60,11 +60,16 @@ public:
     [[nodiscard]] Status<Error> confirm_pairing(bool accepted);
     [[nodiscard]] Status<Error>
     configure_streams(const std::vector<protocol::StreamConfig>& streams);
+    [[nodiscard]] Status<Error> request_keyframe(std::uint8_t stream_id);
     [[nodiscard]] Status<Error> pause_stream(std::uint8_t stream_id);
     [[nodiscard]] Status<Error> resume_stream(std::uint8_t stream_id);
 
     /// Copies the access unit and queues it; returns without waiting for the network.
     void push_access_unit(const media::AccessUnit& unit);
+
+    /// Copies the shape and queues it; returns without waiting.
+    void push_cursor_shape(const media::CursorShape& shape);
+    void push_cursor_position(const protocol::CursorPosition& position);
 
     class Impl;
 

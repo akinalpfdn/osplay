@@ -15,6 +15,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace osplay::test {
@@ -42,6 +43,8 @@ class SimulatedNetwork;
 
 class RecordingObserver final : public session::SessionObserver {
 public:
+    std::vector<std::pair<std::uint32_t, std::vector<std::uint8_t>>> cursor_shapes;
+    std::vector<protocol::CursorPosition> cursor_positions;
     TrustDecision trust = TrustDecision::Trusted;
     std::vector<SessionState> states;
     std::optional<Error> close_reason;
@@ -79,6 +82,13 @@ public:
         const auto expected = synthetic_frame(index, frame.keyframe);
         frames_intact = frames_intact && std::ranges::equal(frame.data, expected);
         frame_indices.push_back(index);
+    }
+    void on_cursor_shape(const media::CursorShape& shape) override {
+        cursor_shapes.push_back(
+            {shape.shape_id, std::vector<std::uint8_t>(shape.bgra.begin(), shape.bgra.end())});
+    }
+    void on_cursor_position(const protocol::CursorPosition& position) override {
+        cursor_positions.push_back(position);
     }
     void on_stats(const session::SessionStats& latest) override { stats = latest; }
     void on_log(session::LogLevel /*level*/, std::string_view /*message*/) override {}

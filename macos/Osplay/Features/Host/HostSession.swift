@@ -83,7 +83,7 @@ actor HostSession {
                 eventSink.yield(.statistics(statistics))
             case .log(let level, let message):
                 log(level, message)
-            case .peer, .pairingCode, .paired, .streamConfiguration, .accessUnit:
+            case .peer, .pairingCode, .paired, .streamConfiguration, .accessUnit, .cursorShape, .cursorPosition:
                 break  // pairing UI arrives in Phase 10; the rest is viewer-only
             }
         }

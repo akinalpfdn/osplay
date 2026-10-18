@@ -9,6 +9,7 @@
 
 #include "crypto/media_crypto.hpp"
 #include "crypto/noise.hpp"
+#include "media/cursor.hpp"
 #include "media/packetizer.hpp"
 #include "media/rate_limiter.hpp"
 #include "media/reassembler.hpp"
@@ -81,6 +82,10 @@ public:
     virtual void on_stream_config(const protocol::StreamConfig& config) = 0;             // viewer
     virtual void on_keyframe_request(std::uint8_t stream_id) = 0;                        // host
     virtual void on_access_unit(const media::CompletedFrame& frame) = 0;                 // viewer
+    /// Viewer: a complete cursor image; the bytes are valid only during the call.
+    virtual void on_cursor_shape(const media::CursorShape& shape) = 0;
+    /// Viewer: the newest cursor position (older ones are dropped).
+    virtual void on_cursor_position(const protocol::CursorPosition& position) = 0;
     virtual void on_stats(const SessionStats& stats) = 0;
     virtual void on_log(LogLevel level, std::string_view message) = 0;
 };
@@ -126,6 +131,13 @@ public:
     configure_streams(const std::vector<protocol::StreamConfig>& streams, TimePoint now);
     /// Host: sends one encoded frame.
     [[nodiscard]] Status<Error> push_access_unit(const media::AccessUnit& unit, TimePoint now);
+    /// Host: a new cursor image for a stream; it is sent now and again after every keyframe.
+    [[nodiscard]] Status<Error> push_cursor_shape(const media::CursorShape& shape, TimePoint now);
+    /// Host: where the cursor is; positions are not retransmitted, the next one replaces it.
+    [[nodiscard]] Status<Error> push_cursor_position(const protocol::CursorPosition& position,
+                                                     TimePoint now);
+    /// Viewer: the decoder failed; asks the host for a keyframe (rate-limited per stream).
+    [[nodiscard]] Status<Error> request_keyframe(std::uint8_t stream_id, TimePoint now);
     [[nodiscard]] Status<Error> pause_stream(std::uint8_t stream_id, TimePoint now);
     [[nodiscard]] Status<Error> resume_stream(std::uint8_t stream_id, TimePoint now);
     /// Sends Bye (when the channel is encrypted) and closes.
@@ -161,6 +173,9 @@ private:
     void start_streams_if_ready(TimePoint now);
 
     // Media channel
+    void send_cursor_shape(const HostStream& stream);
+    void deliver_cursor_shape(const protocol::CursorShapeFragment& fragment);
+    void deliver_cursor_position(const protocol::CursorPosition& position, TimePoint now);
     void send_fragments(const std::vector<protocol::VideoFragment>& fragments);
     void send_udp_hello();
     [[nodiscard]] bool seal_and_send(const protocol::MediaPacket& packet);
@@ -204,6 +219,7 @@ private:
     std::uint64_t next_sequence_ = 0;
     std::array<std::uint8_t, protocol::kMaxDatagramSize> datagram_{};
     std::vector<protocol::VideoFragment> fragments_;
+    std::vector<protocol::CursorShapeFragment> cursor_fragments_;
 
     std::map<std::uint8_t, std::unique_ptr<HostStream>> host_streams_;
     std::map<std::uint8_t, std::unique_ptr<ViewerStream>> viewer_streams_;

@@ -222,3 +222,30 @@ choices the plan leaves open are logged here.
 
 ---
 
+## 2026-10-18 — Default viewer hotkey ⌃⌥⌘V
+**Chosen:** User decision: ⌃⌥⌘V toggles the viewer (hide/show); configurable in Phase 11.
+**Alternatives:** ⌃⌥⌘Esc; ⌃⌥⌘V plus Esc inside the viewer window.
+**Why:** Unlikely to collide with other apps, close to ⌥⌘Esc (Force Quit) without the risk of hitting it.
+**Trade-offs:** Not discoverable without the onboarding/settings UI.
+**Revisit if:** Users report conflicts.
+
+---
+
+## 2026-10-18 — Lost cursor shapes come back through a keyframe request
+**Chosen:** Shapes are never retransmitted; a viewer that sees visible positions naming a shape it lacks for 100 ms sends KeyframeRequest, and the host resends the shape with every keyframe.
+**Alternatives:** Periodic shape resends; NACKs for shape fragments; a new control message.
+**Why:** Keeps the protocol unchanged and costs nothing in steady state; shapes change rarely and loss is rare on a LAN. A keyframe is a few hundred kilobytes at worst.
+**Trade-offs:** Recovering a lost shape costs a keyframe; a cursor that does not move is not recovered until it does.
+**Revisit if:** Wi-Fi tests show frequent keyframes caused by cursor loss.
+
+---
+
+## 2026-10-18 — Full-screen viewer as a borderless window above the menu bar
+**Chosen:** A borderless window at menu bar level + 1 covering the target display, on all Spaces, instead of a native full-screen Space.
+**Alternatives:** `toggleFullScreen` (own Space); `NSApplication.presentationOptions` hiding menu bar and Dock.
+**Why:** A Space switch animates and takes time, and moves away from the user's other Spaces; presentation options only apply while the app is frontmost, which a menu bar app often is not. The window appears and disappears instantly, which the hotkey relies on.
+**Trade-offs:** The menu bar and Dock of that display are covered, not hidden; system alerts can appear beneath.
+**Revisit if:** macOS restricts windows above the menu bar.
+
+---
+
