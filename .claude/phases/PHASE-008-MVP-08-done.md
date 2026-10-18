@@ -1,5 +1,5 @@
 # Phase 008 (MVP-08) — macOS viewer pipeline
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 7. Depends on: Phase 6.
 

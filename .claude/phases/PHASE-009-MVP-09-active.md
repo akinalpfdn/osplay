@@ -1,5 +1,5 @@
 # Phase 009 (MVP-09) — Windows host media pipeline
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 8. Depends on: Phase 2, Phase 5.
 
@@ -20,3 +20,5 @@ Windows captures its virtual monitor and produces an encoded stream and cursor s
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
+- Test hardware: NVIDIA GPU (NVENC MFT); AMD/Intel recorded as untested.
+- User decision: acceptance runs through a command-line host test tool (osplay-hosttest.exe), not a WPF debug screen.
