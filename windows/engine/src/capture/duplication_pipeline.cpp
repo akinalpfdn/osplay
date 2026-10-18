@@ -5,6 +5,7 @@
 #include "encode/mf_h264_encoder.hpp"
 #include "encode/nv12_converter.hpp"
 #include "engine_tunables.hpp"
+#include "media/frame_pacer.hpp"
 
 #include <osplay/osplay.h>
 
@@ -82,6 +83,10 @@ struct DuplicationPipeline::Worker {
     std::unique_ptr<MfH264Encoder> encoder;
     /// When the last frame went to the encoder; output is polled closely for a while after.
     std::int64_t last_submit = 0;
+    /// One encoded frame per frame interval (performance-counter counts).
+    FramePacer pacer{1};
+    /// Capture time of the newest image, encoded when the pacer says it is due.
+    std::int64_t pending_captured_at = 0;
     std::int64_t counter_frequency = 1;
     ULONGLONG next_reconnect = 0;
     std::vector<std::uint8_t> shape_buffer;
@@ -99,7 +104,8 @@ private:
     /// One loop iteration; false once the pipeline has failed (already reported).
     bool step();
     bool wait_for_duplication();
-    bool encode_if_needed(bool new_image, std::int64_t captured_at);
+    [[nodiscard]] UINT acquire_timeout() const;
+    bool encode_if_needed();
     bool poll_encoder();
     bool reconnect();
     bool capture_frame(IDXGIResource* resource);
@@ -113,6 +119,9 @@ std::optional<PipelineError> DuplicationPipeline::Worker::initialize() {
     LARGE_INTEGER frequency{};
     QueryPerformanceFrequency(&frequency);
     counter_frequency = frequency.QuadPart > 0 ? frequency.QuadPart : 1;
+    pacer = FramePacer(settings.refresh_millihertz == 0
+                           ? counter_frequency / 60
+                           : counter_frequency * 1000 / settings.refresh_millihertz);
 
     auto name = vdd_gdi_device_name();
     if (!name) {
@@ -166,10 +175,7 @@ bool DuplicationPipeline::Worker::step() {
     if (duplication == nullptr && !wait_for_duplication()) {
         return poll_encoder();
     }
-    // Short waits while the encoder has frames to return, so output is not delayed.
-    const bool encoder_busy =
-        performance_counter() - last_submit < counter_frequency * kEncoderBusyMilliseconds / 1000;
-    const UINT timeout = encoder_busy ? kEncoderPollMilliseconds : kIdleAcquireMilliseconds;
+    const UINT timeout = acquire_timeout();
     DXGI_OUTDUPL_FRAME_INFO info{};
     ComPtr<IDXGIResource> resource;
     const HRESULT acquired = duplication->AcquireNextFrame(timeout, &info, &resource);
@@ -182,17 +188,15 @@ bool DuplicationPipeline::Worker::step() {
         duplication.Reset();
         return true;
     }
-    bool new_image = false;
-    std::int64_t captured_at = performance_counter();
     if (SUCCEEDED(acquired)) {
-        if (info.LastPresentTime.QuadPart != 0) {
-            new_image = capture_frame(resource.Get());
-            captured_at = info.LastPresentTime.QuadPart;
+        if (info.LastPresentTime.QuadPart != 0 && capture_frame(resource.Get())) {
+            pacer.on_new_image();
+            pending_captured_at = info.LastPresentTime.QuadPart;
         }
         update_pointer(info);
         static_cast<void>(duplication->ReleaseFrame()); // a lost duplication shows up next time
     }
-    return encode_if_needed(new_image, captured_at) && poll_encoder();
+    return encode_if_needed() && poll_encoder();
 }
 
 bool DuplicationPipeline::Worker::wait_for_duplication() {
@@ -206,18 +210,34 @@ bool DuplicationPipeline::Worker::wait_for_duplication() {
     return true;
 }
 
-bool DuplicationPipeline::Worker::encode_if_needed(bool new_image, std::int64_t captured_at) {
+UINT DuplicationPipeline::Worker::acquire_timeout() const {
+    const std::int64_t now = performance_counter();
+    // Wake up when a waiting image is due, so it is sent on time even if nothing else changes.
+    if (const auto wait = pacer.wait(now)) {
+        return static_cast<UINT>(((*wait * 1000) + counter_frequency - 1) / counter_frequency);
+    }
+    // Short waits while the encoder has frames to return, so output is not delayed.
+    const bool encoder_busy =
+        now - last_submit < counter_frequency * kEncoderBusyMilliseconds / 1000;
+    return encoder_busy ? kEncoderPollMilliseconds : kIdleAcquireMilliseconds;
+}
+
+bool DuplicationPipeline::Worker::encode_if_needed() {
+    if (desktop == nullptr) {
+        return true; // nothing captured yet; a pending keyframe request waits for the first image
+    }
     const bool keyframe = owner->keyframe_requested_.exchange(false);
-    if (!new_image && (!keyframe || desktop == nullptr)) {
-        if (keyframe) {
-            owner->keyframe_requested_ = true; // nothing captured yet: the first frame will be one
-        }
+    const std::int64_t now = performance_counter();
+    if (!pacer.should_encode(now, keyframe)) {
         return true;
     }
-    if (!encode(keyframe, captured_at)) {
+    // A keyframe for an unchanged screen re-sends the last image, stamped now.
+    const bool has_new_image = pacer.wait(now).has_value();
+    if (!encode(keyframe, has_new_image ? pending_captured_at : now)) {
         fail(PipelineError::EncoderFailed);
         return false;
     }
+    pacer.encoded(now);
     return true;
 }
 

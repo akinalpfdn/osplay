@@ -389,7 +389,12 @@ int run(const Options& options) {
         if (options.pattern && !pattern && measurements.streaming) {
             const std::scoped_lock lock(measurements.rect_mutex);
             if (measurements.monitor) {
-                pattern.emplace(*measurements.monitor);
+                const RECT& r = *measurements.monitor;
+                std::cout << std::format(
+                    "Virtual monitor at x {}..{}, y {}..{} on the desktop: move the mouse past "
+                    "the screen edge on that side to reach it.\n",
+                    r.left, r.right, r.top, r.bottom);
+                pattern.emplace(r);
             }
         }
         report(second, measurements);

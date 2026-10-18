@@ -25,3 +25,7 @@ Windows captures its virtual monitor and produces an encoded stream and cursor s
 - Portable HostOrchestrator / pointer shape conversion / H.264 keyframe repair in osplay_engine_logic (tested on every platform).
 - Core: osplay_session_close (Bye without destroying) for components that do not own the session.
 - Windows code pre-checked on the Mac with zig mingw headers + clang-tidy before pushing.
+- PC run 1 (NVIDIA): stream decodes cleanly, 25 cursor shapes correct, UAC/lock recover; but capture ran at 65–104 fps (DWM composes faster than 60 Hz) → FramePacer caps encoding to one frame per interval on a fixed cadence.
+- Mode change cannot be done in Settings (VDD gets one mode): test with orientation/scale change of the virtual monitor or a primary-monitor mode change instead.
+- Animated cursors resend full shapes (~80 KB/s): acceptable; a viewer-side shape cache would need a protocol change (deferred).
+

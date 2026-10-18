@@ -39,6 +39,7 @@ endif()
 
 if(OSPLAY_CORE_BUILD_TESTS)
     add_executable(osplay_engine_tests
+        tests/frame_pacer_test.cpp
         tests/h264_stream_test.cpp
         tests/helper_virtual_display_provider_test.cpp
         tests/host_orchestrator_test.cpp
