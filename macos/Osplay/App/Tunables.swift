@@ -1,3 +1,4 @@
+import Carbon.HIToolbox
 import CoreBridge
 import Foundation
 
@@ -30,6 +31,22 @@ enum Tunables {
         static func bitrateKbps(width: Int, height: Int, frameRate: Double) -> Int {
             let kbps = Int(Double(width * height) * frameRate * bitsPerPixel / 1000)
             return min(max(kbps, bitrateRangeKbps.lowerBound), bitrateRangeKbps.upperBound)
+        }
+    }
+
+    enum Viewer {
+        /// The local pointer hides after this many seconds without movement over a viewer.
+        static let cursorIdleDelay: TimeInterval = 2
+        /// Decoder errors closer together than this send one keyframe request (the core limits
+        /// requests to one per 250 ms as well).
+        static let keyframeRequestSpacing: Duration = .milliseconds(100)
+        static let powerAssertionReason = "Osplay is showing another computer's display"
+        /// The default toggle hotkey (User decision: ⌃⌥⌘V); configurable from Phase 11.
+        static let toggleHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_V), modifiers: [.control, .option, .command])
+
+        /// Debug loopback windows open at half the stream's size.
+        static func loopbackWindowSize(streamWidth: Int, streamHeight: Int) -> CGSize {
+            CGSize(width: streamWidth / 2, height: streamHeight / 2)
         }
     }
 

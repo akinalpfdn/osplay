@@ -22,6 +22,11 @@ enum Theme {
         static let menuWidth: CGFloat = 320
     }
 
+    enum Viewer {
+        /// Letterbox bars and the window behind the first frame.
+        static let background = Color.black
+    }
+
     /// Debug test pattern shown on shared displays: full-frame motion and high-contrast edges.
     enum TestPattern {
         static let background = Color.black
