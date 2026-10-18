@@ -1,0 +1,255 @@
+import Foundation
+import OsplayCore
+
+/// One host or viewer session of the shared core (docs/PROTOCOL.md "Session flow").
+///
+/// The core runs the session on its own I/O thread and reports through `events`. Commands may be
+/// called from any thread; they wait (at most 5 s) until the I/O thread has executed them, so call
+/// them from an actor rather than the main thread. `events` must be consumed promptly: it buffers
+/// without limit, including access units.
+public final class CoreSession: Sendable {
+    public let events: AsyncStream<SessionEvent>
+
+    private let handle: SessionHandle
+    /// Holds the callbacks' context; must outlive the core session.
+    private let box: CallbackBox
+
+    /// Host: listens for one viewer on an ephemeral TCP port.
+    public static func host(
+        device: SessionDevice, trust: @escaping @Sendable ([UInt8]) -> TrustDecision
+    ) throws(CoreError) -> CoreSession {
+        try CoreSession(device: device, monitors: [], trust: trust) { config, secret, random, callbacks, out in
+            osplay_host_session_create(config, secret, random, callbacks, out)
+        }
+    }
+
+    /// Viewer: connects to `host` (name or address) on `port` and offers `monitors`.
+    public static func viewer(
+        device: SessionDevice, monitors: [MonitorDescription], host: String, port: UInt16,
+        trust: @escaping @Sendable ([UInt8]) -> TrustDecision
+    ) throws(CoreError) -> CoreSession {
+        try CoreSession(device: device, monitors: monitors, trust: trust) { config, secret, random, callbacks, out in
+            osplay_viewer_session_create(config, secret, random, callbacks, host, port, out)
+        }
+    }
+
+    private typealias Create = (
+        UnsafePointer<osplay_session_config>, UnsafePointer<UInt8>, UnsafePointer<osplay_random_source>,
+        UnsafePointer<osplay_session_callbacks>, UnsafeMutablePointer<OpaquePointer?>
+    ) -> osplay_result
+
+    private init(
+        device: SessionDevice, monitors: [MonitorDescription],
+        trust: @escaping @Sendable ([UInt8]) -> TrustDecision, create: Create
+    ) throws(CoreError) {
+        let (events, continuation) = AsyncStream.makeStream(of: SessionEvent.self)
+        let box = CallbackBox(continuation: continuation, trust: trust)
+        var created: OpaquePointer?
+        let result = withSessionConfig(device: device, monitors: monitors) { config in
+            var random = SystemRandom.source
+            var callbacks = box.callbacks
+            return device.identity.secretKey.withUnsafeBufferPointer { secret in
+                // DeviceIdentity guarantees OSPLAY_KEY_SIZE bytes.
+                guard let secret = secret.baseAddress else { return OSPLAY_ERROR_INVALID_ARGUMENT }
+                return create(config, secret, &random, &callbacks, &created)
+            }
+        }
+        if let error = CoreError(result: result) {
+            continuation.finish()
+            throw error
+        }
+        guard let created else { throw .internalFailure }
+        self.events = events
+        self.box = box
+        self.handle = SessionHandle(created)
+    }
+
+    deinit {
+        handle.destroy()
+        box.continuation.finish()
+    }
+
+    /// Host: the TCP port to advertise over Bonjour.
+    public var controlPort: UInt16 {
+        var port: UInt16 = 0
+        _ = handle.withPointer { osplay_session_control_port($0, &port) }
+        return port
+    }
+
+    /// Answers `.pairingCode` with the local user's decision.
+    public func confirmPairing(_ accepted: Bool) throws(CoreError) {
+        try check(handle.withPointer { osplay_session_confirm_pairing($0, accepted ? 1 : 0) })
+    }
+
+    /// Host: starts one stream per configuration, once, after `.viewerMonitors`.
+    public func configureStreams(_ streams: [StreamConfiguration]) throws(CoreError) {
+        let raw = streams.map(\.raw)
+        try check(
+            handle.withPointer { pointer in
+                raw.withUnsafeBufferPointer { osplay_session_configure_streams(pointer, $0.baseAddress, $0.count) }
+            })
+    }
+
+    /// Host: queues one encoded frame; the data is copied. Returns without waiting for the network.
+    public func push(_ unit: AccessUnit) throws(CoreError) {
+        try check(
+            handle.withPointer { pointer in
+                unit.data.withUnsafeBytes { bytes in
+                    var raw = osplay_access_unit(
+                        stream_id: unit.streamID, keyframe: unit.isKeyframe ? 1 : 0,
+                        codec_config: unit.carriesParameterSets ? 1 : 0, frame_id: 0,
+                        capture_time_us: unit.captureTimeMicroseconds,
+                        data: bytes.bindMemory(to: UInt8.self).baseAddress, length: bytes.count)
+                    return osplay_session_push_access_unit(pointer, &raw)
+                }
+            })
+    }
+
+    public func pauseStream(_ streamID: UInt8) throws(CoreError) {
+        try check(handle.withPointer { osplay_session_pause_stream($0, streamID) })
+    }
+
+    public func resumeStream(_ streamID: UInt8) throws(CoreError) {
+        try check(handle.withPointer { osplay_session_resume_stream($0, streamID) })
+    }
+
+    /// Sends Bye when possible and stops the I/O thread; the session reports `.closed` first.
+    /// Later commands fail with `.invalidState`.
+    public func close() {
+        handle.destroy()
+        box.continuation.finish()
+    }
+
+    private func check(_ result: osplay_result?) throws(CoreError) {
+        guard let result else { throw .invalidState }
+        if let error = CoreError(result: result) { throw error }
+    }
+}
+
+/// The core handle, destroyed exactly once. A lock orders commands against destruction.
+private final class SessionHandle: @unchecked Sendable {
+    private let lock = NSLock()
+    private var pointer: OpaquePointer?
+
+    init(_ pointer: OpaquePointer) { self.pointer = pointer }
+
+    /// `nil` once the session is destroyed.
+    func withPointer(_ body: (OpaquePointer) -> osplay_result) -> osplay_result? {
+        lock.lock()
+        defer { lock.unlock() }
+        return pointer.map(body)
+    }
+
+    func destroy() {
+        lock.lock()
+        let destroyed = pointer
+        pointer = nil
+        lock.unlock()
+        // Outside the lock: destroying joins the I/O thread, whose callbacks never take this lock.
+        osplay_session_destroy(destroyed)
+    }
+}
+
+/// Context of the C callbacks: forwards everything to the event stream.
+private final class CallbackBox: Sendable {
+    let continuation: AsyncStream<SessionEvent>.Continuation
+    let trust: @Sendable ([UInt8]) -> TrustDecision
+
+    init(continuation: AsyncStream<SessionEvent>.Continuation, trust: @escaping @Sendable ([UInt8]) -> TrustDecision) {
+        self.continuation = continuation
+        self.trust = trust
+    }
+
+    var callbacks: osplay_session_callbacks {
+        var callbacks = osplay_session_callbacks()
+        callbacks.context = Unmanaged.passUnretained(self).toOpaque()
+        callbacks.on_state = { context, state, reason in
+            CallbackBox.from(context)?.continuation.yield(
+                .state(SessionState(state), reason: CoreError(result: reason)))
+        }
+        callbacks.on_peer = { context, peer in
+            guard let peer = peer?.pointee else { return }
+            let info = PeerInfo(
+                platform: PeerPlatform(peer.platform), protocolMinor: peer.protocol_minor,
+                deviceName: peer.device_name.map { String(cString: $0) } ?? "")
+            CallbackBox.from(context)?.continuation.yield(.peer(info))
+        }
+        callbacks.on_trust_query = { context, key in
+            CallbackBox.from(context)?.trust(keyBytes(key)).raw ?? OSPLAY_TRUST_BLOCKED
+        }
+        callbacks.on_pairing_code = { context, code, key in
+            CallbackBox.from(context)?.continuation.yield(.pairingCode(code, peerPublicKey: keyBytes(key)))
+        }
+        callbacks.on_paired = { context, key in
+            CallbackBox.from(context)?.continuation.yield(.paired(peerPublicKey: keyBytes(key)))
+        }
+        callbacks.on_viewer_monitors = { context, monitors, count in
+            let list = UnsafeBufferPointer(start: monitors, count: count).map(MonitorDescription.init)
+            CallbackBox.from(context)?.continuation.yield(.viewerMonitors(list))
+        }
+        callbacks.on_stream_config = { context, config in
+            guard let config = config?.pointee else { return }
+            CallbackBox.from(context)?.continuation.yield(.streamConfiguration(StreamConfiguration(config)))
+        }
+        callbacks.on_keyframe_request = { context, streamID in
+            CallbackBox.from(context)?.continuation.yield(.keyframeRequested(streamID: streamID))
+        }
+        callbacks.on_access_unit = { context, unit in
+            guard let unit = unit?.pointee else { return }
+            let data = unit.data.map { Data(bytes: $0, count: unit.length) } ?? Data()
+            let accessUnit = AccessUnit(
+                streamID: unit.stream_id, isKeyframe: unit.keyframe == 1, carriesParameterSets: unit.codec_config == 1,
+                frameID: unit.frame_id, captureTimeMicroseconds: unit.capture_time_us, data: data)
+            CallbackBox.from(context)?.continuation.yield(.accessUnit(accessUnit))
+        }
+        callbacks.on_stats = { context, stats in
+            guard let stats = stats?.pointee else { return }
+            let statistics = SessionStatistics(
+                roundTripMicroseconds: Int(stats.rtt_us), clockOffsetMicroseconds: stats.clock_offset_us,
+                datagramsRejected: stats.datagrams_rejected,
+                streams: UnsafeBufferPointer(start: stats.streams, count: stats.stream_count).map(StreamStatistics.init)
+            )
+            CallbackBox.from(context)?.continuation.yield(.statistics(statistics))
+        }
+        callbacks.on_log = { context, level, message in
+            let text = message.map { String(cString: $0) } ?? ""
+            CallbackBox.from(context)?.continuation.yield(.log(SessionLogLevel(level), text))
+        }
+        return callbacks
+    }
+
+    /// The core passes back the context it was given; CoreSession keeps the box alive.
+    static func from(_ context: UnsafeMutableRawPointer?) -> CallbackBox? {
+        context.map { Unmanaged<CallbackBox>.fromOpaque($0).takeUnretainedValue() }
+    }
+}
+
+private func keyBytes(_ key: UnsafePointer<UInt8>?) -> [UInt8] {
+    guard let key else { return [] }
+    return Array(UnsafeBufferPointer(start: key, count: Int(OSPLAY_KEY_SIZE)))
+}
+
+/// Builds the C configuration; every string stays valid for the duration of `body`.
+private func withSessionConfig(
+    device: SessionDevice, monitors: [MonitorDescription],
+    _ body: (UnsafePointer<osplay_session_config>) -> osplay_result
+) -> osplay_result {
+    let names: [UnsafeMutablePointer<CChar>?] = monitors.map { strdup($0.name) }
+    defer { names.forEach { free($0) } }
+    let rawMonitors = zip(monitors, names).map { monitor, name in
+        osplay_monitor(
+            monitor_id: monitor.id, width_px: UInt16(clamping: monitor.widthPixels),
+            height_px: UInt16(clamping: monitor.heightPixels), refresh_millihertz: monitor.refreshMillihertz,
+            physical_width_mm: UInt16(clamping: monitor.physicalWidthMillimeters),
+            physical_height_mm: UInt16(clamping: monitor.physicalHeightMillimeters),
+            scale_percent: UInt16(clamping: monitor.scalePercent), name: UnsafePointer(name))
+    }
+    return device.name.withCString { name in
+        rawMonitors.withUnsafeBufferPointer { monitorBuffer in
+            var config = osplay_session_config(
+                platform: PeerPlatform.macOS.raw, device_name: name, capabilities: device.capabilities.raw,
+                monitors: monitorBuffer.isEmpty ? nil : monitorBuffer.baseAddress, monitor_count: monitorBuffer.count)
+            return body(&config)
+        }
+    }
+}

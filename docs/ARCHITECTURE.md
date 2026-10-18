@@ -75,6 +75,41 @@ Behavior measured on a MacBook Air M3, macOS 26.6, lid open (Phase 1):
 | `applySettings` on a live display changes its modes without changing its display ID. | Remote monitor changes do not recreate the display. |
 | A process that has already read display information (every AppKit app does at launch) sees **no modes** for a display it creates later, until it processes window server notifications on its run loop — a few hundred milliseconds in an app. A command-line process without `NSApplication` never sees them, although other processes do. | `VirtualDisplayHandle.waitUntilReady()` waits (asynchronously, with a timeout) before any resolution is read or changed. Displays are created first and configured afterwards, so one slow display does not block the other. |
 
+## Host media pipeline on macOS
+
+`HostSession` (`macos/Osplay/Features/Host/`) is an actor that owns one host session: the core
+session (`CoreSession` from CoreBridge), the virtual displays standing in for the viewer's
+monitors, and one `StreamPipeline` per display.
+
+```
+ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─► core
+                         │
+          ScreenCaptureKit (420v IOSurface) ─► VideoToolbox H.264 ─► Annex B ─► core push
+```
+
+- **Displays.** `VirtualDisplayLender` creates one virtual display per offered monitor (at most
+  two), waits until it is ready and activates the crisp HiDPI resolution, so the capture backing
+  equals the remote monitor's pixels. All displays are returned when the session ends.
+- **Capture** (`Services/ScreenCapture/`). One `SCStream` per display at the stream's pixel size
+  and refresh rate, 420v pixel format, BT.709, cursor composited. Only samples with status
+  complete or started are frames; an unchanged screen produces nothing and the viewer keeps its
+  last frame. `stream(_:didStopWithError:)` ends the session with a mapped reason; revoking Screen
+  Recording arrives as `permissionDenied`.
+- **Encode** (`Services/VideoEncoding/`). One `VTCompressionSession` per stream with low-latency
+  rate control (realtime fallback without it), no frame reordering, a 60 s safety-net keyframe
+  interval and keyframes on request. Output is converted from AVCC to Annex B with SPS and PPS in
+  front of every keyframe. Pixels are never copied: the IOSurface goes from ScreenCaptureKit to
+  VideoToolbox; only the encoded bitstream is copied into the core.
+- **Keyframes on idle screens.** A keyframe request re-encodes the last captured frame at once,
+  so a viewer that joins or recovers from loss does not wait until something on screen moves.
+- **Threading.** Each pipeline runs capture callbacks and encode calls on its own serial queue;
+  encoder output is pushed to the core from VideoToolbox's thread (`push` only queues). Session
+  events are handled on the actor; nothing in the frame path hops through it.
+- **Debug dump.** With a dump directory, `StreamDump` appends each stream's Annex B output to
+  `osplay-<time>-stream<N>-<W>x<H>.h264` on a background queue (playable with IINA, VLC, ffplay).
+  The debug menu's "Host media test" runs the whole pipeline over loopback into an in-process
+  viewer and shows pacing, bitrate and latency per stream.
+
 ## Virtual Display Driver control surface (Windows)
 
 Findings from reading the driver source (VirtualDrivers/Virtual-Display-Driver, `master` at

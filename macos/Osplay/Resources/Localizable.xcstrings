@@ -103,6 +103,176 @@
         }
       }
     },
+    "developer.hostTest.bitrate %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ Mbit/s · latency %2$@ ms"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ Mbit/s · gecikme %2$@ ms"
+          }
+        }
+      }
+    },
+    "developer.hostTest.captured %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host captures %@ fps"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host %@ fps yakalıyor"
+          }
+        }
+      }
+    },
+    "developer.hostTest.dump" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save streams as .h264 (~/Movies/Osplay)"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Akışları .h264 olarak kaydet (~/Movies/Osplay)"
+          }
+        }
+      }
+    },
+    "developer.hostTest.pacing %@ %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viewer receives %1$@ fps · p99 %2$@ ms · max %3$@ ms"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viewer %1$@ fps alıyor · p99 %2$@ ms · en çok %3$@ ms"
+          }
+        }
+      }
+    },
+    "developer.hostTest.revealDumps" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show files"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dosyaları göster"
+          }
+        }
+      }
+    },
+    "developer.hostTest.start" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Başlat"
+          }
+        }
+      }
+    },
+    "developer.hostTest.stop" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durdur"
+          }
+        }
+      }
+    },
+    "developer.hostTest.stream %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stream %1$lld · %2$@"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Akış %1$lld · %2$@"
+          }
+        }
+      }
+    },
+    "developer.hostTest.streams" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streams"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Akışlar"
+          }
+        }
+      }
+    },
+    "developer.hostTest.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host media test"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host medya testi"
+          }
+        }
+      }
+    },
     "developer.noDisplays" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -167,6 +337,159 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Geliştirici"
+          }
+        }
+      }
+    },
+    "error.capture.displayNotFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A shared display disappeared. Connect again to recreate it."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paylaşılan bir ekran kayboldu. Yeniden oluşturmak için tekrar bağlanın."
+          }
+        }
+      }
+    },
+    "error.capture.failed %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Screen capture failed (error %lld). Connect again; if it keeps happening, restart the Mac."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ekran yakalama başarısız oldu (hata %lld). Tekrar bağlanın; sorun sürerse Mac'i yeniden başlatın."
+          }
+        }
+      }
+    },
+    "error.capture.permissionRevoked" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Screen Recording permission was turned off, so sharing stopped. Turn it back on in System Settings → Privacy & Security → Screen Recording, then connect again."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ekran Kaydı izni kapatıldığı için paylaşım durdu. Sistem Ayarları → Gizlilik ve Güvenlik → Ekran Kaydı bölümünden yeniden açın ve tekrar bağlanın."
+          }
+        }
+      }
+    },
+    "error.capture.stoppedBySystem" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS stopped screen sharing. Connect again to resume."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS ekran paylaşımını durdurdu. Devam etmek için tekrar bağlanın."
+          }
+        }
+      }
+    },
+    "error.capture.stoppedByUser" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Screen sharing was stopped from the menu bar."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ekran paylaşımı menü çubuğundan durduruldu."
+          }
+        }
+      }
+    },
+    "error.encoder.failed %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video encoding stopped (error %lld). Connect again."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video kodlama durdu (hata %lld). Tekrar bağlanın."
+          }
+        }
+      }
+    },
+    "error.encoder.unavailable %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The video encoder could not start (error %lld). Close apps that record or stream video and try again."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video kodlayıcı başlatılamadı (hata %lld). Video kaydeden veya yayınlayan uygulamaları kapatıp tekrar deneyin."
+          }
+        }
+      }
+    },
+    "error.host.screenRecordingMissing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay needs Screen Recording permission to share your displays. Turn it on in System Settings → Privacy & Security → Screen Recording."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ekranlarınızı paylaşmak için Osplay'in Ekran Kaydı iznine ihtiyacı var. Sistem Ayarları → Gizlilik ve Güvenlik → Ekran Kaydı bölümünden açın."
+          }
+        }
+      }
+    },
+    "error.host.session %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The connection to the other device failed (error %lld). Try connecting again."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diğer cihazla bağlantı kesildi (hata %lld). Yeniden bağlanmayı deneyin."
           }
         }
       }
@@ -324,6 +647,23 @@
         }
       }
     },
+    "host.displayName %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay Display %lld"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay Ekranı %lld"
+          }
+        }
+      }
+    },
     "menu.coreVersion %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -354,6 +694,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Osplay'den Çık"
+          }
+        }
+      }
+    },
+    "permission.screenRecording.open" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Screen Recording Settings"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ekran Kaydı Ayarlarını Aç"
           }
         }
       }

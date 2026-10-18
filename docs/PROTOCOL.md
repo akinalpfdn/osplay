@@ -285,7 +285,7 @@ The host learns the viewer's UDP endpoint from the first valid UdpHello.
 | frame_id | u32 | per stream, +1 per encoded frame |
 | fragment_index | u16 | < fragment_count |
 | fragment_count | u16 | 1–4096 |
-| capture_time_us | u64 | host clock at capture |
+| capture_time_us | u64 | host monotonic clock at capture (µs, keeps counting during sleep) |
 | payload | bytes | 1–1154 bytes of the frame's H.264 Annex B access unit, to the end of the body |
 
 Fragments of one frame carry consecutive slices of the access unit in order. Every fragment but the

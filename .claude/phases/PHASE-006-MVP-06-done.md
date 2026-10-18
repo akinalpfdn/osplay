@@ -1,5 +1,5 @@
 # Phase 006 (MVP-06) — Transport and session
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 5. Depends on: Phase 4.
 

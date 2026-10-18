@@ -185,3 +185,40 @@ choices the plan leaves open are logged here.
 **Revisit if:** The header moves to C23 enums with a fixed underlying type.
 
 ---
+
+## 2026-10-17 — Keyframes for unchanged screens re-encode the last frame
+**Chosen:** A keyframe request makes the host encode the last captured frame again immediately, as a keyframe with a fresh timestamp.
+**Alternatives:** Wait for the next captured frame; capture periodic frames on idle screens.
+**Why:** ScreenCaptureKit produces no frames while nothing changes, so a viewer that starts or recovers from loss would see nothing until the screen moves. Re-encoding the retained IOSurface costs one encode and no capture.
+**Trade-offs:** One extra capture buffer stays retained per stream (queue depth raised to 5).
+**Revisit if:** ScreenCaptureKit gains a way to request a frame on demand.
+
+---
+
+## 2026-10-17 — Low-latency rate control with a realtime fallback
+**Chosen:** VideoToolbox sessions request `EnableLowLatencyRateControl`; if creation fails, a plain realtime session is used and logged. Only realtime, no reordering, profile and bitrate are mandatory properties; frame rate, keyframe interval, color tags, speed priority and peak data rate are applied when supported.
+**Alternatives:** Fail when low-latency mode is unavailable; require hardware encoding.
+**Why:** Apple Silicon supports low-latency mode, but virtual machines (CI) and older encoders may not; failing there would make the pipeline untestable and brittle across macOS releases.
+**Trade-offs:** On the fallback path rate control allows larger bursts and slightly higher latency.
+**Revisit if:** Telemetry shows the fallback on real user hardware.
+
+---
+
+## 2026-10-17 — Debug host test streams to an in-process viewer
+**Chosen:** The Phase 6 acceptance harness runs a real host session (virtual displays, ScreenCaptureKit, VideoToolbox, core) over loopback into a headless core viewer in the same app, which measures pacing, bitrate and latency; a moving test pattern fills each virtual display.
+**Alternatives:** Measure only at the encoder output; wait for the Phase 7 viewer.
+**Why:** It exercises the whole host path including packetization and reassembly, without a second device or decoder, and the pacing figures are what the viewer will actually receive.
+**Trade-offs:** Debug-only code that Phase 7's visual loopback partly supersedes.
+**Revisit if:** Phase 7's loopback viewer covers the same measurements.
+
+---
+
+## 2026-10-18 — Capture interval with headroom
+**Chosen:** `SCStreamConfiguration.minimumFrameInterval` is half the stream's frame interval (`Tunables.Capture.frameRateHeadroom = 2`).
+**Alternatives:** Exactly one frame interval (1/60 s).
+**Why:** Measured on the M3 Air with two 1440p60 virtual displays: with exactly 1/60 s ScreenCaptureKit dropped frames that arrived slightly early (56.3 fps, frequent 33 ms gaps); with headroom 59.1 fps and a p99 interval of 21.5 ms. The virtual display's refresh rate still caps the frame rate, so the headroom adds no frames.
+**Trade-offs:** If a display ever refreshes faster than the stream, capture could exceed the stream's rate.
+**Revisit if:** Virtual displays run at a higher refresh than their stream.
+
+---
+

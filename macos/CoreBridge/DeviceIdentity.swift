@@ -1,5 +1,4 @@
 import OsplayCore
-import Security
 
 /// This device's static key pair (docs/SECURITY_MODEL.md). The app stores `secretKey` in the
 /// Keychain; core never persists it.
@@ -9,7 +8,7 @@ public struct DeviceIdentity: Sendable {
 
     /// A new identity from the system's cryptographically secure random generator.
     public static func generate() throws(CoreError) -> DeviceIdentity {
-        var source = osplay_random_source(fill: systemRandom, context: nil)
+        var source = SystemRandom.source
         var secret = [UInt8](repeating: 0, count: Int(OSPLAY_KEY_SIZE))
         var publicKey = [UInt8](repeating: 0, count: Int(OSPLAY_KEY_SIZE))
         let result = osplay_identity_generate(&source, &secret, &publicKey)
@@ -45,13 +44,4 @@ public struct DeviceIdentity: Sendable {
             return byte < 0x10 ? "0" + hex : hex
         }.joined()
     }
-}
-
-/// `osplay_random_source.fill` backed by SecRandomCopyBytes.
-private func systemRandom(
-    _ context: UnsafeMutableRawPointer?, _ buffer: UnsafeMutablePointer<UInt8>?, _ length: Int
-) -> osplay_result {
-    guard let buffer else { return OSPLAY_ERROR_INVALID_ARGUMENT }
-    return SecRandomCopyBytes(kSecRandomDefault, length, buffer) == errSecSuccess
-        ? OSPLAY_OK : OSPLAY_ERROR_RANDOM_UNAVAILABLE
 }

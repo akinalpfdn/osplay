@@ -9,7 +9,7 @@ struct CoreErrorTests {
         #expect(CoreError(result: OSPLAY_OK) == nil)
     }
 
-    @Test("Every known result code maps to its own case and back", arguments: 1...16)
+    @Test("Every known result code maps to its own case and back", arguments: 1...26)
     func knownCodesRoundTrip(_ code: Int) throws {
         let error = try #require(CoreError(result: osplay_result(rawValue: UInt32(code))))
         #expect(error.code == UInt32(code))

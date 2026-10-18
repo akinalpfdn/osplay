@@ -5,6 +5,7 @@ import SwiftUI
 struct MenuContentView: View {
     #if DEBUG
         let developerDisplays: DeveloperDisplaysViewModel
+        let developerHostTest: DeveloperHostTestViewModel
     #endif
     private let coreVersion = CoreVersion.linked
 
@@ -18,6 +19,8 @@ struct MenuContentView: View {
             #if DEBUG
                 Divider()
                 DeveloperDisplaysView(viewModel: developerDisplays)
+                Divider()
+                DeveloperHostTestView(viewModel: developerHostTest)
             #endif
             Divider()
             Button("menu.quit") {
