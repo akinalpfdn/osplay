@@ -15,7 +15,7 @@ The Mac can receive and display a stream full screen on its built-in screen with
 
 ## Acceptance Criteria
 - [x] Loopback on the Mac shows the virtual display content smoothly at 60 fps.
-- [ ] Hotkey always exits full screen, even when frames stop arriving.
+- [x] Hotkey always exits full screen, even when frames stop arriving.
 - [x] Decoder recovers from injected corruption via IDR within one second.
 
 ## Decisions Made This Phase
