@@ -229,6 +229,52 @@ public struct AccessUnit: Sendable, Equatable {
     }
 }
 
+/// A cursor image for streams with a separate cursor: premultiplied BGRA, rows top to bottom.
+public struct CursorShape: Sendable, Equatable {
+    public let streamID: UInt8
+    /// Changes whenever the image changes.
+    public let shapeID: UInt32
+    public let width: Int
+    public let height: Int
+    public let hotspotX: Int
+    public let hotspotY: Int
+    public let bgra: Data
+
+    public init(
+        streamID: UInt8, shapeID: UInt32, width: Int, height: Int, hotspotX: Int, hotspotY: Int, bgra: Data
+    ) {
+        self.streamID = streamID
+        self.shapeID = shapeID
+        self.width = width
+        self.height = height
+        self.hotspotX = hotspotX
+        self.hotspotY = hotspotY
+        self.bgra = bgra
+    }
+}
+
+/// Where the cursor's hotspot is, in stream pixels (may lie outside the stream).
+public struct CursorPosition: Sendable, Equatable {
+    public let streamID: UInt8
+    public let isVisible: Bool
+    public let shapeID: UInt32
+    public let x: Int32
+    public let y: Int32
+    /// Core clock, microseconds.
+    public let captureTimeMicroseconds: UInt64
+
+    public init(
+        streamID: UInt8, isVisible: Bool, shapeID: UInt32, x: Int32, y: Int32, captureTimeMicroseconds: UInt64
+    ) {
+        self.streamID = streamID
+        self.isVisible = isVisible
+        self.shapeID = shapeID
+        self.x = x
+        self.y = y
+        self.captureTimeMicroseconds = captureTimeMicroseconds
+    }
+}
+
 public struct StreamStatistics: Sendable, Equatable {
     public let streamID: UInt8
     public let lossPermille: Int
@@ -293,6 +339,10 @@ public enum SessionEvent: Sendable {
     case keyframeRequested(streamID: UInt8)
     /// Viewer: a complete frame, in order.
     case accessUnit(AccessUnit)
+    /// Viewer: a new cursor image (separate cursor mode).
+    case cursorShape(CursorShape)
+    /// Viewer: the newest cursor position.
+    case cursorPosition(CursorPosition)
     case statistics(SessionStatistics)
     case log(SessionLogLevel, String)
 }

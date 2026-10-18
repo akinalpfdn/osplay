@@ -105,6 +105,29 @@ public final class CoreSession: Sendable {
             })
     }
 
+    /// Host: a new cursor image; it is resent after every keyframe.
+    public func push(_ shape: CursorShape) throws(CoreError) {
+        try check(
+            handle.withPointer { pointer in
+                shape.bgra.withUnsafeBytes { bytes in
+                    var raw = osplay_cursor_shape(
+                        stream_id: shape.streamID, shape_id: shape.shapeID, width: UInt16(clamping: shape.width),
+                        height: UInt16(clamping: shape.height), hotspot_x: UInt16(clamping: shape.hotspotX),
+                        hotspot_y: UInt16(clamping: shape.hotspotY),
+                        bgra: bytes.bindMemory(to: UInt8.self).baseAddress, length: bytes.count)
+                    return osplay_session_push_cursor_shape(pointer, &raw)
+                }
+            })
+    }
+
+    /// Host: where the cursor is; at most once per refresh.
+    public func push(_ position: CursorPosition) throws(CoreError) {
+        var raw = osplay_cursor_position(
+            stream_id: position.streamID, visible: position.isVisible ? 1 : 0, shape_id: position.shapeID,
+            x: position.x, y: position.y, capture_time_us: position.captureTimeMicroseconds)
+        try check(handle.withPointer { osplay_session_push_cursor_position($0, &raw) })
+    }
+
     public func pauseStream(_ streamID: UInt8) throws(CoreError) {
         try check(handle.withPointer { osplay_session_pause_stream($0, streamID) })
     }
@@ -201,6 +224,22 @@ private final class CallbackBox: Sendable {
                 streamID: unit.stream_id, isKeyframe: unit.keyframe == 1, carriesParameterSets: unit.codec_config == 1,
                 frameID: unit.frame_id, captureTimeMicroseconds: unit.capture_time_us, data: data)
             CallbackBox.from(context)?.continuation.yield(.accessUnit(accessUnit))
+        }
+        callbacks.on_cursor_shape = { context, shape in
+            guard let shape = shape?.pointee else { return }
+            let image = shape.bgra.map { Data(bytes: $0, count: shape.length) } ?? Data()
+            let cursor = CursorShape(
+                streamID: shape.stream_id, shapeID: shape.shape_id, width: Int(shape.width),
+                height: Int(shape.height), hotspotX: Int(shape.hotspot_x), hotspotY: Int(shape.hotspot_y),
+                bgra: image)
+            CallbackBox.from(context)?.continuation.yield(.cursorShape(cursor))
+        }
+        callbacks.on_cursor_position = { context, position in
+            guard let position = position?.pointee else { return }
+            let cursor = CursorPosition(
+                streamID: position.stream_id, isVisible: position.visible == 1, shapeID: position.shape_id,
+                x: position.x, y: position.y, captureTimeMicroseconds: position.capture_time_us)
+            CallbackBox.from(context)?.continuation.yield(.cursorPosition(cursor))
         }
         callbacks.on_stats = { context, stats in
             guard let stats = stats?.pointee else { return }

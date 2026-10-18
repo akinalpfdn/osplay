@@ -70,6 +70,22 @@ struct CoreSessionTests {
         }
         #expect(received == payloads)
 
+        let image = Data((0..<(20 * 20 * 4)).map { UInt8(truncatingIfNeeded: $0) })
+        try host.push(
+            CursorShape(streamID: 0, shapeID: 3, width: 20, height: 20, hotspotX: 1, hotspotY: 1, bgra: image))
+        try host.push(
+            CursorPosition(streamID: 0, isVisible: true, shapeID: 3, x: 10, y: 20, captureTimeMicroseconds: 1))
+        let shape = try #require(
+            await viewerEvents.next { event in
+                if case .cursorShape(let shape) = event { shape } else { nil }
+            })
+        #expect(shape.bgra == image && shape.shapeID == 3)
+        let position = try #require(
+            await viewerEvents.next { event in
+                if case .cursorPosition(let position) = event { position } else { nil }
+            })
+        #expect(position.x == 10 && position.y == 20)
+
         viewer.close()
         let reason = await hostEvents.next { event in
             if case .state(.closed, let reason) = event { reason } else { nil }
