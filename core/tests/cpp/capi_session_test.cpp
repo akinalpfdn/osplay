@@ -267,8 +267,11 @@ TEST(CapiSession, PairsConfiguresAndStreamsOverLoopback) {
     bad.length = 10;
     EXPECT_EQ(osplay_session_push_cursor_shape(host, &bad), OSPLAY_ERROR_INVALID_ARGUMENT);
 
-    osplay_session_destroy(viewer);
+    ASSERT_EQ(osplay_session_close(viewer), OSPLAY_OK);
+    EXPECT_TRUE(viewer_side.wait([](Side& side) { return side.state == OSPLAY_SESSION_CLOSED; }));
     EXPECT_TRUE(host_side.wait([](Side& side) { return side.state == OSPLAY_SESSION_CLOSED; }));
+    EXPECT_EQ(osplay_session_confirm_pairing(viewer, 1), OSPLAY_ERROR_INVALID_STATE);
+    osplay_session_destroy(viewer);
     osplay_session_destroy(host);
 }
 
