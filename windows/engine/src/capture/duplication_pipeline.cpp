@@ -6,6 +6,7 @@
 #include "encode/nv12_converter.hpp"
 #include "engine_tunables.hpp"
 #include "media/frame_pacer.hpp"
+#include "media/media_thread_scope.hpp"
 
 #include <osplay/osplay.h>
 
@@ -34,32 +35,6 @@ namespace {
 
 /// NV12 textures in rotation: the encoder may still read one while the next is converted.
 constexpr std::size_t kNv12Ring = MfH264Encoder::kMaxPendingInputs + 4;
-
-/// COM and Media Foundation for the calling thread, for the lifetime of the object.
-class MediaThreadScope {
-public:
-    MediaThreadScope()
-        : com_(SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED))),
-          media_foundation_(SUCCEEDED(MFStartup(MF_VERSION, MFSTARTUP_LITE))) {}
-    ~MediaThreadScope() {
-        if (media_foundation_) {
-            static_cast<void>(MFShutdown());
-        }
-        if (com_) {
-            CoUninitialize();
-        }
-    }
-    MediaThreadScope(const MediaThreadScope&) = delete;
-    MediaThreadScope& operator=(const MediaThreadScope&) = delete;
-    MediaThreadScope(MediaThreadScope&&) = delete;
-    MediaThreadScope& operator=(MediaThreadScope&&) = delete;
-
-    [[nodiscard]] bool ready() const { return com_ && media_foundation_; }
-
-private:
-    bool com_;
-    bool media_foundation_;
-};
 
 /// 1 ms timer resolution while capturing: waits otherwise round up to 15.6 ms and frames miss
 /// their slot. Windows 11 ignores the request for processes without visible windows unless they

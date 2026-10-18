@@ -17,6 +17,7 @@ if(WIN32)
         src/capi/host_capi.cpp
         src/capture/duplication_pipeline.cpp
         src/capture/dxgi_output.cpp
+        src/display/display_config.cpp
         src/display/gdi_display_mode_applier.cpp
         src/display/pipe_helper_channel.cpp
         src/display/vdd_monitor.cpp
