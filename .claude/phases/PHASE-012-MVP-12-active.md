@@ -15,7 +15,7 @@ A simple, clean, finished Mac interface.
 
 ## Acceptance Criteria
 - [x] No hardcoded strings, colors, fonts or spacing in views (enforced by review checklist and a lint rule where possible).
-- [ ] Switching the system language and appearance updates the UI correctly.
+- [x] Switching the system language and appearance updates the UI correctly.
 - [x] Every error code from `core` and services maps to a localized, actionable message.
 
 ## Decisions Made This Phase
