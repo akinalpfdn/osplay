@@ -1,8 +1,10 @@
 # Platform-independent engine logic, linked into the DLL and its tests.
 add_library(osplay_engine_logic STATIC
+    src/discovery/txt_mapping.cpp
     src/display/helper_virtual_display_provider.cpp
     src/host/host_orchestrator.cpp
     src/host/stream_dump.cpp
+    src/keystore/peer_list.cpp
     src/media/h264_stream.cpp
     src/media/pointer_shape.cpp
     src/viewer/monitor_layout.cpp
@@ -52,6 +54,8 @@ if(OSPLAY_CORE_BUILD_TESTS)
         tests/helper_virtual_display_provider_test.cpp
         tests/host_orchestrator_test.cpp
         tests/monitor_layout_test.cpp
+        tests/peer_list_test.cpp
+        tests/txt_mapping_test.cpp
         tests/pointer_shape_test.cpp
         tests/viewer_orchestrator_test.cpp)
     target_link_libraries(osplay_engine_tests PRIVATE osplay_engine_logic osplay::warnings GTest::gtest_main)
