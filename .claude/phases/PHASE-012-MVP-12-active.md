@@ -22,4 +22,6 @@ A simple, clean, finished Mac interface.
 (append as you go; full entries go to DECISIONS.md)
 - User decision: native macOS look — system fonts and colours, SF Symbols, a Control Center–like menu bar window, one accent colour, follows light/dark automatically.
 - User decision: hotkeys are recordable in Settings (click the field, press the new combination; conflicts are reported).
+- User decision: hosting role named "Extend this Mac"; roles as cards; Settings and Quit as header icons; every caption wraps.
+- Osplay arranges the virtual displays itself (per-device position): System Settings showed no Arrange button.
 - User decision: the stats overlay is a small translucent box in a corner of the watched display, switched on in Settings.

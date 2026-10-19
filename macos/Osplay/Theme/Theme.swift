@@ -24,6 +24,8 @@ enum Theme {
     enum Colors {
         static let error = Color(.errorText)
         static let accent = Color.accentColor
+        static let onAccent = Color.white
+        static let primary = Color.primary
         static let success = Color.green
         static let warning = Color.orange
         static let secondary = Color.secondary

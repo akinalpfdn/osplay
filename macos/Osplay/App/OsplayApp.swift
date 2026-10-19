@@ -18,15 +18,15 @@ struct OsplayApp: App {
         self.dependencies = dependencies
         let connection = ConnectionViewModel(dependencies: dependencies)
         _connection = State(initialValue: connection)
-        _settings = State(
-            initialValue: SettingsViewModel(
-                settings: dependencies.settings, connection: connection, launchAtLogin: SystemLaunchAtLogin(),
-                hotkeys: dependencies.hotkeys, logs: UnifiedLogExporter()))
         let onboardingModel = OnboardingViewModel(
             permissions: dependencies.permissions, localNetworkCheck: BonjourLocalNetworkCheck(),
             settings: dependencies.settings)
         let onboarding = OnboardingWindow(viewModel: onboardingModel)
         self.onboarding = onboarding
+        _settings = State(
+            initialValue: SettingsViewModel(
+                settings: dependencies.settings, connection: connection, launchAtLogin: SystemLaunchAtLogin(),
+                hotkeys: dependencies.hotkeys, logs: UnifiedLogExporter(), showPermissions: onboarding.show))
         AppDelegate.onLaunch = {
             if onboardingModel.needsAttention { onboarding.show() }
         }

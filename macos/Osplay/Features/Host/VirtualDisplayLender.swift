@@ -12,11 +12,11 @@ struct LentDisplay: Sendable, Hashable {
 /// without the window server.
 @MainActor
 protocol DisplayLending: AnyObject, Sendable {
-    /// One display per monitor, ready and set to the crisp resolution. All or nothing.
+    /// One display per monitor, ready, in the HiDPI choice's resolution and at `placement`. All or
+    /// nothing.
     func lend(
-        _ monitors: [MonitorDescription], peerID: Data, hiDPI: HiDPIChoice
-    ) async throws(VirtualDisplayError)
-        -> [LentDisplay]
+        _ monitors: [MonitorDescription], peerID: Data, hiDPI: HiDPIChoice, placement: DisplayPlacement
+    ) async throws(VirtualDisplayError) -> [LentDisplay]
     func returnDisplay(_ displayID: CGDirectDisplayID)
     func returnAll()
 }
@@ -26,26 +26,42 @@ final class VirtualDisplayLender: DisplayLending {
     private let provider: any VirtualDisplayProviding
     private let isHiDPI: Bool
 
-    init(provider: any VirtualDisplayProviding, isHiDPI: Bool = Tunables.Host.defaultHiDPI) {
+    typealias Arrange =
+        @MainActor ([(id: CGDirectDisplayID, size: CGSize)], DisplayPlacement) throws(VirtualDisplayError) -> Void
+    private let arrange: Arrange
+
+    init(
+        provider: any VirtualDisplayProviding, isHiDPI: Bool = Tunables.Host.defaultHiDPI,
+        arrange: @escaping Arrange = DisplayArranger.arrange
+    ) {
         self.provider = provider
         self.isHiDPI = isHiDPI
+        self.arrange = arrange
     }
 
     func lend(
-        _ monitors: [MonitorDescription], peerID: Data, hiDPI: HiDPIChoice
-    ) async throws(VirtualDisplayError)
-        -> [LentDisplay]
-    {
+        _ monitors: [MonitorDescription], peerID: Data, hiDPI: HiDPIChoice, placement: DisplayPlacement
+    ) async throws(VirtualDisplayError) -> [LentDisplay] {
         returnAll()
         do throws(VirtualDisplayError) {
             var lent: [(MonitorDescription, any VirtualDisplayHandle)] = []
             for (index, monitor) in monitors.enumerated() {
                 lent.append((monitor, try provider.createDisplay(configuration(monitor, index: index, peerID: peerID))))
             }
+            var arranged: [(id: CGDirectDisplayID, size: CGSize)] = []
             for (monitor, handle) in lent {
                 try await handle.waitUntilReady()
-                try handle.activate(
-                    Self.initialResolution(for: monitor, choice: hiDPI, configuration: handle.configuration))
+                let resolution = Self.initialResolution(
+                    for: monitor, choice: hiDPI, configuration: handle.configuration)
+                try handle.activate(resolution)
+                let points = resolution.points
+                arranged.append((handle.displayID, CGSize(width: points.width, height: points.height)))
+            }
+            do throws(VirtualDisplayError) {
+                try arrange(arranged, placement)
+            } catch {
+                // The displays work anywhere; the user can still move them in System Settings.
+                Log.virtualDisplay.error("Arranging displays failed: \(String(describing: error), privacy: .public)")
             }
             return lent.map { LentDisplay(monitor: $0.0, displayID: $0.1.displayID) }
         } catch {

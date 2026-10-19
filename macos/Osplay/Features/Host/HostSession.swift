@@ -20,6 +20,7 @@ struct HostDisplayPolicy: Sendable {
     /// arrangement per viewer.
     var peerID: Data
     var hiDPI: HiDPIChoice = .automatic
+    var placement: DisplayPlacement = .right
     var quality: QualityPreset = .high
 }
 
@@ -147,7 +148,8 @@ actor HostSession {
         let policy = await policy()
         let lent: [LentDisplay]
         do {
-            lent = try await displays.lend(offered, peerID: policy.peerID, hiDPI: policy.hiDPI)
+            lent = try await displays.lend(
+                offered, peerID: policy.peerID, hiDPI: policy.hiDPI, placement: policy.placement)
         } catch {
             end(with: .display(error))
             return

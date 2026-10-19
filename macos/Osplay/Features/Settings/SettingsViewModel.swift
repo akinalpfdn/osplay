@@ -18,11 +18,13 @@ final class SettingsViewModel {
     private let launchAtLogin: any LaunchAtLoginManaging
     private let hotkeys: any HotkeyRegistering
     private let logs: any LogExporting
+    private let showPermissions: @MainActor () -> Void
 
     init(
         settings: AppSettings, connection: ConnectionViewModel, launchAtLogin: any LaunchAtLoginManaging,
-        hotkeys: any HotkeyRegistering, logs: any LogExporting
+        hotkeys: any HotkeyRegistering, logs: any LogExporting, showPermissions: @escaping @MainActor () -> Void
     ) {
+        self.showPermissions = showPermissions
         self.settings = settings
         self.connection = connection
         self.launchAtLogin = launchAtLogin
@@ -71,6 +73,8 @@ final class SettingsViewModel {
         message = nil
     }
 
+    func openPermissions() { showPermissions() }
+
     // MARK: Displays and devices
 
     func hiDPIChoice(for peer: TrustedPeer) -> HiDPIChoice {
@@ -79,6 +83,14 @@ final class SettingsViewModel {
 
     func setHiDPIChoice(_ choice: HiDPIChoice, for peer: TrustedPeer) {
         settings.setHiDPIChoice(choice, for: DeviceIdentity.deviceID(publicKey: peer.publicKey))
+    }
+
+    func placement(for peer: TrustedPeer) -> DisplayPlacement {
+        settings.placement(for: DeviceIdentity.deviceID(publicKey: peer.publicKey))
+    }
+
+    func setPlacement(_ placement: DisplayPlacement, for peer: TrustedPeer) {
+        settings.setPlacement(placement, for: DeviceIdentity.deviceID(publicKey: peer.publicKey))
     }
 
     func rename(_ peer: TrustedPeer, to name: String) { connection.rename(peer, to: name) }

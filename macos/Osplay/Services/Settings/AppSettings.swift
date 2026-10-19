@@ -38,6 +38,20 @@ final class AppSettings {
         showsStatsOverlay = defaults.bool(forKey: Key.statsOverlay)
         hasCompletedOnboarding = defaults.bool(forKey: Key.onboarding)
         hiDPIChoices = Self.load([String: HiDPIChoice].self, from: defaults, forKey: Key.hiDPIChoices) ?? [:]
+        placements = Self.load([String: DisplayPlacement].self, from: defaults, forKey: Key.placements) ?? [:]
+    }
+
+    /// Per paired device (by device ID), where its displays sit next to this Mac.
+    private(set) var placements: [String: DisplayPlacement] {
+        didSet { save(placements, forKey: Key.placements) }
+    }
+
+    func placement(for deviceID: String) -> DisplayPlacement {
+        placements[deviceID] ?? .right
+    }
+
+    func setPlacement(_ placement: DisplayPlacement, for deviceID: String) {
+        placements[deviceID] = placement == .right ? nil : placement
     }
 
     func hiDPIChoice(for deviceID: String) -> HiDPIChoice {
@@ -70,5 +84,6 @@ final class AppSettings {
         static let statsOverlay = "showsStatsOverlay"
         static let hiDPIChoices = "hiDPIChoices"
         static let onboarding = "hasCompletedOnboarding"
+        static let placements = "displayPlacements"
     }
 }

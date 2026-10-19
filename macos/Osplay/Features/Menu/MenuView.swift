@@ -15,7 +15,10 @@ struct MenuView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.large) {
             MenuHeader(status: connection.status)
-            RolePicker(connection: connection)
+            if needsPermissions {
+                PermissionsBanner(open: openOnboarding)
+            }
+            RoleCards(connection: connection)
 
             switch connection.mode {
             case .off:
@@ -30,10 +33,8 @@ struct MenuView: View {
                 ErrorBanner(error: error, connection: connection)
             }
 
-            Divider()
-            MenuFooter(openOnboarding: openOnboarding)
-
             #if DEBUG
+                Divider()
                 DisclosureGroup("developer.tools") {
                     developer.view
                 }
@@ -42,6 +43,10 @@ struct MenuView: View {
         }
         .padding(Theme.Spacing.large)
         .frame(width: Theme.Size.menuWidth, alignment: .leading)
+    }
+
+    private var needsPermissions: Bool {
+        !connection.hasScreenRecordingAccess || connection.error?.needsLocalNetworkPermission == true
     }
 }
 
@@ -56,14 +61,35 @@ private struct MenuHeader: View {
     let status: ConnectionViewModel.Status
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.small) {
-            Text("app.name")
-                .font(Theme.Typography.title)
-            Text(statusText)
-                .font(Theme.Typography.caption)
-                .foregroundStyle(Theme.Colors.secondary)
+        HStack(alignment: .top, spacing: Theme.Spacing.medium) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.small) {
+                Text("app.name")
+                    .font(Theme.Typography.title)
+                Text(statusText)
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Colors.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            Spacer()
+            SettingsLink {
+                Image(systemName: Theme.Symbol.settings)
+                    .font(Theme.Typography.symbol)
+            }
+            .simultaneousGesture(TapGesture().onEnded { NSApp.activate() })
+            .accessibilityLabel(Text("menu.settings"))
+            .help(Text("menu.settings"))
+            Button {
+                NSApplication.shared.terminate(nil)
+            } label: {
+                Image(systemName: Theme.Symbol.quit)
+                    .font(Theme.Typography.symbol)
+            }
+            .keyboardShortcut("q")
+            .accessibilityLabel(Text("menu.quit"))
+            .help(Text("menu.quit"))
         }
-        .accessibilityElement(children: .combine)
+        .buttonStyle(.borderless)
     }
 
     private var statusText: LocalizedStringKey {
@@ -76,18 +102,86 @@ private struct MenuHeader: View {
     }
 }
 
-private struct RolePicker: View {
+/// The two roles as cards; selecting the active one again turns Osplay off.
+private struct RoleCards: View {
     let connection: ConnectionViewModel
 
     var body: some View {
-        Picker("connection.mode", selection: Binding(get: { connection.mode }, set: { connection.setMode($0) })) {
-            Text("connection.mode.off").tag(ConnectionViewModel.Mode.off)
-            Text("connection.mode.sharing").tag(ConnectionViewModel.Mode.sharing)
-            Text("connection.mode.viewing").tag(ConnectionViewModel.Mode.viewing)
+        VStack(spacing: Theme.Spacing.medium) {
+            RoleCard(
+                symbol: Theme.Symbol.sharing, title: "connection.mode.sharing", detail: "menu.role.sharing.detail",
+                selected: connection.mode == .sharing
+            ) { toggle(.sharing) }
+            RoleCard(
+                symbol: Theme.Symbol.viewing, title: "connection.mode.viewing", detail: "menu.role.viewing.detail",
+                selected: connection.mode == .viewing
+            ) { toggle(.viewing) }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .accessibilityLabel(Text("connection.mode"))
+    }
+
+    private func toggle(_ mode: ConnectionViewModel.Mode) {
+        connection.setMode(connection.mode == mode ? .off : mode)
+    }
+}
+
+private struct RoleCard: View {
+    let symbol: String
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .top, spacing: Theme.Spacing.medium) {
+                Image(systemName: symbol)
+                    .font(Theme.Typography.symbol)
+                    .foregroundStyle(selected ? Theme.Colors.onAccent : Theme.Colors.accent)
+                    .frame(width: Theme.Size.symbolColumn)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: Theme.Spacing.small) {
+                    Text(title)
+                        .font(Theme.Typography.rowTitle)
+                    Text(detail)
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(selected ? Theme.Colors.onAccent : Theme.Colors.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(selected ? Theme.Colors.onAccent : Theme.Colors.primary)
+            .padding(Theme.Spacing.medium)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                selected ? Theme.Colors.accent : Theme.Colors.card,
+                in: RoundedRectangle(cornerRadius: Theme.Radius.card)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityHint(Text(selected ? "menu.role.hint.selected" : "menu.role.hint"))
+    }
+}
+
+private struct PermissionsBanner: View {
+    let open: () -> Void
+
+    var body: some View {
+        Button(action: open) {
+            HStack(alignment: .top, spacing: Theme.Spacing.medium) {
+                Image(systemName: Theme.Symbol.warning)
+                    .foregroundStyle(Theme.Colors.warning)
+                    .accessibilityHidden(true)
+                Text("menu.permissionsMissing")
+                    .font(Theme.Typography.caption)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 0)
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -106,6 +200,7 @@ private struct SharingSection: View {
                         .accessibilityHidden(true)
                     Text(connection.isSessionActive ? "menu.sharing.active" : "menu.sharing.waiting")
                         .font(Theme.Typography.rowTitle)
+                        .fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     if connection.isSessionActive {
                         Button("connection.disconnect") { connection.disconnect() }
@@ -121,6 +216,7 @@ private struct SharingSection: View {
             Text("menu.quality.hint")
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Colors.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -151,6 +247,7 @@ private struct ViewingSection: View {
                     Text("menu.hotkeyHint \(hotkey.displayText)")
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Button("connection.disconnect") { connection.disconnect() }
                 }
@@ -176,6 +273,7 @@ private struct DeviceRow: View {
                 VStack(alignment: .leading) {
                     Text(verbatim: name)
                         .font(Theme.Typography.rowTitle)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(isPaired ? "menu.device.paired" : "menu.device.new")
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.secondary)
@@ -211,29 +309,6 @@ private struct ErrorBanner: View {
             }
         }
         .accessibilityElement(children: .combine)
-    }
-}
-
-private struct MenuFooter: View {
-    let openOnboarding: () -> Void
-
-    var body: some View {
-        HStack {
-            SettingsLink {
-                Label("menu.settings", systemImage: Theme.Symbol.settings)
-            }
-            .simultaneousGesture(TapGesture().onEnded { NSApp.activate() })
-            Button("menu.permissions", action: openOnboarding)
-            Spacer()
-            Button {
-                NSApplication.shared.terminate(nil)
-            } label: {
-                Label("menu.quit", systemImage: Theme.Symbol.quit)
-            }
-            .keyboardShortcut("q")
-        }
-        .labelStyle(.titleAndIcon)
-        .buttonStyle(.borderless)
     }
 }
 

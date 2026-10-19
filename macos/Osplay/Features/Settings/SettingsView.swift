@@ -33,6 +33,7 @@ private struct GeneralSettings: View {
                 Text("settings.launchAtLogin.approval")
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             LabeledContent("settings.hotkey") {
                 VStack(alignment: .trailing, spacing: Theme.Spacing.small) {
@@ -44,10 +45,15 @@ private struct GeneralSettings: View {
             Text("settings.hotkey.description")
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Colors.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            LabeledContent("settings.permissions") {
+                Button("settings.permissions.open", action: viewModel.openPermissions)
+            }
             if let message = viewModel.message {
                 Text(message)
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.error)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .formStyle(.grouped)
@@ -65,21 +71,36 @@ private struct DisplaySettings: View {
                         .foregroundStyle(Theme.Colors.secondary)
                 }
                 ForEach(viewModel.peers) { peer in
-                    Picker(
-                        selection: Binding(
-                            get: { viewModel.hiDPIChoice(for: peer) }, set: { viewModel.setHiDPIChoice($0, for: peer) })
-                    ) {
-                        Text("settings.hiDPI.automatic").tag(HiDPIChoice.automatic)
-                        Text("settings.hiDPI.always").tag(HiDPIChoice.always)
-                        Text("settings.hiDPI.never").tag(HiDPIChoice.never)
-                    } label: {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
                         Text(verbatim: peer.name)
+                            .font(Theme.Typography.rowTitle)
+                        Picker(
+                            "settings.placement",
+                            selection: Binding(
+                                get: { viewModel.placement(for: peer) }, set: { viewModel.setPlacement($0, for: peer) })
+                        ) {
+                            Text("settings.placement.right").tag(DisplayPlacement.right)
+                            Text("settings.placement.left").tag(DisplayPlacement.left)
+                            Text("settings.placement.above").tag(DisplayPlacement.above)
+                            Text("settings.placement.below").tag(DisplayPlacement.below)
+                        }
+                        Picker(
+                            "settings.hiDPI",
+                            selection: Binding(
+                                get: { viewModel.hiDPIChoice(for: peer) },
+                                set: { viewModel.setHiDPIChoice($0, for: peer) })
+                        ) {
+                            Text("settings.hiDPI.automatic").tag(HiDPIChoice.automatic)
+                            Text("settings.hiDPI.always").tag(HiDPIChoice.always)
+                            Text("settings.hiDPI.never").tag(HiDPIChoice.never)
+                        }
                     }
                 }
             } footer: {
                 Text("settings.hiDPI.description")
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .formStyle(.grouped)
@@ -103,6 +124,7 @@ private struct DeviceSettings: View {
                 Text("settings.devices.description")
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .formStyle(.grouped)
@@ -147,6 +169,7 @@ private struct AdvancedSettings: View {
             Text("settings.statsOverlay.description")
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Colors.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             LabeledContent("settings.logs") {
                 HStack {
                     Button("settings.logs.export", action: viewModel.exportLogs)
@@ -157,6 +180,7 @@ private struct AdvancedSettings: View {
                 Text(message)
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.error)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Text("menu.coreVersion \(CoreVersion.linked.description)")
                 .font(Theme.Typography.caption)

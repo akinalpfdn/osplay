@@ -393,3 +393,21 @@ choices the plan leaves open are logged here.
 **Revisit if:** macOS adds an API for the Local Network permission.
 
 ---
+
+## 2026-10-19 — Osplay places the virtual displays itself
+**Chosen:** A per-device "Position" setting (right, left, above or below this Mac; right by default). When a viewer's displays are lent, Osplay moves them into one row there, in the viewer's monitor order, with `CGConfigureDisplayOrigin` (saved permanently, so macOS keeps it).
+**Alternatives:** Relying on System Settings › Displays › Arrange.
+**Why:** In the Phase 11 test System Settings showed no Arrange button with the virtual displays attached, so they could not be arranged at all; a hardware test shows the window server accepts the move from code.
+**Trade-offs:** Only four layouts; finer adjustments still need System Settings where it offers Arrange.
+**Revisit if:** System Settings offers Arrange for these displays, or users need free placement inside Osplay.
+
+---
+
+## 2026-10-19 — User decision: "Extend this Mac" names the hosting role
+**Chosen:** The Mac's hosting role is "Extend this Mac" ("Bu Mac'i genişlet"); the viewer role stays "Use as display". Both are cards with a one-line explanation instead of a segmented control.
+**Alternatives:** "Share screens"; "Use other screens"; "Add displays".
+**Why:** The user found "Share screens" unclear; a segmented control truncated the longer Turkish labels.
+**Trade-offs:** The menu window is taller.
+**Revisit if:** Usability feedback.
+
+---

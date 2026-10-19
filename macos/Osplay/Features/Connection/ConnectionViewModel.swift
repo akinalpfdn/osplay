@@ -168,6 +168,9 @@ final class ConnectionViewModel {
         NSWorkspace.shared.open(url)
     }
 
+    /// Read when the menu window opens; sharing needs it.
+    var hasScreenRecordingAccess: Bool { dependencies.permissions.hasScreenRecordingAccess }
+
     func openLocalNetworkSettings() {
         guard let url = dependencies.permissions.localNetworkSettingsURL else { return }
         NSWorkspace.shared.open(url)
@@ -231,9 +234,10 @@ final class ConnectionViewModel {
             policy: { [trust] in
                 let key = trust.currentPeer ?? []
                 return await MainActor.run {
-                    HostDisplayPolicy(
-                        peerID: Data(key), hiDPI: settings.hiDPIChoice(for: DeviceIdentity.deviceID(publicKey: key)),
-                        quality: settings.qualityPreset)
+                    let deviceID = DeviceIdentity.deviceID(publicKey: key)
+                    return HostDisplayPolicy(
+                        peerID: Data(key), hiDPI: settings.hiDPIChoice(for: deviceID),
+                        placement: settings.placement(for: deviceID), quality: settings.qualityPreset)
                 }
             },
             displays: VirtualDisplayLender(provider: dependencies.virtualDisplays), captures: dependencies.captures,

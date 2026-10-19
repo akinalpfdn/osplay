@@ -92,13 +92,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Share screens"
+            "value" : "Extend this Mac"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ekran paylaş"
+            "value" : "Bu Mac'i genişlet"
           }
         }
       }
@@ -1446,19 +1446,19 @@
         }
       }
     },
-    "menu.permissions" : {
+    "menu.permissionsMissing" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Permissions…"
+            "value" : "Osplay is missing a permission. Click to fix."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "İzinler…"
+            "value" : "Osplay'in bir izni eksik. Düzeltmek için tıklayın."
           }
         }
       }
@@ -1514,6 +1514,74 @@
         }
       }
     },
+    "menu.role.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turns this on."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bunu açar."
+          }
+        }
+      }
+    },
+    "menu.role.hint.selected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On. Select again to turn off."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Açık. Kapatmak için tekrar seçin."
+          }
+        }
+      }
+    },
+    "menu.role.sharing.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use another computer's monitors as extra displays for this Mac."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Başka bir bilgisayarın monitörlerini bu Mac'e ek ekran olarak kullanın."
+          }
+        }
+      }
+    },
+    "menu.role.viewing.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show another computer's extra display on this Mac's screen."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Başka bir bilgisayarın ek ekranını bu Mac'in ekranında gösterin."
+          }
+        }
+      }
+    },
     "menu.settings" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1537,13 +1605,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sharing this Mac's screens"
+            "value" : "Extended to another computer"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu Mac'in ekranları paylaşılıyor"
+            "value" : "Başka bir bilgisayara genişletildi"
           }
         }
       }
@@ -2075,6 +2143,23 @@
         }
       }
     },
+    "settings.hiDPI" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resolution"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çözünürlük"
+          }
+        }
+      }
+    },
     "settings.hiDPI.always" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2115,13 +2200,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "How the displays standing in for each computer's monitors start. Automatic follows that monitor's own scaling. You can still pick any resolution in System Settings › Displays."
+            "value" : "Where each computer's displays sit next to this Mac and how they start. Automatic resolution follows that monitor's own scaling. Changes apply from the next connection."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Her bilgisayarın monitörleri için oluşturulan ekranların nasıl açılacağı. Otomatik, o monitörün kendi ölçeğini izler. Sistem Ayarları › Ekranlar'dan yine istediğiniz çözünürlüğü seçebilirsiniz."
+            "value" : "Her bilgisayarın ekranlarının bu Mac'e göre nerede duracağı ve nasıl açılacağı. Otomatik çözünürlük, o monitörün kendi ölçeğini izler. Değişiklikler bir sonraki bağlantıda geçerli olur."
           }
         }
       }
@@ -2411,6 +2496,125 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Henüz eşleşmiş cihaz yok. Cihazlar ilk bağlantıdan sonra burada görünür."
+          }
+        }
+      }
+    },
+    "settings.permissions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permissions"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İzinler"
+          }
+        }
+      }
+    },
+    "settings.permissions.open" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show…"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Göster…"
+          }
+        }
+      }
+    },
+    "settings.placement" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Position"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konum"
+          }
+        }
+      }
+    },
+    "settings.placement.above" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Above this Mac"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Mac'in üstünde"
+          }
+        }
+      }
+    },
+    "settings.placement.below" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Below this Mac"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Mac'in altında"
+          }
+        }
+      }
+    },
+    "settings.placement.left" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Left of this Mac"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Mac'in solunda"
+          }
+        }
+      }
+    },
+    "settings.placement.right" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Right of this Mac"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Mac'in sağında"
           }
         }
       }
