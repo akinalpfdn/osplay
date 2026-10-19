@@ -2,7 +2,8 @@
 """Fails when any user-facing string lacks a complete English or Turkish translation.
 
 Checks every String Catalog (*.xcstrings) under macos/ and every neutral .resx under windows/
-against its Turkish satellite (<name>.tr.resx).
+against its Turkish satellite (<name>.tr.resx), and that every key the Mac app's Swift code uses
+exists in its catalog.
 """
 
 from __future__ import annotations
@@ -16,6 +17,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 REQUIRED_LANGUAGES = ("en", "tr")
 CULTURE_SUFFIX = re.compile(r"\.[a-z]{2}(-[A-Za-z]{2,4})?\.resx$")
+# A dotted key in a string literal, optionally followed by interpolations: "menu.quit", "a.b \\(x)".
+SWIFT_KEY = re.compile(r'"([a-z][a-zA-Z]*(?:\.[a-zA-Z]+)+)((?:\s*\\\([^)"]*\))*)"')
+PLACEHOLDER = re.compile(r"%(?:\d+\$)?(?:lld|ld|d|@|f|u)")
 
 
 def unit_is_translated(localization: dict) -> bool:
@@ -71,6 +75,35 @@ def check_resx(neutral: Path) -> list[str]:
     return problems
 
 
+def placeholder_count(key: str) -> int:
+    return len(PLACEHOLDER.findall(key))
+
+
+def check_swift_keys(catalog_path: Path, sources: list[Path]) -> list[str]:
+    """Keys used in code but missing from the catalog. Only literals whose first segment is a
+    catalog prefix count, so SF Symbol names and identifiers are not mistaken for keys."""
+    keys = json.loads(catalog_path.read_text(encoding="utf-8")).get("strings", {}).keys()
+    bases: dict[str, set[int]] = {}
+    for key in keys:
+        base = key.split(" ", 1)[0]
+        bases.setdefault(base, set()).add(placeholder_count(key))
+    prefixes = {base.split(".", 1)[0] for base in bases}
+    problems = []
+    for source in sources:
+        for number, line in enumerate(source.read_text(encoding="utf-8").splitlines(), start=1):
+            for match in SWIFT_KEY.finditer(line):
+                base, interpolations = match.group(1), match.group(2)
+                if base.split(".", 1)[0] not in prefixes:
+                    continue
+                arguments = interpolations.count("\\(")
+                if arguments not in bases.get(base, set()):
+                    problems.append(
+                        f"{source.relative_to(ROOT)}:{number}: '{base}' with {arguments} argument(s) "
+                        f"is not in {catalog_path.name}"
+                    )
+    return problems
+
+
 def main() -> int:
     problems: list[str] = []
     catalogs = sorted((ROOT / "macos").rglob("*.xcstrings"))
@@ -81,6 +114,8 @@ def main() -> int:
     )
     for catalog in catalogs:
         problems += check_xcstrings(catalog)
+    app_catalog = ROOT / "macos/Osplay/Resources/Localizable.xcstrings"
+    problems += check_swift_keys(app_catalog, sorted((ROOT / "macos/Osplay").rglob("*.swift")))
     for resource in resources:
         problems += check_resx(resource)
 
