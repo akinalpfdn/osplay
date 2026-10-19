@@ -1,0 +1,99 @@
+<!-- Shared styles built only from Tokens.xaml and WPF-UI theme resources. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="clr-namespace:Osplay.App.Controls">
+  <!-- Merged here so StaticResource finds the tokens while this dictionary loads. -->
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="Tokens.xaml" />
+  </ResourceDictionary.MergedDictionaries>
+  <BooleanToVisibilityConverter x:Key="Osplay.Converter.BooleanToVisibility" />
+  <controls:InverseBooleanToVisibilityConverter x:Key="Osplay.Converter.InverseBooleanToVisibility" />
+  <controls:ZeroToVisibilityConverter x:Key="Osplay.Converter.ZeroToVisibility" />
+  <controls:InverseBooleanConverter x:Key="Osplay.Converter.InverseBoolean" />
+
+  <Style x:Key="Osplay.Text.Title" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="{StaticResource Osplay.FontSize.Title}" />
+    <Setter Property="FontWeight" Value="{StaticResource Osplay.FontWeight.Emphasis}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+  </Style>
+
+  <Style x:Key="Osplay.Text.Section" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="{StaticResource Osplay.FontSize.Body}" />
+    <Setter Property="FontWeight" Value="{StaticResource Osplay.FontWeight.Emphasis}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="Margin" Value="{StaticResource Osplay.Thickness.SectionGap}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+  </Style>
+
+  <Style x:Key="Osplay.Text.Body" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="{StaticResource Osplay.FontSize.Body}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+  </Style>
+
+  <Style x:Key="Osplay.Text.Caption" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="{StaticResource Osplay.FontSize.Caption}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+  </Style>
+
+  <!-- A card that is also a button: role cards and nearby computers. -->
+  <Style x:Key="Osplay.Button.Card" TargetType="Button">
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="Margin" Value="{StaticResource Osplay.Thickness.ItemGap}" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Card" Padding="{StaticResource Osplay.Thickness.CardPadding}"
+                  CornerRadius="{StaticResource Osplay.CornerRadius.Card}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  Background="{DynamicResource ControlFillColorDefaultBrush}">
+            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Card" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter TargetName="Card" Property="Background" Value="{DynamicResource ControlFillColorTertiaryBrush}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Card" Property="Opacity" Value="{StaticResource Osplay.Opacity.Disabled}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+    <Setter Property="BorderThickness" Value="{StaticResource Osplay.Thickness.CardBorder}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+  </Style>
+
+  <!-- A monitor in the picker: selected ones are drawn in the accent color. -->
+  <Style x:Key="Osplay.Toggle.Monitor" TargetType="ToggleButton">
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ToggleButton">
+          <Border x:Name="Screen" CornerRadius="{StaticResource Osplay.CornerRadius.Monitor}"
+                  BorderThickness="{StaticResource Osplay.Thickness.SelectedBorder}"
+                  BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                  Background="{DynamicResource ControlFillColorDefaultBrush}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Screen" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Screen" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+</ResourceDictionary>

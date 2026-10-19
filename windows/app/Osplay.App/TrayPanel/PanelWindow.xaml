@@ -1,0 +1,211 @@
+<ui:FluentWindow x:Class="Osplay.App.TrayPanel.PanelWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:res="clr-namespace:Osplay.Localization;assembly=Osplay.Localization"
+                 xmlns:panel="clr-namespace:Osplay.App.TrayPanel"
+                 xmlns:connection="clr-namespace:Osplay.App.Connection"
+                 xmlns:controls="clr-namespace:Osplay.App.Controls"
+                 mc:Ignorable="d"
+                 d:DataContext="{d:DesignInstance Type=panel:PanelViewModel}"
+                 Title="{x:Static res:Strings.AppName}"
+                 Width="{StaticResource Osplay.Width.Panel}"
+                 SizeToContent="Height"
+                 ResizeMode="NoResize"
+                 ShowInTaskbar="False"
+                 Topmost="True"
+                 WindowStyle="None"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="Acrylic"
+                 WindowCornerPreference="Round">
+  <ui:FluentWindow.Resources>
+    <Style x:Key="Osplay.Button.SharingRole" TargetType="Button" BasedOn="{StaticResource Osplay.Button.Card}">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Connection.IsSharing}" Value="True">
+          <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+          <Setter Property="BorderThickness" Value="{StaticResource Osplay.Thickness.SelectedBorder}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="Osplay.Button.ViewingRole" TargetType="Button" BasedOn="{StaticResource Osplay.Button.Card}">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Connection.IsViewing}" Value="True">
+          <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+          <Setter Property="BorderThickness" Value="{StaticResource Osplay.Thickness.SelectedBorder}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </ui:FluentWindow.Resources>
+
+  <StackPanel Margin="{StaticResource Osplay.Thickness.PanelPadding}">
+    <!-- Header: name and status; settings and quit as icons (as on the Mac). -->
+    <DockPanel LastChildFill="True">
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+        <ui:Button Appearance="Transparent" Command="{Binding OpenSettingsCommand}"
+                   ToolTip="{x:Static res:Strings.PanelSettings}"
+                   AutomationProperties.Name="{x:Static res:Strings.PanelSettings}">
+          <ui:SymbolIcon Symbol="Settings24" FontSize="{StaticResource Osplay.FontSize.Icon}" />
+        </ui:Button>
+        <ui:Button Appearance="Transparent" Command="{Binding QuitCommand}"
+                   ToolTip="{x:Static res:Strings.TrayQuit}"
+                   AutomationProperties.Name="{x:Static res:Strings.TrayQuit}">
+          <ui:SymbolIcon Symbol="Power24" FontSize="{StaticResource Osplay.FontSize.Icon}" />
+        </ui:Button>
+      </StackPanel>
+      <StackPanel>
+        <TextBlock Text="{x:Static res:Strings.AppName}" Style="{StaticResource Osplay.Text.Title}" />
+        <TextBlock Text="{Binding Connection.Status}" Style="{StaticResource Osplay.Text.Caption}" />
+      </StackPanel>
+    </DockPanel>
+
+    <!-- Problems first: what the user must act on. -->
+    <ui:InfoBar Margin="{StaticResource Osplay.Thickness.SectionGap}" Severity="Error" IsClosable="True"
+                Message="{Binding Connection.ErrorMessage}" IsOpen="{Binding Connection.IsErrorOpen}" />
+    <ui:InfoBar Margin="{StaticResource Osplay.Thickness.SectionGap}" Severity="Warning" IsClosable="False"
+                Title="{x:Static res:Strings.HealthTitle}"
+                Message="{Binding Connection.HostProblemMessage}"
+                IsOpen="{Binding Connection.HasHostProblem, Mode=OneWay}" />
+    <StackPanel Visibility="{Binding Connection.IsNetworkPublic, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">
+      <ui:InfoBar Margin="{StaticResource Osplay.Thickness.SectionGap}" Severity="Warning" IsClosable="False"
+                  Title="{x:Static res:Strings.NetworkPublicTitle}" Message="{x:Static res:Strings.NetworkPublicMessage}"
+                  IsOpen="True" />
+      <ui:Button Margin="{StaticResource Osplay.Thickness.ItemGap}" Content="{x:Static res:Strings.NetworkOpenSettings}"
+                 Command="{Binding OpenNetworkSettingsCommand}" />
+    </StackPanel>
+    <StackPanel Visibility="{Binding Updates.IsUpdateAvailable, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">
+      <ui:InfoBar Margin="{StaticResource Osplay.Thickness.SectionGap}" Severity="Informational" IsClosable="False"
+                  Message="{Binding Updates.AvailableVersionMessage}" IsOpen="True" />
+      <ui:Button Margin="{StaticResource Osplay.Thickness.ItemGap}" Content="{x:Static res:Strings.UpdatesDownload}"
+                 Command="{Binding Updates.OpenDownloadCommand}" />
+    </StackPanel>
+
+    <!-- Roles: selecting the active one again turns it off. -->
+    <StackPanel Margin="{StaticResource Osplay.Thickness.SectionGap}" IsEnabled="{Binding Connection.IsEngineAvailable}">
+      <Button Style="{StaticResource Osplay.Button.SharingRole}" Command="{Binding Connection.SetModeCommand}"
+              CommandParameter="{x:Static connection:ConnectionMode.Sharing}"
+              AutomationProperties.Name="{x:Static res:Strings.RoleSharingTitle}">
+        <DockPanel>
+          <ui:SymbolIcon DockPanel.Dock="Left" Symbol="DesktopArrowRight24" Margin="{StaticResource Osplay.Thickness.IconGap}"
+                         FontSize="{StaticResource Osplay.FontSize.Icon}" VerticalAlignment="Top" />
+          <StackPanel>
+            <TextBlock Text="{x:Static res:Strings.RoleSharingTitle}" Style="{StaticResource Osplay.Text.Body}" FontWeight="{StaticResource Osplay.FontWeight.Emphasis}" />
+            <TextBlock Text="{x:Static res:Strings.RoleSharingDetail}" Style="{StaticResource Osplay.Text.Caption}" />
+          </StackPanel>
+        </DockPanel>
+      </Button>
+      <Button Style="{StaticResource Osplay.Button.ViewingRole}" Command="{Binding Connection.SetModeCommand}"
+              CommandParameter="{x:Static connection:ConnectionMode.Viewing}"
+              AutomationProperties.Name="{x:Static res:Strings.RoleViewingTitle}">
+        <DockPanel>
+          <ui:SymbolIcon DockPanel.Dock="Left" Symbol="Desktop24" Margin="{StaticResource Osplay.Thickness.IconGap}"
+                         FontSize="{StaticResource Osplay.FontSize.Icon}" VerticalAlignment="Top" />
+          <StackPanel>
+            <TextBlock Text="{x:Static res:Strings.RoleViewingTitle}" Style="{StaticResource Osplay.Text.Body}" FontWeight="{StaticResource Osplay.FontWeight.Emphasis}" />
+            <TextBlock Text="{x:Static res:Strings.RoleViewingDetail}" Style="{StaticResource Osplay.Text.Caption}" />
+          </StackPanel>
+        </DockPanel>
+      </Button>
+      <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{x:Static res:Strings.RoleHint}"
+                 Style="{StaticResource Osplay.Text.Caption}" />
+    </StackPanel>
+
+    <!-- Sharing: quality for the next connection. -->
+    <StackPanel Visibility="{Binding Connection.IsSharing, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">
+      <TextBlock Text="{x:Static res:Strings.QualityTitle}" Style="{StaticResource Osplay.Text.Section}" />
+      <ComboBox Margin="{StaticResource Osplay.Thickness.ItemGap}" ItemsSource="{Binding QualityOptions}"
+                DisplayMemberPath="Name" SelectedValuePath="Preset"
+                SelectedValue="{Binding Settings.Quality}"
+                AutomationProperties.Name="{x:Static res:Strings.QualityTitle}" />
+      <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{x:Static res:Strings.QualityHint}"
+                 Style="{StaticResource Osplay.Text.Caption}" />
+    </StackPanel>
+
+    <!-- Viewing: which monitors to offer, then a nearby computer. -->
+    <StackPanel Visibility="{Binding Connection.IsViewing, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">
+      <TextBlock Text="{x:Static res:Strings.MonitorsTitle}" Style="{StaticResource Osplay.Text.Section}" />
+      <ItemsControl Margin="{StaticResource Osplay.Thickness.ItemGap}" Height="{StaticResource Osplay.Height.MonitorPicker}"
+                    ItemsSource="{Binding Connection.Monitors}" IsEnabled="{Binding Connection.IsSessionActive, Converter={StaticResource Osplay.Converter.InverseBoolean}}"
+                    Focusable="False">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <controls:DesktopLayoutPanel Gap="{StaticResource Osplay.MonitorPicker.Gap}" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemContainerStyle>
+          <Style TargetType="ContentPresenter">
+            <Setter Property="controls:DesktopLayoutPanel.DesktopLeft" Value="{Binding Left}" />
+            <Setter Property="controls:DesktopLayoutPanel.DesktopTop" Value="{Binding Top}" />
+            <Setter Property="controls:DesktopLayoutPanel.DesktopWidth" Value="{Binding Width}" />
+            <Setter Property="controls:DesktopLayoutPanel.DesktopHeight" Value="{Binding Height}" />
+          </Style>
+        </ItemsControl.ItemContainerStyle>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="{x:Type connection:MonitorTile}">
+            <ToggleButton Style="{StaticResource Osplay.Toggle.Monitor}" IsChecked="{Binding IsSelected}"
+                          AutomationProperties.Name="{Binding Name}" ToolTip="{Binding Size}">
+              <TextBlock Text="{Binding Name}" Style="{StaticResource Osplay.Text.Caption}" TextAlignment="Center" />
+            </ToggleButton>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{x:Static res:Strings.MonitorsHint}"
+                 Style="{StaticResource Osplay.Text.Caption}" />
+
+      <!-- While connected: hide/show and disconnect. -->
+      <StackPanel Visibility="{Binding Connection.IsSessionActive, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">
+        <WrapPanel Margin="{StaticResource Osplay.Thickness.SectionGap}">
+          <ui:Button Margin="{StaticResource Osplay.Thickness.ButtonGap}" Command="{Binding Connection.ToggleViewerCommand}"
+                     Content="{x:Static res:Strings.ViewerHideShow}" />
+          <ui:Button Command="{Binding Connection.DisconnectCommand}" Content="{x:Static res:Strings.TrayDisconnect}" />
+        </WrapPanel>
+        <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{Binding Connection.HotkeyHint}"
+                   Style="{StaticResource Osplay.Text.Caption}" />
+      </StackPanel>
+
+      <StackPanel Visibility="{Binding Connection.IsSessionActive, Converter={StaticResource Osplay.Converter.InverseBooleanToVisibility}}">
+        <TextBlock Text="{x:Static res:Strings.NearbyTitle}" Style="{StaticResource Osplay.Text.Section}" />
+        <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{x:Static res:Strings.NearbyEmpty}"
+                   Style="{StaticResource Osplay.Text.Caption}"
+                   Visibility="{Binding Connection.Devices.Count, Converter={StaticResource Osplay.Converter.ZeroToVisibility}}" />
+        <ItemsControl ItemsSource="{Binding Connection.Devices}" Focusable="False">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type connection:DeviceItem}">
+              <Button Style="{StaticResource Osplay.Button.Card}" Command="{Binding ConnectCommand}"
+                      IsEnabled="{Binding IsCompatible}" AutomationProperties.Name="{Binding Name}">
+                <DockPanel>
+                  <ui:SymbolIcon DockPanel.Dock="Left" Symbol="Laptop24" Margin="{StaticResource Osplay.Thickness.IconGap}"
+                                 FontSize="{StaticResource Osplay.FontSize.Icon}" VerticalAlignment="Top" />
+                  <StackPanel>
+                    <TextBlock Text="{Binding Name}" Style="{StaticResource Osplay.Text.Body}" />
+                    <TextBlock Text="{Binding Detail}" Style="{StaticResource Osplay.Text.Caption}" />
+                  </StackPanel>
+                </DockPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </StackPanel>
+
+    <!-- Sharing session: disconnect. -->
+    <ui:Button Margin="{StaticResource Osplay.Thickness.SectionGap}" Content="{x:Static res:Strings.TrayDisconnect}"
+               Command="{Binding Connection.DisconnectCommand}">
+      <ui:Button.Style>
+        <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+          <Setter Property="Visibility" Value="Collapsed" />
+          <Style.Triggers>
+            <MultiDataTrigger>
+              <MultiDataTrigger.Conditions>
+                <Condition Binding="{Binding Connection.IsSharing}" Value="True" />
+                <Condition Binding="{Binding Connection.IsSessionActive}" Value="True" />
+              </MultiDataTrigger.Conditions>
+              <Setter Property="Visibility" Value="Visible" />
+            </MultiDataTrigger>
+          </Style.Triggers>
+        </Style>
+      </ui:Button.Style>
+    </ui:Button>
+  </StackPanel>
+</ui:FluentWindow>

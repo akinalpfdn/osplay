@@ -5,47 +5,43 @@ namespace Osplay.App.Engine;
 /// <summary>The paired devices stored by the engine (DPAPI, %APPDATA%\Osplay).</summary>
 internal static unsafe class PairedDevices
 {
-    private const int _capacity = 256;
-
-    public static IReadOnlyList<PairedDevice> List()
+    public static Task<IReadOnlyList<PairedDevice>> ListAsync() => Native.Run<IReadOnlyList<PairedDevice>>(() =>
     {
-        var peers = new NativePeer[_capacity];
+        var peers = new NativePeer[AppTunables.MaxPairedDevices];
         nuint count;
         fixed (NativePeer* buffer = peers)
         {
-            if (NativeMethods.Peers(buffer, _capacity, &count) != EngineResult.Ok)
+            if (NativeMethods.Peers(buffer, (nuint)peers.Length, &count) != EngineResult.Ok)
             {
                 return [];
             }
-        }
-        var result = new List<PairedDevice>();
-        for (int i = 0; i < (int)Math.Min(count, _capacity); i++)
-        {
-            fixed (NativePeer* peer = &peers[i])
+            var result = new List<PairedDevice>();
+            for (int i = 0; i < (int)Math.Min(count, (nuint)peers.Length); i++)
             {
+                NativePeer* peer = &buffer[i];
                 result.Add(new PairedDevice(
                     new ReadOnlySpan<byte>(peer->PublicKey, NativeSizes.KeySize).ToArray(),
                     Utf8.Read(peer->Name, NativeSizes.NameSize),
                     peer->Revoked == 1,
                     DateTimeOffset.FromUnixTimeSeconds(peer->LastSeenUnix)));
             }
+            return result;
         }
-        return result;
-    }
+    });
 
-    public static EngineResult Revoke(byte[] publicKey)
+    public static Task<EngineResult> RevokeAsync(byte[] publicKey) => Native.Run(() =>
     {
         fixed (byte* key = publicKey)
         {
             return NativeMethods.PeerRevoke(key);
         }
-    }
+    });
 
-    public static EngineResult Remove(byte[] publicKey)
+    public static Task<EngineResult> RemoveAsync(byte[] publicKey) => Native.Run(() =>
     {
         fixed (byte* key = publicKey)
         {
             return NativeMethods.PeerRemove(key);
         }
-    }
+    });
 }

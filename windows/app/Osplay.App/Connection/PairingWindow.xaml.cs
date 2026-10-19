@@ -1,16 +1,18 @@
 using System.Globalization;
 using System.Windows;
+using Wpf.Ui.Appearance;
 
 namespace Osplay.App.Connection;
 
 /// <summary>The pairing code dialog; closing it without a choice rejects.</summary>
-public partial class PairingWindow : Window
+public partial class PairingWindow
 {
     private Action<bool>? _decide;
 
     public PairingWindow()
     {
         InitializeComponent();
+        SystemThemeWatcher.Watch(this);
     }
 
     internal void Present(uint code, string peerName, Action<bool> decide)

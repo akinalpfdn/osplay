@@ -66,6 +66,15 @@ internal enum Trust
     Blocked = 3,
 }
 
+/// <summary>osplay_log_level.</summary>
+internal enum LogLevel
+{
+    Debug = 1,
+    Info = 2,
+    Warning = 3,
+    Error = 4,
+}
+
 /// <summary>osplay_platform.</summary>
 internal enum Platform
 {
@@ -89,6 +98,7 @@ internal static class NativeSizes
     public const int NameSize = 65;
     public const int AddressSize = 64;
     public const int MaxStreams = 4;
+    public const int MaxMonitors = 4;
     public const uint ProtocolVersion = 1;
 }
 
@@ -139,6 +149,7 @@ internal struct NativeHostConfig
     public nint SecretKey;
     public nint DeviceName;
     public nint DumpDirectory;
+    public uint MillibitsPerPixel;
 }
 
 /// <summary>osplay_engine_host_callbacks.</summary>
@@ -153,7 +164,7 @@ internal unsafe struct NativeHostCallbacks
     public delegate* unmanaged[Cdecl]<nint, int, int, int, int, void> OnStreaming;
     public delegate* unmanaged[Cdecl]<nint, EngineResult, void> OnFailed;
     public nint OnStats;
-    public nint OnLog;
+    public delegate* unmanaged[Cdecl]<nint, LogLevel, byte*, void> OnLog;
     public delegate* unmanaged[Cdecl]<nint, Platform, byte*, void> OnPeer;
 }
 
@@ -167,6 +178,8 @@ internal struct NativeViewerConfig
     public ushort Port;
     public nint MonitorIds;
     public nuint MonitorIdCount;
+    public uint HotkeyModifiers;
+    public uint HotkeyKey;
 }
 
 /// <summary>osplay_engine_viewer_callbacks.</summary>
@@ -180,7 +193,71 @@ internal unsafe struct NativeViewerCallbacks
     public delegate* unmanaged[Cdecl]<nint, byte*, void> OnPaired;
     public delegate* unmanaged[Cdecl]<nint, byte, void> OnVisibility;
     public delegate* unmanaged[Cdecl]<nint, byte, EngineResult, void> OnStreamFailed;
-    public nint OnStats;
-    public nint OnLog;
+    public delegate* unmanaged[Cdecl]<nint, NativeSessionStats*, void> OnStats;
+    public delegate* unmanaged[Cdecl]<nint, LogLevel, byte*, void> OnLog;
     public delegate* unmanaged[Cdecl]<nint, Platform, byte*, void> OnPeer;
+}
+
+/// <summary>osplay_stream_stats.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeStreamStats
+{
+    public byte StreamId;
+    public ushort LossPermille;
+    public uint FramesPerSecond;
+    public uint BitrateKbps;
+    public uint LatencyMicroseconds;
+    public ulong FramesDropped;
+    public ulong RetransmittedFragments;
+    public ulong KeyframeRequests;
+}
+
+/// <summary>osplay_session_stats.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct NativeSessionStats
+{
+    public uint RoundTripMicroseconds;
+    public long ClockOffsetMicroseconds;
+    public ulong DatagramsRejected;
+    public NativeStreamStats* Streams;
+    public nuint StreamCount;
+}
+
+/// <summary>osplay_engine_monitor.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct NativeMonitor
+{
+    public byte MonitorId;
+    public ushort WidthPixels;
+    public ushort HeightPixels;
+    public uint RefreshMillihertz;
+    public ushort PhysicalWidthMillimeters;
+    public ushort PhysicalHeightMillimeters;
+    public ushort ScalePercent;
+    public int Left;
+    public int Top;
+    public int Right;
+    public int Bottom;
+    public fixed byte Name[NativeSizes.NameSize];
+}
+
+/// <summary>osplay_virtual_monitor_status.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeVirtualMonitorStatus
+{
+    public byte DriverInstalled;
+    public byte MonitorPresent;
+    public byte Configured;
+    public uint Width;
+    public uint Height;
+    public uint RefreshMillihertz;
+}
+
+/// <summary>osplay_version.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeVersion
+{
+    public ushort Major;
+    public ushort Minor;
+    public ushort Patch;
 }

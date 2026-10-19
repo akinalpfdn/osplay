@@ -39,26 +39,8 @@
   <data name="PlatformWindows" xml:space="preserve">
     <value>Windows</value>
   </data>
-  <data name="PeerRevokedHeader" xml:space="preserve">
-    <value>{0} (iptal edildi)</value>
-  </data>
-  <data name="TrayModeOff" xml:space="preserve">
-    <value>Kapalı</value>
-  </data>
-  <data name="TrayModeSharing" xml:space="preserve">
-    <value>Bu bilgisayarın ekranını paylaş</value>
-  </data>
-  <data name="TrayModeViewing" xml:space="preserve">
-    <value>Ekran olarak kullan</value>
-  </data>
-  <data name="TrayDevices" xml:space="preserve">
-    <value>Bağlan</value>
-  </data>
   <data name="TrayDisconnect" xml:space="preserve">
     <value>Bağlantıyı kes</value>
-  </data>
-  <data name="TrayPaired" xml:space="preserve">
-    <value>Eşleşmiş cihazlar</value>
   </data>
   <data name="TrayRevoke" xml:space="preserve">
     <value>İptal et</value>
@@ -127,6 +109,228 @@
     <value>Oturum sona erdi (hata {0}).</value>
   </data>
   <data name="ErrorHotkeyUnavailable" xml:space="preserve">
-    <value>Ctrl+Alt+Shift+V başka bir program tarafından kullanılıyor; gizle/göster kullanılamıyor.</value>
+    <value>{0} başka bir program tarafından kullanılıyor; ekranı gizleyip gösteremez.</value>
+  </data>
+  <data name="AppName" xml:space="preserve">
+    <value>Osplay</value>
+  </data>
+  <data name="PanelSettings" xml:space="preserve">
+    <value>Ayarlar</value>
+  </data>
+  <data name="TrayOpen" xml:space="preserve">
+    <value>Osplay'i aç</value>
+  </data>
+  <data name="RoleSharingTitle" xml:space="preserve">
+    <value>Bu bilgisayarı genişlet</value>
+  </data>
+  <data name="RoleSharingDetail" xml:space="preserve">
+    <value>Başka bir bilgisayarın ekranını bu bilgisayara ek ekran olarak kullanın.</value>
+  </data>
+  <data name="RoleViewingTitle" xml:space="preserve">
+    <value>Ekran olarak kullan</value>
+  </data>
+  <data name="RoleViewingDetail" xml:space="preserve">
+    <value>Başka bir bilgisayarın ek ekranlarını bu bilgisayarın monitörlerinde gösterin.</value>
+  </data>
+  <data name="RoleHint" xml:space="preserve">
+    <value>Kapatmak için açık olan rolü tekrar seçin.</value>
+  </data>
+  <data name="QualityTitle" xml:space="preserve">
+    <value>Kalite</value>
+  </data>
+  <data name="QualityHint" xml:space="preserve">
+    <value>Bir sonraki bağlantıda geçerli olur. Yüksek kalite daha hızlı bir ağ ister.</value>
+  </data>
+  <data name="QualityBalanced" xml:space="preserve">
+    <value>Dengeli</value>
+  </data>
+  <data name="QualityHigh" xml:space="preserve">
+    <value>Yüksek</value>
+  </data>
+  <data name="QualityUltra" xml:space="preserve">
+    <value>Ultra</value>
+  </data>
+  <data name="MonitorsTitle" xml:space="preserve">
+    <value>Monitörleriniz</value>
+  </data>
+  <data name="MonitorsHint" xml:space="preserve">
+    <value>Seçili monitörler diğer bilgisayara sunulur. Dışarıda bırakmak için birine tıklayın.</value>
+  </data>
+  <data name="MonitorFallbackName" xml:space="preserve">
+    <value>Monitör {0}</value>
+  </data>
+  <data name="MonitorSize" xml:space="preserve">
+    <value>{0} × {1}</value>
+  </data>
+  <data name="NearbyTitle" xml:space="preserve">
+    <value>Yakındaki bilgisayarlar</value>
+  </data>
+  <data name="NearbyEmpty" xml:space="preserve">
+    <value>Aranıyor… Diğer bilgisayarda Osplay'i açıp “Bu Mac'i genişlet” veya “Bu bilgisayarı genişlet”i seçin.</value>
+  </data>
+  <data name="DevicePaired" xml:space="preserve">
+    <value>Eşleşmiş</value>
+  </data>
+  <data name="DeviceNew" xml:space="preserve">
+    <value>İlk bağlantıda eşleşir</value>
+  </data>
+  <data name="DeviceIncompatible" xml:space="preserve">
+    <value>Farklı Osplay sürümü</value>
+  </data>
+  <data name="ViewerHideShow" xml:space="preserve">
+    <value>Ekranı gizle veya göster</value>
+  </data>
+  <data name="ViewerHotkeyHint" xml:space="preserve">
+    <value>{0} ekranı gizler ve gösterir.</value>
+  </data>
+  <data name="HealthTitle" xml:space="preserve">
+    <value>Bu bilgisayarın ekranını paylaşma</value>
+  </data>
+  <data name="HealthReady" xml:space="preserve">
+    <value>Hazır: yardımcı hizmet ve sanal ekran sürücüsü çalışıyor.</value>
+  </data>
+  <data name="HealthHelperMissing" xml:space="preserve">
+    <value>Osplay yardımcı hizmeti çalışmıyor. Hizmetler'de “OsplayHelper”ı başlatın ya da Osplay'i yeniden kurun.</value>
+  </data>
+  <data name="HealthHelperRefused" xml:space="preserve">
+    <value>Osplay yardımcı hizmeti bu uygulamayı reddetti. İkisinin aynı sürüm olması için Osplay'i yeniden kurun.</value>
+  </data>
+  <data name="HealthDriverMissing" xml:space="preserve">
+    <value>Sanal ekran sürücüsü kurulu değil. Eklemek için Osplay'i yeniden kurun.</value>
+  </data>
+  <data name="HealthRepair" xml:space="preserve">
+    <value>Osplay'i yeniden kurmak yardımcı hizmeti ve sürücüyü yeniden kurar; eşleşmiş cihazlarınız korunur.</value>
+  </data>
+  <data name="HealthCheckAgain" xml:space="preserve">
+    <value>Yeniden denetle</value>
+  </data>
+  <data name="HealthCheckWhileSharing" xml:space="preserve">
+    <value>Bu bilgisayar paylaşılırken denetim, paylaşım kapanana kadar bekler.</value>
+  </data>
+  <data name="NetworkTitle" xml:space="preserve">
+    <value>Ağ</value>
+  </data>
+  <data name="NetworkPrivate" xml:space="preserve">
+    <value>Ağınız özel: diğer bilgisayarlar bu bilgisayarı bulup bağlanabilir.</value>
+  </data>
+  <data name="NetworkPublicTitle" xml:space="preserve">
+    <value>Bu ağ Ortak olarak ayarlı</value>
+  </data>
+  <data name="NetworkPublicMessage" xml:space="preserve">
+    <value>Windows ortak ağlarda keşfi ve bağlantıları engeller. Windows Ayarları'nda bu ağı Özel yapın.</value>
+  </data>
+  <data name="NetworkOpenSettings" xml:space="preserve">
+    <value>Ağ ayarlarını aç</value>
+  </data>
+  <data name="UpdatesTitle" xml:space="preserve">
+    <value>Güncellemeler</value>
+  </data>
+  <data name="UpdatesAutomatic" xml:space="preserve">
+    <value>Günde bir kez güncellemeleri denetle</value>
+  </data>
+  <data name="UpdatesCheckNow" xml:space="preserve">
+    <value>Şimdi denetle</value>
+  </data>
+  <data name="UpdatesChecking" xml:space="preserve">
+    <value>Denetleniyor…</value>
+  </data>
+  <data name="UpdatesUpToDate" xml:space="preserve">
+    <value>Osplay güncel.</value>
+  </data>
+  <data name="UpdatesAvailable" xml:space="preserve">
+    <value>Osplay {0} yayımlandı.</value>
+  </data>
+  <data name="UpdatesFailed" xml:space="preserve">
+    <value>GitHub'a ulaşılamadı. Daha sonra yeniden deneyin.</value>
+  </data>
+  <data name="UpdatesDownload" xml:space="preserve">
+    <value>İndir</value>
+  </data>
+  <data name="UpdatesCurrentVersion" xml:space="preserve">
+    <value>Sürüm {0}</value>
+  </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>Osplay Ayarları</value>
+  </data>
+  <data name="SettingsGeneral" xml:space="preserve">
+    <value>Genel</value>
+  </data>
+  <data name="SettingsDevices" xml:space="preserve">
+    <value>Cihazlar</value>
+  </data>
+  <data name="SettingsAdvanced" xml:space="preserve">
+    <value>Gelişmiş</value>
+  </data>
+  <data name="SettingsStartWithWindows" xml:space="preserve">
+    <value>Osplay'i Windows ile başlat</value>
+  </data>
+  <data name="SettingsStartupFailed" xml:space="preserve">
+    <value>Windows bunun değiştirilmesine izin vermedi.</value>
+  </data>
+  <data name="SettingsStatsOverlay" xml:space="preserve">
+    <value>İzlenen ekranlarda istatistikleri göster</value>
+  </data>
+  <data name="SettingsStatsOverlayDetail" xml:space="preserve">
+    <value>Saniyedeki kare, bit hızı, gidiş-dönüş süresi, kayıp ve gecikme sol üst köşede gösterilir.</value>
+  </data>
+  <data name="SettingsHotkey" xml:space="preserve">
+    <value>Ekranı gizle ve göster</value>
+  </data>
+  <data name="SettingsHotkeyDetail" xml:space="preserve">
+    <value>Bu bilgisayar ekran olarak kullanılırken her uygulamada çalışır. Yeni kısayol bir sonraki bağlantıdan itibaren geçerli olur.</value>
+  </data>
+  <data name="HotkeyRecordHint" xml:space="preserve">
+    <value>Tıklayın, ardından yeni kombinasyona basın. Escape iptal eder.</value>
+  </data>
+  <data name="HotkeyRecording" xml:space="preserve">
+    <value>Yeni kısayola basın…</value>
+  </data>
+  <data name="HotkeyNeedsModifier" xml:space="preserve">
+    <value>Bir tuşla birlikte Ctrl, Alt veya Win kullanın.</value>
+  </data>
+  <data name="HotkeyReset" xml:space="preserve">
+    <value>Varsayılana dön</value>
+  </data>
+  <data name="KeyControl" xml:space="preserve">
+    <value>Ctrl</value>
+  </data>
+  <data name="KeyAlt" xml:space="preserve">
+    <value>Alt</value>
+  </data>
+  <data name="KeyShift" xml:space="preserve">
+    <value>Shift</value>
+  </data>
+  <data name="KeyWindows" xml:space="preserve">
+    <value>Win</value>
+  </data>
+  <data name="SettingsDevicesDetail" xml:space="preserve">
+    <value>İptal et, cihazı bundan sonra reddeder; açık bir oturum varsa onu da keser. Kaldır, cihazı unutur; bir sonraki bağlantısında yeniden eşleşir.</value>
+  </data>
+  <data name="SettingsNoDevices" xml:space="preserve">
+    <value>Henüz eşleşmiş cihaz yok. Cihazlar ilk bağlantıdan sonra burada görünür.</value>
+  </data>
+  <data name="PeerRevoked" xml:space="preserve">
+    <value>İptal edildi: sorulmadan reddedilir</value>
+  </data>
+  <data name="PeerLastSeen" xml:space="preserve">
+    <value>Son bağlantı {0}</value>
+  </data>
+  <data name="SettingsLogs" xml:space="preserve">
+    <value>Kayıtlar</value>
+  </data>
+  <data name="SettingsLogsOpen" xml:space="preserve">
+    <value>Klasörü aç</value>
+  </data>
+  <data name="StatsOverlay" xml:space="preserve">
+    <value>{0} fps · {1} Mbit/sn · RTT {2} ms · kayıp %{3} · gecikme {4} ms</value>
+  </data>
+  <data name="StatsUnknown" xml:space="preserve">
+    <value>–</value>
+  </data>
+  <data name="ErrorEngineMissing" xml:space="preserve">
+    <value>Osplay motoru eksik ya da bozuk. Osplay'i yeniden kurun.</value>
+  </data>
+  <data name="ErrorNoMonitorSelected" xml:space="preserve">
+    <value>Sunmak için monitörlerinizden en az birini seçin.</value>
   </data>
 </root>

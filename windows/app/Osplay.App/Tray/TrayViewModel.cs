@@ -3,13 +3,18 @@ using Osplay.App.Connection;
 
 namespace Osplay.App.Tray;
 
-/// <summary>What the tray icon's context menu shows and does.</summary>
-public sealed partial class TrayViewModel(ConnectionViewModel connection, Action shutdown)
+/// <summary>What the tray icon does: a click opens the panel; its menu has the quick actions.</summary>
+public sealed partial class TrayViewModel(
+    ConnectionViewModel connection, Action togglePanel, Action openSettings, Func<Task> quit)
 {
-    private readonly Action _shutdown = shutdown;
-
     public ConnectionViewModel Connection { get; } = connection;
 
     [RelayCommand]
-    private void Quit() => _shutdown();
+    private void TogglePanel() => togglePanel();
+
+    [RelayCommand]
+    private void OpenSettings() => openSettings();
+
+    [RelayCommand]
+    private Task QuitAsync() => quit();
 }

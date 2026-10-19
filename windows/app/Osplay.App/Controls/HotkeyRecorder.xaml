@@ -1,0 +1,13 @@
+<UserControl x:Class="Osplay.App.Controls.HotkeyRecorder"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:res="clr-namespace:Osplay.Localization;assembly=Osplay.Localization">
+  <StackPanel>
+    <ui:Button x:Name="Recorder" MinWidth="{StaticResource Osplay.Width.HotkeyButton}" HorizontalAlignment="Left"
+               Click="OnClick" PreviewKeyDown="OnPreviewKeyDown" LostKeyboardFocus="OnLostFocus"
+               ToolTip="{x:Static res:Strings.HotkeyRecordHint}" />
+    <TextBlock x:Name="Hint" Margin="{StaticResource Osplay.Thickness.ItemGap}" Style="{StaticResource Osplay.Text.Caption}"
+               Text="{x:Static res:Strings.HotkeyRecordHint}" />
+  </StackPanel>
+</UserControl>

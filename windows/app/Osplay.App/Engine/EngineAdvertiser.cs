@@ -3,21 +3,23 @@ using Osplay.App.Interop;
 namespace Osplay.App.Engine;
 
 /// <summary>Announces this PC over Bonjour until disposed.</summary>
-internal sealed unsafe class EngineAdvertiser : IDisposable
+internal sealed class EngineAdvertiser : IAsyncDisposable
 {
     private nint _handle;
 
     private EngineAdvertiser(nint handle) => _handle = handle;
 
-    public static EngineResult Start(string name, Roles roles, ushort port, out EngineAdvertiser? advertiser)
+    public static Task<(EngineResult Result, EngineAdvertiser? Advertiser)> StartAsync(
+        string name, Roles roles, ushort port) => Native.Run(() => Start(name, roles, port));
+
+    private static unsafe (EngineResult Result, EngineAdvertiser? Advertiser) Start(string name, Roles roles, ushort port)
     {
         nint text = Utf8.Allocate(name);
         try
         {
             nint handle;
             EngineResult result = NativeMethods.AdvertiserStart((byte*)text, roles, port, &handle);
-            advertiser = result == EngineResult.Ok ? new EngineAdvertiser(handle) : null;
-            return result;
+            return (result, result == EngineResult.Ok ? new EngineAdvertiser(handle) : null);
         }
         finally
         {
@@ -25,12 +27,13 @@ internal sealed unsafe class EngineAdvertiser : IDisposable
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        if (_handle != 0)
+        nint handle = _handle;
+        _handle = 0;
+        if (handle != 0)
         {
-            NativeMethods.AdvertiserDestroy(_handle);
-            _handle = 0;
+            await Native.Run(() => NativeMethods.AdvertiserDestroy(handle)).ConfigureAwait(true);
         }
     }
 }

@@ -8,4 +8,7 @@ internal static class LocalizedText
 {
     public static string Format(string format, object? argument) =>
         string.Format(CultureInfo.CurrentCulture, CompositeFormat.Parse(format), argument);
+
+    public static string Format(string format, params object?[] arguments) =>
+        string.Format(CultureInfo.CurrentCulture, CompositeFormat.Parse(format), arguments);
 }

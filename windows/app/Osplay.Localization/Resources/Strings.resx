@@ -39,26 +39,8 @@
   <data name="PlatformWindows" xml:space="preserve">
     <value>Windows</value>
   </data>
-  <data name="PeerRevokedHeader" xml:space="preserve">
-    <value>{0} (revoked)</value>
-  </data>
-  <data name="TrayModeOff" xml:space="preserve">
-    <value>Off</value>
-  </data>
-  <data name="TrayModeSharing" xml:space="preserve">
-    <value>Share this PC's screen</value>
-  </data>
-  <data name="TrayModeViewing" xml:space="preserve">
-    <value>Use as a display</value>
-  </data>
-  <data name="TrayDevices" xml:space="preserve">
-    <value>Connect to</value>
-  </data>
   <data name="TrayDisconnect" xml:space="preserve">
     <value>Disconnect</value>
-  </data>
-  <data name="TrayPaired" xml:space="preserve">
-    <value>Paired devices</value>
   </data>
   <data name="TrayRevoke" xml:space="preserve">
     <value>Revoke</value>
@@ -127,6 +109,228 @@
     <value>The session ended (error {0}).</value>
   </data>
   <data name="ErrorHotkeyUnavailable" xml:space="preserve">
-    <value>Ctrl+Alt+Shift+V is used by another program; hide and show is unavailable.</value>
+    <value>{0} is used by another program, so it cannot hide and show the display.</value>
+  </data>
+  <data name="AppName" xml:space="preserve">
+    <value>Osplay</value>
+  </data>
+  <data name="PanelSettings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="TrayOpen" xml:space="preserve">
+    <value>Open Osplay</value>
+  </data>
+  <data name="RoleSharingTitle" xml:space="preserve">
+    <value>Extend this PC</value>
+  </data>
+  <data name="RoleSharingDetail" xml:space="preserve">
+    <value>Use another computer's screen as an extra display for this PC.</value>
+  </data>
+  <data name="RoleViewingTitle" xml:space="preserve">
+    <value>Use as display</value>
+  </data>
+  <data name="RoleViewingDetail" xml:space="preserve">
+    <value>Show another computer's extra displays on this PC's monitors.</value>
+  </data>
+  <data name="RoleHint" xml:space="preserve">
+    <value>Select the active role again to turn it off.</value>
+  </data>
+  <data name="QualityTitle" xml:space="preserve">
+    <value>Quality</value>
+  </data>
+  <data name="QualityHint" xml:space="preserve">
+    <value>Applies to the next connection. Higher quality needs a faster network.</value>
+  </data>
+  <data name="QualityBalanced" xml:space="preserve">
+    <value>Balanced</value>
+  </data>
+  <data name="QualityHigh" xml:space="preserve">
+    <value>High</value>
+  </data>
+  <data name="QualityUltra" xml:space="preserve">
+    <value>Ultra</value>
+  </data>
+  <data name="MonitorsTitle" xml:space="preserve">
+    <value>Your monitors</value>
+  </data>
+  <data name="MonitorsHint" xml:space="preserve">
+    <value>Selected monitors are offered to the other computer. Click one to leave it out.</value>
+  </data>
+  <data name="MonitorFallbackName" xml:space="preserve">
+    <value>Monitor {0}</value>
+  </data>
+  <data name="MonitorSize" xml:space="preserve">
+    <value>{0} × {1}</value>
+  </data>
+  <data name="NearbyTitle" xml:space="preserve">
+    <value>Nearby computers</value>
+  </data>
+  <data name="NearbyEmpty" xml:space="preserve">
+    <value>Searching… Open Osplay on the other computer and choose “Extend this Mac” or “Extend this PC”.</value>
+  </data>
+  <data name="DevicePaired" xml:space="preserve">
+    <value>Paired</value>
+  </data>
+  <data name="DeviceNew" xml:space="preserve">
+    <value>Pairs on first connection</value>
+  </data>
+  <data name="DeviceIncompatible" xml:space="preserve">
+    <value>Different Osplay version</value>
+  </data>
+  <data name="ViewerHideShow" xml:space="preserve">
+    <value>Hide or show the display</value>
+  </data>
+  <data name="ViewerHotkeyHint" xml:space="preserve">
+    <value>{0} hides and shows the display.</value>
+  </data>
+  <data name="HealthTitle" xml:space="preserve">
+    <value>Sharing this PC's screen</value>
+  </data>
+  <data name="HealthReady" xml:space="preserve">
+    <value>Ready: the helper service and the virtual display driver are working.</value>
+  </data>
+  <data name="HealthHelperMissing" xml:space="preserve">
+    <value>The Osplay helper service is not running. Start “OsplayHelper” in Services, or reinstall Osplay.</value>
+  </data>
+  <data name="HealthHelperRefused" xml:space="preserve">
+    <value>The Osplay helper service refused this app. Reinstall Osplay so both are the same version.</value>
+  </data>
+  <data name="HealthDriverMissing" xml:space="preserve">
+    <value>The virtual display driver is not installed. Reinstall Osplay to add it.</value>
+  </data>
+  <data name="HealthRepair" xml:space="preserve">
+    <value>Reinstalling Osplay installs the helper service and the driver again; your paired devices are kept.</value>
+  </data>
+  <data name="HealthCheckAgain" xml:space="preserve">
+    <value>Check again</value>
+  </data>
+  <data name="HealthCheckWhileSharing" xml:space="preserve">
+    <value>While this PC is shared, the check waits until sharing is turned off.</value>
+  </data>
+  <data name="NetworkTitle" xml:space="preserve">
+    <value>Network</value>
+  </data>
+  <data name="NetworkPrivate" xml:space="preserve">
+    <value>Your network is private: other computers can find and reach this PC.</value>
+  </data>
+  <data name="NetworkPublicTitle" xml:space="preserve">
+    <value>This network is set to Public</value>
+  </data>
+  <data name="NetworkPublicMessage" xml:space="preserve">
+    <value>Windows blocks discovery and connections on public networks. Set this network to Private in Windows Settings.</value>
+  </data>
+  <data name="NetworkOpenSettings" xml:space="preserve">
+    <value>Open network settings</value>
+  </data>
+  <data name="UpdatesTitle" xml:space="preserve">
+    <value>Updates</value>
+  </data>
+  <data name="UpdatesAutomatic" xml:space="preserve">
+    <value>Check for updates once a day</value>
+  </data>
+  <data name="UpdatesCheckNow" xml:space="preserve">
+    <value>Check now</value>
+  </data>
+  <data name="UpdatesChecking" xml:space="preserve">
+    <value>Checking…</value>
+  </data>
+  <data name="UpdatesUpToDate" xml:space="preserve">
+    <value>Osplay is up to date.</value>
+  </data>
+  <data name="UpdatesAvailable" xml:space="preserve">
+    <value>Osplay {0} is available.</value>
+  </data>
+  <data name="UpdatesFailed" xml:space="preserve">
+    <value>Could not reach GitHub. Try again later.</value>
+  </data>
+  <data name="UpdatesDownload" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="UpdatesCurrentVersion" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>Osplay Settings</value>
+  </data>
+  <data name="SettingsGeneral" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="SettingsDevices" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="SettingsAdvanced" xml:space="preserve">
+    <value>Advanced</value>
+  </data>
+  <data name="SettingsStartWithWindows" xml:space="preserve">
+    <value>Start Osplay with Windows</value>
+  </data>
+  <data name="SettingsStartupFailed" xml:space="preserve">
+    <value>Windows did not allow changing this.</value>
+  </data>
+  <data name="SettingsStatsOverlay" xml:space="preserve">
+    <value>Show statistics on watched displays</value>
+  </data>
+  <data name="SettingsStatsOverlayDetail" xml:space="preserve">
+    <value>Frames per second, bitrate, round trip, loss and latency in the top-left corner.</value>
+  </data>
+  <data name="SettingsHotkey" xml:space="preserve">
+    <value>Hide and show the display</value>
+  </data>
+  <data name="SettingsHotkeyDetail" xml:space="preserve">
+    <value>Works in any app while this PC is used as a display. A new shortcut applies from the next connection.</value>
+  </data>
+  <data name="HotkeyRecordHint" xml:space="preserve">
+    <value>Click, then press the new combination. Escape cancels.</value>
+  </data>
+  <data name="HotkeyRecording" xml:space="preserve">
+    <value>Press the new shortcut…</value>
+  </data>
+  <data name="HotkeyNeedsModifier" xml:space="preserve">
+    <value>Use Ctrl, Alt or Win with a key.</value>
+  </data>
+  <data name="HotkeyReset" xml:space="preserve">
+    <value>Restore default</value>
+  </data>
+  <data name="KeyControl" xml:space="preserve">
+    <value>Ctrl</value>
+  </data>
+  <data name="KeyAlt" xml:space="preserve">
+    <value>Alt</value>
+  </data>
+  <data name="KeyShift" xml:space="preserve">
+    <value>Shift</value>
+  </data>
+  <data name="KeyWindows" xml:space="preserve">
+    <value>Win</value>
+  </data>
+  <data name="SettingsDevicesDetail" xml:space="preserve">
+    <value>Revoke refuses a device from now on, also mid-session. Remove forgets it; it pairs again on its next connection.</value>
+  </data>
+  <data name="SettingsNoDevices" xml:space="preserve">
+    <value>No paired devices yet. Devices appear here after the first connection.</value>
+  </data>
+  <data name="PeerRevoked" xml:space="preserve">
+    <value>Revoked: refused without asking</value>
+  </data>
+  <data name="PeerLastSeen" xml:space="preserve">
+    <value>Last connected {0}</value>
+  </data>
+  <data name="SettingsLogs" xml:space="preserve">
+    <value>Logs</value>
+  </data>
+  <data name="SettingsLogsOpen" xml:space="preserve">
+    <value>Open folder</value>
+  </data>
+  <data name="StatsOverlay" xml:space="preserve">
+    <value>{0} fps · {1} Mbit/s · RTT {2} ms · loss {3}% · latency {4} ms</value>
+  </data>
+  <data name="StatsUnknown" xml:space="preserve">
+    <value>–</value>
+  </data>
+  <data name="ErrorEngineMissing" xml:space="preserve">
+    <value>The Osplay engine is missing or damaged. Reinstall Osplay.</value>
+  </data>
+  <data name="ErrorNoMonitorSelected" xml:space="preserve">
+    <value>Select at least one of your monitors to offer.</value>
   </data>
 </root>

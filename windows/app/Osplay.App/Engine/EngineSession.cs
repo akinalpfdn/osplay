@@ -1,16 +1,22 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows.Threading;
+using Osplay.App.Diagnostics;
 using Osplay.App.Interop;
 
 namespace Osplay.App.Engine;
 
+/// <summary>One stream's figures for the stats overlay (DEVPLAN: fps, bitrate, RTT, loss, latency).</summary>
+internal sealed record StreamFigures(
+    byte StreamId, uint FramesPerSecond, uint BitrateKbps, uint RoundTripMicroseconds, ushort LossPermille,
+    uint LatencyMicroseconds);
+
 /// <summary>
 /// One host or viewer session in the engine, started with the stored identity (the engine answers
-/// trust and stores pairings). Events arrive on the dispatcher's thread; dispose on that thread
-/// too, after <see cref="Closed"/> or to abandon the session.
+/// trust and stores pairings). Every native call runs through <see cref="Native"/>; events arrive
+/// on the dispatcher's thread. Dispose after <see cref="Closed"/> or to abandon the session.
 /// </summary>
-internal abstract unsafe class EngineSession : IDisposable
+internal abstract class EngineSession : IAsyncDisposable
 {
     private readonly Dispatcher _dispatcher;
     private GCHandle _self;
@@ -22,7 +28,7 @@ internal abstract unsafe class EngineSession : IDisposable
         _self = GCHandle.Alloc(this);
     }
 
-    /// <summary>The engine handle; 0 before start and after dispose.</summary>
+    /// <summary>The engine handle; 0 before start and after dispose. Used on the native queue only.</summary>
     protected nint Handle { get; set; }
 
     protected nint Context => GCHandle.ToIntPtr(_self);
@@ -40,17 +46,20 @@ internal abstract unsafe class EngineSession : IDisposable
     /// <summary>Viewer: one stream could not be shown; the session continues.</summary>
     public event Action<EngineResult>? StreamFailed;
 
-    public abstract void ConfirmPairing(bool accepted);
+    public abstract Task ConfirmPairingAsync(bool accepted);
 
-    public abstract void Stop();
+    public abstract Task StopAsync();
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        if (Handle != 0)
+        await Native.Run(() =>
         {
-            Destroy(Handle); // joins the engine's threads; no callback runs afterwards
-            Handle = 0;
-        }
+            if (Handle != 0)
+            {
+                Destroy(Handle); // joins the engine's threads; no callback runs afterwards
+                Handle = 0;
+            }
+        }).ConfigureAwait(true);
         if (_self.IsAllocated)
         {
             _self.Free();
@@ -80,14 +89,14 @@ internal abstract unsafe class EngineSession : IDisposable
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    protected static void OnPairingCode(nint context, uint code, byte* key)
+    protected static unsafe void OnPairingCode(nint context, uint code, byte* key)
     {
         var self = From(context);
         self.Post(() => self.PairingCode?.Invoke(code));
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    protected static void OnPaired(nint context, byte* key)
+    protected static unsafe void OnPaired(nint context, byte* key)
     {
         var self = From(context);
         self.Post(() => self.Paired?.Invoke());
@@ -97,16 +106,20 @@ internal abstract unsafe class EngineSession : IDisposable
     protected static void OnFailed(nint context, EngineResult reason)
     {
         var self = From(context);
+        Log.Write(LogLevel.Error, $"The engine ended the session: {reason}");
         self.Post(() => self.Failed?.Invoke(reason));
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    protected static void OnPeer(nint context, Platform platform, byte* name)
+    protected static unsafe void OnPeer(nint context, Platform platform, byte* name)
     {
         var self = From(context);
         string text = Utf8.Read(name);
         self.Post(() => self._peerName = text);
     }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    protected static unsafe void OnLog(nint context, LogLevel level, byte* message) => Log.Write(level, Utf8.Read(message));
 }
 
 /// <summary>Windows shares its screen: a virtual monitor streamed to one viewer.</summary>
@@ -120,54 +133,77 @@ internal sealed unsafe class EngineHost : EngineSession
     /// <summary>The TCP port to advertise.</summary>
     public ushort ControlPort { get; private set; }
 
-    public static EngineResult Start(Dispatcher dispatcher, string deviceName, out EngineHost? host)
+    public static Task<(EngineResult Result, EngineHost? Host)> StartAsync(
+        Dispatcher dispatcher, string deviceName, uint millibitsPerPixel)
     {
         var created = new EngineHost(dispatcher);
-        nint name = Utf8.Allocate(deviceName);
-        try
+        return Native.Run(() =>
         {
-            var config = new NativeHostConfig { SecretKey = 0, DeviceName = name, DumpDirectory = 0 };
-            var callbacks = new NativeHostCallbacks
+            nint name = Utf8.Allocate(deviceName);
+            try
             {
-                Context = created.Context,
-                OnState = &OnState,
-                OnTrustQuery = null, // the stored identity: the engine answers trust
-                OnPairingCode = &OnPairingCode,
-                OnPaired = &OnPaired,
-                OnStreaming = null,
-                OnFailed = &OnFailed,
-                OnStats = 0,
-                OnLog = 0,
-                OnPeer = &OnPeer,
-            };
-            nint handle;
-            EngineResult result = NativeMethods.HostStart(&config, &callbacks, &handle);
-            if (result != EngineResult.Ok)
-            {
-                created.Dispose();
-                host = null;
-                return result;
+                var config = new NativeHostConfig
+                {
+                    SecretKey = 0,
+                    DeviceName = name,
+                    DumpDirectory = 0,
+                    MillibitsPerPixel = millibitsPerPixel,
+                };
+                var callbacks = new NativeHostCallbacks
+                {
+                    Context = created.Context,
+                    OnState = &OnState,
+                    OnTrustQuery = null, // the stored identity: the engine answers trust
+                    OnPairingCode = &OnPairingCode,
+                    OnPaired = &OnPaired,
+                    OnStreaming = null,
+                    OnFailed = &OnFailed,
+                    OnStats = 0,
+                    OnLog = &OnLog,
+                    OnPeer = &OnPeer,
+                };
+                nint handle;
+                EngineResult result = NativeMethods.HostStart(&config, &callbacks, &handle);
+                if (result != EngineResult.Ok)
+                {
+                    return (result, (EngineHost?)null);
+                }
+                created.Handle = handle;
+                ushort port;
+                _ = NativeMethods.HostControlPort(handle, &port);
+                created.ControlPort = port;
+                return (result, created);
             }
-            created.Handle = handle;
-            ushort port;
-            _ = NativeMethods.HostControlPort(handle, &port);
-            created.ControlPort = port;
-            host = created;
-            return result;
-        }
-        finally
-        {
-            Utf8.Free(name);
-        }
+            finally
+            {
+                Utf8.Free(name);
+            }
+        });
     }
 
-    public override void ConfirmPairing(bool accepted) =>
-        _ = NativeMethods.HostConfirmPairing(Handle, accepted ? (byte)1 : (byte)0);
+    public override Task ConfirmPairingAsync(bool accepted) => Native.Run(() =>
+    {
+        if (Handle != 0)
+        {
+            _ = NativeMethods.HostConfirmPairing(Handle, accepted ? (byte)1 : (byte)0);
+        }
+    });
 
-    public override void Stop() => _ = NativeMethods.HostStop(Handle);
+    public override Task StopAsync() => Native.Run(() =>
+    {
+        if (Handle != 0)
+        {
+            _ = NativeMethods.HostStop(Handle);
+        }
+    });
 
     protected override void Destroy(nint handle) => NativeMethods.HostDestroy(handle);
 }
+
+/// <summary>Where and how a viewer session runs.</summary>
+internal sealed record ViewerOptions(
+    string DeviceName, string Address, ushort Port, IReadOnlyList<byte> MonitorIds, uint HotkeyModifiers,
+    uint HotkeyKey);
 
 /// <summary>Windows shows a remote screen on its monitors.</summary>
 internal sealed unsafe class EngineViewer : EngineSession
@@ -179,62 +215,111 @@ internal sealed unsafe class EngineViewer : EngineSession
 
     public bool HotkeyRegistered { get; private set; }
 
-    public static EngineResult Start(
-        Dispatcher dispatcher, string deviceName, string address, ushort port, out EngineViewer? viewer)
+    /// <summary>The streams were hidden (false) or shown (true), by the hotkey or by the shell.</summary>
+    public event Action<bool>? VisibilityChanged;
+
+    /// <summary>The figures of every stream, about once a second.</summary>
+    public event Action<IReadOnlyList<StreamFigures>>? Statistics;
+
+    public static Task<(EngineResult Result, EngineViewer? Viewer)> StartAsync(
+        Dispatcher dispatcher, ViewerOptions options)
     {
         var created = new EngineViewer(dispatcher);
-        nint name = Utf8.Allocate(deviceName);
-        nint host = Utf8.Allocate(address);
+        return Native.Run(() =>
+        {
+            nint name = Utf8.Allocate(options.DeviceName);
+            nint host = Utf8.Allocate(options.Address);
+            byte[] monitors = [.. options.MonitorIds];
+            try
+            {
+                fixed (byte* monitorIds = monitors)
+                {
+                    var config = new NativeViewerConfig
+                    {
+                        SecretKey = 0,
+                        DeviceName = name,
+                        Host = host,
+                        Port = options.Port,
+                        MonitorIds = monitors.Length == 0 ? 0 : (nint)monitorIds,
+                        MonitorIdCount = (nuint)monitors.Length,
+                        HotkeyModifiers = options.HotkeyModifiers,
+                        HotkeyKey = options.HotkeyKey,
+                    };
+                    var callbacks = new NativeViewerCallbacks
+                    {
+                        Context = created.Context,
+                        OnState = &OnState,
+                        OnTrustQuery = null, // the stored identity: the engine answers trust
+                        OnPairingCode = &OnPairingCode,
+                        OnPaired = &OnPaired,
+                        OnVisibility = &OnVisibility,
+                        OnStreamFailed = &OnStreamFailed,
+                        OnStats = &OnStats,
+                        OnLog = &OnLog,
+                        OnPeer = &OnPeer,
+                    };
+                    nint handle;
+                    EngineResult result = NativeMethods.ViewerStart(&config, &callbacks, &handle);
+                    if (result != EngineResult.Ok)
+                    {
+                        return (result, (EngineViewer?)null);
+                    }
+                    created.Handle = handle;
+                    byte registered;
+                    _ = NativeMethods.ViewerHotkeyRegistered(handle, &registered);
+                    created.HotkeyRegistered = registered == 1;
+                    return (result, created);
+                }
+            }
+            finally
+            {
+                Utf8.Free(name);
+                Utf8.Free(host);
+            }
+        });
+    }
+
+    public override Task ConfirmPairingAsync(bool accepted) => Native.Run(() =>
+    {
+        if (Handle != 0)
+        {
+            _ = NativeMethods.ViewerConfirmPairing(Handle, accepted ? (byte)1 : (byte)0);
+        }
+    });
+
+    public override Task StopAsync() => Native.Run(() =>
+    {
+        if (Handle != 0)
+        {
+            _ = NativeMethods.ViewerStop(Handle);
+        }
+    });
+
+    public Task SetVisibleAsync(bool visible) => Native.Run(() =>
+    {
+        if (Handle != 0)
+        {
+            _ = NativeMethods.ViewerSetVisible(Handle, visible ? (byte)1 : (byte)0);
+        }
+    });
+
+    /// <summary>Draws one line in the stream's corner; empty hides it.</summary>
+    public Task SetOverlayAsync(byte streamId, string text) => Native.Run(() =>
+    {
+        if (Handle == 0)
+        {
+            return;
+        }
+        nint line = Utf8.Allocate(text);
         try
         {
-            var config = new NativeViewerConfig
-            {
-                SecretKey = 0,
-                DeviceName = name,
-                Host = host,
-                Port = port,
-                MonitorIds = 0,
-                MonitorIdCount = 0,
-            };
-            var callbacks = new NativeViewerCallbacks
-            {
-                Context = created.Context,
-                OnState = &OnState,
-                OnTrustQuery = null, // the stored identity: the engine answers trust
-                OnPairingCode = &OnPairingCode,
-                OnPaired = &OnPaired,
-                OnVisibility = null,
-                OnStreamFailed = &OnStreamFailed,
-                OnStats = 0,
-                OnLog = 0,
-                OnPeer = &OnPeer,
-            };
-            nint handle;
-            EngineResult result = NativeMethods.ViewerStart(&config, &callbacks, &handle);
-            if (result != EngineResult.Ok)
-            {
-                created.Dispose();
-                viewer = null;
-                return result;
-            }
-            created.Handle = handle;
-            byte registered;
-            _ = NativeMethods.ViewerHotkeyRegistered(handle, &registered);
-            created.HotkeyRegistered = registered == 1;
-            viewer = created;
-            return result;
+            _ = NativeMethods.ViewerSetOverlay(Handle, streamId, (byte*)line);
         }
         finally
         {
-            Utf8.Free(name);
-            Utf8.Free(host);
+            Utf8.Free(line);
         }
-    }
-
-    public override void ConfirmPairing(bool accepted) =>
-        _ = NativeMethods.ViewerConfirmPairing(Handle, accepted ? (byte)1 : (byte)0);
-
-    public override void Stop() => _ = NativeMethods.ViewerStop(Handle);
+    });
 
     protected override void Destroy(nint handle) => NativeMethods.ViewerDestroy(handle);
 
@@ -242,6 +327,29 @@ internal sealed unsafe class EngineViewer : EngineSession
     private static void OnStreamFailed(nint context, byte streamId, EngineResult reason)
     {
         var self = (EngineViewer)From(context);
+        Log.Write(LogLevel.Warning, $"Stream {streamId} stopped: {reason}");
         self.Post(() => self.RaiseStreamFailed(reason));
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnVisibility(nint context, byte visible)
+    {
+        var self = (EngineViewer)From(context);
+        self.Post(() => self.VisibilityChanged?.Invoke(visible == 1));
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnStats(nint context, NativeSessionStats* stats)
+    {
+        var self = (EngineViewer)From(context);
+        var figures = new List<StreamFigures>();
+        for (nuint i = 0; i < stats->StreamCount; i++)
+        {
+            NativeStreamStats stream = stats->Streams[i];
+            figures.Add(new StreamFigures(
+                stream.StreamId, stream.FramesPerSecond, stream.BitrateKbps, stats->RoundTripMicroseconds,
+                stream.LossPermille, stream.LatencyMicroseconds));
+        }
+        self.Post(() => self.Statistics?.Invoke(figures));
     }
 }

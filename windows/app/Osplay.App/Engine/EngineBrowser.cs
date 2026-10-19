@@ -6,7 +6,7 @@ using Osplay.App.Interop;
 namespace Osplay.App.Engine;
 
 /// <summary>Bonjour browsing through the engine; events arrive on the dispatcher's thread.</summary>
-internal sealed unsafe class EngineBrowser : IDisposable
+internal sealed class EngineBrowser : IAsyncDisposable
 {
     private readonly Dispatcher _dispatcher;
     private GCHandle _self;
@@ -17,42 +17,46 @@ internal sealed unsafe class EngineBrowser : IDisposable
     public event Action<DeviceInfo>? Found;
     public event Action<string>? Lost;
 
-    public static EngineResult Start(Dispatcher dispatcher, out EngineBrowser? browser)
+    public static async Task<(EngineResult Result, EngineBrowser? Browser)> StartAsync(Dispatcher dispatcher)
     {
         var created = new EngineBrowser(dispatcher);
         created._self = GCHandle.Alloc(created);
-        var callbacks = new NativeBrowserCallbacks
-        {
-            Context = GCHandle.ToIntPtr(created._self),
-            OnFound = &OnFound,
-            OnLost = &OnLost,
-        };
-        nint handle;
-        EngineResult result = NativeMethods.BrowserStart(&callbacks, &handle);
+        nint context = GCHandle.ToIntPtr(created._self);
+        (EngineResult result, nint handle) = await Native.Run(() => StartNative(context)).ConfigureAwait(true);
         if (result != EngineResult.Ok)
         {
             created._self.Free();
-            browser = null;
-            return result;
+            return (result, null);
         }
         created._browser = handle;
-        browser = created;
-        return result;
+        return (result, created);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        if (_browser == 0)
-        {
-            return;
-        }
-        NativeMethods.BrowserDestroy(_browser); // no callback runs after this returns
+        nint browser = _browser;
         _browser = 0;
-        _self.Free();
+        if (browser != 0)
+        {
+            // No callback runs after this returns.
+            await Native.Run(() => NativeMethods.BrowserDestroy(browser)).ConfigureAwait(true);
+        }
+        if (_self.IsAllocated)
+        {
+            _self.Free();
+        }
+    }
+
+    private static unsafe (EngineResult Result, nint Browser) StartNative(nint context)
+    {
+        var callbacks = new NativeBrowserCallbacks { Context = context, OnFound = &OnFound, OnLost = &OnLost };
+        nint browser;
+        EngineResult started = NativeMethods.BrowserStart(&callbacks, &browser);
+        return (started, browser);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static void OnFound(nint context, NativeDevice* device)
+    private static unsafe void OnFound(nint context, NativeDevice* device)
     {
         var self = (EngineBrowser)GCHandle.FromIntPtr(context).Target!;
         NativeAdvertisement advertisement = device->Advertisement;
@@ -69,7 +73,7 @@ internal sealed unsafe class EngineBrowser : IDisposable
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static void OnLost(nint context, byte* label)
+    private static unsafe void OnLost(nint context, byte* label)
     {
         var self = (EngineBrowser)GCHandle.FromIntPtr(context).Target!;
         string text = Utf8.Read(label);
