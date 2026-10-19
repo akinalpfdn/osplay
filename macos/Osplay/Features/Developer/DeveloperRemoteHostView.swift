@@ -20,11 +20,13 @@
                 if viewModel.isRunning {
                     Text("developer.remoteHost.hint")
                         .font(Theme.Typography.caption)
+                        .fixedSize(horizontal: false, vertical: true)
                         .foregroundStyle(.secondary)
                     ForEach(viewModel.commands, id: \.self) { command in
-                        HStack(spacing: Theme.Spacing.small) {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.small) {
                             Text(verbatim: command)
                                 .font(Theme.Typography.caption.monospaced())
+                                .fixedSize(horizontal: false, vertical: true)
                             Button {
                                 viewModel.copy(command)
                             } label: {
