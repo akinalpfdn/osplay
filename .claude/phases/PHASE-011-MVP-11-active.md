@@ -13,9 +13,9 @@ Mac and Windows find each other, pair, and run both use cases end to end.
 - [x] Viewer-driven negotiation: monitor offer, host creates matching virtual displays, stream configs, start.
 
 ## Acceptance Criteria
-- [ ] Use case 1: the Mac gains two displays shown on the PC's two monitors.
-- [ ] Use case 2: Windows gains one display shown on the MacBook's screen, with the Windows cursor visible.
-- [ ] Unpaired devices cannot start streams; a revoked device is refused.
+- [x] Use case 1: the Mac gains two displays shown on the PC's two monitors.
+- [x] Use case 2: Windows gains one display shown on the MacBook's screen, with the Windows cursor visible.
+- [x] Unpaired devices cannot start streams; a revoked device is refused.
 - [ ] Measured end-to-end latency on wired gigabit: median under 40 ms; on 5 GHz Wi-Fi: median under 60 ms. Method documented in `docs/TROUBLESHOOTING.md` (on-screen millisecond clock photographed together with the viewer).
 
 ## Decisions Made This Phase
@@ -24,4 +24,5 @@ Mac and Windows find each other, pair, and run both use cases end to end.
 - Mac temporary UI: a "Devices" section in the menu bar window, replaced in Phase 11.
 - Bonjour on macOS through the DNS-SD C API, not Network.framework (DECISIONS.md).
 - Windows engine keeps the identity and answers trust itself; revoked devices are kept and refused.
+- Latency acceptance (camera method) not measured yet; carried as an open item.
 - Phase 9's temporary IP connection (Mac debug remote host, `OsplayViewerTest --connect`) is removed.
