@@ -4,6 +4,7 @@
 #include "../viewer/windows_monitors.hpp"
 #include "../viewer/windows_viewer_stream.hpp"
 #include "engine_results.hpp"
+#include "session_trust.hpp"
 #include "system_random.hpp"
 
 #include <osplay/engine.h>
@@ -96,6 +97,7 @@ struct osplay_engine_viewer final : private osplay::engine::ViewerObserver {
     CapiViewerPort port;
     std::unique_ptr<osplay::engine::ViewerOrchestrator> orchestrator;
     osplay_session* session = nullptr;
+    osplay::engine::SessionTrust trust; ///< answers trust when started with the stored identity
 
     /// Guards `active`: the UI thread reaches the orchestrator only while it exists.
     std::mutex active_mutex;
@@ -141,9 +143,17 @@ osplay_session_callbacks core_callbacks(osplay_engine_viewer* viewer) {
         }
         self->callbacks.on_state(self->callbacks.context, state, reason);
     };
+    callbacks.on_peer = [](void* context, const osplay_peer_info* peer) {
+        auto* self = viewer_of(context);
+        self->trust.introduced(peer->device_name);
+        if (self->callbacks.on_peer != nullptr) {
+            self->callbacks.on_peer(self->callbacks.context, peer->platform, peer->device_name);
+        }
+    };
     callbacks.on_trust_query = [](void* context, const uint8_t* key) {
         auto* self = viewer_of(context);
-        return self->callbacks.on_trust_query(self->callbacks.context, key);
+        return self->trust.stored() ? self->trust.trust(key)
+                                    : self->callbacks.on_trust_query(self->callbacks.context, key);
     };
     callbacks.on_pairing_code = [](void* context, uint32_t code, const uint8_t* key) {
         auto* self = viewer_of(context);
@@ -153,6 +163,9 @@ osplay_session_callbacks core_callbacks(osplay_engine_viewer* viewer) {
     };
     callbacks.on_paired = [](void* context, const uint8_t* key) {
         auto* self = viewer_of(context);
+        if (self->trust.stored()) {
+            self->trust.paired(key);
+        }
         if (self->callbacks.on_paired != nullptr) {
             self->callbacks.on_paired(self->callbacks.context, key);
         }
@@ -239,15 +252,19 @@ osplay_engine_result osplay_engine_viewer_start(const osplay_engine_viewer_confi
             return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
         }
         *out_viewer = nullptr;
-        if (config == nullptr || config->secret_key == nullptr ||
-            config->device_name_utf8 == nullptr || config->host_utf8 == nullptr ||
-            config->port == 0 ||
+        if (config == nullptr || config->device_name_utf8 == nullptr ||
+            config->host_utf8 == nullptr || config->port == 0 ||
             (config->monitor_ids == nullptr && config->monitor_id_count != 0) ||
             callbacks == nullptr || callbacks->on_state == nullptr ||
-            callbacks->on_trust_query == nullptr) {
+            (config->secret_key != nullptr && callbacks->on_trust_query == nullptr)) {
             return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
         }
         auto viewer = std::make_unique<osplay_engine_viewer>(*callbacks);
+        osplay::engine::KeyStoreError store_failure{};
+        auto secret = viewer->trust.secret_for(config->secret_key, store_failure);
+        if (!secret) {
+            return to_result(store_failure);
+        }
         viewer->offered = select_monitors(*config);
         if (viewer->offered.empty()) {
             return OSPLAY_ENGINE_ERROR_MONITOR_NOT_FOUND;
@@ -304,8 +321,9 @@ osplay_engine_result osplay_engine_viewer_start(const osplay_engine_viewer_confi
         const osplay_session_callbacks session_callbacks = core_callbacks(viewer.get());
         osplay_session* session = nullptr;
         const osplay_result created = osplay_viewer_session_create(
-            &session_config, config->secret_key, &random, &session_callbacks, config->host_utf8,
+            &session_config, secret->data(), &random, &session_callbacks, config->host_utf8,
             config->port, &session);
+        SecureZeroMemory(secret->data(), secret->size());
         if (created != OSPLAY_OK) {
             osplay_engine_viewer_destroy(viewer.release());
             return created == OSPLAY_ERROR_INVALID_ARGUMENT ? OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT

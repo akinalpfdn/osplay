@@ -45,14 +45,74 @@ typedef enum osplay_engine_result {
     OSPLAY_ENGINE_ERROR_CAPTURE_FAILED = 16,      /* Desktop Duplication could not run */
     OSPLAY_ENGINE_ERROR_ENCODER_UNAVAILABLE = 17, /* no hardware H.264 encoder for the stream */
     OSPLAY_ENGINE_ERROR_ENCODER_FAILED = 18,
-    OSPLAY_ENGINE_ERROR_DECODER_UNAVAILABLE = 19, /* no hardware H.264 decoder for the stream */
-    OSPLAY_ENGINE_ERROR_PRESENTATION_FAILED = 20, /* the viewer window could not be shown */
+    OSPLAY_ENGINE_ERROR_DECODER_UNAVAILABLE = 19,   /* no hardware H.264 decoder for the stream */
+    OSPLAY_ENGINE_ERROR_PRESENTATION_FAILED = 20,   /* the viewer window could not be shown */
+    OSPLAY_ENGINE_ERROR_KEY_STORE_UNAVAILABLE = 21, /* %APPDATA%\Osplay cannot be read or written */
+    OSPLAY_ENGINE_ERROR_KEY_STORE_DAMAGED = 22, /* a stored identity or peer list is unreadable */
+    OSPLAY_ENGINE_ERROR_DISCOVERY_UNAVAILABLE = 23, /* the system DNS-SD service refused */
     OSPLAY_ENGINE_RESULT_MAX_ENUM = 0x7FFFFFFF
 } osplay_engine_result;
 /* NOLINTEND(cppcoreguidelines-use-enum-class,performance-enum-size) */
 
 /* Version of the core library linked into the engine. Thread-safe. */
 OSPLAY_ENGINE_API osplay_version osplay_engine_core_version(void);
+
+/* --- Device identity and paired devices ---------------------------------------------------- */
+
+/*
+ * The identity key and the paired devices live in %APPDATA%\Osplay, encrypted with DPAPI for the
+ * current user. The secret key never leaves the engine: host and viewer sessions started without
+ * a secret key use this identity and answer trust queries from this list. Thread-safe.
+ */
+#define OSPLAY_ENGINE_NAME_SIZE 65 /* 64 bytes of UTF-8 and the NUL */
+
+/* The public key and the device ID of this PC, creating the identity on first use. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_identity(uint8_t* out_public_key,
+                                                              uint8_t* out_device_id);
+
+typedef struct osplay_engine_peer {
+    uint8_t public_key[OSPLAY_KEY_SIZE];
+    char name_utf8[OSPLAY_ENGINE_NAME_SIZE];
+    uint8_t revoked; /* 1: refused without asking */
+    int64_t last_seen_unix;
+} osplay_engine_peer;
+
+/* Fills up to `capacity` peers and writes the number stored to `out_count`. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_peers(osplay_engine_peer* out_peers,
+                                                           size_t capacity, size_t* out_count);
+
+/* Revoked devices are refused from now on; removing one lets it pair again. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_peer_revoke(const uint8_t* public_key);
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_peer_remove(const uint8_t* public_key);
+
+/* --- Discovery (Bonjour) -------------------------------------------------------------------- */
+
+typedef struct osplay_engine_device {
+    char label[OSPLAY_ENGINE_NAME_SIZE]; /* stable identifier, matches on_lost */
+    osplay_advertisement advertisement;  /* name, device ID, roles, platform, protocol version */
+    char address_utf8[64];               /* where to connect: IP literal or .local name */
+    uint16_t port;
+} osplay_engine_device;
+
+/* Callbacks run on system thread pool threads, one at a time, and must return quickly. */
+typedef struct osplay_engine_browser_callbacks {
+    void* context;
+    void (*on_found)(void* context, const osplay_engine_device* device); /* again on changes */
+    void (*on_lost)(void* context, const char* label);
+} osplay_engine_browser_callbacks;
+
+typedef struct osplay_engine_browser osplay_engine_browser;       /* opaque */
+typedef struct osplay_engine_advertiser osplay_engine_advertiser; /* opaque */
+
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_browser_start(
+    const osplay_engine_browser_callbacks* callbacks, osplay_engine_browser** out_browser);
+/* No callback runs after this returns. Accepts NULL. */
+OSPLAY_ENGINE_API void osplay_engine_browser_destroy(osplay_engine_browser* browser);
+
+/* Advertises this PC (its identity's device ID, `name_utf8`, `roles`) on `port`. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_advertiser_start(
+    const char* name_utf8, uint8_t roles, uint16_t port, osplay_engine_advertiser** out_advertiser);
+OSPLAY_ENGINE_API void osplay_engine_advertiser_destroy(osplay_engine_advertiser* advertiser);
 
 /* --- Virtual display (Windows host) --------------------------------------------------------- */
 
@@ -103,14 +163,17 @@ OSPLAY_ENGINE_API void osplay_virtual_display_close(osplay_virtual_display* disp
 typedef struct osplay_engine_host osplay_engine_host; /* opaque */
 
 typedef struct osplay_engine_host_config {
-    const uint8_t* secret_key;       /* the device identity, OSPLAY_KEY_SIZE bytes */
+    /* NULL: the stored identity, and trust from the paired devices (pairings are stored).
+     * Otherwise this key, and the caller answers on_trust_query (developer tools). */
+    const uint8_t* secret_key;
     const char* device_name_utf8;    /* shown to the viewer */
     const char* dump_directory_utf8; /* debug: also write the stream as .h264 here, or NULL */
 } osplay_engine_host_config;
 
 /*
  * Callbacks run on engine threads and must return quickly; they must not call
- * osplay_engine_host_destroy. `on_state` and `on_trust_query` are required.
+ * osplay_engine_host_destroy. `on_state` is required, and `on_trust_query` when a secret key is
+ * given (with the stored identity the engine answers it from the paired devices).
  */
 typedef struct osplay_engine_host_callbacks {
     void* context;
@@ -125,6 +188,8 @@ typedef struct osplay_engine_host_callbacks {
     void (*on_failed)(void* context, osplay_engine_result reason);
     void (*on_stats)(void* context, const osplay_session_stats* stats);
     void (*on_log)(void* context, osplay_log_level level, const char* message);
+    /* The other device introduced itself (before any pairing code). */
+    void (*on_peer)(void* context, osplay_platform platform, const char* device_name_utf8);
 } osplay_engine_host_callbacks;
 
 /* Connects to the helper service and starts listening on an ephemeral TCP port. */
@@ -179,7 +244,7 @@ OSPLAY_ENGINE_API osplay_engine_result osplay_engine_list_monitors(
 typedef struct osplay_engine_viewer osplay_engine_viewer; /* opaque */
 
 typedef struct osplay_engine_viewer_config {
-    const uint8_t* secret_key;    /* the device identity, OSPLAY_KEY_SIZE bytes */
+    const uint8_t* secret_key;    /* as in osplay_engine_host_config */
     const char* device_name_utf8; /* shown to the host */
     const char* host_utf8;        /* the host's address */
     uint16_t port;                /* the host's control port */
@@ -188,7 +253,8 @@ typedef struct osplay_engine_viewer_config {
 } osplay_engine_viewer_config;
 
 /* Callbacks run on engine threads and must return quickly; they must not call
- * osplay_engine_viewer_destroy. `on_state` and `on_trust_query` are required. */
+ * osplay_engine_viewer_destroy. `on_state` is required, and `on_trust_query` when a secret key
+ * is given. */
 typedef struct osplay_engine_viewer_callbacks {
     void* context;
     void (*on_state)(void* context, osplay_session_state state, osplay_result reason);
@@ -201,6 +267,8 @@ typedef struct osplay_engine_viewer_callbacks {
     void (*on_stream_failed)(void* context, uint8_t stream_id, osplay_engine_result reason);
     void (*on_stats)(void* context, const osplay_session_stats* stats);
     void (*on_log)(void* context, osplay_log_level level, const char* message);
+    /* The other device introduced itself (before any pairing code). */
+    void (*on_peer)(void* context, osplay_platform platform, const char* device_name_utf8);
 } osplay_engine_viewer_callbacks;
 
 typedef struct osplay_engine_stream_figures {
