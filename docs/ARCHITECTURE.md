@@ -340,7 +340,7 @@ core ─► access unit ─► decode thread: MF H.264 decoder (D3D11, NV12) ─
   pixels. Ids follow the desktop position, left to right; after a display change the offered
   monitors are matched by GDI name, so renumbering never stops the wrong stream.
 - **UI thread** (`src/present/presentation_thread.cpp`). Per-monitor DPI aware; owns the windows,
-  the global hide/show hotkey (Ctrl+Alt+Shift+V, `RegisterHotKey`), `WM_DISPLAYCHANGE` and the
+  the global hide/show hotkey (the shell's choice, Ctrl+Alt+Shift+V by default, `RegisterHotKey`), `WM_DISPLAYCHANGE` and the
   display-required power state. Windows are topmost tool windows without a redirection bitmap and
   hide the local pointer.
 - **Decode and present** (`src/decode/`, `src/viewer/windows_viewer_stream.cpp`). One thread per
@@ -351,6 +351,36 @@ core ─► access unit ─► decode thread: MF H.264 decoder (D3D11, NV12) ─
   `Present(0, 0)`. A window that covers the monitor with nothing drawn over it lets DWM switch to
   independent flip. A decode error, or a queue longer than 30 access units, drops frames until the
   next keyframe and asks for one (at most every 100 ms).
+- **Stats overlay.** The shell formats one localized line from the session statistics and passes it
+  with `osplay_engine_viewer_set_overlay`; the stream thread draws it with Direct2D and DirectWrite
+  in the top-left corner, sized by the monitor's scaling. While the overlay shows, the picture is
+  converted into a kept texture first, so a new line is drawn at once even when no frame arrives;
+  without it frames go straight into the swap chain as before.
 - **Debug tool.** `OsplayViewerTest.exe` lists the monitors, views a remote host by address or runs
   a loopback with the Windows host pipeline (BUILDING.md).
+
+## Windows app UI
+
+A tray app (`windows/app/Osplay.App`, WPF with WPF-UI's Fluent controls) shaped like the Mac's menu
+bar app. Every visual value comes from `Theme/Tokens.xaml` and WPF-UI's theme brushes (referenced
+with `DynamicResource`), every string from `Osplay.Localization` (English and Turkish);
+`scripts/check_ui_tokens.sh` rejects literal sizes, colours and text in XAML.
+
+- **Tray icon** (`Tray/`). A click opens the panel; the menu has status, the two roles, hide/show,
+  Disconnect, Settings and Quit. The icon follows the taskbar's light or dark theme.
+- **Panel** (`TrayPanel/`). A borderless Fluent window above the taskbar that closes when it loses
+  focus: problems first (errors, helper or driver missing, public network, update available), the
+  role cards "Extend this PC" and "Use as display", the quality preset while sharing, and while
+  viewing a picture of this PC's monitors (click one to leave it out) and the nearby computers.
+- **Settings** (`Settings/`). General (start with Windows through the Run key, stats overlay,
+  recordable hide/show shortcut, daily update check against GitHub Releases), Devices (revoke,
+  remove), Advanced (helper and driver health with repair guidance, network profile, logs folder).
+  `AppSettings` keeps the values in `%APPDATA%\Osplay\settings.json`.
+- **Engine calls** (`Engine/`). Every call into `OsplayEngine.dll` runs on the thread pool through
+  one serial queue (`Native`), so the UI thread never waits for native code and calls on a handle
+  never overlap; engine callbacks are marshalled to the dispatcher. A missing or damaged engine is
+  detected at start and disables the roles with a message.
+- **Logs** (`Diagnostics/Log.cs`). Engine and core log lines go to
+  `%LOCALAPPDATA%\Osplay\logs\osplay.log` from a background writer, rolled over at 5 MB.
+- **Theme.** WPF-UI applies the system theme at start, and `SystemThemeWatcher` switches it live.
 
