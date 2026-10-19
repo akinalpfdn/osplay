@@ -188,10 +188,11 @@ struct HostSessionTests {
         }
 
         harness.core.emit(.streamStopped(streamID: 1))
-        try await eventually { !harness.captures.captures[1].isRunning }
+        // The display goes back only after its pipeline has stopped: wait for the last step.
+        try await eventually { harness.lender.returnedDisplays == [201] }
 
+        #expect(!harness.captures.captures[1].isRunning)
         #expect(harness.captures.captures[0].isRunning)
-        #expect(harness.lender.returnedDisplays == [201])
         #expect(harness.encoders.encoders[1].isInvalidated)
         await session.stop()
         _ = await run.value
