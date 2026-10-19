@@ -245,13 +245,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Looking for computers sharing their screens…"
+            "value" : "Looking for computers sharing their screens… If none appears, check that Osplay may use the local network (System Settings › Privacy & Security › Local Network)."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ekranını paylaşan bilgisayarlar aranıyor…"
+            "value" : "Ekranını paylaşan bilgisayarlar aranıyor… Hiçbiri görünmezse Osplay'in yerel ağı kullanma izni olduğunu kontrol edin (Sistem Ayarları › Gizlilik ve Güvenlik › Yerel Ağ)."
           }
         }
       }
