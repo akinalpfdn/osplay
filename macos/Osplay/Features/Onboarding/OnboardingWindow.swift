@@ -13,8 +13,9 @@ final class OnboardingWindow {
 
     func show() {
         if let window {
-            window.makeKeyAndOrderFront(nil)
             NSApp.activate()
+            window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()  // a menu bar app is not active by itself
             return
         }
         let view = OnboardingView(viewModel: viewModel) { [weak self] in self?.close() }
@@ -25,8 +26,9 @@ final class OnboardingWindow {
         window.contentView = NSHostingView(rootView: view)
         window.setContentSize(window.contentView?.fittingSize ?? .zero)
         window.center()
-        window.makeKeyAndOrderFront(nil)
         NSApp.activate()
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
         self.window = window
     }
 

@@ -17,6 +17,7 @@ struct SettingsView: View {
                 .tabItem { Label("settings.advanced", systemImage: Theme.Symbol.advanced) }
         }
         .frame(width: Theme.Size.settingsWidth, height: Theme.Size.settingsHeight)
+        .background(SettingsWindowReader())
         .onAppear(perform: viewModel.appeared)
     }
 }

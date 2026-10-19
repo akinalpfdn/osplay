@@ -59,6 +59,7 @@ struct MenuView: View {
 
 private struct MenuHeader: View {
     let status: ConnectionViewModel.Status
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.medium) {
@@ -72,23 +73,22 @@ private struct MenuHeader: View {
             }
             .accessibilityElement(children: .combine)
             Spacer()
-            SettingsLink {
-                Image(systemName: Theme.Symbol.settings)
-                    .font(Theme.Typography.symbol)
+            // A plain button: SettingsLink swallows the click, so nothing could front its window.
+            Button {
+                openSettings()
+                SettingsWindow.bringToFront()
+            } label: {
+                Label("menu.settings", systemImage: Theme.Symbol.settings)
             }
-            .simultaneousGesture(TapGesture().onEnded { NSApp.activate() })
-            .accessibilityLabel(Text("menu.settings"))
-            .help(Text("menu.settings"))
             Button {
                 NSApplication.shared.terminate(nil)
             } label: {
-                Image(systemName: Theme.Symbol.quit)
-                    .font(Theme.Typography.symbol)
+                Label("menu.quit", systemImage: Theme.Symbol.quit)
             }
             .keyboardShortcut("q")
-            .accessibilityLabel(Text("menu.quit"))
-            .help(Text("menu.quit"))
         }
+        .labelStyle(.iconOnly)
+        .font(Theme.Typography.symbol)
         .buttonStyle(.borderless)
     }
 
