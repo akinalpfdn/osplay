@@ -321,3 +321,12 @@ choices the plan leaves open are logged here.
 **Revisit if:** Latency statistics drive behaviour (adaptive bitrate) rather than display only.
 
 ---
+
+## 2026-10-19 — Initial virtual display resolution follows the viewer's scaling
+**Chosen:** A viewer monitor the user runs below 150% scaling starts at one point per pixel (2560×1440 looks like 2560×1440); at 150% and above it starts in the crisp HiDPI resolution (looks like half size). Refines the 2026-10-18 crisp-HiDPI default.
+**Alternatives:** Crisp HiDPI for every monitor (the previous default); macOS's own default (largest 2× mode, four times the pixels).
+**Why:** In the Phase 9 test both Windows monitors run at 100%, and the crisp default made them look like a 1280×720 desktop — not what the user sees on Windows. The viewer already reports its scaling, so the host can match it; both choices keep the backing equal to the stream size.
+**Trade-offs:** Text at one point per pixel is not HiDPI-smoothed on a low-density monitor, as on Windows itself.
+**Revisit if:** Phase 11 per-peer display settings let the user choose.
+
+---
