@@ -1,5 +1,5 @@
 # Phase 011 (MVP-11) — Cross-platform interop, discovery and pairing
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 10. Depends on: Phase 7, Phase 9.
 
@@ -20,3 +20,6 @@ Mac and Windows find each other, pair, and run both use cases end to end.
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
+- User decision: Windows temporary UI is the WPF tray menu (discovered devices, role, connect, pairing dialog) with the real P/Invoke layer, reused in Phase 12.
+- Mac temporary UI: a "Devices" section in the menu bar window, replaced in Phase 11.
+- Phase 9's temporary IP connection (Mac debug remote host, `OsplayViewerTest --connect`) is removed.
