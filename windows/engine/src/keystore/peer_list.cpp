@@ -97,7 +97,7 @@ std::vector<std::uint8_t> PeerList::encode() const {
     out.push_back(static_cast<std::uint8_t>(peers_.size() >> 8U));
     for (const Peer& peer : peers_) {
         out.insert(out.end(), peer.public_key.begin(), peer.public_key.end());
-        out.push_back(peer.revoked ? 1U : 0U);
+        out.push_back(static_cast<std::uint8_t>(peer.revoked ? 1U : 0U));
         put_i64(out, peer.last_seen_unix);
         out.push_back(static_cast<std::uint8_t>(peer.name.size()));
         out.insert(out.end(), peer.name.begin(), peer.name.end());

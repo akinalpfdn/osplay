@@ -2,9 +2,16 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdio>
 #include <cstring>
 
 namespace {
+
+/// Copies a literal and its NUL into a fixed C string field.
+template <std::size_t Size>
+void set_text(char (&field)[Size], const char* text) { // NOLINT(*-avoid-c-arrays): C API field
+    static_cast<void>(std::snprintf(static_cast<char*>(field), Size, "%s", text));
+}
 
 using osplay::engine::instance_label;
 using osplay::engine::label_of;
@@ -17,7 +24,7 @@ osplay_txt_record mac_record() {
     advertisement.platform = OSPLAY_PLATFORM_MACOS;
     advertisement.roles = OSPLAY_ROLE_HOST;
     advertisement.device_id[0] = 0xAB;
-    std::strcpy(advertisement.name, "MacBook Air");
+    set_text(advertisement.name, "MacBook Air");
     osplay_txt_record record{};
     osplay_advertisement_to_txt(&advertisement, &record);
     return record;
