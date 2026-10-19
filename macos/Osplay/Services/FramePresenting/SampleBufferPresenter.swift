@@ -58,6 +58,16 @@ final class SampleBufferPresenter: NSObject, FramePresenting {
         layoutCursor()
     }
 
+    func showStats(_ figures: StatsFigures?) {
+        guard let figures else {
+            content.statsLabel.isHidden = true
+            return
+        }
+        content.statsLabel.stringValue = figures.overlayText
+        content.statsLabel.isHidden = false
+        content.needsLayout = true
+    }
+
     private func layoutCursor() {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -195,6 +205,8 @@ private final class PresenterView: NSView {
     let streamSize: CGSize
     let displayLayer = AVSampleBufferDisplayLayer()
     let cursorLayer = CALayer()
+    /// The stats overlay in the top-left corner (Settings › Advanced).
+    let statsLabel = NSTextField(labelWithString: "")
     var onMouseMoved: (() -> Void)?
 
     init(streamSize: CGSize) {
@@ -208,6 +220,15 @@ private final class PresenterView: NSView {
         cursorLayer.magnificationFilter = .nearest
         layer?.addSublayer(displayLayer)
         layer?.addSublayer(cursorLayer)
+        statsLabel.isHidden = true
+        statsLabel.font = NSFont.monospacedDigitSystemFont(
+            ofSize: Theme.StatsOverlay.fontSize, weight: .medium)
+        statsLabel.textColor = NSColor(Theme.StatsOverlay.text)
+        statsLabel.wantsLayer = true
+        statsLabel.layer?.backgroundColor = NSColor(Theme.StatsOverlay.background).cgColor
+        statsLabel.layer?.cornerRadius = Theme.StatsOverlay.cornerRadius
+        statsLabel.setAccessibilityLabel(String(localized: "stats.accessibilityLabel"))
+        addSubview(statsLabel)
     }
 
     @available(*, unavailable)
@@ -219,6 +240,13 @@ private final class PresenterView: NSView {
         CATransaction.setDisableActions(true)
         displayLayer.frame = bounds
         CATransaction.commit()
+        let size = statsLabel.intrinsicContentSize
+        let padding = Theme.StatsOverlay.padding
+        let margin = Theme.StatsOverlay.margin
+        statsLabel.frame = CGRect(
+            x: margin, y: bounds.height - margin - size.height - 2 * padding,
+            width: size.width + 2 * padding, height: size.height + 2 * padding)
+        statsLabel.alignment = .center
     }
 
     override func updateTrackingAreas() {

@@ -32,6 +32,11 @@ struct PeerBook: Codable, Sendable, Equatable {
         }
     }
 
+    mutating func rename(_ publicKey: [UInt8], to name: String) {
+        guard let index = peers.firstIndex(where: { $0.publicKey == publicKey }), !name.isEmpty else { return }
+        peers[index].name = name
+    }
+
     mutating func revoke(_ publicKey: [UInt8]) {
         guard let index = peers.firstIndex(where: { $0.publicKey == publicKey }) else { return }
         peers[index].revoked = true

@@ -19,6 +19,11 @@ final class AppSettings {
         didSet { defaults.set(showsStatsOverlay, forKey: Key.statsOverlay) }
     }
 
+    /// The permissions window was finished once; afterwards it opens only when one is missing.
+    var hasCompletedOnboarding: Bool {
+        didSet { defaults.set(hasCompletedOnboarding, forKey: Key.onboarding) }
+    }
+
     /// Per paired device (by device ID), how its monitors' virtual displays start.
     private(set) var hiDPIChoices: [String: HiDPIChoice] {
         didSet { save(hiDPIChoices, forKey: Key.hiDPIChoices) }
@@ -31,6 +36,7 @@ final class AppSettings {
         qualityPreset = defaults.string(forKey: Key.qualityPreset).flatMap(QualityPreset.init) ?? .high
         viewerHotkey = Self.load(Hotkey.self, from: defaults, forKey: Key.viewerHotkey) ?? Tunables.Viewer.toggleHotkey
         showsStatsOverlay = defaults.bool(forKey: Key.statsOverlay)
+        hasCompletedOnboarding = defaults.bool(forKey: Key.onboarding)
         hiDPIChoices = Self.load([String: HiDPIChoice].self, from: defaults, forKey: Key.hiDPIChoices) ?? [:]
     }
 
@@ -63,5 +69,6 @@ final class AppSettings {
         static let viewerHotkey = "viewerHotkey"
         static let statsOverlay = "showsStatsOverlay"
         static let hiDPIChoices = "hiDPIChoices"
+        static let onboarding = "hasCompletedOnboarding"
     }
 }

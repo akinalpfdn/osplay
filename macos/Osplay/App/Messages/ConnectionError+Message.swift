@@ -43,10 +43,14 @@ extension ConnectionError {
         if case .host(let error) = self { return error.needsScreenRecordingPermission }
         return false
     }
+
+    var needsLocalNetworkPermission: Bool {
+        self == .discovery(.localNetworkDenied)
+    }
 }
 
 extension CoreError {
-    /// Text for a session that ended with this error.
+    /// Text for a session that ended with this error: what happened and what to do.
     var sessionMessage: String {
         switch self {
         case .notTrusted: String(localized: "error.session.notTrusted")
@@ -54,7 +58,15 @@ extension CoreError {
         case .unsupportedVersion: String(localized: "error.connection.incompatible")
         case .peerBusy: String(localized: "error.session.peerBusy")
         case .timedOut, .network, .connectionClosed: String(localized: "error.session.unreachable")
-        default: String(localized: "error.host.session \(Int(code))")
+        case .invalidArgument, .bufferTooSmall, .truncated, .badMagic, .unknownType, .trailingBytes,
+            .valueOutOfRange, .invalidString, .tooLarge, .unexpectedMessage, .handshakeOutOfOrder:
+            String(localized: "error.session.protocol")
+        case .decryptionFailed, .replayed, .nonceExhausted, .invalidKey:
+            String(localized: "error.session.encryption")
+        case .randomUnavailable: String(localized: "error.session.random")
+        case .peerError: String(localized: "error.session.peerError")
+        case .invalidState: String(localized: "error.session.busy")
+        case .internalFailure, .unknown: String(localized: "error.session.internal \(Int(code))")
         }
     }
 }

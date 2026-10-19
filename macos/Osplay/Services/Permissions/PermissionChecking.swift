@@ -9,6 +9,8 @@ protocol PermissionChecking: Sendable {
     func requestScreenRecordingAccess() -> Bool
     /// The Screen Recording pane of System Settings.
     var screenRecordingSettingsURL: URL? { get }
+    /// The Local Network pane of System Settings.
+    var localNetworkSettingsURL: URL? { get }
 }
 
 struct SystemPermissions: PermissionChecking {
@@ -18,5 +20,9 @@ struct SystemPermissions: PermissionChecking {
 
     var screenRecordingSettingsURL: URL? {
         URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")
+    }
+
+    var localNetworkSettingsURL: URL? {
+        URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork")
     }
 }

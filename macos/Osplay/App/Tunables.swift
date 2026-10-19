@@ -50,6 +50,16 @@ enum Tunables {
         }
     }
 
+    enum Onboarding {
+        /// How often the permissions window rereads Screen Recording access.
+        static let pollInterval: Duration = .seconds(1)
+    }
+
+    enum Logs {
+        /// How far back an exported log reaches (the current run only: the store is per process).
+        static let exportWindow: TimeInterval = 24 * 60 * 60
+    }
+
     enum Connection {
         /// Pause before sharing listens again after a session ended.
         static let relistenDelay: Duration = .seconds(1)

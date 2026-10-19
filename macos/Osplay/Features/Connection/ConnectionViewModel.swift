@@ -94,7 +94,8 @@ final class ConnectionViewModel {
         let displayID = local.displayID
         let session = ViewerSession(
             core: core, decoders: dependencies.decoders, presenters: dependencies.presenters,
-            power: dependencies.power, target: { _ in .fullScreen(displayID) })
+            power: dependencies.power, target: { _ in .fullScreen(displayID) },
+            showsStats: { [settings = dependencies.settings] in await MainActor.run { settings.showsStatsOverlay } })
         viewer = session
         peerName = device.advertisement.name
         status = .connecting(peer: peerName)
@@ -120,6 +121,31 @@ final class ConnectionViewModel {
         }
     }
 
+    /// Shown in place of the name the device introduced itself with.
+    func rename(_ peer: TrustedPeer, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        update { () throws(KeyStoreError) in try trust.rename(peer.publicKey, to: trimmed) }
+    }
+
+    /// Whether a discovered device is already paired (no code when connecting).
+    func isPaired(_ device: DiscoveredDevice) -> Bool {
+        peers.contains {
+            !$0.revoked && DeviceIdentity.deviceID(publicKey: $0.publicKey) == device.advertisement.deviceID
+        }
+    }
+
+    /// The paired device's name, or the one it advertises.
+    func displayName(of device: DiscoveredDevice) -> String {
+        peers.first { DeviceIdentity.deviceID(publicKey: $0.publicKey) == device.advertisement.deviceID }?.name
+            ?? device.advertisement.name
+    }
+
+    /// Loads the paired devices for Settings before any connection did.
+    func loadPeers() {
+        _ = prepare()
+    }
+
     /// Refused from now on; a session with it ends at once.
     func revoke(_ peer: TrustedPeer) {
         update { () throws(KeyStoreError) in try trust.revoke(peer.publicKey) }
@@ -139,6 +165,11 @@ final class ConnectionViewModel {
 
     func openScreenRecordingSettings() {
         guard let url = dependencies.permissions.screenRecordingSettingsURL else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    func openLocalNetworkSettings() {
+        guard let url = dependencies.permissions.localNetworkSettingsURL else { return }
         NSWorkspace.shared.open(url)
     }
 

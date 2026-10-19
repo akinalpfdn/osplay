@@ -187,6 +187,7 @@ struct FakePermissions: PermissionChecking {
     var hasScreenRecordingAccess = true
     func requestScreenRecordingAccess() -> Bool { hasScreenRecordingAccess }
     var screenRecordingSettingsURL: URL? { nil }
+    var localNetworkSettingsURL: URL? { nil }
 }
 
 private func makePixelBuffer() -> CVPixelBuffer {

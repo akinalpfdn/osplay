@@ -37,6 +37,9 @@ actor ViewerSession {
     private let presenters: any FramePresenterMaking
     private let power: any PowerAssertionManaging
     private let target: @Sendable (StreamConfiguration) -> PresentationTarget
+    /// Read with every statistics update, so the setting applies at once.
+    private let showsStats: @Sendable () async -> Bool
+    private var overlaysShown = false
     private var streams: [UInt8: (pipeline: ViewerStreamPipeline, presenter: any FramePresenting)] = [:]
     private var visible = true
     private var assertion: (any PowerAssertion)?
@@ -44,8 +47,10 @@ actor ViewerSession {
 
     init(
         core: any ViewerCoreSession, decoders: any VideoDecoderMaking, presenters: any FramePresenterMaking,
-        power: any PowerAssertionManaging, target: @escaping @Sendable (StreamConfiguration) -> PresentationTarget
+        power: any PowerAssertionManaging, target: @escaping @Sendable (StreamConfiguration) -> PresentationTarget,
+        showsStats: @escaping @Sendable () async -> Bool = { false }
     ) {
+        self.showsStats = showsStats
         self.core = core
         self.decoders = decoders
         self.presenters = presenters
@@ -82,6 +87,7 @@ actor ViewerSession {
                 }
             case .statistics(let statistics):
                 eventSink.yield(.statistics(statistics))
+                await updateOverlays(statistics)
             case .log(let level, let message):
                 log(level, message)
             case .streamStopped(let streamID):
@@ -102,6 +108,17 @@ actor ViewerSession {
         }
         await tearDown()
         return failure
+    }
+
+    private func updateOverlays(_ statistics: SessionStatistics) async {
+        let shows = await showsStats()
+        guard shows || overlaysShown else { return }
+        overlaysShown = shows
+        for stream in statistics.streams {
+            guard let presenter = streams[stream.streamID]?.presenter else { continue }
+            await presenter.showStats(
+                shows ? StatsFigures(stream: stream, roundTripMicroseconds: statistics.roundTripMicroseconds) : nil)
+        }
     }
 
     /// Hides or shows every stream. Hidden streams are paused, so the host stops sending.
