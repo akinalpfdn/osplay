@@ -53,6 +53,8 @@ enum Tunables {
     enum Host {
         /// Virtual displays offer HiDPI "looks like" sizes; per-peer choice arrives in Phase 11.
         static let defaultHiDPI = true
+        /// Streams never exceed this rate; 120 Hz capture runs at ~80 fps on a MacBook Air M3.
+        static let maximumRefreshMillihertz: UInt32 = 60_000
     }
 
     enum Capture {

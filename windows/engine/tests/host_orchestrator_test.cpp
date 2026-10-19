@@ -172,6 +172,20 @@ TEST(HostOrchestrator, TheFirstViewerMonitorBecomesTheVirtualMonitorAndTheStream
     EXPECT_EQ(h.observer.streaming->left, 1920);
 }
 
+TEST(HostOrchestrator, AHighRefreshMonitorGetsASixtyHertzStream) {
+    Harness h;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    osplay_monitor fast = monitor(0);
+    fast.refresh_millihertz = 120'000;
+    orchestrator.on_viewer_monitors(std::vector<osplay_monitor>{fast});
+    orchestrator.wait_idle();
+
+    ASSERT_EQ(h.displays.created.size(), 1U);
+    EXPECT_EQ(h.displays.created[0].refresh_millihertz, 60'000U);
+    ASSERT_EQ(h.core.configured.size(), 1U);
+    EXPECT_EQ(h.core.configured[0].refresh_millihertz, 60'000U);
+}
+
 TEST(HostOrchestrator, PipelineOutputReachesTheCoreAndTheDump) {
     Harness h;
     const auto directory = std::filesystem::temp_directory_path() / "osplay-orchestrator-test";

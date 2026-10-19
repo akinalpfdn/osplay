@@ -109,7 +109,7 @@ actor HostSession {
     }
 
     private func startStreams(for monitors: [MonitorDescription]) async {
-        let offered = Array(monitors.prefix(Tunables.VirtualDisplay.maximumDisplayCount))
+        let offered = monitors.prefix(Tunables.VirtualDisplay.maximumDisplayCount).map(Self.capped)
         let lent: [LentDisplay]
         do {
             lent = try await displays.lend(offered, peerID: peerID)
@@ -179,6 +179,17 @@ actor HostSession {
             await pipeline.stop()
         }
         await displays.returnAll()
+    }
+
+    /// High refresh streams come after the MVP (DEVPLAN): a 120 Hz monitor gets a 60 Hz display and
+    /// stream, which this Mac captures and encodes at full rate.
+    static func capped(_ monitor: MonitorDescription) -> MonitorDescription {
+        MonitorDescription(
+            id: monitor.id, widthPixels: monitor.widthPixels, heightPixels: monitor.heightPixels,
+            refreshMillihertz: min(monitor.refreshMillihertz, Tunables.Host.maximumRefreshMillihertz),
+            physicalWidthMillimeters: monitor.physicalWidthMillimeters,
+            physicalHeightMillimeters: monitor.physicalHeightMillimeters, scalePercent: monitor.scalePercent,
+            name: monitor.name)
     }
 
     static func streamConfiguration(id: UInt8, for monitor: MonitorDescription) -> StreamConfiguration {

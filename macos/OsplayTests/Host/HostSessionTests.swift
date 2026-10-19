@@ -43,12 +43,13 @@ struct HostSessionTests {
         let streams = try #require(harness.core.configuredStreams.first)
         #expect(streams.map(\.streamID) == [0, 1])
         #expect(streams.map(\.monitorID) == [3, 7])
-        #expect(streams[1].width == 1920 && streams[1].refreshMillihertz == 144_000)
+        // The 144 Hz monitor gets a 60 Hz display and stream (no high refresh before the MVP ships).
+        #expect(streams[1].width == 1920 && streams[1].refreshMillihertz == 60_000)
         #expect(streams[0].bitrateKbps == Tunables.Encoding.bitrateKbps(width: 2560, height: 1440, frameRate: 60))
-        #expect(harness.lender.lentMonitors == [monitors])
+        #expect(harness.lender.lentMonitors.first?.map(\.refreshMillihertz) == [60_000, 60_000])
         #expect(harness.captures.captures.map(\.configuration.displayID) == [200, 201])
         #expect(harness.captures.captures[0].configuration.width == 2560)
-        #expect(harness.encoders.encoders.map(\.configuration.frameRate) == [60, 144])
+        #expect(harness.encoders.encoders.map(\.configuration.frameRate) == [60, 60])
 
         await session.stop()
         #expect(await run.value == nil)

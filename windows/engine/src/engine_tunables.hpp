@@ -15,6 +15,8 @@ inline constexpr int kDisplayConfigQueryAttempts = 3;
 inline constexpr std::uint8_t kHostStreamId = 0;
 /// Target bitrate in bits per pixel per frame: 0.1 gives ~25 Mbit/s for 2560×1664 at 60 Hz.
 inline constexpr double kBitsPerPixel = 0.1;
+/// Host: streams never exceed this rate, whatever the viewer's monitor runs at.
+inline constexpr std::uint32_t kMaxStreamRefreshMillihertz = 60'000;
 inline constexpr std::uint32_t kMinBitrateKbps = 2'000;
 inline constexpr std::uint32_t kMaxBitrateKbps = 80'000;
 

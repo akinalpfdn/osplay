@@ -37,6 +37,8 @@ void HostOrchestrator::on_viewer_monitors(std::span<const osplay_monitor> monito
     // Copied: the core's strings are valid only during its callback.
     osplay_monitor first = monitors.front();
     first.name = nullptr;
+    // High refresh streams come after the MVP (DEVPLAN); a 120 Hz monitor shows a 60 Hz stream.
+    first.refresh_millihertz = std::min(first.refresh_millihertz, kMaxStreamRefreshMillihertz);
     post([this, first] { start(first); });
 }
 
