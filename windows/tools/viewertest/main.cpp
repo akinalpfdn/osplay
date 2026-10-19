@@ -7,7 +7,8 @@
 // --list prints the monitors the viewer would offer. --loopback starts an engine host session
 // (a virtual monitor through the helper service) and views it on one physical monitor. --connect
 // views a remote host, such as the Mac's debug "Host for a remote viewer" (until Phase 10 adds
-// discovery). Every second it prints, per stream, the frames presented and decode errors.
+// discovery). Every second it prints the round trip time and, per stream, the frames presented,
+// decode errors and latency.
 // Ctrl+Alt+Shift+V hides and shows the viewer windows.
 #include <osplay/engine.h>
 #include <osplay/osplay.h>
@@ -136,6 +137,7 @@ struct Events {
     std::mutex mutex;
     std::vector<std::string> messages; // printed by the main thread
     std::map<std::uint8_t, double> latency_ms;
+    double rtt_ms = 0;
 
     void say(std::string message) {
         const std::scoped_lock lock(mutex);
@@ -167,6 +169,7 @@ osplay_engine_viewer_callbacks viewer_callbacks(Events& events) {
     callbacks.on_stats = [](void* context, const osplay_session_stats* stats) {
         auto* e = static_cast<Events*>(context);
         const std::scoped_lock lock(e->mutex);
+        e->rtt_ms = stats->rtt_us / 1000.0;
         for (const osplay_stream_stats& stream : std::span(stats->streams, stats->stream_count)) {
             e->latency_ms[stream.stream_id] = stream.latency_us / 1000.0;
         }
@@ -227,16 +230,19 @@ void report(int second, osplay_engine_viewer* viewer, Events& events,
         osplay_engine_viewer_stream_stats(viewer, stats.data(), stats.size(), &count));
     std::vector<std::string> messages;
     std::map<std::uint8_t, double> latency;
+    double rtt = 0;
     {
         const std::scoped_lock lock(events.mutex);
         messages.swap(events.messages);
         latency = events.latency_ms;
+        rtt = events.rtt_ms;
     }
     for (const std::string& message : messages) {
         std::cout << "  " << message << '\n';
     }
-    std::string line = std::format("{:3}s  viewer {}{}", second, state_name(events.viewer_state),
-                                   events.visible ? "" : " (hidden)");
+    std::string line =
+        std::format("{:3}s  viewer {}{}  rtt {:.1f} ms", second, state_name(events.viewer_state),
+                    events.visible ? "" : " (hidden)", rtt);
     for (const auto& stream : std::span(stats.data(), count)) {
         const std::uint64_t previous = last_presented[stream.stream_id];
         line +=
