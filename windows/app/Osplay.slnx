@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="Osplay.App/Osplay.App.csproj" />
   <Project Path="Osplay.Localization/Osplay.Localization.csproj" />
+  <Project Path="Osplay.Localization.Tests/Osplay.Localization.Tests.csproj" />
 </Solution>

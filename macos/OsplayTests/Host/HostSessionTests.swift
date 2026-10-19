@@ -24,7 +24,7 @@ struct HostSessionTests {
 
         func session(permissions: FakePermissions = FakePermissions()) -> HostSession {
             HostSession(
-                core: core, peerID: Data("peer".utf8), displays: lender, captures: captures, encoders: encoders,
+                core: core, peerID: { Data("peer".utf8) }, displays: lender, captures: captures, encoders: encoders,
                 permissions: permissions)
         }
     }
@@ -53,6 +53,31 @@ struct HostSessionTests {
 
         await session.stop()
         #expect(await run.value == nil)
+    }
+
+    @Test("Pairing reaches the UI and the user's answer reaches the core")
+    func pairing() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        let received = Task {
+            var events: [HostSession.Event] = []
+            for await event in session.events {
+                events.append(event)
+                if case .paired = event { break }
+            }
+            return events
+        }
+        let key = [UInt8](repeating: 7, count: 32)
+        harness.core.emit(.pairingCode(123_456, peerPublicKey: key))
+        await session.confirmPairing(true)
+        harness.core.emit(.paired(peerPublicKey: key))
+
+        let events = await received.value
+        #expect(events.contains { if case .pairingCode(123_456, key) = $0 { true } else { false } })
+        #expect(harness.core.answers == [true])
+        await session.stop()
+        _ = await run.value
     }
 
     @Test("Captured frames reach the core, starting with a keyframe")
@@ -163,10 +188,11 @@ struct HostSessionTests {
         }
 
         harness.core.emit(.streamStopped(streamID: 1))
-        try await eventually { !harness.captures.captures[1].isRunning }
+        // The display goes back only after its pipeline has stopped: wait for the last step.
+        try await eventually { harness.lender.returnedDisplays == [201] }
 
+        #expect(!harness.captures.captures[1].isRunning)
         #expect(harness.captures.captures[0].isRunning)
-        #expect(harness.lender.returnedDisplays == [201])
         #expect(harness.encoders.encoders[1].isInvalidated)
         await session.stop()
         _ = await run.value

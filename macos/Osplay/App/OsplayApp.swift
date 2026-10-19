@@ -3,16 +3,17 @@ import SwiftUI
 @main
 struct OsplayApp: App {
     private let dependencies: AppDependencies
+    @State private var connection: ConnectionViewModel
     #if DEBUG
         @State private var developerDisplays: DeveloperDisplaysViewModel
         @State private var developerHostTest: DeveloperHostTestViewModel
         @State private var developerLoopback: DeveloperLoopbackViewModel
-        @State private var developerRemoteHost: DeveloperRemoteHostViewModel
     #endif
 
     init() {
         let dependencies = AppDependencies()
         self.dependencies = dependencies
+        _connection = State(initialValue: ConnectionViewModel(dependencies: dependencies))
         #if DEBUG
             _developerDisplays = State(initialValue: DeveloperDisplaysViewModel(provider: dependencies.virtualDisplays))
             _developerHostTest = State(
@@ -20,7 +21,6 @@ struct OsplayApp: App {
                     provider: dependencies.virtualDisplays, captures: dependencies.captures,
                     encoders: dependencies.encoders, permissions: dependencies.permissions))
             _developerLoopback = State(initialValue: DeveloperLoopbackViewModel(dependencies: dependencies))
-            _developerRemoteHost = State(initialValue: DeveloperRemoteHostViewModel(dependencies: dependencies))
         #endif
     }
 
@@ -28,10 +28,10 @@ struct OsplayApp: App {
         MenuBarExtra {
             #if DEBUG
                 MenuContentView(
-                    developerDisplays: developerDisplays, developerHostTest: developerHostTest,
-                    developerLoopback: developerLoopback, developerRemoteHost: developerRemoteHost)
+                    connection: connection, developerDisplays: developerDisplays, developerHostTest: developerHostTest,
+                    developerLoopback: developerLoopback)
             #else
-                MenuContentView()
+                MenuContentView(connection: connection)
             #endif
         } label: {
             Label("app.name", systemImage: Theme.Symbol.menuBar)

@@ -1,14 +1,14 @@
-// OsplayViewerTest: developer tool for the Windows viewer pipeline (DEVPLAN Phase 9). Not shipped.
+// OsplayViewerTest: developer tool for the Windows viewer pipeline (DEVPLAN Phases 9 and 10). Not
+// shipped.
 //
 //   OsplayViewerTest --list
+//   OsplayViewerTest --browse [--seconds N]
 //   OsplayViewerTest --loopback [--monitor ID] [--seconds N]
-//   OsplayViewerTest --connect HOST PORT [--monitors ID,ID] [--seconds N]
 //
-// --list prints the monitors the viewer would offer. --loopback starts an engine host session
-// (a virtual monitor through the helper service) and views it on one physical monitor. --connect
-// views a remote host, such as the Mac's debug "Host for a remote viewer" (until Phase 10 adds
-// discovery). Every second it prints the round trip time and, per stream, the frames presented,
-// decode errors and latency.
+// --list prints the monitors the viewer would offer. --browse prints the Osplay devices Bonjour
+// finds on the network. --loopback starts an engine host session (a virtual monitor through the
+// helper service) and views it on one physical monitor; every second it prints the round trip
+// time and, per stream, the frames presented, decode errors and latency.
 // Ctrl+Alt+Shift+V hides and shows the viewer windows.
 #include <osplay/engine.h>
 #include <osplay/osplay.h>
@@ -40,7 +40,7 @@
 
 namespace {
 
-enum class Mode : std::uint8_t { List, Loopback, Connect };
+enum class Mode : std::uint8_t { List, Browse, Loopback };
 
 /// Set by Ctrl+C so the run ends like a timeout: sessions closed and the summary printed.
 std::atomic<bool>& interrupted() {
@@ -59,9 +59,7 @@ BOOL WINAPI on_console_control(DWORD event) {
 struct Options {
     Mode mode = Mode::List;
     int seconds = 60;
-    std::string host;
-    std::uint16_t port = 0;
-    std::vector<std::uint8_t> monitors; // empty: loopback uses the first, connect offers all
+    std::vector<std::uint8_t> monitors; // empty: the first monitor
 };
 
 std::vector<std::uint8_t> parse_ids(std::string_view list) {
@@ -87,14 +85,8 @@ std::optional<Options> parse(std::span<char*> args) {
         } else if (arg == "--loopback") {
             options.mode = Mode::Loopback;
             chosen = true;
-        } else if (arg == "--connect" && i + 2 < args.size()) {
-            options.mode = Mode::Connect;
-            options.host = args[++i];
-            const unsigned long port = std::strtoul(args[++i], nullptr, 10);
-            if (port == 0 || port > 65'535) {
-                return std::nullopt;
-            }
-            options.port = static_cast<std::uint16_t>(port);
+        } else if (arg == "--browse") {
+            options.mode = Mode::Browse;
             chosen = true;
         } else if ((arg == "--monitor" || arg == "--monitors") && has_value) {
             options.monitors = parse_ids(args[++i]);
@@ -254,10 +246,41 @@ void report(int second, osplay_engine_viewer* viewer, Events& events,
     std::cout << line << '\n';
 }
 
+/// Prints every Osplay device Bonjour reports until the time is up.
+int browse(int seconds) {
+    osplay_engine_browser_callbacks callbacks{};
+    callbacks.on_found = [](void* /*context*/, const osplay_engine_device* device) {
+        const osplay_advertisement& a = device->advertisement;
+        std::cout << std::format("found \"{}\" ({}, roles {}{}, protocol {}) at {}:{}  [{}]\n",
+                                 static_cast<const char*>(a.name),
+                                 a.platform == OSPLAY_PLATFORM_WINDOWS ? "Windows" : "macOS",
+                                 (a.roles & OSPLAY_ROLE_HOST) != 0 ? "host " : "",
+                                 (a.roles & OSPLAY_ROLE_VIEWER) != 0 ? "viewer" : "",
+                                 a.protocol_version, static_cast<const char*>(device->address_utf8),
+                                 device->port, static_cast<const char*>(device->label));
+    };
+    callbacks.on_lost = [](void* /*context*/, const char* label) {
+        std::cout << "lost [" << label << "]\n";
+    };
+    osplay_engine_browser* browser = nullptr;
+    if (const osplay_engine_result started = osplay_engine_browser_start(&callbacks, &browser);
+        started != OSPLAY_ENGINE_OK) {
+        std::cerr << "browse failed: engine result " << static_cast<int>(started) << '\n';
+        return 1;
+    }
+    std::cout << std::format("Browsing for {} s...\n", seconds);
+    std::this_thread::sleep_for(std::chrono::seconds(seconds));
+    osplay_engine_browser_destroy(browser);
+    return 0;
+}
+
 int run(const Options& options) {
     if (options.mode == Mode::List) {
         print_monitors();
         return 0;
+    }
+    if (options.mode == Mode::Browse) {
+        return browse(options.seconds);
     }
     std::array<uint8_t, OSPLAY_KEY_SIZE> host_secret{};
     std::array<uint8_t, OSPLAY_KEY_SIZE> viewer_secret{};
@@ -271,10 +294,10 @@ int run(const Options& options) {
 
     Events events;
     osplay_engine_host* host = nullptr;
-    std::string address = options.host;
-    std::uint16_t port = options.port;
+    const std::string address = "127.0.0.1";
+    std::uint16_t port = 0;
     std::vector<std::uint8_t> offered = options.monitors;
-    if (options.mode == Mode::Loopback) {
+    {
         const osplay_engine_host_config host_config{.secret_key = host_secret.data(),
                                                     .device_name_utf8 = "Osplay Loopback Host",
                                                     .dump_directory_utf8 = nullptr};
@@ -286,7 +309,6 @@ int run(const Options& options) {
             return 1;
         }
         static_cast<void>(osplay_engine_host_control_port(host, &port));
-        address = "127.0.0.1";
         if (offered.empty()) {
             offered.push_back(0); // a Windows host streams to the viewer's first monitor only
         }
@@ -358,9 +380,8 @@ int main(int argc, char* argv[]) {
         const auto options = parse(std::span<char*>(argv, static_cast<std::size_t>(argc)));
         if (!options) {
             std::cerr << "Usage: OsplayViewerTest --list\n"
-                         "       OsplayViewerTest --loopback [--monitor ID] [--seconds N]\n"
-                         "       OsplayViewerTest --connect HOST PORT [--monitors ID,ID] "
-                         "[--seconds N]\n";
+                         "       OsplayViewerTest --browse [--seconds N]\n"
+                         "       OsplayViewerTest --loopback [--monitor ID] [--seconds N]\n";
             return 2;
         }
         return run(*options);

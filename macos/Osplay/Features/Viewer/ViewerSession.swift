@@ -5,6 +5,7 @@ import OSLog
 /// The part of a core session the viewer uses; `CoreSession` in the app, a fake in tests.
 protocol ViewerCoreSession: AnyObject, Sendable {
     var events: AsyncStream<SessionEvent> { get }
+    func confirmPairing(_ accepted: Bool) throws(CoreError)
     func requestKeyframe(_ streamID: UInt8) throws(CoreError)
     func pauseStream(_ streamID: UInt8) throws(CoreError)
     func resumeStream(_ streamID: UInt8) throws(CoreError)
@@ -18,6 +19,12 @@ extension CoreSession: ViewerCoreSession {}
 actor ViewerSession {
     enum Event: Sendable {
         case state(SessionState)
+        /// The host introduced itself.
+        case peer(PeerInfo)
+        /// First contact: show the code; answer with `confirmPairing`.
+        case pairingCode(UInt32, peerPublicKey: [UInt8])
+        /// Both users accepted: store the key as trusted.
+        case paired(peerPublicKey: [UInt8])
         case streamAdded(StreamConfiguration)
         case visibility(Bool)
         case statistics(SessionStatistics)
@@ -83,8 +90,14 @@ actor ViewerSession {
                     await entry.presenter.close()
                     updatePowerAssertion()
                 }
-            case .peer, .pairingCode, .paired, .viewerMonitors, .keyframeRequested:
-                break  // pairing UI arrives in Phase 10; the rest is host-only
+            case .peer(let peer):
+                eventSink.yield(.peer(peer))
+            case .pairingCode(let code, let key):
+                eventSink.yield(.pairingCode(code, peerPublicKey: key))
+            case .paired(let key):
+                eventSink.yield(.paired(peerPublicKey: key))
+            case .viewerMonitors, .keyframeRequested:
+                break  // host-only
             }
         }
         await tearDown()
@@ -122,6 +135,15 @@ actor ViewerSession {
     /// Ends the session with Bye; `run` returns once the core reports `.closed`.
     func stop() {
         core.close()
+    }
+
+    /// Answers `.pairingCode` with the local user's decision.
+    func confirmPairing(_ accepted: Bool) {
+        do throws(CoreError) {
+            try core.confirmPairing(accepted)
+        } catch {
+            Log.viewer.error("Pairing answer failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     func statistics() -> [UInt8: ViewerStreamStatistics] {

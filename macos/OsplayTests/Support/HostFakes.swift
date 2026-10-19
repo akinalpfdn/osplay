@@ -14,7 +14,12 @@ final class FakeHostCore: HostCoreSession, @unchecked Sendable {
     private var configured: [[StreamConfiguration]] = []
     private var pushed: [AccessUnit] = []
     private var closed = false
+    private var pairingAnswers: [Bool] = []
     var configureError: CoreError?
+
+    var answers: [Bool] { lock.withLock { pairingAnswers } }
+
+    func confirmPairing(_ accepted: Bool) throws(CoreError) { lock.withLock { pairingAnswers.append(accepted) } }
 
     init() {
         (events, continuation) = AsyncStream.makeStream(of: SessionEvent.self)

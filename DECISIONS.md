@@ -330,3 +330,39 @@ choices the plan leaves open are logged here.
 **Revisit if:** Phase 11 per-peer display settings let the user choose.
 
 ---
+
+## 2026-10-19 — User decision: the WPF tray menu is Phase 10's Windows UI
+**Chosen:** Discovered hosts, role, connect and the pairing dialog in the existing WPF tray, with the real P/Invoke layer (`LibraryImport`, function pointers).
+**Alternatives:** A command-line tool for discovery and pairing.
+**Why:** It is the closest to real use and the interop layer is reused by Phase 12's UI.
+**Trade-offs:** More work now; the tray menu is temporary.
+**Revisit if:** Phase 12 starts.
+
+---
+
+## 2026-10-19 — macOS Bonjour through the DNS-SD C API, not Network.framework
+**Chosen:** `DNSServiceRegister` / `DNSServiceBrowse` / `DNSServiceResolve` on a serial queue.
+**Alternatives:** `NWListener` advertising and `NWBrowser` (DEVPLAN named Network.framework).
+**Why:** The core owns the listening socket, and `NWListener` can only advertise a port it owns itself. `NWBrowser` returns service endpoints without a port; resolving one means opening a connection, which would take the host's single viewer slot.
+**Trade-offs:** C callbacks with unmanaged context pointers in Swift.
+**Revisit if:** Network.framework gains resolve-without-connect, or the core hands its socket to the platform.
+
+---
+
+## 2026-10-19 — Identity and trust handled inside the Windows engine
+**Chosen:** Sessions started without a secret key load the DPAPI identity, answer trust queries from the stored peers and store pairings themselves; the shell only shows the code and lists or revokes peers.
+**Alternatives:** The shell loads the secret and answers every trust query over P/Invoke.
+**Why:** The secret key never enters managed memory, and the core's trust query (which blocks its I/O thread) never waits for the UI thread.
+**Trade-offs:** Developer tools keep passing their own keys to get the old behaviour.
+**Revisit if:** Several users share one Windows account and need separate identities.
+
+---
+
+## 2026-10-19 — Revoked devices are kept and refused
+**Chosen:** Revoke marks the peer; its key is answered with "blocked" and the session fails with `NOT_TRUSTED`. Removing the peer lets it pair again. Revoking or removing a device also ends a session already running with it, on both platforms.
+**Alternatives:** Revoke deletes the peer (the next connection would show a pairing code).
+**Why:** DEVPLAN requires a revoked device to be refused, not invited to pair again.
+**Trade-offs:** Re-pairing a revoked device takes two steps.
+**Revisit if:** Users find the distinction confusing (Phase 11/12 UI).
+
+---

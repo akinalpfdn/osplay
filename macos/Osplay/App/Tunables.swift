@@ -35,6 +35,8 @@ enum Tunables {
     }
 
     enum Viewer {
+        /// Refresh rate offered for a display that reports none (built-in panels report 0 Hz).
+        static let defaultRefreshRate = 60.0
         /// The local pointer hides after this many seconds without movement over a viewer.
         static let cursorIdleDelay: TimeInterval = 2
         /// Decoder errors closer together than this send one keyframe request (the core limits
@@ -48,6 +50,23 @@ enum Tunables {
         static func loopbackWindowSize(streamWidth: Int, streamHeight: Int) -> CGSize {
             CGSize(width: streamWidth / 2, height: streamHeight / 2)
         }
+    }
+
+    enum Connection {
+        /// Pause before sharing listens again after a session ended.
+        static let relistenDelay: Duration = .seconds(1)
+        /// Capabilities this Mac announces in either role.
+        static let maximumWidth = 7680
+        static let maximumHeight = 4320
+        static let maximumRefreshHz = 240
+    }
+
+    enum KeyStore {
+        static let keychainService = "com.akinalpfdn.osplay"
+        static let identityAccount = "identity"
+        static let peersAccount = "paired-devices"
+        /// Shown in Keychain Access.
+        static let itemLabel = "Osplay"
     }
 
     enum Host {
@@ -85,7 +104,6 @@ enum Tunables {
             /// Viewer loopback: the virtual display it hosts and views.
             static let loopbackMonitor = (width: 1920, height: 1080, refreshMillihertz: UInt32(60_000))
             static let loopbackDeviceName = "Osplay Loopback"
-            static let remoteHostDeviceName = "Osplay Remote Host Test"
             static let freezeDelay: Duration = .seconds(5)
             /// Frame intervals the pacing statistics cover (5 s at 60 fps).
             static let pacingWindow = 300

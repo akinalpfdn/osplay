@@ -8,6 +8,18 @@
   <SolidColorBrush x:Key="Osplay.Brush.TrayIconBackground" Color="{StaticResource Osplay.Color.Accent}" />
   <SolidColorBrush x:Key="Osplay.Brush.TrayIconForeground" Color="{StaticResource Osplay.Color.OnAccent}" />
 
+  <SolidColorBrush x:Key="Osplay.Brush.SecondaryText" Color="{x:Static SystemColors.GrayTextColor}" />
+
   <sys:Double x:Key="Osplay.FontSize.TrayIconGlyph">96</sys:Double>
+  <sys:Double x:Key="Osplay.FontSize.Body">14</sys:Double>
+  <sys:Double x:Key="Osplay.FontSize.Caption">12</sys:Double>
+  <sys:Double x:Key="Osplay.FontSize.PairingCode">36</sys:Double>
+  <FontFamily x:Key="Osplay.Font.Monospace">Cascadia Mono, Consolas</FontFamily>
+
+  <Thickness x:Key="Osplay.Thickness.DialogPadding">20</Thickness>
+  <Thickness x:Key="Osplay.Thickness.SectionGap">0,12,0,12</Thickness>
+  <Thickness x:Key="Osplay.Thickness.ButtonGap">0,0,8,0</Thickness>
+  <sys:Double x:Key="Osplay.Width.PairingDialog">320</sys:Double>
+  <sys:Double x:Key="Osplay.Width.Button">88</sys:Double>
   <sys:String x:Key="Osplay.Tray.IconGlyph">O</sys:String>
 </ResourceDictionary>

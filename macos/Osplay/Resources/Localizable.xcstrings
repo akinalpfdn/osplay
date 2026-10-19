@@ -18,6 +18,312 @@
         }
       }
     },
+    "connection.connect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlan"
+          }
+        }
+      }
+    },
+    "connection.disconnect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnect"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantıyı kes"
+          }
+        }
+      }
+    },
+    "connection.hotkeyHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌃⌥⌘V hides and shows the display."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌃⌥⌘V ekranı gizler ve gösterir."
+          }
+        }
+      }
+    },
+    "connection.mode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mod"
+          }
+        }
+      }
+    },
+    "connection.mode.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapalı"
+          }
+        }
+      }
+    },
+    "connection.mode.sharing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share screens"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ekran paylaş"
+          }
+        }
+      }
+    },
+    "connection.mode.viewing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use as display"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ekran olarak kullan"
+          }
+        }
+      }
+    },
+    "connection.paired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paired devices"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eşleşmiş cihazlar"
+          }
+        }
+      }
+    },
+    "connection.platform.mac" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac"
+          }
+        }
+      }
+    },
+    "connection.platform.windows" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Windows"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Windows"
+          }
+        }
+      }
+    },
+    "connection.remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kaldır"
+          }
+        }
+      }
+    },
+    "connection.revoke" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revoke"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İptal et"
+          }
+        }
+      }
+    },
+    "connection.revoked" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revoked"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İptal edildi"
+          }
+        }
+      }
+    },
+    "connection.searching" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looking for computers sharing their screens… If none appears, check that Osplay may use the local network (System Settings › Privacy & Security › Local Network)."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ekranını paylaşan bilgisayarlar aranıyor… Hiçbiri görünmezse Osplay'in yerel ağı kullanma izni olduğunu kontrol edin (Sistem Ayarları › Gizlilik ve Güvenlik › Yerel Ağ)."
+          }
+        }
+      }
+    },
+    "connection.status.connected %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected to %@"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ cihazına bağlı"
+          }
+        }
+      }
+    },
+    "connection.status.connecting %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to %@…"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ cihazına bağlanılıyor…"
+          }
+        }
+      }
+    },
+    "connection.status.waiting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for a computer to connect…"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bir bilgisayarın bağlanması bekleniyor…"
+          }
+        }
+      }
+    },
+    "connection.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Devices"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cihazlar"
+          }
+        }
+      }
+    },
     "developer.createOne" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -426,91 +732,6 @@
         }
       }
     },
-    "developer.remoteHost.copy" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copy"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kopyala"
-          }
-        }
-      }
-    },
-    "developer.remoteHost.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Run this on the other computer; any viewer is trusted while this runs."
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bunu diğer bilgisayarda çalıştırın; bu açıkken her görüntüleyiciye güvenilir."
-          }
-        }
-      }
-    },
-    "developer.remoteHost.pattern" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Moving test pattern (measures frame rate)"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hareketli test deseni (kare hızını ölçer)"
-          }
-        }
-      }
-    },
-    "developer.remoteHost.status %lld %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Streams: %1$lld · %2$@ Mbit/s"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Akış: %1$lld · %2$@ Mbit/s"
-          }
-        }
-      }
-    },
-    "developer.remoteHost.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Host for a remote viewer"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Uzak görüntüleyici için yayın"
-          }
-        }
-      }
-    },
     "developer.removeAll" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -558,6 +779,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Geliştirici"
+          }
+        }
+      }
+    },
+    "developer.tools" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developer tools"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geliştirici araçları"
           }
         }
       }
@@ -647,6 +885,91 @@
         }
       }
     },
+    "error.connection.incompatible" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The other computer runs a different Osplay version. Update both to the latest version."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diğer bilgisayar farklı bir Osplay sürümü çalıştırıyor. İkisini de son sürüme güncelleyin."
+          }
+        }
+      }
+    },
+    "error.connection.noDisplay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No display to offer."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunulacak ekran yok."
+          }
+        }
+      }
+    },
+    "error.discovery.localNetwork" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay may not use the local network. Allow it in System Settings › Privacy & Security › Local Network."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay yerel ağı kullanamıyor. Sistem Ayarları › Gizlilik ve Güvenlik › Yerel Ağ bölümünden izin verin."
+          }
+        }
+      }
+    },
+    "error.discovery.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Mac's name cannot be announced on the network. Rename it in System Settings › General › Sharing."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Mac'in adı ağda duyurulamıyor. Sistem Ayarları › Genel › Paylaşma'dan adını değiştirin."
+          }
+        }
+      }
+    },
+    "error.discovery.service %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bonjour is not available (error %lld). Check that Osplay may use the local network."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bonjour kullanılamıyor (hata %lld). Osplay'in yerel ağı kullanma izni olduğunu kontrol edin."
+          }
+        }
+      }
+    },
     "error.encoder.failed %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -728,6 +1051,125 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "⌃⌥⌘V kısayolu başka bir uygulama tarafından kullanılıyor; viewer'ı gizleyemez."
+          }
+        }
+      }
+    },
+    "error.keyStore.damaged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay's stored keys are damaged. Remove the \"Osplay\" items in Keychain Access and pair again."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay'in saklı anahtarları bozuk. Anahtar Zinciri Erişimi'nde \"Osplay\" öğelerini silip yeniden eşleştirin."
+          }
+        }
+      }
+    },
+    "error.keyStore.identity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay could not create its device key."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay cihaz anahtarını oluşturamadı."
+          }
+        }
+      }
+    },
+    "error.keyStore.keychain %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Keychain refused to store Osplay's key (error %lld)."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anahtar Zinciri Osplay anahtarını saklamayı reddetti (hata %lld)."
+          }
+        }
+      }
+    },
+    "error.session.notTrusted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The other computer refused this Mac. It may have been removed from its paired devices."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diğer bilgisayar bu Mac'i reddetti. Eşleşmiş cihazlarından kaldırılmış olabilir."
+          }
+        }
+      }
+    },
+    "error.session.pairingRejected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pairing was rejected."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eşleştirme reddedildi."
+          }
+        }
+      }
+    },
+    "error.session.peerBusy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The other computer is already connected to another device."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diğer bilgisayar zaten başka bir cihaza bağlı."
+          }
+        }
+      }
+    },
+    "error.session.unreachable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The connection to the other computer was lost."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diğer bilgisayarla bağlantı kesildi."
           }
         }
       }
@@ -932,6 +1374,91 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Osplay'den Çık"
+          }
+        }
+      }
+    },
+    "pairing.accept" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accept"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kabul et"
+          }
+        }
+      }
+    },
+    "pairing.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accept on both computers to pair. You only do this once."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eşleştirmek için iki bilgisayarda da kabul edin. Bunu yalnızca bir kez yaparsınız."
+          }
+        }
+      }
+    },
+    "pairing.message %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ wants to connect. Check that it shows the same code:"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bağlanmak istiyor. Aynı kodu gösterdiğini kontrol edin:"
+          }
+        }
+      }
+    },
+    "pairing.reject" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reject"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reddet"
+          }
+        }
+      }
+    },
+    "pairing.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pair with Osplay"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay ile eşleştir"
           }
         }
       }

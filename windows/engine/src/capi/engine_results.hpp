@@ -4,6 +4,7 @@
 
 #include "../display/virtual_display_provider.hpp"
 #include "../host/host_orchestrator.hpp"
+#include "../keystore/dpapi_key_store.hpp"
 
 #include <osplay/engine.h>
 
@@ -57,6 +58,11 @@ inline osplay_engine_result to_result(PipelineError error) {
         return OSPLAY_ENGINE_ERROR_PRESENTATION_FAILED;
     }
     return OSPLAY_ENGINE_ERROR_INTERNAL;
+}
+
+inline osplay_engine_result to_result(KeyStoreError error) {
+    return error == KeyStoreError::Damaged ? OSPLAY_ENGINE_ERROR_KEY_STORE_DAMAGED
+                                           : OSPLAY_ENGINE_ERROR_KEY_STORE_UNAVAILABLE;
 }
 
 /// No C++ exception may cross the C boundary.

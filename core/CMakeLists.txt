@@ -34,6 +34,7 @@ target_include_directories(osplay_monocypher PUBLIC third_party/monocypher)
 
 add_library(osplay_core STATIC
     src/capi/clock_capi.cpp
+    src/capi/discovery_capi.cpp
     src/capi/identity_capi.cpp
     src/capi/protocol_capi.cpp
     src/capi/session_capi.cpp
@@ -48,6 +49,7 @@ add_library(osplay_core STATIC
     src/session/control_framer.cpp
     src/session/session_engine.cpp
     src/transport/asio_session.cpp
+    src/protocol/advertisement.cpp
     src/protocol/control_codec.cpp
     src/protocol/media_codec.cpp
     src/protocol/text.cpp)

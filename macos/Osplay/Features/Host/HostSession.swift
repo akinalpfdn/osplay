@@ -5,6 +5,7 @@ import OSLog
 /// The part of a core session the host uses; `CoreSession` in the app, a fake in tests.
 protocol HostCoreSession: AnyObject, Sendable {
     var events: AsyncStream<SessionEvent> { get }
+    func confirmPairing(_ accepted: Bool) throws(CoreError)
     func configureStreams(_ streams: [StreamConfiguration]) throws(CoreError)
     func push(_ unit: AccessUnit) throws(CoreError)
     func close()
@@ -26,6 +27,12 @@ enum HostSessionError: Error, Equatable, Sendable {
 actor HostSession {
     enum Event: Sendable {
         case state(SessionState)
+        /// The viewer introduced itself.
+        case peer(PeerInfo)
+        /// First contact: show the code; answer with `confirmPairing`.
+        case pairingCode(UInt32, peerPublicKey: [UInt8])
+        /// Both users accepted: store the key as trusted.
+        case paired(peerPublicKey: [UInt8])
         /// Streams are configured; each runs on the virtual display with the given ID.
         case streaming([LentDisplay])
         case statistics(SessionStatistics)
@@ -38,14 +45,17 @@ actor HostSession {
     private let captures: any ScreenCaptureMaking
     private let encoders: any VideoEncoderMaking
     private let permissions: any PermissionChecking
-    private let peerID: Data
+    /// The viewer's identity, known once the handshake trusted it; virtual displays derive their
+    /// identity from it so macOS remembers the arrangement per viewer.
+    private let peerID: @Sendable () -> Data
     private let dump: StreamDump?
     private var pipelines: [UInt8: StreamPipeline] = [:]
     private var failure: HostSessionError?
 
     init(
-        core: any HostCoreSession, peerID: Data, displays: any DisplayLending, captures: any ScreenCaptureMaking,
-        encoders: any VideoEncoderMaking, permissions: any PermissionChecking, dumpDirectory: URL? = nil
+        core: any HostCoreSession, peerID: @escaping @Sendable () -> Data, displays: any DisplayLending,
+        captures: any ScreenCaptureMaking, encoders: any VideoEncoderMaking, permissions: any PermissionChecking,
+        dumpDirectory: URL? = nil
     ) {
         self.core = core
         self.peerID = peerID
@@ -85,8 +95,14 @@ actor HostSession {
                 eventSink.yield(.statistics(statistics))
             case .log(let level, let message):
                 log(level, message)
-            case .peer, .pairingCode, .paired, .streamConfiguration, .accessUnit, .cursorShape, .cursorPosition:
-                break  // pairing UI arrives in Phase 10; the rest is viewer-only
+            case .peer(let peer):
+                eventSink.yield(.peer(peer))
+            case .pairingCode(let code, let key):
+                eventSink.yield(.pairingCode(code, peerPublicKey: key))
+            case .paired(let key):
+                eventSink.yield(.paired(peerPublicKey: key))
+            case .streamConfiguration, .accessUnit, .cursorShape, .cursorPosition:
+                break  // viewer-only
             }
         }
         await stopStreams()
@@ -96,6 +112,15 @@ actor HostSession {
     /// Ends the session with Bye; `run` returns once the core reports `.closed`.
     func stop() {
         core.close()
+    }
+
+    /// Answers `.pairingCode` with the local user's decision.
+    func confirmPairing(_ accepted: Bool) {
+        do throws(CoreError) {
+            try core.confirmPairing(accepted)
+        } catch {
+            Log.host.error("Pairing answer failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     /// Frames captured so far per stream, for diagnostics.
@@ -112,7 +137,7 @@ actor HostSession {
         let offered = monitors.prefix(Tunables.VirtualDisplay.maximumDisplayCount).map(Self.capped)
         let lent: [LentDisplay]
         do {
-            lent = try await displays.lend(offered, peerID: peerID)
+            lent = try await displays.lend(offered, peerID: peerID())
         } catch {
             end(with: .display(error))
             return
