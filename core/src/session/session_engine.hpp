@@ -16,6 +16,7 @@
 #include "media/retransmit_cache.hpp"
 #include "protocol/control_messages.hpp"
 #include "protocol/media_packets.hpp"
+#include "session/clock_offset.hpp"
 #include "session/control_framer.hpp"
 #include "session/session_config.hpp"
 #include "util/error.hpp"
@@ -239,6 +240,7 @@ private:
     std::uint32_t next_ping_id_ = 0;
     std::optional<Microseconds> rtt_;
     std::int64_t clock_offset_us_ = 0;
+    ClockOffsetEstimator clock_offsets_;
     std::uint64_t datagrams_rejected_ = 0;
 };
 

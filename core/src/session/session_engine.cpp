@@ -716,13 +716,9 @@ void SessionEngine::handle_pong(const protocol::Pong& pong, TimePoint now) {
     const auto t3 = static_cast<std::int64_t>(micros(now));
     const std::int64_t sample = std::max<std::int64_t>((t3 - t0) - (t2 - t1), 0);
     const std::int64_t offset = ((t1 - t0) + (t2 - t3)) / 2;
-    if (!rtt_) {
-        rtt_ = Microseconds{sample};
-        clock_offset_us_ = offset;
-    } else {
-        rtt_ = Microseconds{((rtt_->count() * 7) + sample) / 8};
-        clock_offset_us_ = ((clock_offset_us_ * 7) + offset) / 8;
-    }
+    rtt_ = rtt_ ? Microseconds{((rtt_->count() * 7) + sample) / 8} : Microseconds{sample};
+    clock_offsets_.add(sample, offset);
+    clock_offset_us_ = clock_offsets_.offset_us().value_or(offset);
     for (auto& [id, stream] : viewer_streams_) {
         stream->reassembler.set_rtt(*rtt_);
     }

@@ -14,6 +14,7 @@ add_executable(osplay_core_tests
     capi_identity_test.cpp
     capi_protocol_test.cpp
     capi_session_test.cpp
+    clock_offset_test.cpp
     crypto_primitives_test.cpp
     media_crypto_test.cpp
     media_test.cpp
