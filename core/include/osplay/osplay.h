@@ -198,6 +198,45 @@ typedef enum osplay_cursor_mode {
 } osplay_cursor_mode;
 /* NOLINTEND(cppcoreguidelines-use-enum-class,performance-enum-size) */
 
+/*
+ * Discovery (PROTOCOL.md "Discovery"): the Bonjour TXT record, so both platforms' DNS-SD code
+ * shares one format and one set of checks. Pure and thread-safe.
+ */
+#define OSPLAY_SERVICE_TYPE "_osplay._tcp"
+#define OSPLAY_TXT_KEY_PROTOCOL_VERSION "pv"
+#define OSPLAY_TXT_KEY_NAME "name"
+#define OSPLAY_TXT_KEY_DEVICE_ID "id"
+#define OSPLAY_TXT_KEY_ROLES "roles"
+#define OSPLAY_TXT_KEY_OS "os"
+#define OSPLAY_TXT_VALUE_SIZE 65 /* the longest value (the 64-byte name) and its NUL */
+#define OSPLAY_ROLE_HOST 1U
+#define OSPLAY_ROLE_VIEWER 2U
+
+typedef struct osplay_advertisement {
+    uint32_t protocol_version; /* OSPLAY_PROTOCOL_VERSION when advertising */
+    osplay_platform platform;
+    uint8_t roles; /* OSPLAY_ROLE_* bits, at least one */
+    uint8_t device_id[OSPLAY_DEVICE_ID_SIZE];
+    char name[OSPLAY_TXT_VALUE_SIZE]; /* NUL-terminated UTF-8, 1 to 64 bytes */
+} osplay_advertisement;
+
+/* NUL-terminated TXT values; a key missing from a peer's record is an empty string. */
+typedef struct osplay_txt_record {
+    char protocol_version[OSPLAY_TXT_VALUE_SIZE];
+    char name[OSPLAY_TXT_VALUE_SIZE];
+    char device_id[OSPLAY_TXT_VALUE_SIZE];
+    char roles[OSPLAY_TXT_VALUE_SIZE];
+    char os[OSPLAY_TXT_VALUE_SIZE];
+} osplay_txt_record;
+
+osplay_result osplay_advertisement_to_txt(const osplay_advertisement* advertisement,
+                                          osplay_txt_record* out_record);
+
+/* A peer's record. A different protocol version is returned, not refused, so the UI can tell the
+ * user to update the other device. */
+osplay_result osplay_advertisement_from_txt(const osplay_txt_record* record,
+                                            osplay_advertisement* out_advertisement);
+
 #define OSPLAY_CODEC_H264_ANNEX_B 1u /* osplay_capabilities.codecs bit */
 #define OSPLAY_MAX_STRING_BYTES 64   /* UTF-8 bytes in a device or monitor name */
 #define OSPLAY_MAX_MONITORS 4
