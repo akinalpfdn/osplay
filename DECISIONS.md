@@ -411,3 +411,12 @@ choices the plan leaves open are logged here.
 **Revisit if:** Usability feedback.
 
 ---
+
+## 2026-10-20 — The host repeats a stream's last fragment while the screen is still
+**Chosen:** After a stream's newest frame, its final fragment is sent again at 50, 200 and 700 ms unless a newer frame went out. A viewer that lost the whole frame learns of it from the repeat and NACKs the rest.
+**Alternatives:** A new control message announcing the newest frame ID; periodic keyframes; repeating the whole last frame.
+**Why:** A viewer finds a lost frame only when a later fragment arrives. When the last frame before the screen goes still is lost entirely (a full send buffer drops datagrams), nothing ever reveals it and the viewer keeps the previous picture; the core's loopback test hit this under ThreadSanitizer. Repeating one fragment fixes it without changing the protocol and costs three small datagrams per pause.
+**Trade-offs:** Recovery after such a loss takes up to 50 ms plus a round trip; if all three repeats are lost too, the picture stays old until the screen changes.
+**Revisit if:** The protocol gets a newest-frame announcement in another message (e.g. a host report).
+
+---

@@ -103,7 +103,8 @@ struct Simulation {
                                               network.now);
             EXPECT_TRUE(result.has_value());
         }
-        if (host.engine.state() == SessionState::Streaming && network.now >= next_frame) {
+        if (producing && host.engine.state() == SessionState::Streaming &&
+            network.now >= next_frame) {
             if (host.observer.keyframe_requests > keyframe_requests_seen) {
                 keyframe_requests_seen = host.observer.keyframe_requests;
                 keyframe_pending = true;
@@ -133,6 +134,8 @@ struct Simulation {
     Peer host;
     Peer viewer;
     bool configured = false;
+    /// False: the screen stopped changing, so no more frames come.
+    bool producing = true;
     bool keyframe_pending = true;
     int keyframe_requests_seen = 0;
     std::uint32_t next_index = 0;
@@ -173,6 +176,30 @@ TEST(SessionEngine, RecoversFromFivePercentDatagramLossThroughNacksAndKeyframes)
     // The stream is live at the end, not stuck waiting.
     ASSERT_FALSE(sim.viewer.observer.frame_indices.empty());
     EXPECT_GE(sim.viewer.observer.frame_indices.back() + 30, sim.pushed.back());
+}
+
+TEST(SessionEngine, ALostLastFrameArrivesAfterTheScreenStopsChanging) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(2));
+    ASSERT_FALSE(sim.pushed.empty());
+
+    // Every datagram of the next frame is lost, and then the screen stops changing: nothing after
+    // it would reveal the gap.
+    sim.network.media_loss = 1.0;
+    const std::size_t before = sim.pushed.size();
+    while (sim.pushed.size() == before) {
+        sim.run_for(milliseconds(1));
+    }
+    sim.producing = false;
+    sim.run_for(milliseconds(5));
+    sim.network.media_loss = 0.0;
+    sim.run_for(seconds(1));
+
+    ASSERT_FALSE(sim.viewer.observer.frame_indices.empty());
+    EXPECT_EQ(sim.viewer.observer.frame_indices.back(), sim.pushed.back())
+        << "the repeated tail reveals the lost frame and NACKs bring it";
+    EXPECT_TRUE(sim.viewer.observer.frames_intact);
 }
 
 TEST(SessionEngine, SurvivesAThreeSecondNetworkInterruption) {

@@ -1,6 +1,7 @@
 #include "session/session_engine.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <set>
 #include <string>
 #include <type_traits>
@@ -67,6 +68,10 @@ struct SessionEngine::HostStream {
     media::Packetizer packetizer;
     media::RetransmitCache cache;
     std::optional<TimePoint> last_forced_keyframe;
+    /// The newest frame sent and when; its last fragment is repeated while no newer one follows.
+    std::optional<std::uint32_t> last_frame_id;
+    TimePoint last_frame_sent;
+    std::size_t tail_repeats = 0;
     bool started = false;
     bool paused = false;
     protocol::ReceiverReport last_report{};
@@ -879,12 +884,14 @@ Status<Error> SessionEngine::push_access_unit(const media::AccessUnit& unit, Tim
     }
     stream.cache.store(frame_id.value(), unit);
     send_fragments(fragments_);
+    stream.last_frame_id = frame_id.value();
+    stream.last_frame_sent = now;
+    stream.tail_repeats = 0;
     if (unit.keyframe) {
         send_cursor_shape(stream); // a viewer that joined or lost packets gets the cursor back
     }
     ++stream.frames_in_window;
     stream.bytes_in_window += unit.data.size();
-    static_cast<void>(now);
     return Status<Error>::ok();
 }
 
@@ -958,6 +965,33 @@ void SessionEngine::deliver_fragment(const protocol::VideoFragment& fragment, Ti
 
 // --- Housekeeping --------------------------------------------------------------------------------
 
+void SessionEngine::repeat_tails(TimePoint now) {
+    if (config_.role != protocol::Role::Host) {
+        return;
+    }
+    const auto& delays = config_.tunables.tail_repeat_delays;
+    for (auto& [id, stream] : host_streams_) {
+        const std::optional<std::uint32_t> frame_id = stream->last_frame_id;
+        if (!frame_id || !stream->started || stream->paused ||
+            stream->tail_repeats >= delays.size() ||
+            now - stream->last_frame_sent < delays.at(stream->tail_repeats)) {
+            continue;
+        }
+        ++stream->tail_repeats;
+        const media::AccessUnit* unit = stream->cache.find(*frame_id);
+        if (unit == nullptr) {
+            continue;
+        }
+        media::Packetizer::fragments(*frame_id, *unit, 0, std::numeric_limits<std::uint16_t>::max(),
+                                     fragments_);
+        if (!fragments_.empty()) {
+            const protocol::VideoFragment last = fragments_.back();
+            fragments_.assign(1, last);
+            send_fragments(fragments_);
+        }
+    }
+}
+
 void SessionEngine::on_timer(TimePoint now) {
     if (state_ == SessionState::Closed) {
         return;
@@ -1002,6 +1036,7 @@ void SessionEngine::on_timer(TimePoint now) {
             next_report_ = now + tunables.report_interval;
         }
     }
+    repeat_tails(now);
     if (now >= next_stats_) {
         publish_stats(now);
         next_stats_ = now + tunables.stats_interval;
