@@ -112,6 +112,11 @@ struct VirtualDisplayConfiguration: Hashable, Sendable {
     /// The HiDPI resolution whose backing equals the remote monitor exactly: sharpest text and no
     /// scaling during capture. The window server's own default is the largest 2× mode, which
     /// renders four times as many pixels as the stream carries.
+    /// One point per pixel at the remote monitor's size: what a monitor at 100% scaling shows.
+    var nativeResolution: DisplayResolution {
+        DisplayResolution(points: pixelSize, pixels: pixelSize, refreshRate: refreshRate)
+    }
+
     var crispHiDPIResolution: DisplayResolution? {
         guard isHiDPI else { return nil }
         return DisplayResolution(points: pixelSize.scaled(by: 0.5), pixels: pixelSize, refreshRate: refreshRate)

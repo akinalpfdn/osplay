@@ -86,6 +86,20 @@ struct CGVirtualDisplayProviderHardwareTests {
         #expect(try await Self.waitUntil { handle.currentResolution()?.pixels == crisp.pixels })
     }
 
+    @Test("The native one-point-per-pixel resolution activates on a HiDPI display")
+    func activatesNativeResolution() async throws {
+        let provider = CGVirtualDisplayProvider()
+        defer { provider.destroyAll() }
+        let handle = try provider.createDisplay(configuration(index: 0, refreshRate: 59.951))
+        let native = handle.configuration.nativeResolution
+
+        try await handle.waitUntilReady()
+        try handle.activate(native)
+
+        #expect(try await Self.waitUntil { handle.currentResolution()?.points == native.points })
+        #expect(handle.currentResolution()?.pixels == native.pixels)
+    }
+
     @Test("A display created after modes were queried still reports its resolutions")
     func modesVisibleForLaterDisplays() async throws {
         let provider = CGVirtualDisplayProvider()
