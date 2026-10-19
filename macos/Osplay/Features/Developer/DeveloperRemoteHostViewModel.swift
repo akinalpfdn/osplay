@@ -12,7 +12,7 @@
     @Observable
     final class DeveloperRemoteHostViewModel {
         private(set) var isRunning = false
-        /// The OsplayViewerTest command for each LAN address of this Mac.
+        /// The PowerShell command (run in the tool's folder) for each LAN address of this Mac.
         private(set) var commands: [String] = []
         private(set) var streamCount = 0
         private(set) var bitrateKbps = 0
@@ -74,7 +74,9 @@
                 captures: dependencies.captures, encoders: dependencies.encoders,
                 permissions: dependencies.permissions, dumpDirectory: nil)
             self.session = session
-            commands = Self.lanAddresses().map { "OsplayViewerTest.exe --connect \($0) \(core.controlPort)" }
+            commands = Self.lanAddresses().map { address in
+                ".\\OsplayViewerTest.exe --connect \(address) \(core.controlPort) --seconds 300"
+            }
             streamCount = 0
             bitrateKbps = 0
             tasks = [

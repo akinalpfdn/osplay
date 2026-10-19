@@ -288,7 +288,7 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    ```
 
    For `--connect` to a Mac, start **Host for a remote viewer** in the debug menu of the Mac app; it
-   shows the exact command with the Mac's address and port (temporary until discovery in Phase 10).
+   shows the PowerShell command with the Mac's address and port and a Copy button (temporary until discovery in Phase 10).
    With two monitors attached the Mac hosts two virtual displays, one per monitor. Every second the
    tool prints, per stream, frames presented, decode errors and latency; Ctrl+Alt+Shift+V hides and
    shows the windows (the host pauses the streams while hidden). Unplug one monitor during the run
