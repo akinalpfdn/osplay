@@ -426,6 +426,23 @@
         }
       }
     },
+    "developer.remoteHost.copy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopyala"
+          }
+        }
+      }
+    },
     "developer.remoteHost.hint" : {
       "extractionState" : "manual",
       "localizations" : {

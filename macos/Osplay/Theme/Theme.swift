@@ -39,5 +39,6 @@ enum Theme {
 
     enum Symbol {
         static let menuBar = "display.2"
+        static let copy = "doc.on.doc"
     }
 }

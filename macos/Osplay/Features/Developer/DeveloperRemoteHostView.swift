@@ -21,10 +21,16 @@
                     Text("developer.remoteHost.hint")
                         .font(Theme.Typography.caption)
                         .foregroundStyle(.secondary)
-                    ForEach(viewModel.endpoints, id: \.self) { endpoint in
-                        Text(verbatim: "OsplayViewerTest.exe --connect \(endpoint)")
-                            .font(Theme.Typography.caption.monospaced())
-                            .textSelection(.enabled)
+                    ForEach(viewModel.commands, id: \.self) { command in
+                        HStack(spacing: Theme.Spacing.small) {
+                            Text(verbatim: command)
+                                .font(Theme.Typography.caption.monospaced())
+                            Button {
+                                viewModel.copy(command)
+                            } label: {
+                                Label("developer.remoteHost.copy", systemImage: Theme.Symbol.copy)
+                            }
+                        }
                     }
                     Text(
                         "developer.remoteHost.status \(viewModel.streamCount) \((Double(viewModel.bitrateKbps) / 1000).formatted(.number.precision(.fractionLength(1))))"

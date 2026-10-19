@@ -12,8 +12,8 @@
     @Observable
     final class DeveloperRemoteHostViewModel {
         private(set) var isRunning = false
-        /// "address:port" for each LAN address of this Mac.
-        private(set) var endpoints: [String] = []
+        /// The OsplayViewerTest command for each LAN address of this Mac.
+        private(set) var commands: [String] = []
         private(set) var streamCount = 0
         private(set) var bitrateKbps = 0
         private(set) var errorMessage: String?
@@ -49,6 +49,11 @@
             Task { [session] in await session?.stop() }
         }
 
+        func copy(_ command: String) {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(command, forType: .string)
+        }
+
         func openScreenRecordingSettings() {
             guard let url = dependencies.permissions.screenRecordingSettingsURL else { return }
             NSWorkspace.shared.open(url)
@@ -69,7 +74,7 @@
                 captures: dependencies.captures, encoders: dependencies.encoders,
                 permissions: dependencies.permissions, dumpDirectory: nil)
             self.session = session
-            endpoints = Self.lanAddresses().map { "\($0) \(core.controlPort)" }
+            commands = Self.lanAddresses().map { "OsplayViewerTest.exe --connect \($0) \(core.controlPort)" }
             streamCount = 0
             bitrateKbps = 0
             tasks = [
@@ -103,7 +108,7 @@
             tasks.forEach { $0.cancel() }
             tasks = []
             isRunning = false
-            endpoints = []
+            commands = []
             if let failure { show(failure) }
         }
 
