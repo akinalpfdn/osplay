@@ -27,6 +27,10 @@ struct DuplicationTarget {
 [[nodiscard]] win::Expected<DuplicationTarget, PipelineError>
 open_duplication_target(const std::wstring& gdi_name);
 
+/// The adapter driving the monitor at `rect` (desktop coordinates); the default adapter if none
+/// matches exactly.
+[[nodiscard]] Microsoft::WRL::ComPtr<IDXGIAdapter1> adapter_for_monitor(const MonitorRect& rect);
+
 /// Looks the output up again on the target's adapter, e.g. after a mode change replaced it.
 /// False if it is gone (or now on another adapter, which needs a new pipeline).
 [[nodiscard]] bool refresh_duplication_output(DuplicationTarget& target,

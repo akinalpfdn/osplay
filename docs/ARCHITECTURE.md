@@ -272,3 +272,36 @@ VDD monitor ─► Desktop Duplication ─► BGRA copy ─► video processor (
 - **Debug tool.** `OsplayHostTest.exe` runs a host session with an in-process core viewer, a moving
   pattern on the virtual monitor and a per-second report (BUILDING.md).
 
+## Viewer pipeline on Windows
+
+`osplay_engine_viewer_start` (`windows/engine/src/capi/viewer_capi.cpp`) runs a viewer session:
+the core session, a UI thread and one `ViewerStream` per stream. `ViewerOrchestrator`
+(`src/viewer/`, portable and unit tested) mirrors macOS's `ViewerSession`: each stream is shown on
+the monitor the host chose, decoder trouble asks for a keyframe, hiding pauses every stream on the
+host, and a monitor that disappears stops only its own stream (StreamStop to the host).
+
+```
+core ─► access unit ─► decode thread: MF H.264 decoder (D3D11, NV12) ─► video processor (BGRA,
+        aspect fit) ─► flip-model swap chain ─► borderless window covering the monitor
+```
+
+- **Monitors** (`src/viewer/windows_monitors.cpp`, `monitor_layout.cpp`). Every active monitor
+  except the Virtual Display Driver's: current mode from GDI, exact refresh rate and EDID name from
+  the CCD API, physical size from `GetDeviceCaps`, scale from the effective DPI, all in physical
+  pixels. Ids follow the desktop position, left to right; after a display change the offered
+  monitors are matched by GDI name, so renumbering never stops the wrong stream.
+- **UI thread** (`src/present/presentation_thread.cpp`). Per-monitor DPI aware; owns the windows,
+  the global hide/show hotkey (Ctrl+Alt+Shift+V, `RegisterHotKey`), `WM_DISPLAYCHANGE` and the
+  display-required power state. Windows are topmost tool windows without a redirection bitmap and
+  hide the local pointer.
+- **Decode and present** (`src/decode/`, `src/viewer/windows_viewer_stream.cpp`). One thread per
+  stream owns a D3D11 device on the adapter driving its monitor, the Media Foundation H.264 decoder
+  (DXVA, low latency) and a `FLIP_DISCARD` swap chain with a frame latency waitable object and
+  maximum latency 1. Each decoded frame is converted by the video processor (BT.709 studio range to
+  full-range RGB, centred with black bars when the aspect ratio differs) and presented at once with
+  `Present(0, 0)`. A window that covers the monitor with nothing drawn over it lets DWM switch to
+  independent flip. A decode error, or a queue longer than 30 access units, drops frames until the
+  next keyframe and asks for one (at most every 100 ms).
+- **Debug tool.** `OsplayViewerTest.exe` lists the monitors, views a remote host by address or runs
+  a loopback with the Windows host pipeline (BUILDING.md).
+

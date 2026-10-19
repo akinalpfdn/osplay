@@ -16,6 +16,7 @@
 #include "media/retransmit_cache.hpp"
 #include "protocol/control_messages.hpp"
 #include "protocol/media_packets.hpp"
+#include "session/clock_offset.hpp"
 #include "session/control_framer.hpp"
 #include "session/session_config.hpp"
 #include "util/error.hpp"
@@ -81,7 +82,9 @@ public:
     virtual void on_viewer_monitors(const std::vector<protocol::Monitor>& monitors) = 0; // host
     virtual void on_stream_config(const protocol::StreamConfig& config) = 0;             // viewer
     virtual void on_keyframe_request(std::uint8_t stream_id) = 0;                        // host
-    virtual void on_access_unit(const media::CompletedFrame& frame) = 0;                 // viewer
+    /// The peer stopped a stream for good (e.g. the viewer's monitor was unplugged).
+    virtual void on_stream_stopped(std::uint8_t stream_id) = 0;
+    virtual void on_access_unit(const media::CompletedFrame& frame) = 0; // viewer
     /// Viewer: a complete cursor image; the bytes are valid only during the call.
     virtual void on_cursor_shape(const media::CursorShape& shape) = 0;
     /// Viewer: the newest cursor position (older ones are dropped).
@@ -139,6 +142,8 @@ public:
     /// Viewer: the decoder failed; asks the host for a keyframe (rate-limited per stream).
     [[nodiscard]] Status<Error> request_keyframe(std::uint8_t stream_id, TimePoint now);
     [[nodiscard]] Status<Error> pause_stream(std::uint8_t stream_id, TimePoint now);
+    /// Ends one stream for good on both sides (StreamStop); the session stays up.
+    [[nodiscard]] Status<Error> stop_stream(std::uint8_t stream_id, TimePoint now);
     [[nodiscard]] Status<Error> resume_stream(std::uint8_t stream_id, TimePoint now);
     /// Sends Bye (when the channel is encrypted) and closes.
     void close(protocol::ByeReason reason, TimePoint now);
@@ -235,6 +240,7 @@ private:
     std::uint32_t next_ping_id_ = 0;
     std::optional<Microseconds> rtt_;
     std::int64_t clock_offset_us_ = 0;
+    ClockOffsetEstimator clock_offsets_;
     std::uint64_t datagrams_rejected_ = 0;
 };
 

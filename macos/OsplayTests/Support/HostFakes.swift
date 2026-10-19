@@ -63,6 +63,12 @@ final class FakeDisplayLender: DisplayLending {
         return monitors.enumerated().map { LentDisplay(monitor: $1, displayID: CGDirectDisplayID(200 + $0)) }
     }
 
+    private(set) var returnedDisplays: [CGDirectDisplayID] = []
+
+    func returnDisplay(_ displayID: CGDirectDisplayID) {
+        returnedDisplays.append(displayID)
+    }
+
     func returnAll() {
         returnCount += 1
         isLending = false

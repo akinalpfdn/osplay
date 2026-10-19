@@ -7,6 +7,7 @@ struct OsplayApp: App {
         @State private var developerDisplays: DeveloperDisplaysViewModel
         @State private var developerHostTest: DeveloperHostTestViewModel
         @State private var developerLoopback: DeveloperLoopbackViewModel
+        @State private var developerRemoteHost: DeveloperRemoteHostViewModel
     #endif
 
     init() {
@@ -19,6 +20,7 @@ struct OsplayApp: App {
                     provider: dependencies.virtualDisplays, captures: dependencies.captures,
                     encoders: dependencies.encoders, permissions: dependencies.permissions))
             _developerLoopback = State(initialValue: DeveloperLoopbackViewModel(dependencies: dependencies))
+            _developerRemoteHost = State(initialValue: DeveloperRemoteHostViewModel(dependencies: dependencies))
         #endif
     }
 
@@ -27,7 +29,7 @@ struct OsplayApp: App {
             #if DEBUG
                 MenuContentView(
                     developerDisplays: developerDisplays, developerHostTest: developerHostTest,
-                    developerLoopback: developerLoopback)
+                    developerLoopback: developerLoopback, developerRemoteHost: developerRemoteHost)
             #else
                 MenuContentView()
             #endif

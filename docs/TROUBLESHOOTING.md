@@ -37,3 +37,14 @@ QuickTime Player cannot open raw H.264; use IINA, VLC or `ffplay`.
 ## Measuring end-to-end latency
 
 To be documented in Phase 10 (photograph an on-screen millisecond clock together with the viewer).
+
+## Windows viewer: Ctrl+Alt+Shift+V does nothing
+
+Another program registered the same global shortcut first. `OsplayViewerTest` says so when it
+starts ("hotkey unavailable"); close the other program or change its shortcut.
+
+## macOS: a Windows viewer cannot connect
+
+macOS asks once whether Osplay may use the local network. If it was denied, enable Osplay in System
+Settings › Privacy & Security › Local Network. With the macOS firewall on, also allow incoming
+connections for Osplay.

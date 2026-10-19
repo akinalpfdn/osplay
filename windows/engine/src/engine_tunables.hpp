@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 namespace osplay::engine {
@@ -14,6 +15,8 @@ inline constexpr int kDisplayConfigQueryAttempts = 3;
 inline constexpr std::uint8_t kHostStreamId = 0;
 /// Target bitrate in bits per pixel per frame: 0.1 gives ~25 Mbit/s for 2560×1664 at 60 Hz.
 inline constexpr double kBitsPerPixel = 0.1;
+/// Host: streams never exceed this rate, whatever the viewer's monitor runs at.
+inline constexpr std::uint32_t kMaxStreamRefreshMillihertz = 60'000;
 inline constexpr std::uint32_t kMinBitrateKbps = 2'000;
 inline constexpr std::uint32_t kMaxBitrateKbps = 80'000;
 
@@ -25,5 +28,17 @@ inline constexpr std::int64_t kEncoderBusyMilliseconds = 40;
 /// While duplication is unavailable (secure desktop, mode change): retry spacing and idle sleep.
 inline constexpr unsigned long long kDuplicationRetryMilliseconds = 100;
 inline constexpr unsigned kDuplicationIdleMilliseconds = 10;
+
+/// Viewer hide/show hotkey. User decision: Ctrl+Alt+Shift+V (Ctrl+Alt alone is AltGr on Turkish
+/// layouts). Values of MOD_ALT | MOD_CONTROL | MOD_SHIFT and the virtual key 'V'.
+inline constexpr unsigned kViewerHotkeyModifiers = 0x0001U | 0x0002U | 0x0004U;
+inline constexpr unsigned kViewerHotkeyKey = 0x56U;
+
+/// Viewer: access units waiting for the decoder before it starts over from a keyframe.
+inline constexpr std::size_t kViewerQueueLimit = 30;
+/// Decoder errors closer together than this send one keyframe request (the core also limits).
+inline constexpr unsigned long long kViewerKeyframeRequestSpacingMilliseconds = 100;
+/// Longest wait for the swap chain to accept the next frame.
+inline constexpr unsigned kPresentWaitMilliseconds = 100;
 
 } // namespace osplay::engine

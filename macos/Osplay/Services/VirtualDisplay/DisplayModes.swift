@@ -37,7 +37,7 @@ enum DisplayModes {
     )
         throws(VirtualDisplayError)
     {
-        guard let target = available(for: displayID).first(where: { $0.resolution == resolution }) else {
+        guard let target = closest(to: resolution, in: available(for: displayID)) else {
             throw .resolutionUnavailable
         }
 
@@ -53,6 +53,18 @@ enum DisplayModes {
         // Permanent, like a choice in System Settings, so macOS restores it for this display identity.
         let complete = CGCompleteDisplayConfiguration(config, .permanently)
         guard complete == .success else { throw .reconfigurationFailed(complete.rawValue) }
+    }
+
+    /// The mode with the same point and pixel size and the nearest refresh rate. The window server
+    /// reports its own value for a configured rate (59.951 Hz may come back as 59.95 or 60), so an
+    /// exact match fails for the fractional rates Windows monitors use.
+    static func closest(to resolution: DisplayResolution, in modes: [Mode]) -> Mode? {
+        modes
+            .filter { $0.resolution.points == resolution.points && $0.resolution.pixels == resolution.pixels }
+            .min { lhs, rhs in
+                abs(lhs.resolution.refreshRate - resolution.refreshRate)
+                    < abs(rhs.resolution.refreshRate - resolution.refreshRate)
+            }
     }
 
     private static func resolution(of mode: CGDisplayMode) -> DisplayResolution {

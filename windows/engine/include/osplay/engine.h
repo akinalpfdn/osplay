@@ -10,6 +10,7 @@
 
 #include <osplay/osplay.h>
 
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef OSPLAY_ENGINE_BUILDING
@@ -44,6 +45,8 @@ typedef enum osplay_engine_result {
     OSPLAY_ENGINE_ERROR_CAPTURE_FAILED = 16,      /* Desktop Duplication could not run */
     OSPLAY_ENGINE_ERROR_ENCODER_UNAVAILABLE = 17, /* no hardware H.264 encoder for the stream */
     OSPLAY_ENGINE_ERROR_ENCODER_FAILED = 18,
+    OSPLAY_ENGINE_ERROR_DECODER_UNAVAILABLE = 19, /* no hardware H.264 decoder for the stream */
+    OSPLAY_ENGINE_ERROR_PRESENTATION_FAILED = 20, /* the viewer window could not be shown */
     OSPLAY_ENGINE_RESULT_MAX_ENUM = 0x7FFFFFFF
 } osplay_engine_result;
 /* NOLINTEND(cppcoreguidelines-use-enum-class,performance-enum-size) */
@@ -142,6 +145,97 @@ OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_stop(osplay_engine_hos
 
 /* Stops everything, removes the virtual monitor and releases the handle. Accepts NULL. */
 OSPLAY_ENGINE_API void osplay_engine_host_destroy(osplay_engine_host* host);
+
+/* --- Viewer session (Windows shows a remote screen) ------------------------------------------- */
+
+#define OSPLAY_ENGINE_MONITOR_NAME_SIZE 65 /* 64 bytes of UTF-8 and the NUL */
+
+/* A physical monitor this PC can offer (never the Virtual Display Driver's). */
+typedef struct osplay_engine_monitor {
+    uint8_t monitor_id; /* by desktop position, left to right; valid until the layout changes */
+    uint16_t width_px;
+    uint16_t height_px;
+    uint32_t refresh_millihertz;
+    uint16_t physical_width_mm; /* 0 when unknown */
+    uint16_t physical_height_mm;
+    uint16_t scale_percent;
+    int32_t left; /* place on the desktop, physical pixels */
+    int32_t top;
+    int32_t right;
+    int32_t bottom;
+    char name_utf8[OSPLAY_ENGINE_MONITOR_NAME_SIZE]; /* the monitor's own name, may be empty */
+} osplay_engine_monitor;
+
+/* Fills up to `capacity` monitors; `capacity` must be at least OSPLAY_MAX_MONITORS. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_list_monitors(
+    osplay_engine_monitor* out_monitors, size_t capacity, size_t* out_count);
+
+/*
+ * A viewer session: connects to a host, offers monitors, and shows each stream full screen on the
+ * monitor the host chose (hardware decoding, flip-model presentation). The global hotkey hides and
+ * shows every stream; hidden streams are paused on the host. A monitor that disappears stops only
+ * its own stream.
+ */
+typedef struct osplay_engine_viewer osplay_engine_viewer; /* opaque */
+
+typedef struct osplay_engine_viewer_config {
+    const uint8_t* secret_key;    /* the device identity, OSPLAY_KEY_SIZE bytes */
+    const char* device_name_utf8; /* shown to the host */
+    const char* host_utf8;        /* the host's address */
+    uint16_t port;                /* the host's control port */
+    const uint8_t* monitor_ids;   /* ids from osplay_engine_list_monitors to offer, or NULL: all */
+    size_t monitor_id_count;
+} osplay_engine_viewer_config;
+
+/* Callbacks run on engine threads and must return quickly; they must not call
+ * osplay_engine_viewer_destroy. `on_state` and `on_trust_query` are required. */
+typedef struct osplay_engine_viewer_callbacks {
+    void* context;
+    void (*on_state)(void* context, osplay_session_state state, osplay_result reason);
+    osplay_trust (*on_trust_query)(void* context, const uint8_t* peer_public_key);
+    void (*on_pairing_code)(void* context, uint32_t code, const uint8_t* peer_public_key);
+    void (*on_paired)(void* context, const uint8_t* peer_public_key);
+    /* The streams were hidden (0) or shown (1), by the hotkey or set_visible. */
+    void (*on_visibility)(void* context, uint8_t visible);
+    /* One stream could not be shown and was stopped; the session continues. */
+    void (*on_stream_failed)(void* context, uint8_t stream_id, osplay_engine_result reason);
+    void (*on_stats)(void* context, const osplay_session_stats* stats);
+    void (*on_log)(void* context, osplay_log_level level, const char* message);
+} osplay_engine_viewer_callbacks;
+
+typedef struct osplay_engine_stream_figures {
+    uint8_t stream_id;
+    uint64_t frames_presented;
+    uint64_t decode_errors;
+} osplay_engine_stream_figures;
+
+/* Starts connecting. MONITOR_NOT_FOUND when none of the requested monitors is attached. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_start(
+    const osplay_engine_viewer_config* config, const osplay_engine_viewer_callbacks* callbacks,
+    osplay_engine_viewer** out_viewer);
+
+/* Whether the hide/show hotkey could be registered (another program may own it). */
+OSPLAY_ENGINE_API osplay_engine_result
+osplay_engine_viewer_hotkey_registered(osplay_engine_viewer* viewer, uint8_t* out_registered);
+
+/* Answers on_pairing_code (`accepted` is 0 or 1). */
+OSPLAY_ENGINE_API osplay_engine_result
+osplay_engine_viewer_confirm_pairing(osplay_engine_viewer* viewer, uint8_t accepted);
+
+/* Hides (0) or shows (1) every stream, like the hotkey. */
+OSPLAY_ENGINE_API osplay_engine_result
+osplay_engine_viewer_set_visible(osplay_engine_viewer* viewer, uint8_t visible);
+
+/* Presentation figures of every running stream; `capacity` must be at least OSPLAY_MAX_STREAMS. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_stream_stats(
+    osplay_engine_viewer* viewer, osplay_engine_stream_figures* out_stats, size_t capacity,
+    size_t* out_count);
+
+/* Ends the session with Bye without waiting; on_state reports CLOSED. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_stop(osplay_engine_viewer* viewer);
+
+/* Stops everything, closes the windows and releases the handle. Accepts NULL. */
+OSPLAY_ENGINE_API void osplay_engine_viewer_destroy(osplay_engine_viewer* viewer);
 
 #ifdef __cplusplus
 } /* extern "C" */

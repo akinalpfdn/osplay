@@ -267,3 +267,66 @@ choices the plan leaves open are logged here.
 
 ---
 
+
+## 2026-10-18 — User decision: Windows viewer hotkey Ctrl+Alt+Shift+V
+**Chosen:** Ctrl+Alt+Shift+V hides and shows the Windows viewer.
+**Alternatives:** Ctrl+Alt+V.
+**Why:** On Turkish and other AltGr layouts Ctrl+Alt is AltGr, so Ctrl+Alt+V would collide with typing.
+**Trade-offs:** A four-key chord; it becomes configurable with the settings UI.
+**Revisit if:** Users report a conflict.
+
+---
+
+## 2026-10-18 — User decision: Phase 9 two-stream test through a temporary IP connection
+**Chosen:** A debug "Host for a remote viewer" on the Mac and `OsplayViewerTest --connect HOST PORT` on Windows; both trust any peer and are removed when Phase 10 adds discovery.
+**Alternatives:** Wait for Phase 10 to test two streams; a Windows-only test with two virtual monitors.
+**Why:** The Windows host streams one monitor only, so two real streams need the Mac host; discovery does not exist yet.
+**Trade-offs:** Throwaway code in both apps; the debug host trusts any viewer while it runs.
+**Revisit if:** Phase 10 starts.
+
+---
+
+## 2026-10-18 — Windows viewer presents from one decode thread per stream
+**Chosen:** Each stream's thread decodes (MF H.264 decoder on D3D11), converts with the video processor and presents a `FLIP_DISCARD` swap chain (waitable, maximum latency 1) at once on a borderless window without a redirection bitmap; one UI thread owns only windows, the hotkey and display changes.
+**Alternatives:** A DirectComposition or composition swap chain; a pixel shader for NV12 → RGB; presenting all streams from the UI thread.
+**Why:** A plain flip-model window that covers its monitor is what DWM promotes to independent flip, which removes a composition frame of latency. Separate threads keep one slow monitor from delaying the other. The video processor is the hardware path the encoder side already uses.
+**Trade-offs:** Overlays drawn above the window (notifications) drop it back to composition while visible; no custom scaling filter.
+**Revisit if:** PresentMon shows composed flip on common setups, or the video processor is slow on some GPUs.
+
+---
+
+## 2026-10-18 — Viewer monitor ids by desktop position, matched by GDI name
+**Chosen:** Offered monitors are numbered left to right (then top to bottom); after a display change they are matched by GDI device name to decide which are still attached.
+**Alternatives:** Ids from the CCD target id; matching by EDID name.
+**Why:** Position ids are small, stable while nothing changes and match what the user sees; GDI names survive the renumbering an unplug causes. EDID names are not unique when two identical monitors are attached.
+**Trade-offs:** Windows may reuse a GDI name for a different monitor plugged in later during the same session.
+**Revisit if:** Monitor ids need to persist across sessions (per-monitor settings).
+
+---
+
+## 2026-10-19 — Streams capped at 60 Hz until high refresh support
+**Chosen:** Both hosts stream at most 60 Hz; a viewer monitor at 120 or 144 Hz gets a 60 Hz virtual display and stream.
+**Alternatives:** Stream at the monitor's rate; cap only the Mac host.
+**Why:** DEVPLAN lists 120 Hz streams as post-MVP. Measured on the MacBook Air M3: a 1440p120 virtual display captures at only ~80 fps next to a 1080p60 one, and the Phase 9 PC test showed 40–65 ms latency on that stream against 3–13 ms at 60 Hz.
+**Trade-offs:** High refresh monitors show 60 fps motion.
+**Revisit if:** The post-MVP high refresh work starts.
+
+---
+
+## 2026-10-19 — Clock offset from the fastest recent ping
+**Chosen:** The peer clock offset is the offset of the ping exchange with the smallest round trip among the last eight (one per second), as NTP does.
+**Alternatives:** An exponential average of every sample (the previous behaviour); discarding samples above a fixed round trip.
+**Why:** In the Phase 9 test over Wi-Fi a stalled exchange (round trip of seconds) shifted the average by up to half its round trip, so reported latency jumped to 1–3 s and took about half a minute to settle. The fastest exchange is the one closest to symmetric; a fixed threshold would need tuning per network.
+**Trade-offs:** A genuine clock step is picked up only once a fast exchange carries it (within 8 s).
+**Revisit if:** Latency statistics drive behaviour (adaptive bitrate) rather than display only.
+
+---
+
+## 2026-10-19 — Initial virtual display resolution follows the viewer's scaling
+**Chosen:** A viewer monitor the user runs below 150% scaling starts at one point per pixel (2560×1440 looks like 2560×1440); at 150% and above it starts in the crisp HiDPI resolution (looks like half size). Refines the 2026-10-18 crisp-HiDPI default.
+**Alternatives:** Crisp HiDPI for every monitor (the previous default); macOS's own default (largest 2× mode, four times the pixels).
+**Why:** In the Phase 9 test both Windows monitors run at 100%, and the crisp default made them look like a 1280×720 desktop — not what the user sees on Windows. The viewer already reports its scaling, so the host can match it; both choices keep the backing equal to the stream size.
+**Trade-offs:** Text at one point per pixel is not HiDPI-smoothed on a low-density monitor, as on Windows itself.
+**Revisit if:** Phase 11 per-peer display settings let the user choose.
+
+---

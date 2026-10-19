@@ -276,6 +276,41 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    | AMD | AMF MFT | not tested |
    | Intel | Quick Sync MFT | not tested |
 
+6. Test the viewer pipeline (decode, present, hide/show, unplug). `--list` shows the monitors the
+   viewer offers; `--loopback` hosts a virtual monitor through the helper and views it on one
+   physical monitor; `--connect` views another computer:
+
+   ```powershell
+   cd windows\build\debug\bin
+   .\OsplayViewerTest.exe --list
+   .\OsplayViewerTest.exe --loopback --monitor 1 --seconds 60
+   .\OsplayViewerTest.exe --connect 192.168.1.20 52100 --seconds 120
+   ```
+
+   For `--connect` to a Mac, start **Host for a remote viewer** in the debug menu of the Mac app; it
+   shows the PowerShell command with the Mac's address and port and a Copy button (temporary until discovery in Phase 10).
+   With two monitors attached the Mac hosts two virtual displays, one per monitor. Every second the
+   tool prints, per stream, frames presented, decode errors and latency; Ctrl+Alt+Shift+V hides and
+   shows the windows (the host pauses the streams while hidden). Unplug one monitor during the run
+   and only its stream stops.
+
+   To confirm independent flip, start [PresentMon](https://github.com/GameTechDev/PresentMon) in an
+   administrator terminal *before* the viewer, because the viewer windows cover every monitor:
+   `PresentMon.exe --process_name OsplayViewerTest.exe --timed 60`. The `PresentMode` column must
+   show `Hardware: Independent Flip` or `Hardware Composed: Independent Flip` (a multiplane overlay)
+   for each window; composed flip is expected only for a moment at start and around hide/show.
+
+   Streams run at most at 60 Hz, also on 120 Hz monitors (high refresh comes after the MVP). The
+   Windows viewer draws no pointer: a Mac host puts it in the video, and in `--loopback` the
+   Windows host sends it separately, so the loopback shows no pointer except while dragging.
+
+   Measured so far (Phase 9 acceptance: two streams with independent flip):
+
+   | Setup | Result |
+   |-------|--------|
+   | NVIDIA, VZ239 1080p60 + Acer 1440p120, Mac host (M3 Air) | independent flip on both (Acer through MPO), 0 decode errors, hide/show ≈ 1 s, unplug stops only that stream; 1080p60: 57–61 fps, latency 3–13 ms. The 1440p stream ran at 120 Hz then (80–99 fps, 40–65 ms) and is now capped at 60 Hz |
+   | NVIDIA, loopback to VZ239 | 0 decode errors, 40–60 fps, latency 7–25 ms, first frame after ≈ 4 s |
+
 > The driver's own documentation warns that major GPU or chipset driver updates can scramble
 > display priority while it is installed. If the screen goes black after such an update, boot into
 > Safe Mode and uninstall the Virtual Display Driver from Device Manager → Display adapters.
@@ -294,5 +329,5 @@ format a C++ file with the pinned version from `scripts/lint.sh`, for example
   `swift test`, app build and tests.
 - **Protocol fuzzing** (Linux) — libFuzzer with ASan and UBSan, seeded with the fixtures: 30 seconds
   on the protocol decoders, 30 seconds on the handshake reader and media opener.
-- **Windows** — core, engine, helper and developer tool with MSVC (`/W4 /WX`), all native tests,
+- **Windows** — core, engine, helper and developer tools with MSVC (`/W4 /WX`), all native tests,
   clang-tidy on core and Windows code, `dotnet format` check, shell build with analyzers as errors.

@@ -133,6 +133,11 @@ public final class CoreSession: Sendable {
         try check(handle.withPointer { osplay_session_request_keyframe($0, streamID) })
     }
 
+    /// Ends one stream for good on both sides; the session stays up.
+    public func stopStream(_ streamID: UInt8) throws(CoreError) {
+        try check(handle.withPointer { osplay_session_stop_stream($0, streamID) })
+    }
+
     public func pauseStream(_ streamID: UInt8) throws(CoreError) {
         try check(handle.withPointer { osplay_session_pause_stream($0, streamID) })
     }
@@ -229,6 +234,9 @@ private final class CallbackBox: Sendable {
                 streamID: unit.stream_id, isKeyframe: unit.keyframe == 1, carriesParameterSets: unit.codec_config == 1,
                 frameID: unit.frame_id, captureTimeMicroseconds: unit.capture_time_us, data: data)
             CallbackBox.from(context)?.continuation.yield(.accessUnit(accessUnit))
+        }
+        callbacks.on_stream_stopped = { context, streamID in
+            CallbackBox.from(context)?.continuation.yield(.streamStopped(streamID: streamID))
         }
         callbacks.on_cursor_shape = { context, shape in
             guard let shape = shape?.pointee else { return }

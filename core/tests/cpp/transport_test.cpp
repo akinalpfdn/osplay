@@ -69,6 +69,7 @@ public:
             intact_ = intact_ && intact;
         });
     }
+    void on_stream_stopped(std::uint8_t /*stream_id*/) override {}
     void on_cursor_shape(const osplay::media::CursorShape& /*shape*/) override {}
     void on_cursor_position(const protocol::CursorPosition& /*position*/) override {}
     void on_stats(const session::SessionStats& /*stats*/) override {}

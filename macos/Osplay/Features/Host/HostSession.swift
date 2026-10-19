@@ -70,6 +70,8 @@ actor HostSession {
                 await startStreams(for: monitors)
             case .keyframeRequested(let streamID):
                 pipelines[streamID]?.requestKeyframe()
+            case .streamStopped(let streamID):
+                await stopStream(streamID)
             case .state(let state, let reason):
                 eventSink.yield(.state(state))
                 if state == .closed {
@@ -107,7 +109,7 @@ actor HostSession {
     }
 
     private func startStreams(for monitors: [MonitorDescription]) async {
-        let offered = Array(monitors.prefix(Tunables.VirtualDisplay.maximumDisplayCount))
+        let offered = monitors.prefix(Tunables.VirtualDisplay.maximumDisplayCount).map(Self.capped)
         let lent: [LentDisplay]
         do {
             lent = try await displays.lend(offered, peerID: peerID)
@@ -163,6 +165,13 @@ actor HostSession {
         core.close()
     }
 
+    /// The viewer dropped one stream (e.g. its monitor was unplugged): only that display goes.
+    private func stopStream(_ streamID: UInt8) async {
+        guard let pipeline = pipelines.removeValue(forKey: streamID) else { return }
+        await pipeline.stop()
+        await displays.returnDisplay(pipeline.displayID)
+    }
+
     private func stopStreams() async {
         let running = pipelines.keys.sorted().compactMap { pipelines[$0] }
         pipelines.removeAll()
@@ -170,6 +179,17 @@ actor HostSession {
             await pipeline.stop()
         }
         await displays.returnAll()
+    }
+
+    /// High refresh streams come after the MVP (DEVPLAN): a 120 Hz monitor gets a 60 Hz display and
+    /// stream, which this Mac captures and encodes at full rate.
+    static func capped(_ monitor: MonitorDescription) -> MonitorDescription {
+        MonitorDescription(
+            id: monitor.id, widthPixels: monitor.widthPixels, heightPixels: monitor.heightPixels,
+            refreshMillihertz: min(monitor.refreshMillihertz, Tunables.Host.maximumRefreshMillihertz),
+            physicalWidthMillimeters: monitor.physicalWidthMillimeters,
+            physicalHeightMillimeters: monitor.physicalHeightMillimeters, scalePercent: monitor.scalePercent,
+            name: monitor.name)
     }
 
     static func streamConfiguration(id: UInt8, for monitor: MonitorDescription) -> StreamConfiguration {

@@ -4,13 +4,10 @@
 #include "../display/pipe_helper_channel.hpp"
 #include "../host/host_orchestrator.hpp"
 #include "engine_results.hpp"
+#include "system_random.hpp"
 
 #include <osplay/engine.h>
 #include <osplay/osplay.h>
-
-#include <windows.h>
-
-#include <bcrypt.h>
 
 #include <chrono>
 #include <filesystem>
@@ -23,18 +20,8 @@
 namespace {
 
 using osplay::engine::guarded;
+using osplay::engine::system_random;
 using osplay::engine::to_result;
-
-/// osplay_random_source.fill backed by the system's preferred CSPRNG (DEVPLAN: BCryptGenRandom).
-osplay_result system_random(void* /*context*/, uint8_t* buffer, size_t length) {
-    if (buffer == nullptr || length > ULONG_MAX) {
-        return OSPLAY_ERROR_INVALID_ARGUMENT;
-    }
-    return BCryptGenRandom(nullptr, buffer, static_cast<ULONG>(length),
-                           BCRYPT_USE_SYSTEM_PREFERRED_RNG) == 0
-               ? OSPLAY_OK
-               : OSPLAY_ERROR_RANDOM_UNAVAILABLE;
-}
 
 /// The orchestrator's view of the core session. Detached before the session is destroyed, so the
 /// pipeline thread never reaches a dead session.
@@ -176,6 +163,9 @@ osplay_session_callbacks core_callbacks(osplay_engine_host* host) {
     };
     callbacks.on_keyframe_request = [](void* context, uint8_t stream_id) {
         host_of(context)->orchestrator->on_keyframe_request(stream_id);
+    };
+    callbacks.on_stream_stopped = [](void* context, uint8_t stream_id) {
+        host_of(context)->orchestrator->on_stream_stopped(stream_id);
     };
     callbacks.on_stats = [](void* context, const osplay_session_stats* stats) {
         auto* self = host_of(context);

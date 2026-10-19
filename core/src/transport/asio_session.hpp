@@ -62,6 +62,7 @@ public:
     configure_streams(const std::vector<protocol::StreamConfig>& streams);
     [[nodiscard]] Status<Error> request_keyframe(std::uint8_t stream_id);
     [[nodiscard]] Status<Error> pause_stream(std::uint8_t stream_id);
+    [[nodiscard]] Status<Error> stop_stream(std::uint8_t stream_id);
     [[nodiscard]] Status<Error> resume_stream(std::uint8_t stream_id);
 
     /// Copies the access unit and queues it; returns without waiting for the network.
