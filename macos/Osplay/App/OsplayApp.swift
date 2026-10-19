@@ -50,7 +50,7 @@ struct OsplayApp: App {
                 MenuView(connection: connection, settings: dependencies.settings, openOnboarding: onboarding.show)
             #endif
         } label: {
-            Label("app.name", systemImage: Theme.Symbol.menuBar)
+            Label("app.name", image: Theme.Artwork.menuBar)
         }
         .menuBarExtraStyle(.window)
 

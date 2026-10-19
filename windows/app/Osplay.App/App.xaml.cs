@@ -9,6 +9,7 @@ namespace Osplay.App;
 public partial class App : Application, IDisposable
 {
     private TaskbarIcon? _trayIcon;
+    private TrayIconTheme? _trayIconTheme;
     private ConnectionViewModel? _connection;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -18,6 +19,7 @@ public partial class App : Application, IDisposable
         _connection = new ConnectionViewModel(Dispatcher, new PairingWindowPrompt());
         _trayIcon = (TaskbarIcon)FindResource(TrayResourceKeys.TrayIcon);
         _trayIcon.DataContext = new TrayViewModel(_connection, Shutdown);
+        _trayIconTheme = new TrayIconTheme(_trayIcon);
         _trayIcon.ForceCreate(enablesEfficiencyMode: false);
     }
 
@@ -25,6 +27,8 @@ public partial class App : Application, IDisposable
     {
         _connection?.Dispose(); // ends sessions and withdraws the Bonjour service
         _connection = null;
+        _trayIconTheme?.Dispose();
+        _trayIconTheme = null;
         _trayIcon?.Dispose();
         _trayIcon = null;
         GC.SuppressFinalize(this);

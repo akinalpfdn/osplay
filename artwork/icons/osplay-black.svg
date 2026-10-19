@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+<title>Osplay — two extended displays with monitor stands</title>
+<defs><mask id="rear" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512" style="mask-type:luminance"><rect width="512" height="512" fill="white"/><rect x="163" y="133" width="328" height="238" rx="53" fill="black"/></mask></defs>
+<g transform="translate(0 30)" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round">
+<g mask="url(#rear)"><rect x="46" y="70" width="286" height="184" rx="30" stroke-width="36"/><path d="M142 268V300 M98 300H186" stroke-width="24"/></g>
+<rect x="190" y="160" width="274" height="184" rx="30" stroke-width="36"/>
+<path d="M327 360V396 M277 396H377" stroke-width="24"/>
+</g></svg>

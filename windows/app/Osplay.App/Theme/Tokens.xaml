@@ -5,12 +5,8 @@
   <Color x:Key="Osplay.Color.Accent">#FF2F6FEB</Color>
   <Color x:Key="Osplay.Color.OnAccent">#FFFFFFFF</Color>
 
-  <SolidColorBrush x:Key="Osplay.Brush.TrayIconBackground" Color="{StaticResource Osplay.Color.Accent}" />
-  <SolidColorBrush x:Key="Osplay.Brush.TrayIconForeground" Color="{StaticResource Osplay.Color.OnAccent}" />
-
   <SolidColorBrush x:Key="Osplay.Brush.SecondaryText" Color="{x:Static SystemColors.GrayTextColor}" />
 
-  <sys:Double x:Key="Osplay.FontSize.TrayIconGlyph">96</sys:Double>
   <sys:Double x:Key="Osplay.FontSize.Body">14</sys:Double>
   <sys:Double x:Key="Osplay.FontSize.Caption">12</sys:Double>
   <sys:Double x:Key="Osplay.FontSize.PairingCode">36</sys:Double>
@@ -21,5 +17,7 @@
   <Thickness x:Key="Osplay.Thickness.ButtonGap">0,0,8,0</Thickness>
   <sys:Double x:Key="Osplay.Width.PairingDialog">320</sys:Double>
   <sys:Double x:Key="Osplay.Width.Button">88</sys:Double>
-  <sys:String x:Key="Osplay.Tray.IconGlyph">O</sys:String>
+  <!-- Tray icons: a dark glyph for a light taskbar, a light glyph for a dark one. -->
+  <sys:String x:Key="Osplay.Tray.IconForLightTaskbar">pack://application:,,,/Assets/Tray-black.ico</sys:String>
+  <sys:String x:Key="Osplay.Tray.IconForDarkTaskbar">pack://application:,,,/Assets/Tray-white.ico</sys:String>
 </ResourceDictionary>

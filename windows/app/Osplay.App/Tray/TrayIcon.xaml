@@ -25,13 +25,6 @@
                   xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                   mc:Ignorable="d">
-    <tb:TaskbarIcon.IconSource>
-      <tb:GeneratedIconSource Text="{StaticResource Osplay.Tray.IconGlyph}"
-                              Foreground="{StaticResource Osplay.Brush.TrayIconForeground}"
-                              Background="{StaticResource Osplay.Brush.TrayIconBackground}"
-                              FontSize="{StaticResource Osplay.FontSize.TrayIconGlyph}"
-                              FontWeight="Bold" />
-    </tb:TaskbarIcon.IconSource>
     <tb:TaskbarIcon.ContextMenu>
       <ContextMenu>
         <MenuItem Header="{Binding Connection.Status}" IsEnabled="False" />
