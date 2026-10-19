@@ -11,6 +11,9 @@
     @MainActor
     @Observable
     final class DeveloperRemoteHostViewModel {
+        /// Covers the displays with a moving pattern for frame-rate measurements; off, they show the
+        /// desktop and stream only what changes.
+        var showsPattern = false
         private(set) var isRunning = false
         /// The PowerShell command (run in the tool's folder) for each LAN address of this Mac.
         private(set) var commands: [String] = []
@@ -98,7 +101,9 @@
                 break
             case .streaming(let displays):
                 streamCount = displays.count
-                patterns.show(on: displays.map(\.displayID))
+                if showsPattern {
+                    patterns.show(on: displays.map(\.displayID))
+                }
             case .statistics(let statistics):
                 bitrateKbps = statistics.streams.reduce(0) { $0 + $1.bitrateKbps }
             }

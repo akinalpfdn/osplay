@@ -10,6 +10,9 @@
                 Text("developer.remoteHost.title")
                     .font(Theme.Typography.sectionTitle)
 
+                Toggle("developer.remoteHost.pattern", isOn: $viewModel.showsPattern)
+                    .disabled(viewModel.isRunning)
+
                 HStack(spacing: Theme.Spacing.small) {
                     Button("developer.hostTest.start") { viewModel.start() }
                         .disabled(viewModel.isRunning)

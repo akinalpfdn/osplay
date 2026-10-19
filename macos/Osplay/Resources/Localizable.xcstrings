@@ -460,6 +460,23 @@
         }
       }
     },
+    "developer.remoteHost.pattern" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moving test pattern (measures frame rate)"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hareketli test deseni (kare hızını ölçer)"
+          }
+        }
+      }
+    },
     "developer.remoteHost.status %lld %@" : {
       "extractionState" : "manual",
       "localizations" : {
