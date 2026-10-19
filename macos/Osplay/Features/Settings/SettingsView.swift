@@ -75,15 +75,16 @@ private struct DisplaySettings: View {
                     VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
                         Text(verbatim: peer.name)
                             .font(Theme.Typography.rowTitle)
-                        Picker(
-                            "settings.placement",
-                            selection: Binding(
-                                get: { viewModel.placement(for: peer) }, set: { viewModel.setPlacement($0, for: peer) })
-                        ) {
-                            Text("settings.placement.right").tag(DisplayPlacement.right)
-                            Text("settings.placement.left").tag(DisplayPlacement.left)
-                            Text("settings.placement.above").tag(DisplayPlacement.above)
-                            Text("settings.placement.below").tag(DisplayPlacement.below)
+                        let arrangement = viewModel.arrangement(for: peer)
+                        if arrangement.isEmpty {
+                            Text("settings.arrange.empty")
+                                .font(Theme.Typography.caption)
+                                .foregroundStyle(Theme.Colors.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } else {
+                            ArrangementCanvas(main: viewModel.mainDisplaySize, monitors: arrangement) { id, origin in
+                                viewModel.move(id, to: origin, for: peer)
+                            }
                         }
                         Picker(
                             "settings.hiDPI",

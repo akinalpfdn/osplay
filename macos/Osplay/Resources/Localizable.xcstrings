@@ -2058,6 +2058,57 @@
         }
       }
     },
+    "settings.arrange.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect once to arrange this computer's monitors here."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu bilgisayarın monitörlerini burada düzenlemek için bir kez bağlanın."
+          }
+        }
+      }
+    },
+    "settings.arrange.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag to move this display next to another one."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu ekranı başka bir ekranın yanına taşımak için sürükleyin."
+          }
+        }
+      }
+    },
+    "settings.arrange.thisMac" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Mac"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Mac"
+          }
+        }
+      }
+    },
     "settings.devices" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2200,13 +2251,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Where each computer's displays sit next to this Mac and how they start. Automatic resolution follows that monitor's own scaling. Changes apply from the next connection."
+            "value" : "Drag each monitor to where it stands on your desk; while connected the displays move at once, otherwise the next connection uses the new layout. Automatic resolution follows that monitor's own scaling."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Her bilgisayarın ekranlarının bu Mac'e göre nerede duracağı ve nasıl açılacağı. Otomatik çözünürlük, o monitörün kendi ölçeğini izler. Değişiklikler bir sonraki bağlantıda geçerli olur."
+            "value" : "Her monitörü masanızda durduğu yere sürükleyin; bağlıyken ekranlar hemen taşınır, değilse bir sonraki bağlantı yeni düzeni kullanır. Otomatik çözünürlük, o monitörün kendi ölçeğini izler."
           }
         }
       }
@@ -2530,91 +2581,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Göster…"
-          }
-        }
-      }
-    },
-    "settings.placement" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Position"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Konum"
-          }
-        }
-      }
-    },
-    "settings.placement.above" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Above this Mac"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bu Mac'in üstünde"
-          }
-        }
-      }
-    },
-    "settings.placement.below" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Below this Mac"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bu Mac'in altında"
-          }
-        }
-      }
-    },
-    "settings.placement.left" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Left of this Mac"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bu Mac'in solunda"
-          }
-        }
-      }
-    },
-    "settings.placement.right" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Right of this Mac"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bu Mac'in sağında"
           }
         }
       }

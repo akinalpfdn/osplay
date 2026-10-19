@@ -64,7 +64,7 @@ final class FakeDisplayLender: DisplayLending {
     private(set) var hiDPIChoices: [HiDPIChoice] = []
 
     func lend(
-        _ monitors: [MonitorDescription], peerID: Data, hiDPI: HiDPIChoice, placement: DisplayPlacement
+        _ monitors: [MonitorDescription], peerID: Data, hiDPI: HiDPIChoice, arrangement: [ArrangedMonitor]
     ) async throws(VirtualDisplayError) -> [LentDisplay] {
         hiDPIChoices.append(hiDPI)
         if let error { throw error }

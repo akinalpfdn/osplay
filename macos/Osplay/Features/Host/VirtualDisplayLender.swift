@@ -6,16 +6,18 @@ import Foundation
 struct LentDisplay: Sendable, Hashable {
     let monitor: MonitorDescription
     let displayID: CGDirectDisplayID
+    /// Where it sits next to this Mac's main display.
+    var arrangement: ArrangedMonitor?
 }
 
 /// Creates the virtual displays a host session streams; injected so the session can be tested
 /// without the window server.
 @MainActor
 protocol DisplayLending: AnyObject, Sendable {
-    /// One display per monitor, ready, in the HiDPI choice's resolution and at `placement`. All or
-    /// nothing.
+    /// One display per monitor, ready, in the HiDPI choice's resolution and placed as `arrangement`
+    /// says when it still fits these monitors (a row to the right otherwise). All or nothing.
     func lend(
-        _ monitors: [MonitorDescription], peerID: Data, hiDPI: HiDPIChoice, placement: DisplayPlacement
+        _ monitors: [MonitorDescription], peerID: Data, hiDPI: HiDPIChoice, arrangement: [ArrangedMonitor]
     ) async throws(VirtualDisplayError) -> [LentDisplay]
     func returnDisplay(_ displayID: CGDirectDisplayID)
     func returnAll()
@@ -26,13 +28,12 @@ final class VirtualDisplayLender: DisplayLending {
     private let provider: any VirtualDisplayProviding
     private let isHiDPI: Bool
 
-    typealias Arrange =
-        @MainActor ([(id: CGDirectDisplayID, size: CGSize)], DisplayPlacement) throws(VirtualDisplayError) -> Void
+    typealias Arrange = @MainActor ([(id: CGDirectDisplayID, origin: CGPoint)]) throws(VirtualDisplayError) -> Void
     private let arrange: Arrange
 
     init(
         provider: any VirtualDisplayProviding, isHiDPI: Bool = Tunables.Host.defaultHiDPI,
-        arrange: @escaping Arrange = DisplayArranger.arrange
+        arrange: @escaping Arrange = DisplayArranger.apply
     ) {
         self.provider = provider
         self.isHiDPI = isHiDPI
@@ -40,7 +41,7 @@ final class VirtualDisplayLender: DisplayLending {
     }
 
     func lend(
-        _ monitors: [MonitorDescription], peerID: Data, hiDPI: HiDPIChoice, placement: DisplayPlacement
+        _ monitors: [MonitorDescription], peerID: Data, hiDPI: HiDPIChoice, arrangement: [ArrangedMonitor]
     ) async throws(VirtualDisplayError) -> [LentDisplay] {
         returnAll()
         do throws(VirtualDisplayError) {
@@ -48,22 +49,26 @@ final class VirtualDisplayLender: DisplayLending {
             for (index, monitor) in monitors.enumerated() {
                 lent.append((monitor, try provider.createDisplay(configuration(monitor, index: index, peerID: peerID))))
             }
-            var arranged: [(id: CGDirectDisplayID, size: CGSize)] = []
+            var sizes: [(id: UInt8, name: String, size: CGSize)] = []
             for (monitor, handle) in lent {
                 try await handle.waitUntilReady()
                 let resolution = Self.initialResolution(
                     for: monitor, choice: hiDPI, configuration: handle.configuration)
                 try handle.activate(resolution)
-                let points = resolution.points
-                arranged.append((handle.displayID, CGSize(width: points.width, height: points.height)))
+                let points = CGSize(width: resolution.points.width, height: resolution.points.height)
+                sizes.append((monitor.id, handle.configuration.name, points))
             }
+            let arranged = DisplayLayout.arrangement(
+                for: sizes, saved: arrangement, main: DisplayArranger.mainDisplaySize)
             do throws(VirtualDisplayError) {
-                try arrange(arranged, placement)
+                try arrange(zip(lent, arranged).map { ($0.1.displayID, $1.origin) })
             } catch {
-                // The displays work anywhere; the user can still move them in System Settings.
+                // The displays work anywhere; the user can still move them in Osplay's Settings.
                 Log.virtualDisplay.error("Arranging displays failed: \(String(describing: error), privacy: .public)")
             }
-            return lent.map { LentDisplay(monitor: $0.0, displayID: $0.1.displayID) }
+            return zip(lent, arranged).map { pair, arrangement in
+                LentDisplay(monitor: pair.0, displayID: pair.1.displayID, arrangement: arrangement)
+            }
         } catch {
             returnAll()
             throw error

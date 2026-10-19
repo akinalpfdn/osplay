@@ -46,7 +46,7 @@ struct HostPipelineHardwareTests {
                 name: "Osplay Pipeline Test \(index + 1)")
         }
         let lender = VirtualDisplayLender(provider: CGVirtualDisplayProvider())
-        let displays = try await lender.lend(monitors, peerID: Self.peerID, hiDPI: .automatic, placement: .right)
+        let displays = try await lender.lend(monitors, peerID: Self.peerID, hiDPI: .automatic, arrangement: [])
         defer { lender.returnAll() }
         let patterns = TestPatternWindows()
         patterns.show(on: displays.map(\.displayID))

@@ -41,6 +41,9 @@ final class ConnectionViewModel {
     private var viewer: ViewerSession?
     private var viewerTasks: [Task<Void, Never>] = []
     private var peerName = ""
+    /// While extending: the displays standing in for the viewer's monitors, by monitor ID.
+    private var liveDisplays: [UInt8: CGDirectDisplayID] = [:]
+    private var liveDeviceID: String?
     private var hotkey: HotkeyRegistration?
 
     init(dependencies: AppDependencies, deviceName: String = Host.current().localizedName ?? "Mac") {
@@ -237,7 +240,7 @@ final class ConnectionViewModel {
                     let deviceID = DeviceIdentity.deviceID(publicKey: key)
                     return HostDisplayPolicy(
                         peerID: Data(key), hiDPI: settings.hiDPIChoice(for: deviceID),
-                        placement: settings.placement(for: deviceID), quality: settings.qualityPreset)
+                        arrangement: settings.arrangement(for: deviceID), quality: settings.qualityPreset)
                 }
             },
             displays: VirtualDisplayLender(provider: dependencies.virtualDisplays), captures: dependencies.captures,
@@ -252,6 +255,8 @@ final class ConnectionViewModel {
         let failure = await session.run()
         events.cancel()
         host = nil
+        liveDisplays = [:]
+        liveDeviceID = nil
         dependencies.pairingPrompt.dismiss()
         if mode == .sharing { status = .waitingForViewer }
         return failure.map(ConnectionError.host)
@@ -270,7 +275,9 @@ final class ConnectionViewModel {
             storePairing(key)
         case .state(let state):
             if state == .streaming { connected() }
-        case .streaming, .statistics:
+        case .streaming(let displays):
+            rememberArrangement(displays)
+        case .statistics:
             break
         }
     }
@@ -370,6 +377,27 @@ final class ConnectionViewModel {
                 maximumStreams: maximumStreams, maximumWidth: Tunables.Connection.maximumWidth,
                 maximumHeight: Tunables.Connection.maximumHeight,
                 maximumRefreshHz: Tunables.Connection.maximumRefreshHz))
+    }
+
+    /// Keeps where the viewer's displays sit, so Settings shows them and the next connection reuses it.
+    private func rememberArrangement(_ displays: [LentDisplay]) {
+        guard let key = trust.currentPeer else { return }
+        let deviceID = DeviceIdentity.deviceID(publicKey: key)
+        dependencies.settings.setArrangement(displays.compactMap(\.arrangement), for: deviceID)
+        liveDisplays = Dictionary(uniqueKeysWithValues: displays.map { ($0.monitor.id, $0.displayID) })
+        liveDeviceID = deviceID
+    }
+
+    /// Moves the displays of a running session at once; a saved arrangement alone waits for the
+    /// next connection.
+    func applyArrangement(_ arrangement: [ArrangedMonitor], for deviceID: String) {
+        guard deviceID == liveDeviceID else { return }
+        let origins = arrangement.compactMap { monitor in liveDisplays[monitor.id].map { ($0, monitor.origin) } }
+        do throws(VirtualDisplayError) {
+            try DisplayArranger.apply(origins)
+        } catch {
+            Log.virtualDisplay.error("Moving displays failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     private func connected() {

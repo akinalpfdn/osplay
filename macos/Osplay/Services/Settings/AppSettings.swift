@@ -38,20 +38,20 @@ final class AppSettings {
         showsStatsOverlay = defaults.bool(forKey: Key.statsOverlay)
         hasCompletedOnboarding = defaults.bool(forKey: Key.onboarding)
         hiDPIChoices = Self.load([String: HiDPIChoice].self, from: defaults, forKey: Key.hiDPIChoices) ?? [:]
-        placements = Self.load([String: DisplayPlacement].self, from: defaults, forKey: Key.placements) ?? [:]
+        arrangements = Self.load([String: [ArrangedMonitor]].self, from: defaults, forKey: Key.arrangements) ?? [:]
     }
 
-    /// Per paired device (by device ID), where its displays sit next to this Mac.
-    private(set) var placements: [String: DisplayPlacement] {
-        didSet { save(placements, forKey: Key.placements) }
+    /// Per paired device (by device ID), where each of its monitors sits next to this Mac.
+    private(set) var arrangements: [String: [ArrangedMonitor]] {
+        didSet { save(arrangements, forKey: Key.arrangements) }
     }
 
-    func placement(for deviceID: String) -> DisplayPlacement {
-        placements[deviceID] ?? .right
+    func arrangement(for deviceID: String) -> [ArrangedMonitor] {
+        arrangements[deviceID] ?? []
     }
 
-    func setPlacement(_ placement: DisplayPlacement, for deviceID: String) {
-        placements[deviceID] = placement == .right ? nil : placement
+    func setArrangement(_ arrangement: [ArrangedMonitor], for deviceID: String) {
+        arrangements[deviceID] = arrangement.isEmpty ? nil : arrangement
     }
 
     func hiDPIChoice(for deviceID: String) -> HiDPIChoice {
@@ -84,6 +84,6 @@ final class AppSettings {
         static let statsOverlay = "showsStatsOverlay"
         static let hiDPIChoices = "hiDPIChoices"
         static let onboarding = "hasCompletedOnboarding"
-        static let placements = "displayPlacements"
+        static let arrangements = "displayArrangements"
     }
 }

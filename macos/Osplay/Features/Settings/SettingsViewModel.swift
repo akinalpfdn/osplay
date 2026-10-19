@@ -85,12 +85,26 @@ final class SettingsViewModel {
         settings.setHiDPIChoice(choice, for: DeviceIdentity.deviceID(publicKey: peer.publicKey))
     }
 
-    func placement(for peer: TrustedPeer) -> DisplayPlacement {
-        settings.placement(for: DeviceIdentity.deviceID(publicKey: peer.publicKey))
+    /// This Mac's main display, at the origin of every arrangement.
+    var mainDisplaySize: CGSize { DisplayArranger.mainDisplaySize }
+
+    /// Known once the device's displays were shown at least once.
+    func arrangement(for peer: TrustedPeer) -> [ArrangedMonitor] {
+        settings.arrangement(for: DeviceIdentity.deviceID(publicKey: peer.publicKey))
     }
 
-    func setPlacement(_ placement: DisplayPlacement, for peer: TrustedPeer) {
-        settings.setPlacement(placement, for: DeviceIdentity.deviceID(publicKey: peer.publicKey))
+    /// Drops a monitor at `origin`: it snaps to an edge without overlapping, is saved, and moves
+    /// at once when that device is connected.
+    func move(_ monitorID: UInt8, to origin: CGPoint, for peer: TrustedPeer) {
+        let deviceID = DeviceIdentity.deviceID(publicKey: peer.publicKey)
+        var arrangement = settings.arrangement(for: deviceID)
+        guard let index = arrangement.firstIndex(where: { $0.id == monitorID }) else { return }
+        let others = arrangement.filter { $0.id != monitorID }.map(\.frame)
+        let main = CGRect(origin: .zero, size: mainDisplaySize)
+        let dropped = CGRect(origin: origin, size: arrangement[index].size)
+        arrangement[index].origin = DisplayLayout.snap(dropped, among: [main] + others).origin
+        settings.setArrangement(arrangement, for: deviceID)
+        connection.applyArrangement(arrangement, for: deviceID)
     }
 
     func rename(_ peer: TrustedPeer, to name: String) { connection.rename(peer, to: name) }

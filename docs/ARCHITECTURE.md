@@ -120,7 +120,9 @@ catalog (English and Turkish):
   links to Settings and Permissions. `ConnectionViewModel` (`Features/Connection`) owns discovery,
   sessions and pairing behind it.
 - **Settings** (`Features/Settings`, SwiftUI `Settings` scene): General (launch at login through
-  `SMAppService`, recordable hide/show shortcut), Displays (per-device HiDPI choice), Devices
+  `SMAppService`, recordable hide/show shortcut, permissions), Displays (per-device arrangement
+  canvas and HiDPI choice; arrangements snap with `DisplayLayout` and are applied with
+  `DisplayArranger`), Devices
   (rename, revoke, remove), Advanced (stats overlay, log export to `~/Library/Logs/Osplay`, core
   version). `AppSettings` keeps the values in `UserDefaults`; the host reads quality and HiDPI when
   a viewer's monitors arrive, the viewer reads the overlay switch with every statistics update.

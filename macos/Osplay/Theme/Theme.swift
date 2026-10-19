@@ -41,11 +41,21 @@ enum Theme {
         static let menuWidth: CGFloat = 320
         static let pairingPanelWidth: CGFloat = 300
         static let settingsWidth: CGFloat = 480
-        static let settingsHeight: CGFloat = 320
+        static let settingsHeight: CGFloat = 460
         static let onboardingWidth: CGFloat = 420
         static let statusDot: CGFloat = 8
         static let symbolColumn: CGFloat = 24
         static let hotkeyField: CGFloat = 120
+    }
+
+    /// The display arrangement in Settings › Displays.
+    enum Arrangement {
+        static let canvasHeight: CGFloat = 170
+        static let marginFraction: CGFloat = 0.12
+        static let cornerRadius: CGFloat = 4
+        static let mainFill = Color.accentColor.opacity(0.35)
+        static let monitorFill = Color.secondary.opacity(0.25)
+        static let border = Color.primary.opacity(0.35)
     }
 
     /// The stats box over a watched display: readable on any picture.

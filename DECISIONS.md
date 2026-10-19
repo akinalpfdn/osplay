@@ -394,12 +394,12 @@ choices the plan leaves open are logged here.
 
 ---
 
-## 2026-10-19 — Osplay places the virtual displays itself
-**Chosen:** A per-device "Position" setting (right, left, above or below this Mac; right by default). When a viewer's displays are lent, Osplay moves them into one row there, in the viewer's monitor order, with `CGConfigureDisplayOrigin` (saved permanently, so macOS keeps it).
-**Alternatives:** Relying on System Settings › Displays › Arrange.
-**Why:** In the Phase 11 test System Settings showed no Arrange button with the virtual displays attached, so they could not be arranged at all; a hardware test shows the window server accepts the move from code.
-**Trade-offs:** Only four layouts; finer adjustments still need System Settings where it offers Arrange.
-**Revisit if:** System Settings offers Arrange for these displays, or users need free placement inside Osplay.
+## 2026-10-19 — Osplay arranges the virtual displays itself
+**Chosen:** Settings › Displays has an arrangement canvas per paired device, like the old System Settings Arrange view: this Mac's main display and each of the device's monitors as boxes. A dropped monitor snaps to an edge without overlapping (`DisplayLayout`), the arrangement is saved per device, applied at once to a running session and to every later connection (`CGConfigureDisplayOrigin`, saved permanently). Without a saved arrangement the monitors start in a row to the right.
+**Alternatives:** Relying on System Settings; a fixed position per device (left/right/above/below).
+**Why:** On macOS 26 System Settings shows neither an Arrange button nor draggable display icons with these displays attached, so the user could not arrange them at all; a hardware test shows the window server accepts the move from code. The user chose free dragging over a position list.
+**Trade-offs:** The canvas needs one connection to learn the monitors' sizes; the arrangement only covers this Mac's main display and that device's monitors.
+**Revisit if:** System Settings offers arrangement for these displays again.
 
 ---
 
