@@ -194,8 +194,17 @@ final class ConnectionViewModel {
             return .discovery(error)
         }
         defer { advertising.cancel() }
+        let settings = dependencies.settings
         let session = HostSession(
-            core: core, peerID: { [trust] in Data(trust.currentPeer ?? []) },
+            core: core,
+            policy: { [trust] in
+                let key = trust.currentPeer ?? []
+                return await MainActor.run {
+                    HostDisplayPolicy(
+                        peerID: Data(key), hiDPI: settings.hiDPIChoice(for: DeviceIdentity.deviceID(publicKey: key)),
+                        quality: settings.qualityPreset)
+                }
+            },
             displays: VirtualDisplayLender(provider: dependencies.virtualDisplays), captures: dependencies.captures,
             encoders: dependencies.encoders, permissions: dependencies.permissions)
         host = session
@@ -294,7 +303,7 @@ final class ConnectionViewModel {
 
     private func registerHotkey(for session: ViewerSession) {
         do throws(HotkeyError) {
-            hotkey = try dependencies.hotkeys.register(Tunables.Viewer.toggleHotkey) {
+            hotkey = try dependencies.hotkeys.register(dependencies.settings.viewerHotkey) {
                 Task { await session.toggleVisibility() }
             }
         } catch {

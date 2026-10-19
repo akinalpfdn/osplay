@@ -19,12 +19,23 @@ struct VirtualDisplayLenderTests {
         let lender = VirtualDisplayLender(provider: provider)
 
         _ = try await lender.lend(
-            [monitor(id: 0, scalePercent: 100), monitor(id: 1, scalePercent: 200)], peerID: Data("peer".utf8))
+            [monitor(id: 0, scalePercent: 100), monitor(id: 1, scalePercent: 200)], peerID: Data("peer".utf8),
+            hiDPI: .automatic)
 
         let full = DisplaySize(width: 2560, height: 1440)
         #expect(provider.handles[0].activated.map(\.points) == [full])
         #expect(provider.handles[0].activated.map(\.pixels) == [full])
         #expect(provider.handles[1].activated.map(\.points) == [DisplaySize(width: 1280, height: 720)])
         #expect(provider.handles[1].activated.map(\.pixels) == [full])
+    }
+
+    @Test("The user's choice for a viewer overrides its scaling")
+    func choiceOverridesScaling() async throws {
+        let provider = FakeVirtualDisplayProvider()
+        let lender = VirtualDisplayLender(provider: provider)
+
+        _ = try await lender.lend([monitor(id: 0, scalePercent: 100)], peerID: Data("peer".utf8), hiDPI: .always)
+
+        #expect(provider.handles[0].activated.map(\.points) == [DisplaySize(width: 1280, height: 720)])
     }
 }

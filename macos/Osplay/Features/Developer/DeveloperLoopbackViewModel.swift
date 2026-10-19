@@ -86,7 +86,7 @@
                     identity: try .generate(), name: Tunables.Developer.loopbackDeviceName, capabilities: capabilities),
                 monitors: [loopbackMonitor()], host: "127.0.0.1", port: hostCore.controlPort, trust: { _ in .trusted })
             let host = HostSession(
-                core: hostCore, peerID: { Tunables.Developer.testPeerID },
+                core: hostCore, policy: { HostDisplayPolicy(peerID: Tunables.Developer.testPeerID) },
                 displays: VirtualDisplayLender(provider: dependencies.virtualDisplays), captures: dependencies.captures,
                 encoders: dependencies.encoders, permissions: dependencies.permissions)
             let target: PresentationTarget =

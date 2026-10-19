@@ -54,9 +54,9 @@ struct VideoToolboxEncoderTests {
 
     @Test("Bitrates follow the resolution and stay within limits")
     func bitrateTable() {
-        #expect(Tunables.Encoding.bitrateKbps(width: 2560, height: 1440, frameRate: 60) == 22_118)
-        #expect(Tunables.Encoding.bitrateKbps(width: 640, height: 480, frameRate: 24) == 2_000)
-        #expect(Tunables.Encoding.bitrateKbps(width: 7680, height: 4320, frameRate: 240) == 80_000)
+        #expect(QualityPreset.high.bitrateKbps(width: 2560, height: 1440, frameRate: 60) == 22_118)
+        #expect(QualityPreset.high.bitrateKbps(width: 640, height: 480, frameRate: 24) == 2_000)
+        #expect(QualityPreset.high.bitrateKbps(width: 7680, height: 4320, frameRate: 240) == 80_000)
     }
 }
 

@@ -30,7 +30,7 @@ struct ViewerLoopbackHardwareTests {
                     name: "Osplay Loopback Test")
             ], host: "127.0.0.1", port: hostCore.controlPort, trust: { _ in .trusted })
         let host = HostSession(
-            core: hostCore, peerID: { Data("osplay-hardware-loopback-peer".utf8) },
+            core: hostCore, policy: { HostDisplayPolicy(peerID: Data("osplay-hardware-loopback-peer".utf8)) },
             displays: VirtualDisplayLender(provider: CGVirtualDisplayProvider()),
             captures: ScreenCaptureKitCaptureFactory(),
             encoders: VideoToolboxEncoderFactory(), permissions: SystemPermissions())

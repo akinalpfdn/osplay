@@ -12,6 +12,7 @@ final class AppDependencies {
     let keyStore: any KeyStoring
     let discovery: any PeerDiscovering
     let pairingPrompt: any PairingPrompting
+    let settings: AppSettings
 
     init(
         virtualDisplays: any VirtualDisplayProviding = CGVirtualDisplayProvider(),
@@ -24,7 +25,8 @@ final class AppDependencies {
         hotkeys: any HotkeyRegistering = CarbonHotkeys(),
         keyStore: any KeyStoring = KeychainKeyStore(),
         discovery: any PeerDiscovering = DNSServiceDiscovery(),
-        pairingPrompt: (any PairingPrompting)? = nil
+        pairingPrompt: (any PairingPrompting)? = nil,
+        settings: AppSettings? = nil
     ) {
         self.virtualDisplays = virtualDisplays
         self.captures = captures
@@ -37,5 +39,6 @@ final class AppDependencies {
         self.keyStore = keyStore
         self.discovery = discovery
         self.pairingPrompt = pairingPrompt ?? PairingPanel()
+        self.settings = settings ?? AppSettings()
     }
 }

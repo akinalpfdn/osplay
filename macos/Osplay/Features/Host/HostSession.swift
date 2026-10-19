@@ -13,6 +13,16 @@ protocol HostCoreSession: AnyObject, Sendable {
 
 extension CoreSession: HostCoreSession {}
 
+/// What the host applies when a viewer's monitors arrive; read then, so settings changed while
+/// waiting for a viewer take effect.
+struct HostDisplayPolicy: Sendable {
+    /// The viewer's identity; virtual displays derive theirs from it so macOS remembers the
+    /// arrangement per viewer.
+    var peerID: Data
+    var hiDPI: HiDPIChoice = .automatic
+    var quality: QualityPreset = .high
+}
+
 /// Why a host session ended other than by an orderly close.
 enum HostSessionError: Error, Equatable, Sendable {
     /// Screen Recording is not allowed; nothing was started.
@@ -45,20 +55,19 @@ actor HostSession {
     private let captures: any ScreenCaptureMaking
     private let encoders: any VideoEncoderMaking
     private let permissions: any PermissionChecking
-    /// The viewer's identity, known once the handshake trusted it; virtual displays derive their
-    /// identity from it so macOS remembers the arrangement per viewer.
-    private let peerID: @Sendable () -> Data
+    private let policy: @Sendable () async -> HostDisplayPolicy
     private let dump: StreamDump?
     private var pipelines: [UInt8: StreamPipeline] = [:]
     private var failure: HostSessionError?
 
     init(
-        core: any HostCoreSession, peerID: @escaping @Sendable () -> Data, displays: any DisplayLending,
+        core: any HostCoreSession, policy: @escaping @Sendable () async -> HostDisplayPolicy,
+        displays: any DisplayLending,
         captures: any ScreenCaptureMaking, encoders: any VideoEncoderMaking, permissions: any PermissionChecking,
         dumpDirectory: URL? = nil
     ) {
         self.core = core
-        self.peerID = peerID
+        self.policy = policy
         self.displays = displays
         self.captures = captures
         self.encoders = encoders
@@ -135,15 +144,16 @@ actor HostSession {
 
     private func startStreams(for monitors: [MonitorDescription]) async {
         let offered = monitors.prefix(Tunables.VirtualDisplay.maximumDisplayCount).map(Self.capped)
+        let policy = await policy()
         let lent: [LentDisplay]
         do {
-            lent = try await displays.lend(offered, peerID: peerID())
+            lent = try await displays.lend(offered, peerID: policy.peerID, hiDPI: policy.hiDPI)
         } catch {
             end(with: .display(error))
             return
         }
         let streams = lent.enumerated().map { index, display in
-            Self.streamConfiguration(id: UInt8(index), for: display.monitor)
+            Self.streamConfiguration(id: UInt8(index), for: display.monitor, quality: policy.quality)
         }
         for (stream, display) in zip(streams, lent) {
             dump?.prepare(stream)
@@ -217,11 +227,15 @@ actor HostSession {
             name: monitor.name)
     }
 
-    static func streamConfiguration(id: UInt8, for monitor: MonitorDescription) -> StreamConfiguration {
+    static func streamConfiguration(
+        id: UInt8, for monitor: MonitorDescription, quality: QualityPreset
+    )
+        -> StreamConfiguration
+    {
         StreamConfiguration(
             streamID: id, monitorID: monitor.id, width: monitor.widthPixels, height: monitor.heightPixels,
             refreshMillihertz: monitor.refreshMillihertz, profile: Tunables.Encoding.profile, cursorMode: .inVideo,
-            bitrateKbps: Tunables.Encoding.bitrateKbps(
+            bitrateKbps: quality.bitrateKbps(
                 width: monitor.widthPixels, height: monitor.heightPixels, frameRate: monitor.refreshRate))
     }
 
