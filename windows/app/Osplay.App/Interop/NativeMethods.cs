@@ -5,81 +5,81 @@ namespace Osplay.App.Interop;
 /// <summary>The engine's flat C API (windows/engine/include/osplay/engine.h).</summary>
 internal static unsafe partial class NativeMethods
 {
-    private const string Engine = "OsplayEngine";
+    private const string _engine = "OsplayEngine";
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_identity")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_identity")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult Identity(byte* publicKey, byte* deviceId);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_peers")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_peers")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult Peers(NativePeer* peers, nuint capacity, nuint* count);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_peer_revoke")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_peer_revoke")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult PeerRevoke(byte* publicKey);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_peer_remove")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_peer_remove")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult PeerRemove(byte* publicKey);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_browser_start")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_browser_start")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult BrowserStart(NativeBrowserCallbacks* callbacks, nint* browser);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_browser_destroy")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_browser_destroy")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial void BrowserDestroy(nint browser);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_advertiser_start")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_advertiser_start")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult AdvertiserStart(byte* name, Roles roles, ushort port, nint* advertiser);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_advertiser_destroy")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_advertiser_destroy")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial void AdvertiserDestroy(nint advertiser);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_host_start")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_host_start")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult HostStart(NativeHostConfig* config, NativeHostCallbacks* callbacks, nint* host);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_host_control_port")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_host_control_port")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult HostControlPort(nint host, ushort* port);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_host_confirm_pairing")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_host_confirm_pairing")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult HostConfirmPairing(nint host, byte accepted);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_host_stop")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_host_stop")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult HostStop(nint host);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_host_destroy")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_host_destroy")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial void HostDestroy(nint host);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_viewer_start")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_start")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult ViewerStart(NativeViewerConfig* config, NativeViewerCallbacks* callbacks, nint* viewer);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_viewer_hotkey_registered")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_hotkey_registered")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult ViewerHotkeyRegistered(nint viewer, byte* registered);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_viewer_confirm_pairing")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_confirm_pairing")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult ViewerConfirmPairing(nint viewer, byte accepted);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_viewer_set_visible")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_set_visible")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult ViewerSetVisible(nint viewer, byte visible);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_viewer_stop")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_stop")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult ViewerStop(nint viewer);
 
-    [LibraryImport(Engine, EntryPoint = "osplay_engine_viewer_destroy")]
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_destroy")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial void ViewerDestroy(nint viewer);
 }

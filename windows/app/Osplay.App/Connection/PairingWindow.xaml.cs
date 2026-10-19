@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Windows;
-using Osplay.Localization;
 
 namespace Osplay.App.Connection;
 
@@ -17,7 +16,7 @@ public partial class PairingWindow : Window
     internal void Present(uint code, string peerName, Action<bool> decide)
     {
         _decide = decide;
-        Message.Text = LocalizedText.Format(Strings.PairingMessage, peerName);
+        Message.Text = LocalizedText.Format(Localization.Strings.PairingMessage, peerName);
         string digits = code.ToString("D6", CultureInfo.InvariantCulture);
         Code.Text = $"{digits[..3]} {digits[3..]}";
         Show();

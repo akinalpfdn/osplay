@@ -4,7 +4,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Osplay.App.Engine;
 using Osplay.App.Interop;
-using Osplay.Localization;
 
 namespace Osplay.App.Connection;
 
@@ -41,7 +40,7 @@ public sealed class PeerItem(string header, IReadOnlyList<MenuAction> actions)
 /// </summary>
 public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
 {
-    private static readonly TimeSpan RelistenDelay = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan _relistenDelay = TimeSpan.FromSeconds(1);
 
     private readonly Dispatcher _dispatcher;
     private readonly IPairingPrompt _pairing;
@@ -65,7 +64,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private ConnectionMode _mode = ConnectionMode.Off;
 
     [ObservableProperty]
-    private string _status = Strings.ConnectionStatusOff;
+    private string _status = Localization.Strings.ConnectionStatusOff;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasError))]
@@ -106,7 +105,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         switch (mode)
         {
             case ConnectionMode.Off:
-                Status = Strings.ConnectionStatusOff;
+                Status = Localization.Strings.ConnectionStatusOff;
                 break;
             case ConnectionMode.Sharing:
                 StartSharing();
@@ -143,7 +142,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         }
         _host = host;
         Attach(host);
-        Status = Strings.ConnectionStatusWaiting;
+        Status = Localization.Strings.ConnectionStatusWaiting;
     }
 
     // --- Viewing ------------------------------------------------------------------------------
@@ -158,7 +157,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         }
         _browser.Found += OnFound;
         _browser.Lost += OnLost;
-        Status = Strings.ConnectionStatusSearching;
+        Status = Localization.Strings.ConnectionStatusSearching;
     }
 
     private void OnFound(DeviceInfo device)
@@ -182,7 +181,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         Devices.Clear();
         foreach (DeviceInfo device in _found.Values.OrderBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase))
         {
-            string platform = device.Platform == Platform.MacOS ? Strings.PlatformMac : Strings.PlatformWindows;
+            string platform = device.Platform == Platform.MacOS ? Localization.Strings.PlatformMac : Localization.Strings.PlatformWindows;
             Devices.Add(new MenuAction($"{device.Name} ({platform})", new RelayCommand(() => Connect(device))));
         }
     }
@@ -195,7 +194,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         }
         if (!device.IsCompatible)
         {
-            ErrorMessage = Strings.ErrorIncompatible;
+            ErrorMessage = Localization.Strings.ErrorIncompatible;
             return;
         }
         ErrorMessage = null;
@@ -208,10 +207,10 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         _peerName = device.Name;
         Attach(_viewer);
         IsSessionActive = true;
-        Status = Format(Strings.ConnectionStatusConnecting, _peerName);
+        Status = Format(Localization.Strings.ConnectionStatusConnecting, _peerName);
         if (!_viewer.HotkeyRegistered)
         {
-            ErrorMessage = Strings.ErrorHotkeyUnavailable;
+            ErrorMessage = Localization.Strings.ErrorHotkeyUnavailable;
         }
     }
 
@@ -238,10 +237,10 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             case SessionState.AwaitingPairing:
             case SessionState.Negotiating:
                 IsSessionActive = true;
-                Status = Format(Strings.ConnectionStatusConnecting, PeerName(session));
+                Status = Format(Localization.Strings.ConnectionStatusConnecting, PeerName(session));
                 break;
             case SessionState.Streaming:
-                Status = Format(Strings.ConnectionStatusConnected, PeerName(session));
+                Status = Format(Localization.Strings.ConnectionStatusConnected, PeerName(session));
                 RefreshPeers();
                 break;
             default:
@@ -261,7 +260,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         if (ReferenceEquals(session, _viewer))
         {
             _viewer = null;
-            Status = Strings.ConnectionStatusSearching;
+            Status = Localization.Strings.ConnectionStatusSearching;
         }
         else if (ReferenceEquals(session, _host))
         {
@@ -271,10 +270,10 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             if (Mode == ConnectionMode.Sharing)
             {
                 // A core host session takes one viewer; listen again for the next one.
-                Status = Strings.ConnectionStatusWaiting;
+                Status = Localization.Strings.ConnectionStatusWaiting;
                 _ = _dispatcher.InvokeAsync(async () =>
                 {
-                    await Task.Delay(RelistenDelay).ConfigureAwait(true);
+                    await Task.Delay(_relistenDelay).ConfigureAwait(true);
                     if (Mode == ConnectionMode.Sharing && _host is null)
                     {
                         StartSharing();
@@ -289,15 +288,15 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         Peers.Clear();
         foreach (PairedDevice peer in PairedDevices.List())
         {
-            string header = peer.Revoked ? Format(Strings.PeerRevokedHeader, peer.Name) : peer.Name;
+            string header = peer.Revoked ? Format(Localization.Strings.PeerRevokedHeader, peer.Name) : peer.Name;
             var actions = new List<MenuAction>();
             if (!peer.Revoked)
             {
                 actions.Add(new MenuAction(
-                    Strings.TrayRevoke, new RelayCommand(() => Change(PairedDevices.Revoke(peer.PublicKey)))));
+                    Localization.Strings.TrayRevoke, new RelayCommand(() => Change(PairedDevices.Revoke(peer.PublicKey)))));
             }
             actions.Add(new MenuAction(
-                Strings.TrayRemove, new RelayCommand(() => Change(PairedDevices.Remove(peer.PublicKey)))));
+                Localization.Strings.TrayRemove, new RelayCommand(() => Change(PairedDevices.Remove(peer.PublicKey)))));
             Peers.Add(new PeerItem(header, actions));
         }
     }
@@ -315,7 +314,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     {
         ErrorMessage = message;
         Mode = ConnectionMode.Off;
-        Status = Strings.ConnectionStatusOff;
+        Status = Localization.Strings.ConnectionStatusOff;
     }
 
     private void StopAll()

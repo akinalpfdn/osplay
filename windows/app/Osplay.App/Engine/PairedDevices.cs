@@ -5,21 +5,21 @@ namespace Osplay.App.Engine;
 /// <summary>The paired devices stored by the engine (DPAPI, %APPDATA%\Osplay).</summary>
 internal static unsafe class PairedDevices
 {
-    private const int Capacity = 256;
+    private const int _capacity = 256;
 
     public static IReadOnlyList<PairedDevice> List()
     {
-        var peers = new NativePeer[Capacity];
+        var peers = new NativePeer[_capacity];
         nuint count;
         fixed (NativePeer* buffer = peers)
         {
-            if (NativeMethods.Peers(buffer, Capacity, &count) != EngineResult.Ok)
+            if (NativeMethods.Peers(buffer, _capacity, &count) != EngineResult.Ok)
             {
                 return [];
             }
         }
         var result = new List<PairedDevice>();
-        for (int i = 0; i < (int)Math.Min(count, Capacity); i++)
+        for (int i = 0; i < (int)Math.Min(count, _capacity); i++)
         {
             fixed (NativePeer* peer = &peers[i])
             {

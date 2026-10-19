@@ -1,5 +1,4 @@
 using Osplay.App.Interop;
-using Osplay.Localization;
 
 namespace Osplay.App.Connection;
 
@@ -9,24 +8,24 @@ internal static class ErrorMessages
     public static string For(EngineResult result) => result switch
     {
         EngineResult.HelperUnavailable or EngineResult.HelperAccessDenied or EngineResult.HelperNotTrusted
-            or EngineResult.ProtocolMismatch or EngineResult.HelperBusy => Strings.ErrorHelper,
-        EngineResult.VddNotInstalled => Strings.ErrorVddMissing,
-        EngineResult.KeyStoreUnavailable => Strings.ErrorKeyStoreUnavailable,
-        EngineResult.KeyStoreDamaged => Strings.ErrorKeyStoreDamaged,
-        EngineResult.DiscoveryUnavailable => Strings.ErrorDiscovery,
-        EngineResult.MonitorNotFound => Strings.ErrorMonitorNotFound,
-        EngineResult.EncoderUnavailable or EngineResult.EncoderFailed => Strings.ErrorEncoder,
-        EngineResult.DecoderUnavailable => Strings.ErrorDecoder,
-        _ => LocalizedText.Format(Strings.ErrorEngine, (int)result),
+            or EngineResult.ProtocolMismatch or EngineResult.HelperBusy => Localization.Strings.ErrorHelper,
+        EngineResult.VddNotInstalled => Localization.Strings.ErrorVddMissing,
+        EngineResult.KeyStoreUnavailable => Localization.Strings.ErrorKeyStoreUnavailable,
+        EngineResult.KeyStoreDamaged => Localization.Strings.ErrorKeyStoreDamaged,
+        EngineResult.DiscoveryUnavailable => Localization.Strings.ErrorDiscovery,
+        EngineResult.MonitorNotFound => Localization.Strings.ErrorMonitorNotFound,
+        EngineResult.EncoderUnavailable or EngineResult.EncoderFailed => Localization.Strings.ErrorEncoder,
+        EngineResult.DecoderUnavailable => Localization.Strings.ErrorDecoder,
+        _ => LocalizedText.Format(Localization.Strings.ErrorEngine, (int)result),
     };
 
     public static string For(CoreResult result) => result switch
     {
-        CoreResult.NotTrusted => Strings.ErrorNotTrusted,
-        CoreResult.PairingRejected => Strings.ErrorPairingRejected,
-        CoreResult.UnsupportedVersion => Strings.ErrorIncompatible,
-        CoreResult.PeerBusy => Strings.ErrorPeerBusy,
-        CoreResult.TimedOut or CoreResult.Network or CoreResult.ConnectionClosed => Strings.ErrorUnreachable,
-        _ => LocalizedText.Format(Strings.ErrorSession, (int)result),
+        CoreResult.NotTrusted => Localization.Strings.ErrorNotTrusted,
+        CoreResult.PairingRejected => Localization.Strings.ErrorPairingRejected,
+        CoreResult.UnsupportedVersion => Localization.Strings.ErrorIncompatible,
+        CoreResult.PeerBusy => Localization.Strings.ErrorPeerBusy,
+        CoreResult.TimedOut or CoreResult.Network or CoreResult.ConnectionClosed => Localization.Strings.ErrorUnreachable,
+        _ => LocalizedText.Format(Localization.Strings.ErrorSession, (int)result),
     };
 }
