@@ -312,3 +312,12 @@ choices the plan leaves open are logged here.
 **Revisit if:** The post-MVP high refresh work starts.
 
 ---
+
+## 2026-10-19 — Clock offset from the fastest recent ping
+**Chosen:** The peer clock offset is the offset of the ping exchange with the smallest round trip among the last eight (one per second), as NTP does.
+**Alternatives:** An exponential average of every sample (the previous behaviour); discarding samples above a fixed round trip.
+**Why:** In the Phase 9 test over Wi-Fi a stalled exchange (round trip of seconds) shifted the average by up to half its round trip, so reported latency jumped to 1–3 s and took about half a minute to settle. The fastest exchange is the one closest to symmetric; a fixed threshold would need tuning per network.
+**Trade-offs:** A genuine clock step is picked up only once a fast exchange carries it (within 8 s).
+**Revisit if:** Latency statistics drive behaviour (adaptive bitrate) rather than display only.
+
+---
