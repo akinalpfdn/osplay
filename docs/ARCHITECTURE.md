@@ -160,7 +160,10 @@ listens and advertises again after every session.
   `LibraryImport` and function pointers and marshals every callback to the dispatcher.
 
 Trust: a known key connects without a code, an unknown key shows the six-digit code on both sides,
-and a revoked key is refused (`NOT_TRUSTED`) until it is removed from the paired devices.
+and a revoked key is refused (`NOT_TRUSTED`) until it is removed from the paired devices. Revoking
+or removing a device ends a session already running with it; on Windows every session using the
+stored identity is registered (`capi/session_trust.hpp`), so a change also refreshes the copy a
+listening host answers from.
 
 ## Virtual Display Driver control surface (Windows)
 

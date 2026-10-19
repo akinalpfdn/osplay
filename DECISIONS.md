@@ -359,7 +359,7 @@ choices the plan leaves open are logged here.
 ---
 
 ## 2026-10-19 — Revoked devices are kept and refused
-**Chosen:** Revoke marks the peer; its key is answered with "blocked" and the session fails with `NOT_TRUSTED`. Removing the peer lets it pair again.
+**Chosen:** Revoke marks the peer; its key is answered with "blocked" and the session fails with `NOT_TRUSTED`. Removing the peer lets it pair again. Revoking or removing a device also ends a session already running with it, on both platforms.
 **Alternatives:** Revoke deletes the peer (the next connection would show a pairing code).
 **Why:** DEVPLAN requires a revoked device to be refused, not invited to pair again.
 **Trade-offs:** Re-pairing a revoked device takes two steps.

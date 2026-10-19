@@ -1,6 +1,7 @@
 #include "../discovery/dns_sd_discovery.hpp"
 #include "../keystore/dpapi_key_store.hpp"
 #include "engine_results.hpp"
+#include "session_trust.hpp"
 
 #include <osplay/engine.h>
 #include <osplay/osplay.h>
@@ -47,6 +48,10 @@ osplay_engine_result change_peer(const uint8_t* public_key, bool revoke) {
         [&](PeerList& list) { known = revoke ? list.revoke(key) : list.remove(key); });
     if (failure) {
         return to_result(*failure);
+    }
+    if (known) {
+        osplay::engine::SessionTrust::peers_changed(key,
+                                                    true); // refused from now, also mid-session
     }
     return known ? OSPLAY_ENGINE_OK : OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
 }

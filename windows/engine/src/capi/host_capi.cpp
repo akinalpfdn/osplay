@@ -166,6 +166,7 @@ osplay_session_callbacks core_callbacks(osplay_engine_host* host) {
         auto* self = host_of(context);
         if (self->trust.stored()) {
             self->trust.paired(key);
+            osplay::engine::SessionTrust::paired_stored(key);
         }
         if (self->callbacks.on_paired != nullptr) {
             self->callbacks.on_paired(self->callbacks.context, key);
@@ -222,6 +223,8 @@ osplay_engine_result osplay_engine_host_start(const osplay_engine_host_config* c
         if (!secret) {
             return to_result(store_failure);
         }
+        // Revoking or removing the peer ends the session (non-blocking Bye).
+        host->trust.set_end_session([self = host.get()] { self->port.close(); });
         host->displays = std::make_unique<osplay::engine::HelperVirtualDisplayProvider>(
             std::move(channel.value()), std::make_unique<osplay::engine::GdiDisplayModeApplier>());
         host->orchestrator = std::make_unique<osplay::engine::HostOrchestrator>(

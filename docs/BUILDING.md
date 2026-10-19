@@ -191,6 +191,7 @@ ctest --preset debug
 cd app
 dotnet format Osplay.slnx --verify-no-changes
 dotnet build Osplay.slnx -c Release
+dotnet test Osplay.slnx -c Release --no-build
 dotnet run --project Osplay.App -c Release
 ```
 
@@ -346,4 +347,5 @@ format a C++ file with the pinned version from `scripts/lint.sh`, for example
 - **Protocol fuzzing** (Linux) — libFuzzer with ASan and UBSan, seeded with the fixtures: 30 seconds
   on the protocol decoders, 30 seconds on the handshake reader and media opener.
 - **Windows** — core, engine, helper and developer tools with MSVC (`/W4 /WX`), all native tests,
-  clang-tidy on core and Windows code, `dotnet format` check, shell build with analyzers as errors.
+  clang-tidy on core and Windows code, `dotnet format` check, shell build with analyzers as errors and
+  shell tests (every string loads in English and Turkish).

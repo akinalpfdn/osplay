@@ -120,12 +120,21 @@ final class ConnectionViewModel {
         }
     }
 
+    /// Refused from now on; a session with it ends at once.
     func revoke(_ peer: TrustedPeer) {
         update { () throws(KeyStoreError) in try trust.revoke(peer.publicKey) }
+        endSession(with: peer.publicKey)
     }
 
+    /// Forgotten: its next connection pairs again. A session with it ends at once.
     func remove(_ peer: TrustedPeer) {
         update { () throws(KeyStoreError) in try trust.remove(peer.publicKey) }
+        endSession(with: peer.publicKey)
+    }
+
+    private func endSession(with publicKey: [UInt8]) {
+        guard isSessionActive, trust.currentPeer == publicKey else { return }
+        disconnect()
     }
 
     func openScreenRecordingSettings() {

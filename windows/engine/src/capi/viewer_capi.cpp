@@ -165,6 +165,7 @@ osplay_session_callbacks core_callbacks(osplay_engine_viewer* viewer) {
         auto* self = viewer_of(context);
         if (self->trust.stored()) {
             self->trust.paired(key);
+            osplay::engine::SessionTrust::paired_stored(key);
         }
         if (self->callbacks.on_paired != nullptr) {
             self->callbacks.on_paired(self->callbacks.context, key);
@@ -265,6 +266,8 @@ osplay_engine_result osplay_engine_viewer_start(const osplay_engine_viewer_confi
         if (!secret) {
             return to_result(store_failure);
         }
+        // Revoking or removing the peer ends the session (non-blocking Bye).
+        viewer->trust.set_end_session([self = viewer.get()] { self->port.close(); });
         viewer->offered = select_monitors(*config);
         if (viewer->offered.empty()) {
             return OSPLAY_ENGINE_ERROR_MONITOR_NOT_FOUND;
