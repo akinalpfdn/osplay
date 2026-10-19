@@ -41,6 +41,20 @@ namespace {
 
 enum class Mode : std::uint8_t { List, Loopback, Connect };
 
+/// Set by Ctrl+C so the run ends like a timeout: sessions closed and the summary printed.
+std::atomic<bool>& interrupted() {
+    static std::atomic<bool> flag{false};
+    return flag;
+}
+
+BOOL WINAPI on_console_control(DWORD event) {
+    if (event == CTRL_C_EVENT || event == CTRL_BREAK_EVENT || event == CTRL_CLOSE_EVENT) {
+        interrupted() = true;
+        return TRUE;
+    }
+    return FALSE;
+}
+
 struct Options {
     Mode mode = Mode::List;
     int seconds = 60;
@@ -297,15 +311,32 @@ int run(const Options& options) {
                              hotkey == 1 ? "" : " (hotkey unavailable: another program owns it)");
 
     std::map<std::uint8_t, std::uint64_t> last_presented;
-    for (int second = 1; second <= options.seconds; ++second) {
+    SetConsoleCtrlHandler(on_console_control, TRUE);
+    int second = 0;
+    const char* ending = "time is up";
+    while (second < options.seconds) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        report(second, viewer, events, last_presented);
+        report(++second, viewer, events, last_presented);
         if (events.viewer_state == OSPLAY_SESSION_CLOSED ||
             events.host_failure != OSPLAY_ENGINE_OK) {
-            std::cout << std::format("session ended: core result {}, host engine result {}\n",
-                                     events.viewer_reason.load(), events.host_failure.load());
+            ending = "the session closed";
             break;
         }
+        if (interrupted()) {
+            ending = "Ctrl+C";
+            break;
+        }
+    }
+    std::array<osplay_engine_stream_figures, OSPLAY_MAX_STREAMS> totals{};
+    std::size_t total_count = 0;
+    static_cast<void>(
+        osplay_engine_viewer_stream_stats(viewer, totals.data(), totals.size(), &total_count));
+    std::cout << std::format("ended after {} s ({}): core result {}, host engine result {}\n",
+                             second, ending, events.viewer_reason.load(),
+                             events.host_failure.load());
+    for (const auto& stream : std::span(totals.data(), total_count)) {
+        std::cout << std::format("  stream {}: {} frames presented, {} decode errors\n",
+                                 stream.stream_id, stream.frames_presented, stream.decode_errors);
     }
     osplay_engine_viewer_destroy(viewer);
     osplay_engine_host_destroy(host);
