@@ -95,8 +95,9 @@
                     identity: try .generate(), name: Tunables.Developer.hostTestDeviceName, capabilities: capabilities),
                 monitors: testMonitors(), host: "127.0.0.1", port: host.controlPort, trust: { _ in .trusted })
             let session = HostSession(
-                core: host, peerID: Tunables.Developer.testPeerID, displays: VirtualDisplayLender(provider: provider),
-                captures: captures, encoders: encoders, permissions: permissions,
+                core: host, peerID: { Tunables.Developer.testPeerID },
+                displays: VirtualDisplayLender(provider: provider), captures: captures, encoders: encoders,
+                permissions: permissions,
                 dumpDirectory: dumpsEnabled ? Tunables.Developer.dumpDirectory : nil)
             let probe = ViewerProbe()
             self.session = session
@@ -156,8 +157,8 @@
                 for stream in statistics.streams {
                     bitrates[stream.streamID] = stream.bitrateKbps
                 }
-            case .state:
-                break
+            case .state, .peer, .pairingCode, .paired:
+                break  // both test sessions trust each other
             }
         }
 

@@ -12,6 +12,9 @@ enum Theme {
         static let title = Font.headline
         static let sectionTitle = Font.subheadline.weight(.semibold)
         static let caption = Font.caption
+        static let body = Font.body
+        /// The six pairing digits: large and evenly spaced so both screens are easy to compare.
+        static let pairingCode = Font.system(size: 34, weight: .semibold, design: .monospaced)
     }
 
     enum Colors {
@@ -20,6 +23,7 @@ enum Theme {
 
     enum Size {
         static let menuWidth: CGFloat = 320
+        static let pairingPanelWidth: CGFloat = 300
     }
 
     enum Viewer {
@@ -39,6 +43,5 @@ enum Theme {
 
     enum Symbol {
         static let menuBar = "display.2"
-        static let copy = "doc.on.doc"
     }
 }

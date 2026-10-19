@@ -12,6 +12,11 @@ final class FakeViewerCore: ViewerCoreSession, @unchecked Sendable {
     private var pausedList: [UInt8] = []
     private var resumedList: [UInt8] = []
     private var closed = false
+    private var pairingAnswers: [Bool] = []
+
+    var answers: [Bool] { lock.withLock { pairingAnswers } }
+
+    func confirmPairing(_ accepted: Bool) throws(CoreError) { lock.withLock { pairingAnswers.append(accepted) } }
 
     init() {
         (events, continuation) = AsyncStream.makeStream(of: SessionEvent.self)

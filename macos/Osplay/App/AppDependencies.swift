@@ -9,6 +9,9 @@ final class AppDependencies {
     let presenters: any FramePresenterMaking
     let power: any PowerAssertionManaging
     let hotkeys: any HotkeyRegistering
+    let keyStore: any KeyStoring
+    let discovery: any PeerDiscovering
+    let pairingPrompt: any PairingPrompting
 
     init(
         virtualDisplays: any VirtualDisplayProviding = CGVirtualDisplayProvider(),
@@ -18,7 +21,10 @@ final class AppDependencies {
         decoders: any VideoDecoderMaking = VideoToolboxDecoderFactory(),
         presenters: any FramePresenterMaking = SampleBufferPresenterFactory(),
         power: any PowerAssertionManaging = SystemPower(),
-        hotkeys: any HotkeyRegistering = CarbonHotkeys()
+        hotkeys: any HotkeyRegistering = CarbonHotkeys(),
+        keyStore: any KeyStoring = KeychainKeyStore(),
+        discovery: any PeerDiscovering = DNSServiceDiscovery(),
+        pairingPrompt: (any PairingPrompting)? = nil
     ) {
         self.virtualDisplays = virtualDisplays
         self.captures = captures
@@ -28,5 +34,8 @@ final class AppDependencies {
         self.presenters = presenters
         self.power = power
         self.hotkeys = hotkeys
+        self.keyStore = keyStore
+        self.discovery = discovery
+        self.pairingPrompt = pairingPrompt ?? PairingPanel()
     }
 }
