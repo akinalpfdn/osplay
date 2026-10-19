@@ -303,3 +303,12 @@ choices the plan leaves open are logged here.
 **Revisit if:** Monitor ids need to persist across sessions (per-monitor settings).
 
 ---
+
+## 2026-10-19 — Streams capped at 60 Hz until high refresh support
+**Chosen:** Both hosts stream at most 60 Hz; a viewer monitor at 120 or 144 Hz gets a 60 Hz virtual display and stream.
+**Alternatives:** Stream at the monitor's rate; cap only the Mac host.
+**Why:** DEVPLAN lists 120 Hz streams as post-MVP. Measured on the MacBook Air M3: a 1440p120 virtual display captures at only ~80 fps next to a 1080p60 one, and the Phase 9 PC test showed 40–65 ms latency on that stream against 3–13 ms at 60 Hz.
+**Trade-offs:** High refresh monitors show 60 fps motion.
+**Revisit if:** The post-MVP high refresh work starts.
+
+---

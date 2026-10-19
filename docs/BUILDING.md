@@ -294,16 +294,22 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    shows the windows (the host pauses the streams while hidden). Unplug one monitor during the run
    and only its stream stops.
 
-   To confirm independent flip, run [PresentMon](https://github.com/GameTechDev/PresentMon) in a
-   second terminal while streaming: `PresentMon.exe --process_name OsplayViewerTest.exe` must show
-   `Hardware: Independent Flip` (or `Hardware Composed: Independent Flip`) in the `PresentMode`
-   column for each window.
+   To confirm independent flip, start [PresentMon](https://github.com/GameTechDev/PresentMon) in an
+   administrator terminal *before* the viewer, because the viewer windows cover every monitor:
+   `PresentMon.exe --process_name OsplayViewerTest.exe --timed 60`. The `PresentMode` column must
+   show `Hardware: Independent Flip` or `Hardware Composed: Independent Flip` (a multiplane overlay)
+   for each window; composed flip is expected only for a moment at start and around hide/show.
+
+   Streams run at most at 60 Hz, also on 120 Hz monitors (high refresh comes after the MVP). The
+   Windows viewer draws no pointer: a Mac host puts it in the video, and in `--loopback` the
+   Windows host sends it separately, so the loopback shows no pointer except while dragging.
 
    Measured so far (Phase 9 acceptance: two streams with independent flip):
 
    | Setup | Result |
    |-------|--------|
-   | NVIDIA, two monitors, Mac host | not tested |
+   | NVIDIA, VZ239 1080p60 + Acer 1440p120, Mac host (M3 Air) | independent flip on both (Acer through MPO), 0 decode errors, hide/show ≈ 1 s, unplug stops only that stream; 1080p60: 57–61 fps, latency 3–13 ms. The 1440p stream ran at 120 Hz then (80–99 fps, 40–65 ms) and is now capped at 60 Hz |
+   | NVIDIA, loopback to VZ239 | 0 decode errors, 40–60 fps, latency 7–25 ms, first frame after ≈ 4 s |
 
 > The driver's own documentation warns that major GPU or chipset driver updates can scramble
 > display priority while it is installed. If the screen goes black after such an update, boot into

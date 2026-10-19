@@ -14,13 +14,14 @@ Windows can present up to two streams full screen on chosen physical monitors.
 - [x] Debug loopback: Windows hosts a VDD monitor and views it on a physical monitor.
 
 ## Acceptance Criteria
-- [ ] Two streams render simultaneously on two monitors with independent flip active (verified with PresentMon).
-- [ ] Hide/show toggles instantly; hidden viewers tell the host to pause.
-- [ ] Unplugging one monitor mid-session stops only that stream and informs the host.
+- [x] Two streams render simultaneously on two monitors with independent flip active (verified with PresentMon).
+- [x] Hide/show toggles instantly; hidden viewers tell the host to pause.
+- [x] Unplugging one monitor mid-session stops only that stream and informs the host.
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
 - User decision: Windows viewer hotkey default Ctrl+Alt+Shift+V (Ctrl+Alt is AltGr on Turkish layouts).
 - Windows viewer: one decode/present thread per stream, FLIP_DISCARD + waitable, no redirection bitmap (DECISIONS.md).
 - Monitor ids by desktop position, matched by GDI name after display changes (DECISIONS.md).
+- Streams capped at 60 Hz (DEVPLAN: 120 Hz post-MVP; M3 Air captures 1440p120 at ~80 fps).
 - User decision: two-stream acceptance via a temporary IP connection (Mac debug "host for a remote viewer" + OsplayViewerTest.exe --connect), removed in Phase 10.
