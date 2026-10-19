@@ -11,12 +11,15 @@ import Testing
 struct CGVirtualDisplayProviderHardwareTests {
     private static let peerID = Data("osplay-hardware-test-peer".utf8)
 
-    private func configuration(index: Int, isHiDPI: Bool = true) throws -> VirtualDisplayConfiguration {
+    private func configuration(
+        index: Int, isHiDPI: Bool = true, pixelSize: DisplaySize = DisplaySize(width: 2560, height: 1440),
+        refreshRate: Double = 60
+    ) throws -> VirtualDisplayConfiguration {
         try VirtualDisplayConfiguration(
             name: "Osplay Hardware Test \(index + 1)",
             identity: .derived(peerID: Self.peerID, monitorIndex: index),
-            pixelSize: DisplaySize(width: 2560, height: 1440),
-            refreshRate: 60,
+            pixelSize: pixelSize,
+            refreshRate: refreshRate,
             physicalSizeMillimeters: CGSize(width: 597, height: 336),
             isHiDPI: isHiDPI
         )
@@ -65,6 +68,22 @@ struct CGVirtualDisplayProviderHardwareTests {
 
         #expect(try await Self.waitUntil { handle.currentResolution()?.pixels == crisp.pixels })
         #expect(handle.currentResolution()?.points == crisp.points)
+    }
+
+    @Test(
+        "The crisp resolution activates at a Windows monitor's fractional refresh rate",
+        arguments: [59.951, 143.981, 59.94])
+    func activatesCrispAtFractionalRefresh(refreshRate: Double) async throws {
+        let provider = CGVirtualDisplayProvider()
+        defer { provider.destroyAll() }
+        let handle = try provider.createDisplay(
+            configuration(index: 0, pixelSize: DisplaySize(width: 1920, height: 1080), refreshRate: refreshRate))
+        let crisp = try #require(handle.configuration.crispHiDPIResolution)
+
+        try await handle.waitUntilReady()
+        try handle.activate(crisp)
+
+        #expect(try await Self.waitUntil { handle.currentResolution()?.pixels == crisp.pixels })
     }
 
     @Test("A display created after modes were queried still reports its resolutions")
