@@ -194,8 +194,10 @@ dotnet build Osplay.slnx -c Release
 dotnet run --project Osplay.App -c Release
 ```
 
-The shell starts without a window and shows an "O" icon in the notification area; right-click it
-to quit. Windows may hide new icons in the overflow menu (the `^` arrow on the taskbar).
+Build the native part first: the shell copies `OsplayEngine.dll` from `windows\build\debug\bin`
+(another preset: `-p:OsplayNativeBin=<folder>`). The shell starts without a window and shows an
+"O" icon in the notification area; right-click it for the menu. Windows may hide new icons in the
+overflow menu (the `^` arrow on the taskbar).
 
 Build outputs land in `windows/build/<preset>/` for native code (executables and
 `OsplayEngine.dll` in `windows/build/<preset>/bin/`) and in `bin/` folders for .NET.
@@ -277,22 +279,20 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    | Intel | Quick Sync MFT | not tested |
 
 6. Test the viewer pipeline (decode, present, hide/show, unplug). `--list` shows the monitors the
-   viewer offers; `--loopback` hosts a virtual monitor through the helper and views it on one
-   physical monitor; `--connect` views another computer:
+   viewer offers; `--browse` lists the Osplay devices Bonjour finds; `--loopback` hosts a virtual
+   monitor through the helper and views it on one physical monitor:
 
    ```powershell
    cd windows\build\debug\bin
    .\OsplayViewerTest.exe --list
+   .\OsplayViewerTest.exe --browse --seconds 20
    .\OsplayViewerTest.exe --loopback --monitor 1 --seconds 60
-   .\OsplayViewerTest.exe --connect 192.168.1.20 52100 --seconds 120
    ```
 
-   For `--connect` to a Mac, start **Host for a remote viewer** in the debug menu of the Mac app; it
-   shows the PowerShell command with the Mac's address and port and a Copy button (temporary until discovery in Phase 10).
-   With two monitors attached the Mac hosts two virtual displays, one per monitor. Every second the
-   tool prints, per stream, frames presented, decode errors and latency; Ctrl+Alt+Shift+V hides and
-   shows the windows (the host pauses the streams while hidden). Unplug one monitor during the run
-   and only its stream stops.
+   Every second the loopback prints, per stream, frames presented, decode errors and latency;
+   Ctrl+Alt+Shift+V hides and shows the windows (the host pauses the streams while hidden).
+   Viewing a Mac goes through the tray menu (step 7); with two monitors attached the Mac hosts two
+   virtual displays, one per monitor, and unplugging one monitor stops only its stream.
 
    To confirm independent flip, start [PresentMon](https://github.com/GameTechDev/PresentMon) in an
    administrator terminal *before* the viewer, because the viewer windows cover every monitor:
@@ -310,6 +310,22 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    |-------|--------|
    | NVIDIA, VZ239 1080p60 + Acer 1440p120, Mac host (M3 Air) | independent flip on both (Acer through MPO), 0 decode errors, hide/show ≈ 1 s, unplug stops only that stream; 1080p60: 57–61 fps, latency 3–13 ms. The 1440p stream ran at 120 Hz then (80–99 fps, 40–65 ms) and is now capped at 60 Hz |
    | NVIDIA, loopback to VZ239 | 0 decode errors, 40–60 fps, latency 7–25 ms, first frame after ≈ 4 s |
+
+7. Test both use cases end to end (DEVPLAN Phase 10). Run the WPF shell (`dotnet run --project
+   Osplay.App -c Release`) on the PC and the Mac app on the Mac, on the same network:
+
+   - **Use case 1 (the Mac gains the PC's monitors):** Mac menu → Devices → **Share screens**; PC
+     tray → **Use as a display** → **Connect to** → the Mac. The first time, both computers show the
+     same six-digit code; accept on both. The Mac gains one display per PC monitor.
+   - **Use case 2 (Windows gains the MacBook's screen):** PC tray → **Share this PC's screen**; Mac
+     menu → Devices → **Use as display** → **Connect**. The Windows virtual monitor appears full
+     screen on the MacBook with the Windows pointer; ⌃⌥⌘V hides and shows it.
+   - **Revoke:** on either side, Paired devices → the other computer → **Revoke**. Its next
+     connection is refused ("refused this Mac/PC") without a pairing code; **Remove** lets it pair
+     again.
+
+   The identity and paired devices live in the Keychain (items named "Osplay") on the Mac and in
+   `%APPDATA%\Osplay` (DPAPI) on Windows; deleting them makes both sides pair again.
 
 > The driver's own documentation warns that major GPU or chipset driver updates can scramble
 > display priority while it is installed. If the screen goes black after such an update, boot into

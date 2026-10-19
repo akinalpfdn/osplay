@@ -36,7 +36,19 @@ QuickTime Player cannot open raw H.264; use IINA, VLC or `ffplay`.
 
 ## Measuring end-to-end latency
 
-To be documented in Phase 10 (photograph an on-screen millisecond clock together with the viewer).
+The statistics show capture-to-delivery latency, which leaves out decoding and the display. The
+whole path is measured with a camera:
+
+1. On the host, open two windows of a millisecond clock that redraws every frame (any browser
+   stopwatch with milliseconds): one on the host's own physical screen, one on the shared display.
+   Both read the host's clock.
+2. Put the host's physical screen and the viewer's screen side by side so one photo shows both
+   clocks.
+3. Take 20 or more photos (burst mode, 1/250 s shutter or faster). Latency is the host's physical
+   screen value minus the viewer's value.
+4. Report the median and the worst value, with the network (wired gigabit or 5 GHz Wi-Fi).
+
+DEVPLAN targets: median under 40 ms on wired gigabit, under 60 ms on 5 GHz Wi-Fi.
 
 ## Windows viewer: Ctrl+Alt+Shift+V does nothing
 
@@ -48,3 +60,17 @@ starts ("hotkey unavailable"); close the other program or change its shortcut.
 macOS asks once whether Osplay may use the local network. If it was denied, enable Osplay in System
 Settings › Privacy & Security › Local Network. With the macOS firewall on, also allow incoming
 connections for Osplay.
+
+## The other computer does not appear in the device list
+
+Both computers must be on the same network and subnet (guest Wi-Fi networks often isolate devices).
+On the Mac, Osplay needs Local Network access (System Settings › Privacy & Security › Local
+Network); without it the list stays empty, or the menu says Bonjour is not allowed. On Windows the
+network profile must be **Private**, and Windows Defender Firewall asks once whether Osplay may
+accept connections: allow it for private networks. `OsplayViewerTest.exe --browse` shows what the
+PC sees.
+
+## A paired computer is refused
+
+The other side revoked it ("refused this Mac" / "refused this PC"). On that side, remove the device
+from Paired devices; the next connection asks for a pairing code again.

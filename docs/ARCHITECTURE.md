@@ -139,6 +139,29 @@ core cursor shape/position ─► main actor ─► cursor layer above the video
 - **Debug loopback.** The menu's "Viewer loopback" hosts a 1920×1080 virtual display and views
   it on the same Mac (window or full screen), with corruption injection and a frame freeze.
 
+## Discovery and pairing
+
+A host advertises `_osplay._tcp` with its core's ephemeral control port and the TXT record from
+`core` (`osplay_advertisement_to_txt`: protocol version, name, device ID, roles, platform); the
+instance name is the device ID, so a rename never looks like a new device. Viewers browse, resolve
+and connect to the advertised host name and port. A core host session takes one viewer, so the host
+listens and advertises again after every session.
+
+- **macOS** (`Services/Discovery`, `Services/KeyStore`): the system DNS-SD API (`DNSServiceRegister`,
+  `DNSServiceBrowse`, `DNSServiceResolve`) on one serial queue; the identity's secret and the paired
+  devices (JSON) are generic-password Keychain items. `PeerTrustCache` answers the core's trust
+  query from memory. `Features/Connection` is the temporary Devices section; `PairingPanel` shows the
+  code in a floating panel.
+- **Windows** (`engine/src/discovery`, `engine/src/keystore`): `DnsServiceRegister`/`Browse`/
+  `Resolve` from `windns.h`; `identity.bin` and `peers.bin` in `%APPDATA%\Osplay`, each encrypted
+  with DPAPI for the user. Host and viewer sessions started without a secret key use this identity,
+  answer trust from the paired devices and store a pairing themselves, so the secret never reaches
+  the shell. The WPF tray (`Osplay.App/Connection`, `Engine`, `Interop`) calls this through
+  `LibraryImport` and function pointers and marshals every callback to the dispatcher.
+
+Trust: a known key connects without a code, an unknown key shows the six-digit code on both sides,
+and a revoked key is refused (`NOT_TRUSTED`) until it is removed from the paired devices.
+
 ## Virtual Display Driver control surface (Windows)
 
 Findings from reading the driver source (VirtualDrivers/Virtual-Display-Driver, `master` at
