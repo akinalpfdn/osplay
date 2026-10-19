@@ -1,8 +1,8 @@
 import Carbon.HIToolbox
 
 /// A global key combination.
-struct Hotkey: Hashable, Sendable {
-    struct Modifiers: OptionSet, Hashable, Sendable {
+struct Hotkey: Hashable, Sendable, Codable {
+    struct Modifiers: OptionSet, Hashable, Sendable, Codable {
         let rawValue: UInt32
         static let command = Modifiers(rawValue: UInt32(cmdKey))
         static let option = Modifiers(rawValue: UInt32(optionKey))

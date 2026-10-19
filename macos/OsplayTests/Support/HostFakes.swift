@@ -61,7 +61,12 @@ final class FakeDisplayLender: DisplayLending {
     private(set) var returnCount = 0
     private(set) var isLending = false
 
-    func lend(_ monitors: [MonitorDescription], peerID: Data) async throws(VirtualDisplayError) -> [LentDisplay] {
+    private(set) var hiDPIChoices: [HiDPIChoice] = []
+
+    func lend(
+        _ monitors: [MonitorDescription], peerID: Data, hiDPI: HiDPIChoice, arrangement: [ArrangedMonitor]
+    ) async throws(VirtualDisplayError) -> [LentDisplay] {
+        hiDPIChoices.append(hiDPI)
         if let error { throw error }
         lentMonitors.append(monitors)
         isLending = true
@@ -180,6 +185,7 @@ struct FakePermissions: PermissionChecking {
     var hasScreenRecordingAccess = true
     func requestScreenRecordingAccess() -> Bool { hasScreenRecordingAccess }
     var screenRecordingSettingsURL: URL? { nil }
+    var localNetworkSettingsURL: URL? { nil }
 }
 
 private func makePixelBuffer() -> CVPixelBuffer {

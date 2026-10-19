@@ -358,6 +358,11 @@ is not delivered again.
   that makes no progress for half a frame interval is NACKed once; a frame of which nothing
   arrived is NACKed as the range (0, 4096).
 - The host keeps the last 16 frames (at most 8 MiB) for retransmission.
+- A loss is only visible when a later fragment arrives, so a stream whose last frame was lost
+  entirely would never recover once the screen stops changing. The host therefore sends the last
+  fragment of a stream's newest frame again 50 ms, 200 ms and 700 ms after that frame, unless a
+  newer frame went out. A viewer that already has the frame ignores it; one that lost the frame
+  learns of it and NACKs the rest. No new message is involved.
 - A frame without progress for a frame interval plus max(RTT, 2 ms) is dropped. The viewer then
   discards frames until the next keyframe and sends KeyframeRequest (reason 2), at most every
   250 ms per stream. More than 8 frames in flight has the same effect.

@@ -19,8 +19,10 @@ enum Tunables {
     }
 
     enum Encoding {
-        /// Bits per pixel per frame at the target bitrate: 0.1 gives ~22 Mbit/s for 1440p60.
-        static let bitsPerPixel = 0.1
+        /// Bits per pixel per frame per quality preset: High (0.1) gives ~22 Mbit/s for 1440p60.
+        static let balancedBitsPerPixel = 0.06
+        static let highBitsPerPixel = 0.1
+        static let ultraBitsPerPixel = 0.16
         static let bitrateRangeKbps = 2_000...80_000
         /// Rate control may exceed the average by this factor within one second.
         static let peakBitrateFactor = 1.5
@@ -28,10 +30,6 @@ enum Tunables {
         static let maximumKeyframeInterval = 60.0
         static let profile = H264Profile.high
 
-        static func bitrateKbps(width: Int, height: Int, frameRate: Double) -> Int {
-            let kbps = Int(Double(width * height) * frameRate * bitsPerPixel / 1000)
-            return min(max(kbps, bitrateRangeKbps.lowerBound), bitrateRangeKbps.upperBound)
-        }
     }
 
     enum Viewer {
@@ -50,6 +48,16 @@ enum Tunables {
         static func loopbackWindowSize(streamWidth: Int, streamHeight: Int) -> CGSize {
             CGSize(width: streamWidth / 2, height: streamHeight / 2)
         }
+    }
+
+    enum Onboarding {
+        /// How often the permissions window rereads Screen Recording access.
+        static let pollInterval: Duration = .seconds(1)
+    }
+
+    enum Logs {
+        /// How far back an exported log reaches (the current run only: the store is per process).
+        static let exportWindow: TimeInterval = 24 * 60 * 60
     }
 
     enum Connection {

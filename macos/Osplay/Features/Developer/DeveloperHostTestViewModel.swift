@@ -95,7 +95,7 @@
                     identity: try .generate(), name: Tunables.Developer.hostTestDeviceName, capabilities: capabilities),
                 monitors: testMonitors(), host: "127.0.0.1", port: host.controlPort, trust: { _ in .trusted })
             let session = HostSession(
-                core: host, peerID: { Tunables.Developer.testPeerID },
+                core: host, policy: { HostDisplayPolicy(peerID: Tunables.Developer.testPeerID) },
                 displays: VirtualDisplayLender(provider: provider), captures: captures, encoders: encoders,
                 permissions: permissions,
                 dumpDirectory: dumpsEnabled ? Tunables.Developer.dumpDirectory : nil)

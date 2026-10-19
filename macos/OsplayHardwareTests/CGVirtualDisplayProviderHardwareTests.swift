@@ -100,6 +100,28 @@ struct CGVirtualDisplayProviderHardwareTests {
         #expect(handle.currentResolution()?.pixels == native.pixels)
     }
 
+    @Test("A virtual display can be moved in the arrangement like a physical one")
+    func canBeArranged() async throws {
+        let provider = CGVirtualDisplayProvider()
+        defer { provider.destroyAll() }
+        let handle = try provider.createDisplay(configuration(index: 0))
+        try await handle.waitUntilReady()
+        try handle.activate(handle.configuration.nativeResolution)
+        #expect(try await Self.waitUntil { CGDisplayBounds(handle.displayID).width == 2560 })
+        let main = CGDisplayBounds(CGMainDisplayID())
+        let before = CGDisplayBounds(handle.displayID)
+
+        // Above the main display, centred: a position macOS would not choose by itself.
+        let target = CGPoint(x: Int(main.midX) - 1280, y: Int(main.minY) - 1440)
+        var config: CGDisplayConfigRef?
+        #expect(CGBeginDisplayConfiguration(&config) == .success)
+        #expect(CGConfigureDisplayOrigin(config, handle.displayID, Int32(target.x), Int32(target.y)) == .success)
+        #expect(CGCompleteDisplayConfiguration(config, .forSession) == .success)
+
+        #expect(try await Self.waitUntil { CGDisplayBounds(handle.displayID).origin == target })
+        print("arrangement: before \(before), after \(CGDisplayBounds(handle.displayID))")
+    }
+
     @Test("A display created after modes were queried still reports its resolutions")
     func modesVisibleForLaterDisplays() async throws {
         let provider = CGVirtualDisplayProvider()

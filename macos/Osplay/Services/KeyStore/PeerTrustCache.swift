@@ -41,6 +41,10 @@ final class PeerTrustCache: @unchecked Sendable {
         try change { $0.seen(publicKey, at: Date()) }
     }
 
+    func rename(_ publicKey: [UInt8], to name: String) throws(KeyStoreError) {
+        try change { $0.rename(publicKey, to: name) }
+    }
+
     func revoke(_ publicKey: [UInt8]) throws(KeyStoreError) {
         try change { $0.revoke(publicKey) }
     }

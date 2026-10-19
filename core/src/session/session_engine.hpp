@@ -183,6 +183,7 @@ private:
     void deliver_cursor_position(const protocol::CursorPosition& position, TimePoint now);
     void send_fragments(const std::vector<protocol::VideoFragment>& fragments);
     void send_udp_hello();
+    void repeat_tails(TimePoint now);
     [[nodiscard]] bool seal_and_send(const protocol::MediaPacket& packet);
     void deliver_fragment(const protocol::VideoFragment& fragment, TimePoint now);
 

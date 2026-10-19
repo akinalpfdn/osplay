@@ -366,3 +366,57 @@ choices the plan leaves open are logged here.
 **Revisit if:** Users find the distinction confusing (Phase 11/12 UI).
 
 ---
+
+## 2026-10-19 — User decisions: native look, recordable hotkey, corner stats overlay
+**Chosen:** System fonts, colours and SF Symbols with a Control Center–like menu bar window; the hide/show shortcut is recorded in Settings; the stats overlay is a small box in the top-left corner of the watched display.
+**Alternatives:** A branded palette; a fixed shortcut; stats only in the menu bar window.
+**Why:** The user chose these; a native look follows light/dark and accessibility settings without extra work.
+**Trade-offs:** Less visual identity; a recorder needs conflict handling (another app owning the combination is reported).
+**Revisit if:** The project gets a visual identity.
+
+---
+
+## 2026-10-19 — Quality presets as bits per pixel per frame
+**Chosen:** Balanced 0.06, High 0.10 (the previous fixed value, default), Ultra 0.16 bits per pixel per frame, clamped to 2–80 Mbit/s; the host reads the preset when a viewer's monitors arrive.
+**Alternatives:** Fixed bitrates per preset.
+**Why:** DEVPLAN asks for presets that scale with resolution and refresh; High keeps the measured Phase 6–9 behaviour.
+**Trade-offs:** A preset change applies from the next connection, not mid-stream.
+**Revisit if:** Adaptive bitrate arrives.
+
+---
+
+## 2026-10-19 — Local Network permission read from a Bonjour browse
+**Chosen:** The permissions window shows Local Network as allowed when a Network.framework browse for `_osplay._tcp` becomes ready and as denied when it waits with a policy error.
+**Alternatives:** Not showing a status (macOS has no query API).
+**Why:** The Phase 10 test showed a denied permission silently hides every device; a visible status is the only way users find the setting.
+**Trade-offs:** Until macOS answers, the status is unknown.
+**Revisit if:** macOS adds an API for the Local Network permission.
+
+---
+
+## 2026-10-19 — Osplay arranges the virtual displays itself
+**Chosen:** Settings › Displays has an arrangement canvas per paired device, like the old System Settings Arrange view: this Mac's main display and each of the device's monitors as boxes. A dropped monitor snaps to an edge without overlapping (`DisplayLayout`), the arrangement is saved per device, applied at once to a running session and to every later connection (`CGConfigureDisplayOrigin`, saved permanently). Without a saved arrangement the monitors start in a row to the right.
+**Alternatives:** Relying on System Settings; a fixed position per device (left/right/above/below).
+**Why:** On macOS 26 System Settings shows neither an Arrange button nor draggable display icons with these displays attached, so the user could not arrange them at all; a hardware test shows the window server accepts the move from code. The user chose free dragging over a position list.
+**Trade-offs:** The canvas needs one connection to learn the monitors' sizes; the arrangement only covers this Mac's main display and that device's monitors.
+**Revisit if:** System Settings offers arrangement for these displays again.
+
+---
+
+## 2026-10-19 — User decision: "Extend this Mac" names the hosting role
+**Chosen:** The Mac's hosting role is "Extend this Mac" ("Bu Mac'i genişlet"); the viewer role stays "Use as display". Both are cards with a one-line explanation instead of a segmented control.
+**Alternatives:** "Share screens"; "Use other screens"; "Add displays".
+**Why:** The user found "Share screens" unclear; a segmented control truncated the longer Turkish labels.
+**Trade-offs:** The menu window is taller.
+**Revisit if:** Usability feedback.
+
+---
+
+## 2026-10-20 — The host repeats a stream's last fragment while the screen is still
+**Chosen:** After a stream's newest frame, its final fragment is sent again at 50, 200 and 700 ms unless a newer frame went out. A viewer that lost the whole frame learns of it from the repeat and NACKs the rest.
+**Alternatives:** A new control message announcing the newest frame ID; periodic keyframes; repeating the whole last frame.
+**Why:** A viewer finds a lost frame only when a later fragment arrives. When the last frame before the screen goes still is lost entirely (a full send buffer drops datagrams), nothing ever reveals it and the viewer keeps the previous picture; the core's loopback test hit this under ThreadSanitizer. Repeating one fragment fixes it without changing the protocol and costs three small datagrams per pause.
+**Trade-offs:** Recovery after such a loss takes up to 50 ms plus a round trip; if all three repeats are lost too, the picture stays old until the screen changes.
+**Revisit if:** The protocol gets a newest-frame announcement in another message (e.g. a host report).
+
+---

@@ -41,6 +41,9 @@ final class ConnectionViewModel {
     private var viewer: ViewerSession?
     private var viewerTasks: [Task<Void, Never>] = []
     private var peerName = ""
+    /// While extending: the displays standing in for the viewer's monitors, by monitor ID.
+    private var liveDisplays: [UInt8: CGDirectDisplayID] = [:]
+    private var liveDeviceID: String?
     private var hotkey: HotkeyRegistration?
 
     init(dependencies: AppDependencies, deviceName: String = Host.current().localizedName ?? "Mac") {
@@ -94,7 +97,8 @@ final class ConnectionViewModel {
         let displayID = local.displayID
         let session = ViewerSession(
             core: core, decoders: dependencies.decoders, presenters: dependencies.presenters,
-            power: dependencies.power, target: { _ in .fullScreen(displayID) })
+            power: dependencies.power, target: { _ in .fullScreen(displayID) },
+            showsStats: { [settings = dependencies.settings] in await MainActor.run { settings.showsStatsOverlay } })
         viewer = session
         peerName = device.advertisement.name
         status = .connecting(peer: peerName)
@@ -120,6 +124,31 @@ final class ConnectionViewModel {
         }
     }
 
+    /// Shown in place of the name the device introduced itself with.
+    func rename(_ peer: TrustedPeer, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        update { () throws(KeyStoreError) in try trust.rename(peer.publicKey, to: trimmed) }
+    }
+
+    /// Whether a discovered device is already paired (no code when connecting).
+    func isPaired(_ device: DiscoveredDevice) -> Bool {
+        peers.contains {
+            !$0.revoked && DeviceIdentity.deviceID(publicKey: $0.publicKey) == device.advertisement.deviceID
+        }
+    }
+
+    /// The paired device's name, or the one it advertises.
+    func displayName(of device: DiscoveredDevice) -> String {
+        peers.first { DeviceIdentity.deviceID(publicKey: $0.publicKey) == device.advertisement.deviceID }?.name
+            ?? device.advertisement.name
+    }
+
+    /// Loads the paired devices for Settings before any connection did.
+    func loadPeers() {
+        _ = prepare()
+    }
+
     /// Refused from now on; a session with it ends at once.
     func revoke(_ peer: TrustedPeer) {
         update { () throws(KeyStoreError) in try trust.revoke(peer.publicKey) }
@@ -139,6 +168,14 @@ final class ConnectionViewModel {
 
     func openScreenRecordingSettings() {
         guard let url = dependencies.permissions.screenRecordingSettingsURL else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    /// Read when the menu window opens; sharing needs it.
+    var hasScreenRecordingAccess: Bool { dependencies.permissions.hasScreenRecordingAccess }
+
+    func openLocalNetworkSettings() {
+        guard let url = dependencies.permissions.localNetworkSettingsURL else { return }
         NSWorkspace.shared.open(url)
     }
 
@@ -194,8 +231,18 @@ final class ConnectionViewModel {
             return .discovery(error)
         }
         defer { advertising.cancel() }
+        let settings = dependencies.settings
         let session = HostSession(
-            core: core, peerID: { [trust] in Data(trust.currentPeer ?? []) },
+            core: core,
+            policy: { [trust] in
+                let key = trust.currentPeer ?? []
+                return await MainActor.run {
+                    let deviceID = DeviceIdentity.deviceID(publicKey: key)
+                    return HostDisplayPolicy(
+                        peerID: Data(key), hiDPI: settings.hiDPIChoice(for: deviceID),
+                        arrangement: settings.arrangement(for: deviceID), quality: settings.qualityPreset)
+                }
+            },
             displays: VirtualDisplayLender(provider: dependencies.virtualDisplays), captures: dependencies.captures,
             encoders: dependencies.encoders, permissions: dependencies.permissions)
         host = session
@@ -208,6 +255,8 @@ final class ConnectionViewModel {
         let failure = await session.run()
         events.cancel()
         host = nil
+        liveDisplays = [:]
+        liveDeviceID = nil
         dependencies.pairingPrompt.dismiss()
         if mode == .sharing { status = .waitingForViewer }
         return failure.map(ConnectionError.host)
@@ -226,7 +275,9 @@ final class ConnectionViewModel {
             storePairing(key)
         case .state(let state):
             if state == .streaming { connected() }
-        case .streaming, .statistics:
+        case .streaming(let displays):
+            rememberArrangement(displays)
+        case .statistics:
             break
         }
     }
@@ -294,7 +345,7 @@ final class ConnectionViewModel {
 
     private func registerHotkey(for session: ViewerSession) {
         do throws(HotkeyError) {
-            hotkey = try dependencies.hotkeys.register(Tunables.Viewer.toggleHotkey) {
+            hotkey = try dependencies.hotkeys.register(dependencies.settings.viewerHotkey) {
                 Task { await session.toggleVisibility() }
             }
         } catch {
@@ -326,6 +377,27 @@ final class ConnectionViewModel {
                 maximumStreams: maximumStreams, maximumWidth: Tunables.Connection.maximumWidth,
                 maximumHeight: Tunables.Connection.maximumHeight,
                 maximumRefreshHz: Tunables.Connection.maximumRefreshHz))
+    }
+
+    /// Keeps where the viewer's displays sit, so Settings shows them and the next connection reuses it.
+    private func rememberArrangement(_ displays: [LentDisplay]) {
+        guard let key = trust.currentPeer else { return }
+        let deviceID = DeviceIdentity.deviceID(publicKey: key)
+        dependencies.settings.setArrangement(displays.compactMap(\.arrangement), for: deviceID)
+        liveDisplays = Dictionary(uniqueKeysWithValues: displays.map { ($0.monitor.id, $0.displayID) })
+        liveDeviceID = deviceID
+    }
+
+    /// Moves the displays of a running session at once; a saved arrangement alone waits for the
+    /// next connection.
+    func applyArrangement(_ arrangement: [ArrangedMonitor], for deviceID: String) {
+        guard deviceID == liveDeviceID else { return }
+        let origins = arrangement.compactMap { monitor in liveDisplays[monitor.id].map { ($0, monitor.origin) } }
+        do throws(VirtualDisplayError) {
+            try DisplayArranger.apply(origins)
+        } catch {
+            Log.virtualDisplay.error("Moving displays failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     private func connected() {

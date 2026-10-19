@@ -6,6 +6,7 @@
 #include "protocol/control_messages.hpp"
 #include "util/time.hpp"
 
+#include <array>
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -26,6 +27,11 @@ struct SessionTunables {
     Microseconds keyframe_request_interval{250'000};
     /// Host: requests closer together than this produce one forced IDR.
     Microseconds keyframe_coalesce_interval{100'000};
+    /// Host: after a stream's last frame, its final fragment is sent again at these delays (from
+    /// that frame) unless a newer frame went out. A viewer that lost the whole frame learns of it
+    /// and NACKs the rest; without a later frame the loss would go unnoticed.
+    std::array<Microseconds, 3> tail_repeat_delays{Microseconds{50'000}, Microseconds{200'000},
+                                                   Microseconds{700'000}};
     std::size_t retransmit_frames = 16;
     std::size_t retransmit_bytes = std::size_t{8} * 1024 * 1024;
     std::size_t max_frames_in_flight = 8;

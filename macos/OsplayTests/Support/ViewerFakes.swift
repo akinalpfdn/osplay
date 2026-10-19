@@ -114,6 +114,8 @@ final class FakePresenter: FramePresenting {
     }
     func setCursorShape(_ shape: CursorShape) { cursorShapes.append(shape.shapeID) }
     func moveCursor(_ position: CursorPosition) { cursorPositions.append(position) }
+    private(set) var stats: [StatsFigures?] = []
+    func showStats(_ figures: StatsFigures?) { stats.append(figures) }
 }
 
 @MainActor
