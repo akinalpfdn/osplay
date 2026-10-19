@@ -110,6 +110,27 @@ ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─�
   The debug menu's "Host media test" runs the whole pipeline over loopback into an in-process
   viewer and shows pacing, bitrate and latency per stream.
 
+## macOS app UI
+
+A menu bar app (`LSUIElement`) with three surfaces, all built from `Theme` tokens and the string
+catalog (English and Turkish):
+
+- **Menu bar window** (`Features/Menu`): the role (off, share screens, use as display), nearby
+  computers with their paired state, the current session with Disconnect, the quality preset, and
+  links to Settings and Permissions. `ConnectionViewModel` (`Features/Connection`) owns discovery,
+  sessions and pairing behind it.
+- **Settings** (`Features/Settings`, SwiftUI `Settings` scene): General (launch at login through
+  `SMAppService`, recordable hide/show shortcut), Displays (per-device HiDPI choice), Devices
+  (rename, revoke, remove), Advanced (stats overlay, log export to `~/Library/Logs/Osplay`, core
+  version). `AppSettings` keeps the values in `UserDefaults`; the host reads quality and HiDPI when
+  a viewer's monitors arrive, the viewer reads the overlay switch with every statistics update.
+- **Permissions window** (`Features/Onboarding`): Screen Recording and Local Network with live
+  status, opened at first launch and whenever Screen Recording is missing. Local Network has no
+  query API; a Network.framework Bonjour browse reports a policy denial, which is what it shows.
+
+The pairing code appears in a floating panel (`Features/Pairing`) wherever the user is, because the
+menu bar window is usually closed.
+
 ## Viewer pipeline on macOS
 
 `ViewerSession` (`macos/Osplay/Features/Viewer/`) is an actor that owns one viewer session: the

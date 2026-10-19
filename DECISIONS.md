@@ -366,3 +366,30 @@ choices the plan leaves open are logged here.
 **Revisit if:** Users find the distinction confusing (Phase 11/12 UI).
 
 ---
+
+## 2026-10-19 — User decisions: native look, recordable hotkey, corner stats overlay
+**Chosen:** System fonts, colours and SF Symbols with a Control Center–like menu bar window; the hide/show shortcut is recorded in Settings; the stats overlay is a small box in the top-left corner of the watched display.
+**Alternatives:** A branded palette; a fixed shortcut; stats only in the menu bar window.
+**Why:** The user chose these; a native look follows light/dark and accessibility settings without extra work.
+**Trade-offs:** Less visual identity; a recorder needs conflict handling (another app owning the combination is reported).
+**Revisit if:** The project gets a visual identity.
+
+---
+
+## 2026-10-19 — Quality presets as bits per pixel per frame
+**Chosen:** Balanced 0.06, High 0.10 (the previous fixed value, default), Ultra 0.16 bits per pixel per frame, clamped to 2–80 Mbit/s; the host reads the preset when a viewer's monitors arrive.
+**Alternatives:** Fixed bitrates per preset.
+**Why:** DEVPLAN asks for presets that scale with resolution and refresh; High keeps the measured Phase 6–9 behaviour.
+**Trade-offs:** A preset change applies from the next connection, not mid-stream.
+**Revisit if:** Adaptive bitrate arrives.
+
+---
+
+## 2026-10-19 — Local Network permission read from a Bonjour browse
+**Chosen:** The permissions window shows Local Network as allowed when a Network.framework browse for `_osplay._tcp` becomes ready and as denied when it waits with a policy error.
+**Alternatives:** Not showing a status (macOS has no query API).
+**Why:** The Phase 10 test showed a denied permission silently hides every device; a visible status is the only way users find the setting.
+**Trade-offs:** Until macOS answers, the status is unknown.
+**Revisit if:** macOS adds an API for the Local Network permission.
+
+---

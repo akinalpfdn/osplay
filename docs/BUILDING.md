@@ -152,8 +152,13 @@ ctest --preset portable
 
 ```sh
 scripts/format.sh   # apply clang-format and swift-format in place
-scripts/lint.sh     # check formatting, run clang-tidy, check translations
+scripts/lint.sh     # check formatting, run clang-tidy, check translations and UI tokens
 ```
+
+Besides formatting and clang-tidy, `lint.sh` fails when a Mac view uses a literal spacing, size,
+font or colour instead of a `Theme` token (`scripts/check_ui_tokens.sh`), when Swift code uses a
+localization key that is not in the string catalog, and when any string lacks its English or
+Turkish text (`scripts/check_localization.py`).
 
 `scripts/lint.sh` is exactly what CI runs. Tool versions are pinned inside it and fetched with `uv`
 on first use.
