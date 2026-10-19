@@ -168,6 +168,8 @@ typedef struct osplay_engine_host_config {
     const uint8_t* secret_key;
     const char* device_name_utf8;    /* shown to the viewer */
     const char* dump_directory_utf8; /* debug: also write the stream as .h264 here, or NULL */
+    /* Stream quality: target bits per pixel per frame, in thousandths (100 = 0.1); 0: default. */
+    uint32_t millibits_per_pixel;
 } osplay_engine_host_config;
 
 /*
@@ -250,6 +252,9 @@ typedef struct osplay_engine_viewer_config {
     uint16_t port;                /* the host's control port */
     const uint8_t* monitor_ids;   /* ids from osplay_engine_list_monitors to offer, or NULL: all */
     size_t monitor_id_count;
+    /* Hide/show hotkey: RegisterHotKey MOD_* bits and a virtual-key code; 0 and 0: default. */
+    uint32_t hotkey_modifiers;
+    uint32_t hotkey_key;
 } osplay_engine_viewer_config;
 
 /* Callbacks run on engine threads and must return quickly; they must not call
@@ -298,6 +303,11 @@ osplay_engine_viewer_set_visible(osplay_engine_viewer* viewer, uint8_t visible);
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_stream_stats(
     osplay_engine_viewer* viewer, osplay_engine_stream_figures* out_stats, size_t capacity,
     size_t* out_count);
+
+/* Draws `text_utf8` (one line, at most 255 bytes) in a corner of the stream; NULL or empty hides
+ * it. The shell formats the text (localized) from on_stats. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_set_overlay(
+    osplay_engine_viewer* viewer, uint8_t stream_id, const char* text_utf8);
 
 /* Ends the session with Bye without waiting; on_state reports CLOSED. */
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_stop(osplay_engine_viewer* viewer);

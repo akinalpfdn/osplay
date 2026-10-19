@@ -10,9 +10,9 @@ namespace osplay::engine {
 
 HostOrchestrator::HostOrchestrator(HostCorePort& core, VirtualDisplayProvider& displays,
                                    StreamPipelineFactory& pipelines, HostObserver& observer,
-                                   std::unique_ptr<StreamDump> dump)
+                                   std::unique_ptr<StreamDump> dump, double bits_per_pixel)
     : core_(&core), displays_(&displays), pipelines_(&pipelines), observer_(&observer),
-      dump_(std::move(dump)), worker_([this] { run(); }) {}
+      dump_(std::move(dump)), bits_per_pixel_(bits_per_pixel), worker_([this] { run(); }) {}
 
 HostOrchestrator::~HostOrchestrator() {
     try {
@@ -67,10 +67,12 @@ void HostOrchestrator::wait_idle() {
     changed_.wait(lock, [this] { return tasks_.empty() && !busy_; });
 }
 
-osplay_stream_config HostOrchestrator::stream_for(const osplay_monitor& monitor) {
+osplay_stream_config HostOrchestrator::stream_for(const osplay_monitor& monitor,
+                                                  double bits_per_pixel) {
     const double pixels_per_second = static_cast<double>(monitor.width_px) * monitor.height_px *
                                      monitor.refresh_millihertz / 1000.0;
-    const auto kbps = static_cast<std::uint32_t>(pixels_per_second * kBitsPerPixel / 1000.0);
+    const double bits = std::clamp(bits_per_pixel, kMinBitsPerPixel, kMaxBitsPerPixel);
+    const auto kbps = static_cast<std::uint32_t>(pixels_per_second * bits / 1000.0);
     return osplay_stream_config{
         .stream_id = kHostStreamId,
         .monitor_id = monitor.monitor_id,
@@ -118,7 +120,7 @@ void HostOrchestrator::start(const osplay_monitor& monitor) {
     if (pipeline_ || failed_) {
         return; // one stream per session on a Windows host
     }
-    const osplay_stream_config stream = stream_for(monitor);
+    const osplay_stream_config stream = stream_for(monitor, bits_per_pixel_);
     const VirtualMonitorConfig config{.width = stream.width,
                                       .height = stream.height,
                                       .refresh_millihertz = stream.refresh_millihertz,

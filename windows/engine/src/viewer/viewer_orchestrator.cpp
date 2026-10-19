@@ -84,6 +84,14 @@ void ViewerOrchestrator::on_monitors_changed(const std::set<std::uint8_t>& attac
     });
 }
 
+void ViewerOrchestrator::set_overlay(std::uint8_t stream_id, std::string text) {
+    const std::scoped_lock lock(streams_mutex_);
+    if (const auto it = streams_.find(stream_id); it != streams_.end()) {
+        it->second->set_overlay(text);
+    }
+    overlays_[stream_id] = std::move(text);
+}
+
 std::map<std::uint8_t, ViewerStreamStats> ViewerOrchestrator::stats() const {
     const std::scoped_lock lock(streams_mutex_);
     std::map<std::uint8_t, ViewerStreamStats> result;
@@ -154,8 +162,11 @@ void ViewerOrchestrator::start(const osplay_stream_config& stream) {
     }
     {
         const std::scoped_lock lock(streams_mutex_);
-        streams_[stream.stream_id] = std::move(started.value());
+        auto& started_stream = streams_[stream.stream_id] = std::move(started.value());
         monitor_of_[stream.stream_id] = stream.monitor_id;
+        if (const auto overlay = overlays_.find(stream.stream_id); overlay != overlays_.end()) {
+            started_stream->set_overlay(overlay->second);
+        }
     }
     if (!visible_) {
         static_cast<void>(core_->pause_stream(stream.stream_id));

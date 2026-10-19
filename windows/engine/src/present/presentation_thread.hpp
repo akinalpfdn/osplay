@@ -23,8 +23,14 @@ public:
         std::function<void()> on_display_change; ///< monitors were added, removed or changed
     };
 
+    /// RegisterHotKey's MOD_* bits (without MOD_NOREPEAT) and virtual-key code.
+    struct Hotkey {
+        unsigned modifiers = 0;
+        unsigned key = 0;
+    };
+
     /// Starts the thread; `hotkey_registered` reports whether the hotkey could be taken.
-    explicit PresentationThread(Callbacks callbacks);
+    PresentationThread(Callbacks callbacks, Hotkey hotkey);
     ~PresentationThread();
     PresentationThread(const PresentationThread&) = delete;
     PresentationThread& operator=(const PresentationThread&) = delete;
@@ -44,7 +50,7 @@ public:
 private:
     static LRESULT CALLBACK window_procedure(HWND window, UINT message, WPARAM wparam,
                                              LPARAM lparam);
-    void run(std::promise<bool> ready);
+    void run(Hotkey hotkey, std::promise<bool> ready);
     void invoke(const std::function<void()>& task);
 
     Callbacks callbacks_;

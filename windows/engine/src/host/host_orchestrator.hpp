@@ -5,6 +5,7 @@
 // stream, and feed access units and the cursor to the core. Mirrors HostSession on macOS.
 
 #include "display/virtual_display_provider.hpp"
+#include "engine_tunables.hpp"
 #include "host/stream_dump.hpp"
 #include "host/stream_pipeline.hpp"
 
@@ -55,7 +56,8 @@ class HostOrchestrator final : private PipelineSink {
 public:
     HostOrchestrator(HostCorePort& core, VirtualDisplayProvider& displays,
                      StreamPipelineFactory& pipelines, HostObserver& observer,
-                     std::unique_ptr<StreamDump> dump = nullptr);
+                     std::unique_ptr<StreamDump> dump = nullptr,
+                     double bits_per_pixel = kBitsPerPixel);
     ~HostOrchestrator() override;
     HostOrchestrator(const HostOrchestrator&) = delete;
     HostOrchestrator& operator=(const HostOrchestrator&) = delete;
@@ -75,7 +77,9 @@ public:
     /// Blocks until queued work has run (tests).
     void wait_idle();
 
-    static osplay_stream_config stream_for(const osplay_monitor& monitor);
+    /// `bits_per_pixel` is clamped to kMinBitsPerPixel...kMaxBitsPerPixel.
+    static osplay_stream_config stream_for(const osplay_monitor& monitor,
+                                           double bits_per_pixel = kBitsPerPixel);
 
 private:
     void post(std::function<void()> task);
@@ -96,6 +100,7 @@ private:
     StreamPipelineFactory* pipelines_; // never null
     HostObserver* observer_;           // never null
     std::unique_ptr<StreamDump> dump_;
+    double bits_per_pixel_;
 
     std::unique_ptr<StreamPipeline> pipeline_; // worker thread only
     bool monitor_added_ = false;               // worker thread only

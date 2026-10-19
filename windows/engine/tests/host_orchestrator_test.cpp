@@ -294,4 +294,11 @@ TEST(HostOrchestrator, BitratesStayWithinLimits) {
     EXPECT_EQ(HostOrchestrator::stream_for(small).bitrate_kbps, 2'000U);
 }
 
+TEST(HostOrchestrator, TheQualityPresetScalesTheBitrateWithinItsRange) {
+    EXPECT_EQ(HostOrchestrator::stream_for(monitor(), 0.06).bitrate_kbps, 15'335U);
+    EXPECT_EQ(HostOrchestrator::stream_for(monitor(), 0.16).bitrate_kbps, 40'894U);
+    // Out-of-range presets are clamped to 0.3 bits per pixel.
+    EXPECT_EQ(HostOrchestrator::stream_for(monitor(), 1.0).bitrate_kbps, 76'677U);
+}
+
 } // namespace

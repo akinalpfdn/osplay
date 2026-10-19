@@ -18,6 +18,7 @@
 #include <mutex>
 #include <set>
 #include <span>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -64,6 +65,9 @@ public:
     /// The monitors currently attached; streams on any other monitor are stopped.
     void on_monitors_changed(const std::set<std::uint8_t>& attached);
 
+    /// Text in the stream's corner (empty hides it); kept for a stream that starts later.
+    void set_overlay(std::uint8_t stream_id, std::string text);
+
     [[nodiscard]] std::map<std::uint8_t, ViewerStreamStats> stats() const;
     /// Blocks until queued work has run (tests).
     void wait_idle();
@@ -85,6 +89,7 @@ private:
     mutable std::mutex streams_mutex_; // guards streams_: access units arrive on the I/O thread
     std::map<std::uint8_t, std::unique_ptr<ViewerStream>> streams_;
     std::map<std::uint8_t, std::uint8_t> monitor_of_; // stream → monitor
+    std::map<std::uint8_t, std::string> overlays_;    // stream → overlay text
 
     std::mutex mutex_;
     std::condition_variable changed_;

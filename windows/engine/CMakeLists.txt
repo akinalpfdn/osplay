@@ -43,7 +43,7 @@ if(WIN32)
         WIN32_LEAN_AND_MEAN)
     target_link_libraries(osplay_engine
         PUBLIC osplay::core
-        PRIVATE osplay_engine_logic osplay::win_platform osplay::warnings user32 gdi32 ole32 bcrypt d3d11 dxgi
+        PRIVATE osplay_engine_logic osplay::win_platform osplay::warnings user32 gdi32 ole32 bcrypt d3d11 d2d1 dwrite dxgi
             mfplat mfuuid propsys winmm wmcodecdspuuid shcore
             crypt32 dnsapi shell32)
     set_target_properties(osplay_engine PROPERTIES

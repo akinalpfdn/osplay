@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <string>
 
 namespace osplay::engine {
 
@@ -40,6 +41,8 @@ public:
     virtual void submit(std::span<const std::uint8_t> annexb, bool keyframe,
                         std::uint64_t capture_time_us) = 0;
     virtual void set_visible(bool visible) = 0;
+    /// One line of UTF-8 drawn over the picture; empty hides it. Never blocks.
+    virtual void set_overlay(const std::string& text) = 0;
     [[nodiscard]] virtual ViewerStreamStats stats() const = 0;
 };
 

@@ -1,3 +1,4 @@
+#include "../engine_tunables.hpp"
 #include "../present/presentation_thread.hpp"
 #include "../viewer/monitor_layout.hpp"
 #include "../viewer/viewer_orchestrator.hpp"
@@ -15,6 +16,7 @@
 #include <memory>
 #include <mutex>
 #include <span>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -195,6 +197,15 @@ osplay_session_callbacks core_callbacks(osplay_engine_viewer* viewer) {
     return callbacks;
 }
 
+/// The shell's hotkey, or the default when it set none.
+osplay::engine::PresentationThread::Hotkey hotkey_of(const osplay_engine_viewer_config& config) {
+    if (config.hotkey_key == 0) {
+        return {.modifiers = osplay::engine::kViewerHotkeyModifiers,
+                .key = osplay::engine::kViewerHotkeyKey};
+    }
+    return {.modifiers = config.hotkey_modifiers, .key = config.hotkey_key};
+}
+
 /// The requested monitors that are attached, or all of them when none were named.
 std::vector<OfferedMonitor> select_monitors(const osplay_engine_viewer_config& config) {
     std::vector<OfferedMonitor> all = offered_monitors();
@@ -288,7 +299,8 @@ osplay_engine_result osplay_engine_viewer_start(const osplay_engine_viewer_confi
                             o.on_monitors_changed(attached);
                         });
                     },
-            });
+            },
+            hotkey_of(*config));
         viewer->streams =
             std::make_unique<osplay::engine::WindowsViewerStreamFactory>(*viewer->presentation);
         std::vector<osplay::engine::ViewerMonitor> monitors;
@@ -392,6 +404,21 @@ osplay_engine_result osplay_engine_viewer_stream_stats(osplay_engine_viewer* vie
                             .decode_errors = stats.decode_errors};
         }
         *out_count = count;
+        return OSPLAY_ENGINE_OK;
+    });
+}
+
+osplay_engine_result osplay_engine_viewer_set_overlay(osplay_engine_viewer* viewer,
+                                                      uint8_t stream_id, const char* text_utf8) {
+    return guarded([&] {
+        if (viewer == nullptr) {
+            return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
+        }
+        std::string text = text_utf8 == nullptr ? std::string() : std::string(text_utf8);
+        if (text.size() > osplay::engine::kOverlayTextLimit) {
+            return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
+        }
+        viewer->orchestrator->set_overlay(stream_id, std::move(text));
         return OSPLAY_ENGINE_OK;
     });
 }

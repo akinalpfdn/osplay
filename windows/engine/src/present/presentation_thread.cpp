@@ -1,7 +1,5 @@
 #include "present/presentation_thread.hpp"
 
-#include "engine_tunables.hpp"
-
 #include <exception>
 #include <utility>
 
@@ -15,11 +13,12 @@ constexpr int kHotkeyId = 1;
 
 } // namespace
 
-PresentationThread::PresentationThread(Callbacks callbacks) : callbacks_(std::move(callbacks)) {
+PresentationThread::PresentationThread(Callbacks callbacks, Hotkey hotkey)
+    : callbacks_(std::move(callbacks)) {
     std::promise<bool> ready;
     auto started = ready.get_future();
-    thread_ =
-        std::thread([this, promise = std::move(ready)]() mutable { run(std::move(promise)); });
+    thread_ = std::thread(
+        [this, hotkey, promise = std::move(ready)]() mutable { run(hotkey, std::move(promise)); });
     hotkey_registered_ = started.get();
 }
 
@@ -71,7 +70,7 @@ void PresentationThread::invoke(const std::function<void()>& task) {
     SendMessageW(control_window_, kTaskMessage, 0, reinterpret_cast<LPARAM>(&task));
 }
 
-void PresentationThread::run(std::promise<bool> ready) {
+void PresentationThread::run(Hotkey hotkey, std::promise<bool> ready) {
     // Window rectangles and monitor sizes in physical pixels, whatever the host process declares.
     SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     HINSTANCE instance = GetModuleHandleW(nullptr);
@@ -88,11 +87,10 @@ void PresentationThread::run(std::promise<bool> ready) {
     // A hidden top-level window: message-only windows would miss WM_DISPLAYCHANGE broadcasts.
     control_window_ = CreateWindowExW(0, kControlClass, L"Osplay", WS_OVERLAPPED, 0, 0, 0, 0,
                                       nullptr, nullptr, instance, this);
-    const bool hotkey =
-        control_window_ != nullptr &&
-        RegisterHotKey(control_window_, kHotkeyId, kViewerHotkeyModifiers | MOD_NOREPEAT,
-                       kViewerHotkeyKey) != FALSE;
-    ready.set_value(hotkey);
+    const bool registered = control_window_ != nullptr &&
+                            RegisterHotKey(control_window_, kHotkeyId,
+                                           hotkey.modifiers | MOD_NOREPEAT, hotkey.key) != FALSE;
+    ready.set_value(registered);
     if (control_window_ == nullptr) {
         return;
     }
