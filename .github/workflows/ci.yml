@@ -107,6 +107,10 @@ jobs:
         working-directory: windows/app
         run: dotnet build Osplay.slnx -c Release
 
+      - name: Shell — test
+        working-directory: windows/app
+        run: dotnet test Osplay.slnx -c Release --no-build
+
   fuzz:
     name: Protocol fuzzing
     runs-on: ubuntu-24.04
