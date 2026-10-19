@@ -1,5 +1,5 @@
 # Phase 011 (MVP-11) — Cross-platform interop, discovery and pairing
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 10. Depends on: Phase 7, Phase 9.
 

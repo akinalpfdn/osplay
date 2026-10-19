@@ -1,5 +1,5 @@
 # Phase 012 (MVP-12) — macOS app UI
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 11. Depends on: Phase 10.
 
