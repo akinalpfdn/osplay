@@ -7,6 +7,8 @@
     <AssemblyName>Osplay</AssemblyName>
     <RootNamespace>Osplay.App</RootNamespace>
     <SatelliteResourceLanguages>en;tr</SatelliteResourceLanguages>
+    <!-- Function pointers and fixed buffers for the engine's C API (Interop/). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,6 +18,16 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Osplay.Localization\Osplay.Localization.csproj" />
+  </ItemGroup>
+
+  <!-- The native engine from the CMake build (docs/BUILDING.md); override with
+       -p:OsplayNativeBin=<folder> for another preset. -->
+  <PropertyGroup>
+    <OsplayNativeBin Condition="'$(OsplayNativeBin)' == ''">$(MSBuildThisFileDirectory)..\..\build\debug\bin</OsplayNativeBin>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(OsplayNativeBin)\OsplayEngine.dll" Link="OsplayEngine.dll" Visible="false"
+          CopyToOutputDirectory="PreserveNewest" Condition="Exists('$(OsplayNativeBin)\OsplayEngine.dll')" />
   </ItemGroup>
 
 </Project>

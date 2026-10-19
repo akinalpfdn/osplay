@@ -2,7 +2,23 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:tb="clr-namespace:H.NotifyIcon;assembly=H.NotifyIcon.Wpf"
                     xmlns:res="clr-namespace:Osplay.Localization;assembly=Osplay.Localization"
-                    xmlns:tray="clr-namespace:Osplay.App.Tray">
+                    xmlns:tray="clr-namespace:Osplay.App.Tray"
+                    xmlns:connection="clr-namespace:Osplay.App.Connection">
+  <BooleanToVisibilityConverter x:Key="Osplay.Converter.BooleanToVisibility" />
+
+  <!-- A menu entry bound to an item with Header and Command (devices, peer actions). -->
+  <Style x:Key="Osplay.Style.CommandMenuItem" TargetType="MenuItem">
+    <Setter Property="Header" Value="{Binding Header}" />
+    <Setter Property="Command" Value="{Binding Command}" />
+  </Style>
+
+  <!-- A paired device: its name, opening Revoke / Remove. -->
+  <Style x:Key="Osplay.Style.PeerMenuItem" TargetType="MenuItem">
+    <Setter Property="Header" Value="{Binding Header}" />
+    <Setter Property="ItemsSource" Value="{Binding Actions}" />
+    <Setter Property="ItemContainerStyle" Value="{StaticResource Osplay.Style.CommandMenuItem}" />
+  </Style>
+
   <tb:TaskbarIcon x:Key="Osplay.Tray.Icon"
                   ToolTipText="{x:Static res:Strings.TrayToolTip}"
                   d:DataContext="{d:DesignInstance Type=tray:TrayViewModel}"
@@ -18,6 +34,28 @@
     </tb:TaskbarIcon.IconSource>
     <tb:TaskbarIcon.ContextMenu>
       <ContextMenu>
+        <MenuItem Header="{Binding Connection.Status}" IsEnabled="False" />
+        <MenuItem Header="{Binding Connection.ErrorMessage}" IsEnabled="False"
+                  Visibility="{Binding Connection.HasError, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
+        <Separator />
+        <MenuItem Header="{x:Static res:Strings.TrayModeOff}" IsChecked="{Binding Connection.IsOff, Mode=OneWay}"
+                  Command="{Binding Connection.SetModeCommand}"
+                  CommandParameter="{x:Static connection:ConnectionMode.Off}" />
+        <MenuItem Header="{x:Static res:Strings.TrayModeSharing}" IsChecked="{Binding Connection.IsSharing, Mode=OneWay}"
+                  Command="{Binding Connection.SetModeCommand}"
+                  CommandParameter="{x:Static connection:ConnectionMode.Sharing}" />
+        <MenuItem Header="{x:Static res:Strings.TrayModeViewing}" IsChecked="{Binding Connection.IsViewing, Mode=OneWay}"
+                  Command="{Binding Connection.SetModeCommand}"
+                  CommandParameter="{x:Static connection:ConnectionMode.Viewing}" />
+        <MenuItem Header="{x:Static res:Strings.TrayDevices}" ItemsSource="{Binding Connection.Devices}"
+                  ItemContainerStyle="{StaticResource Osplay.Style.CommandMenuItem}"
+                  Visibility="{Binding Connection.IsViewing, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
+        <MenuItem Header="{x:Static res:Strings.TrayDisconnect}" Command="{Binding Connection.DisconnectCommand}"
+                  Visibility="{Binding Connection.IsSessionActive, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
+        <Separator />
+        <MenuItem Header="{x:Static res:Strings.TrayPaired}" ItemsSource="{Binding Connection.Peers}"
+                  ItemContainerStyle="{StaticResource Osplay.Style.PeerMenuItem}" />
+        <Separator />
         <MenuItem Header="{x:Static res:Strings.TrayQuit}" Command="{Binding QuitCommand}" />
       </ContextMenu>
     </tb:TaskbarIcon.ContextMenu>

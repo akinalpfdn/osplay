@@ -18,4 +18,115 @@
   <data name="TrayQuit" xml:space="preserve">
     <value>Osplay'den Çık</value>
   </data>
+  <data name="ConnectionStatusOff" xml:space="preserve">
+    <value>Paylaşılmıyor, görüntülenmiyor</value>
+  </data>
+  <data name="ConnectionStatusWaiting" xml:space="preserve">
+    <value>Bir bilgisayarın bağlanması bekleniyor…</value>
+  </data>
+  <data name="ConnectionStatusSearching" xml:space="preserve">
+    <value>Ekranını paylaşan bilgisayarlar aranıyor…</value>
+  </data>
+  <data name="ConnectionStatusConnecting" xml:space="preserve">
+    <value>{0} cihazına bağlanılıyor…</value>
+  </data>
+  <data name="ConnectionStatusConnected" xml:space="preserve">
+    <value>{0} cihazına bağlı</value>
+  </data>
+  <data name="PlatformMac" xml:space="preserve">
+    <value>Mac</value>
+  </data>
+  <data name="PlatformWindows" xml:space="preserve">
+    <value>Windows</value>
+  </data>
+  <data name="PeerRevokedHeader" xml:space="preserve">
+    <value>{0} (iptal edildi)</value>
+  </data>
+  <data name="TrayModeOff" xml:space="preserve">
+    <value>Kapalı</value>
+  </data>
+  <data name="TrayModeSharing" xml:space="preserve">
+    <value>Bu bilgisayarın ekranını paylaş</value>
+  </data>
+  <data name="TrayModeViewing" xml:space="preserve">
+    <value>Ekran olarak kullan</value>
+  </data>
+  <data name="TrayDevices" xml:space="preserve">
+    <value>Bağlan</value>
+  </data>
+  <data name="TrayDisconnect" xml:space="preserve">
+    <value>Bağlantıyı kes</value>
+  </data>
+  <data name="TrayPaired" xml:space="preserve">
+    <value>Eşleşmiş cihazlar</value>
+  </data>
+  <data name="TrayRevoke" xml:space="preserve">
+    <value>İptal et</value>
+  </data>
+  <data name="TrayRemove" xml:space="preserve">
+    <value>Kaldır</value>
+  </data>
+  <data name="PairingTitle" xml:space="preserve">
+    <value>Osplay ile eşleştir</value>
+  </data>
+  <data name="PairingMessage" xml:space="preserve">
+    <value>{0} bağlanmak istiyor. Aynı kodu gösterdiğini kontrol edin:</value>
+  </data>
+  <data name="PairingHint" xml:space="preserve">
+    <value>Eşleştirmek için iki bilgisayarda da kabul edin. Bunu yalnızca bir kez yaparsınız.</value>
+  </data>
+  <data name="PairingAccept" xml:space="preserve">
+    <value>Kabul et</value>
+  </data>
+  <data name="PairingReject" xml:space="preserve">
+    <value>Reddet</value>
+  </data>
+  <data name="ErrorHelper" xml:space="preserve">
+    <value>Osplay yardımcı hizmeti çalışmıyor. Osplay'i yeniden kurun ya da hizmeti başlatın.</value>
+  </data>
+  <data name="ErrorVddMissing" xml:space="preserve">
+    <value>Sanal ekran sürücüsü kurulu değil.</value>
+  </data>
+  <data name="ErrorKeyStoreUnavailable" xml:space="preserve">
+    <value>Osplay anahtarlarını %APPDATA%\Osplay içine kaydedemiyor.</value>
+  </data>
+  <data name="ErrorKeyStoreDamaged" xml:space="preserve">
+    <value>Osplay'in kayıtlı anahtarları bozuk. %APPDATA%\Osplay klasörünü silip yeniden eşleştirin.</value>
+  </data>
+  <data name="ErrorDiscovery" xml:space="preserve">
+    <value>Bu bilgisayarda Bonjour keşfi kullanılamıyor.</value>
+  </data>
+  <data name="ErrorMonitorNotFound" xml:space="preserve">
+    <value>Bu akışın monitörü bağlı değil.</value>
+  </data>
+  <data name="ErrorEncoder" xml:space="preserve">
+    <value>Donanım video kodlayıcısı yok.</value>
+  </data>
+  <data name="ErrorDecoder" xml:space="preserve">
+    <value>Donanım video çözücüsü yok.</value>
+  </data>
+  <data name="ErrorEngine" xml:space="preserve">
+    <value>Osplay başarısız oldu (motor hatası {0}).</value>
+  </data>
+  <data name="ErrorNotTrusted" xml:space="preserve">
+    <value>Diğer bilgisayar bu bilgisayarı reddetti. Eşleşmiş cihazlarından kaldırılmış olabilir.</value>
+  </data>
+  <data name="ErrorPairingRejected" xml:space="preserve">
+    <value>Eşleştirme reddedildi.</value>
+  </data>
+  <data name="ErrorIncompatible" xml:space="preserve">
+    <value>Diğer bilgisayar farklı bir Osplay sürümü çalıştırıyor. İkisini de son sürüme güncelleyin.</value>
+  </data>
+  <data name="ErrorPeerBusy" xml:space="preserve">
+    <value>Diğer bilgisayar zaten başka bir cihaza bağlı.</value>
+  </data>
+  <data name="ErrorUnreachable" xml:space="preserve">
+    <value>Diğer bilgisayarla bağlantı kesildi.</value>
+  </data>
+  <data name="ErrorSession" xml:space="preserve">
+    <value>Oturum sona erdi (hata {0}).</value>
+  </data>
+  <data name="ErrorHotkeyUnavailable" xml:space="preserve">
+    <value>Ctrl+Alt+Shift+V başka bir program tarafından kullanılıyor; gizle/göster kullanılamıyor.</value>
+  </data>
 </root>

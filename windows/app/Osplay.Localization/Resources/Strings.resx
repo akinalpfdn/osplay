@@ -18,4 +18,115 @@
   <data name="TrayQuit" xml:space="preserve">
     <value>Quit Osplay</value>
   </data>
+  <data name="ConnectionStatusOff" xml:space="preserve">
+    <value>Not sharing or viewing</value>
+  </data>
+  <data name="ConnectionStatusWaiting" xml:space="preserve">
+    <value>Waiting for a computer to connect…</value>
+  </data>
+  <data name="ConnectionStatusSearching" xml:space="preserve">
+    <value>Looking for computers sharing their screens…</value>
+  </data>
+  <data name="ConnectionStatusConnecting" xml:space="preserve">
+    <value>Connecting to {0}…</value>
+  </data>
+  <data name="ConnectionStatusConnected" xml:space="preserve">
+    <value>Connected to {0}</value>
+  </data>
+  <data name="PlatformMac" xml:space="preserve">
+    <value>Mac</value>
+  </data>
+  <data name="PlatformWindows" xml:space="preserve">
+    <value>Windows</value>
+  </data>
+  <data name="PeerRevokedHeader" xml:space="preserve">
+    <value>{0} (revoked)</value>
+  </data>
+  <data name="TrayModeOff" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="TrayModeSharing" xml:space="preserve">
+    <value>Share this PC's screen</value>
+  </data>
+  <data name="TrayModeViewing" xml:space="preserve">
+    <value>Use as a display</value>
+  </data>
+  <data name="TrayDevices" xml:space="preserve">
+    <value>Connect to</value>
+  </data>
+  <data name="TrayDisconnect" xml:space="preserve">
+    <value>Disconnect</value>
+  </data>
+  <data name="TrayPaired" xml:space="preserve">
+    <value>Paired devices</value>
+  </data>
+  <data name="TrayRevoke" xml:space="preserve">
+    <value>Revoke</value>
+  </data>
+  <data name="TrayRemove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="PairingTitle" xml:space="preserve">
+    <value>Pair with Osplay</value>
+  </data>
+  <data name="PairingMessage" xml:space="preserve">
+    <value>{0} wants to connect. Check that it shows the same code:</value>
+  </data>
+  <data name="PairingHint" xml:space="preserve">
+    <value>Accept on both computers to pair. You only do this once.</value>
+  </data>
+  <data name="PairingAccept" xml:space="preserve">
+    <value>Accept</value>
+  </data>
+  <data name="PairingReject" xml:space="preserve">
+    <value>Reject</value>
+  </data>
+  <data name="ErrorHelper" xml:space="preserve">
+    <value>The Osplay helper service is not running. Reinstall Osplay or start the service.</value>
+  </data>
+  <data name="ErrorVddMissing" xml:space="preserve">
+    <value>The virtual display driver is not installed.</value>
+  </data>
+  <data name="ErrorKeyStoreUnavailable" xml:space="preserve">
+    <value>Osplay cannot store its keys in %APPDATA%\Osplay.</value>
+  </data>
+  <data name="ErrorKeyStoreDamaged" xml:space="preserve">
+    <value>Osplay's stored keys are damaged. Delete %APPDATA%\Osplay and pair again.</value>
+  </data>
+  <data name="ErrorDiscovery" xml:space="preserve">
+    <value>Bonjour discovery is not available on this PC.</value>
+  </data>
+  <data name="ErrorMonitorNotFound" xml:space="preserve">
+    <value>The monitor for this stream is not connected.</value>
+  </data>
+  <data name="ErrorEncoder" xml:space="preserve">
+    <value>No hardware video encoder is available.</value>
+  </data>
+  <data name="ErrorDecoder" xml:space="preserve">
+    <value>No hardware video decoder is available.</value>
+  </data>
+  <data name="ErrorEngine" xml:space="preserve">
+    <value>Osplay failed (engine error {0}).</value>
+  </data>
+  <data name="ErrorNotTrusted" xml:space="preserve">
+    <value>The other computer refused this PC. It may have been removed from its paired devices.</value>
+  </data>
+  <data name="ErrorPairingRejected" xml:space="preserve">
+    <value>Pairing was rejected.</value>
+  </data>
+  <data name="ErrorIncompatible" xml:space="preserve">
+    <value>The other computer runs a different Osplay version. Update both to the latest version.</value>
+  </data>
+  <data name="ErrorPeerBusy" xml:space="preserve">
+    <value>The other computer is already connected to another device.</value>
+  </data>
+  <data name="ErrorUnreachable" xml:space="preserve">
+    <value>The connection to the other computer was lost.</value>
+  </data>
+  <data name="ErrorSession" xml:space="preserve">
+    <value>The session ended (error {0}).</value>
+  </data>
+  <data name="ErrorHotkeyUnavailable" xml:space="preserve">
+    <value>Ctrl+Alt+Shift+V is used by another program; hide and show is unavailable.</value>
+  </data>
 </root>
