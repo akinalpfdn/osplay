@@ -1,5 +1,5 @@
 # Phase 013 (MVP-13) — Windows app UI
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 12. Depends on: Phase 10.
 
