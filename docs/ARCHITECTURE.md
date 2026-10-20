@@ -406,3 +406,29 @@ both sessions close ─► the new host advertises ─► the new viewer browses
 - Both keys are already trusted, so no pairing code appears. The swap shortcut is registered only
   while frames flow; if another program owns it, the button still works.
 
+## Interruptions and recovery
+
+Everyday disruptions end a session cleanly and the viewer brings it back; the host simply listens
+again after every session (DEVPLAN Phase 13, test matrix in TESTING.md).
+
+| Disruption | What happens |
+|------------|--------------|
+| This computer goes to sleep | It closes with Bye 3 first (`osplay_session_close_for_sleep`); a viewer resumes after wake |
+| The other computer goes to sleep | The session closes with PEER_SLEEPING; a viewer waits for that host and reconnects when it advertises again |
+| Network outage under 10 s | The session survives (heartbeat timeout 10 s); the stream freezes and resumes |
+| Longer outage or network change | The session times out; a viewer waits for the same host (by device ID) and reconnects |
+| A viewer monitor changes mode | Windows: the engine compares the offered monitors on `WM_DISPLAYCHANGE` and closes the session; macOS: the app compares its offered display on a screen change. The viewer reconnects with the new mode, so the host makes matching displays |
+| A viewer monitor is unplugged | Only its stream stops (StreamStop); the session continues |
+| The user disconnects | No reconnect |
+
+Waiting viewers say "Waiting for … to come back"; choosing another computer or role ends the wait.
+
+**Bitrate adaptation.** The core adapts each host stream's encoder bitrate from the viewer's reports
+(PROTOCOL.md "Bitrate adaptation") and calls `on_bitrate_target`; VideoToolbox and the Media
+Foundation encoder change their average bitrate on the fly. The configured quality preset is the
+ceiling.
+
+**Diagnostics.** Settings › Advanced › **Copy diagnostics** puts versions, settings, state and the
+newest log lines on the clipboard, with device names and IP addresses replaced. The stats overlay
+also has a shortcut (⌃⌥⌘I / Ctrl+Alt+Shift+I, recordable).
+

@@ -460,3 +460,19 @@ choices the plan leaves open are logged here.
 **Trade-offs:** A swap takes seconds (new virtual displays, the first keyframe) and windows on a removed virtual display move to the main screen.
 **Revisit if:** Measured swap times are too long; then keep a warm host listener on the viewer side.
 
+## 2026-10-20 — Bitrate adaptation lives in the core, driven by frame loss and resends
+**Chosen:** Each host stream has a BitrateController: 75% on an interval with ≥1% lost frames or ≥5% resent fragments, +8% after three clean intervals, between a quarter of the configured bitrate (at least 1 Mbit/s) and the configured bitrate; changes under 5% are not passed on. The platform encoders only apply `on_bitrate_target`.
+**Alternatives:** Per-platform controllers in the apps; delay-based congestion control (send-time vs. receive-time gradients); renegotiating StreamConfig.
+**Why:** One implementation for both hosts, unit-tested with the simulated network; the reports already carry loss, and resends show congestion before frames are lost. Delay-based control needs per-packet timing the protocol does not report yet.
+**Trade-offs:** It reacts once per second and only to loss, so a link that is slow but lossless is not detected.
+**Revisit if:** Wi-Fi tests show stalls without loss; then add RTT growth as a congestion signal.
+
+---
+
+## 2026-10-20 — Interruptions end the session and the viewer reconnects
+**Chosen:** Sleep sends Bye 3 (new result PEER_SLEEPING on the other side); timeouts, network errors, a sleeping peer and a changed viewer monitor mode all end the session, and the viewer waits for the same host by device ID and reconnects. A user disconnect never reconnects.
+**Alternatives:** Keeping sessions alive across sleep; renegotiating monitors inside a running session (a second ViewerMonitors).
+**Why:** A new session reuses the paths that already work (discovery, handshake, trusted keys, display creation) and recovers from any socket or display state left behind by sleep; renegotiation would need protocol and orchestration changes on both hosts for a rare event.
+**Trade-offs:** Recovery takes a few seconds (a new handshake and first keyframe); windows on removed virtual displays move to the main screen.
+**Revisit if:** Users find reconnects after display changes too slow.
+
