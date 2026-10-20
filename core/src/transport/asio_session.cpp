@@ -257,6 +257,13 @@ private:
             acceptor_.set_option(tcp::acceptor::reuse_address(true), error);
 #endif
             acceptor_.bind(tcp::endpoint(protocol, port), error);
+            if (error == asio::error::address_in_use && port != 0) {
+                // Another socket has this port. Taking it on IPv4 alone next (which Windows
+                // allows beside a dual-stack listener) would split the port; use any instead.
+                asio::error_code ignored;
+                acceptor_.close(ignored);
+                return false;
+            }
             if (!error) {
                 acceptor_.listen(1, error);
             }
