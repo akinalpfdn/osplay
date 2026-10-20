@@ -183,7 +183,7 @@ cd osplay
 
 # Allow the repository's helper script for this PowerShell session only.
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-# Load the Visual Studio x64 compiler environment (skip this inside "Developer PowerShell for VS").
+# Load the Visual Studio x64 compiler environment (also inside "Developer PowerShell for VS").
 . .\scripts\windows\Enter-DevShell.ps1
 
 # Native engine, helper service and core tests
@@ -207,6 +207,13 @@ quick menu. Windows may hide new icons in the overflow menu (the `^` arrow on th
 
 Build outputs land in `windows/build/<preset>/` for native code (executables and
 `OsplayEngine.dll` in `windows/build/<preset>/bin/`) and in `bin/` folders for .NET.
+
+`Enter-DevShell.ps1` finds Visual Studio through the Visual Studio Installer. If the installer has
+lost track of an installation that is still on disk, the script falls back to the newest
+`vcvars64.bat` under `Program Files\Microsoft Visual Studio` and says so. It also clears the
+`Platform=x64` variable the Visual Studio environment sets, which would otherwise make
+`dotnet build` look for a `Release|x64` configuration that the solution does not have. Close the
+running shell before rebuilding: it locks `OsplayEngine.dll` in its output folder.
 
 ### Virtual monitor (developer setup)
 
