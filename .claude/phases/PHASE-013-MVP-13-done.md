@@ -1,5 +1,5 @@
 # Phase 013 (MVP-13) — Windows app UI
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 12. Depends on: Phase 10.
 
@@ -15,9 +15,9 @@ A simple, clean, finished Windows interface.
 - [x] Complete English and Turkish `.resx`, theme dictionaries following the system theme.
 
 ## Acceptance Criteria
-- [ ] No hardcoded strings or visual values in XAML or code-behind.
-- [ ] System light/dark switch is reflected live.
-- [ ] Engine crashes or helper unavailability are surfaced clearly, and the shell never hangs on a native call (all native calls off the UI thread).
+- [x] No hardcoded strings or visual values in XAML or code-behind.
+- [x] System light/dark switch is reflected live.
+- [x] Engine crashes or helper unavailability are surfaced clearly, and the shell never hangs on a native call (all native calls off the UI thread).
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
@@ -26,3 +26,4 @@ A simple, clean, finished Windows interface.
 - Main window = the tray panel (user decision above); monitor selection is a picture of the PC's monitors in the panel.
 - User decision: the stats overlay ships in this phase, drawn by the engine on the stream.
 - User decision: update check once a day at launch plus a manual button; can be turned off.
+- Accepted on the PC 2026-10-20; an in-process engine crash cannot be caught — a missing or damaged engine and engine error codes are what the shell surfaces.
