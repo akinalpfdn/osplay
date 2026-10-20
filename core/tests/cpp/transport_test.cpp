@@ -71,6 +71,7 @@ public:
     }
     void on_stream_stopped(std::uint8_t /*stream_id*/) override {}
     void on_role_swap_request(const osplay::crypto::Key& /*key*/) override {}
+    void on_bitrate_target(std::uint8_t /*stream_id*/, std::uint32_t /*kbps*/) override {}
     void on_role_swap_answer(session::RoleSwapAnswer /*answer*/,
                              const osplay::crypto::Key& /*key*/) override {}
     void on_cursor_shape(const osplay::media::CursorShape& /*shape*/) override {}

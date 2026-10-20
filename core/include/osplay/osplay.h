@@ -70,6 +70,7 @@ typedef enum osplay_result {
     OSPLAY_ERROR_INVALID_STATE = 24,
     OSPLAY_ERROR_NETWORK = 25,
     OSPLAY_ERROR_INTERNAL = 26,
+    OSPLAY_ERROR_PEER_SLEEPING = 27, /* the peer closed because it is going to sleep */
     OSPLAY_RESULT_MAX_ENUM = 0x7FFFFFFF
 } osplay_result;
 
@@ -389,6 +390,9 @@ typedef struct osplay_session_callbacks {
      * (CLOSED with OSPLAY_OK); this side then hosts if it was the viewer and views if it hosted. */
     void (*on_role_swap_answer)(void* context, osplay_role_swap_answer answer,
                                 const uint8_t* peer_public_key);
+    /* Host: the link to the viewer changed; encode this stream at `bitrate_kbps` from now on
+     * (never above the configured bitrate). */
+    void (*on_bitrate_target)(void* context, uint8_t stream_id, uint32_t bitrate_kbps);
 } osplay_session_callbacks;
 
 typedef struct osplay_session osplay_session;
@@ -418,6 +422,10 @@ osplay_result osplay_viewer_session_create(const osplay_session_config* config,
  * OSPLAY_ERROR_INVALID_STATE.
  */
 osplay_result osplay_session_close(osplay_session* session);
+
+/* Like osplay_session_close, but tells the peer this device is going to sleep (the peer's session
+ * closes with OSPLAY_ERROR_PEER_SLEEPING, so it can wait for this device to come back). */
+osplay_result osplay_session_close_for_sleep(osplay_session* session);
 
 /* Sends Bye when possible, closes the sockets and joins the I/O thread. NULL is ignored. */
 void osplay_session_destroy(osplay_session* session);

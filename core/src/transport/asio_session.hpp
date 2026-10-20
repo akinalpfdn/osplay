@@ -73,6 +73,8 @@ public:
     /// Sends Bye and closes the connection without waiting; observers then see Closed. The
     /// I/O thread keeps running until the session is destroyed.
     void close();
+    /// As close, but tells the peer this device is going to sleep (Bye reason 3).
+    void close_for_sleep();
 
     /// Copies the shape and queues it; returns without waiting.
     void push_cursor_shape(const media::CursorShape& shape);

@@ -178,6 +178,22 @@ TEST(SessionEngine, RecoversFromFivePercentDatagramLossThroughNacksAndKeyframes)
     EXPECT_GE(sim.viewer.observer.frame_indices.back() + 30, sim.pushed.back());
 }
 
+TEST(SessionEngine, HeavyLossLowersTheHostsBitrateTarget) {
+    Simulation sim;
+    sim.network.media_loss = 0.10;
+    sim.connect();
+    sim.run_for(seconds(8));
+    ASSERT_FALSE(sim.host.observer.bitrate_targets.empty());
+    EXPECT_LT(sim.host.observer.bitrate_targets.back(), 20'000U) << "below the configured bitrate";
+}
+
+TEST(SessionEngine, ACleanLinkKeepsTheConfiguredBitrate) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(5));
+    EXPECT_TRUE(sim.host.observer.bitrate_targets.empty());
+}
+
 TEST(SessionEngine, ALostLastFrameArrivesAfterTheScreenStopsChanging) {
     Simulation sim;
     sim.connect();
@@ -326,6 +342,16 @@ TEST(SessionEngine, PausingStopsTheStreamAndResumingRestartsItWithAKeyframe) {
     EXPECT_EQ(sim.viewer.engine.state(), SessionState::Streaming);
     EXPECT_GT(sim.host.observer.keyframe_requests, keyframes_before);
     EXPECT_GT(sim.viewer.observer.frame_indices.size(), delivered + 30);
+}
+
+TEST(SessionEngine, APeerGoingToSleepClosesWithItsOwnReason) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+    sim.host.engine.close(protocol::ByeReason::Sleeping, sim.network.now);
+    sim.run_for(milliseconds(50));
+    EXPECT_EQ(sim.viewer.engine.state(), SessionState::Closed);
+    EXPECT_EQ(sim.viewer.observer.close_reason, Error::PeerSleeping);
 }
 
 TEST(SessionEngine, ByeClosesThePeerCleanly) {

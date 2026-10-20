@@ -46,6 +46,7 @@ add_library(osplay_core STATIC
     src/media/packetizer.cpp
     src/media/reassembler.cpp
     src/media/retransmit_cache.cpp
+    src/session/bitrate_controller.cpp
     src/session/control_framer.cpp
     src/session/session_engine.cpp
     src/transport/asio_session.cpp

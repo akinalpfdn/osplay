@@ -4,6 +4,7 @@
 // defaults are the shipping values, tests shorten them.
 
 #include "protocol/control_messages.hpp"
+#include "session/bitrate_controller.hpp"
 #include "util/time.hpp"
 
 #include <array>
@@ -40,6 +41,8 @@ struct SessionTunables {
     Microseconds missing_cursor_shape_grace{100'000};
     /// A role swap request without an answer for this long is given up (NoAnswer).
     Microseconds role_swap_timeout{10'000'000};
+    /// Host: how receiver reports move each stream's bitrate.
+    BitrateTunables bitrate;
 };
 
 struct SessionConfig {

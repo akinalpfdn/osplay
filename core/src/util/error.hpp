@@ -33,6 +33,7 @@ enum class Error : std::uint8_t {
     InvalidState = 24,
     NetworkError = 25,
     Internal = 26,
+    PeerSleeping = 27,
 };
 
 } // namespace osplay

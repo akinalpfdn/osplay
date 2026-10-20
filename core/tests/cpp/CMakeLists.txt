@@ -11,6 +11,7 @@ set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(osplay_core_tests
+    bitrate_controller_test.cpp
     capi_discovery_test.cpp
     capi_identity_test.cpp
     capi_protocol_test.cpp

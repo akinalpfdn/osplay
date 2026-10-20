@@ -397,6 +397,15 @@ arrives; Hello tells each side the other's minor version, so the request is not 
   250 ms per stream. More than 8 frames in flight has the same effect.
 - The host turns requests closer together than 100 ms into a single keyframe.
 
+### Bitrate adaptation
+
+The host adapts each stream's encoder bitrate from the viewer's ReceiverReports (once per second).
+An interval is congested when the viewer lost at least 1% of its frames or the host resent at least
+5% of the fragments it sent; the target then drops to 75%. After three clean intervals in a row it
+rises by 8%. It never exceeds the bitrate in StreamConfig and never drops below a quarter of it
+(at least 1 Mbit/s). Changes under 5% are not passed to the encoder. Nothing on the wire changes:
+StreamConfig keeps the configured bitrate.
+
 ## Encryption
 
 ### Handshake
@@ -490,6 +499,7 @@ Decoding and encoding report these codes, which are also the values of `osplay_r
 | 24 | INVALID_STATE | the command is not valid in the session's current state |
 | 25 | NETWORK | a socket could not be opened, connected or used |
 | 26 | INTERNAL | the core could not allocate memory or start its I/O thread |
+| 27 | PEER_SLEEPING | the peer closed the session with Bye 3 (going to sleep); it is expected back |
 
 ## Fixtures
 
