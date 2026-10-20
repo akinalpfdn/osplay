@@ -446,3 +446,10 @@ choices the plan leaves open are logged here.
 **Trade-offs:** A slow call (a session teardown) delays unrelated calls such as listing monitors.
 **Revisit if:** A call routinely takes long enough to make the UI feel stuck.
 
+## 2026-10-20 — User decision: an instant role swap comes right after Phase 12
+**Chosen:** A new DEVPLAN Phase 12b (phase file PHASE-016-SWAP-01): one shortcut on either computer reverses host and viewer of a running session, through a new control message; it runs before Phase 13.
+**Alternatives:** After Phase 13; inside Phase 13 with the reconnect logic.
+**Why:** The user sees it as the feature that sets Osplay apart and wants it next.
+**Trade-offs:** A protocol change before the robustness phase; a swap takes seconds (virtual display creation and the first keyframe), and windows on a removed virtual display move to the main screen.
+**Revisit if:** Swap time is too long to feel useful.
+
