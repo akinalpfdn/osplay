@@ -182,6 +182,10 @@ def fixtures() -> list[tuple[str, str, str, int, str, bytes]]:
          control(0x11, u16(999))),
         ("control/bye.bin", "control", v, 0x12, "Bye going to sleep", control(0x12, u8(3))),
         ("control/media_setup.bin", "control", v, 0x13, "MediaSetup", control(0x13, u16(50_123) + TOKEN)),
+        ("control/bye_role_swap.bin", "control", v, 0x12, "Bye for a role swap", control(0x12, u8(5))),
+        ("control/role_swap_request.bin", "control", v, 0x14, "RoleSwap request", control(0x14, u8(1) + u8(0))),
+        ("control/role_swap_refuse.bin", "control", v, 0x14, "RoleSwap refused: cannot host",
+         control(0x14, u8(3) + u8(1))),
 
         # Control: malformed.
         ("malformed/control_empty.bin", "control", e, TRUNCATED, "empty input", b""),
@@ -243,6 +247,15 @@ def fixtures() -> list[tuple[str, str, str, int, str, bytes]]:
         ("malformed/bye_reason_0.bin", "control", e, VALUE_OUT_OF_RANGE, "reason 0", control(0x12, u8(0))),
         ("malformed/media_setup_port_0.bin", "control", e, VALUE_OUT_OF_RANGE, "UDP port 0",
          control(0x13, u16(0) + TOKEN)),
+        ("malformed/bye_reason_6.bin", "control", e, VALUE_OUT_OF_RANGE, "reason 6", control(0x12, u8(6))),
+        ("malformed/role_swap_step_4.bin", "control", e, VALUE_OUT_OF_RANGE, "step 4",
+         control(0x14, u8(4) + u8(0))),
+        ("malformed/role_swap_accept_reason.bin", "control", e, VALUE_OUT_OF_RANGE, "acceptance with a reason",
+         control(0x14, u8(2) + u8(1))),
+        ("malformed/role_swap_refuse_no_reason.bin", "control", e, VALUE_OUT_OF_RANGE, "refusal without a reason",
+         control(0x14, u8(3) + u8(0))),
+        ("malformed/role_swap_truncated.bin", "control", e, TRUNCATED, "RoleSwap without its reason",
+         control(0x14, u8(1))),
 
         # Media: valid examples of every packet type.
         ("media/udp_hello.bin", "media", v, 0x01, "UdpHello", media(0x01, 0, TOKEN)),

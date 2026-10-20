@@ -343,6 +343,17 @@ typedef struct osplay_peer_info {
  * `on_state` and `on_trust_query` are required; any other member may be NULL. Keys are
  * OSPLAY_KEY_SIZE bytes.
  */
+/* NOLINTBEGIN(cppcoreguidelines-use-enum-class,performance-enum-size): plain C */
+/* The outcome of a role swap request (osplay_session_request_role_swap). */
+typedef enum osplay_role_swap_answer {
+    OSPLAY_ROLE_SWAP_ACCEPTED = 1,
+    OSPLAY_ROLE_SWAP_CANNOT_HOST = 2, /* the other side lacks a permission, driver or service */
+    OSPLAY_ROLE_SWAP_BUSY = 3,        /* the other side cannot swap right now */
+    OSPLAY_ROLE_SWAP_NO_ANSWER = 4,   /* no answer within 10 s (reported locally only) */
+    OSPLAY_ROLE_SWAP_ANSWER_MAX_ENUM = 0x7FFFFFFF
+} osplay_role_swap_answer;
+/* NOLINTEND(cppcoreguidelines-use-enum-class,performance-enum-size) */
+
 typedef struct osplay_session_callbacks {
     void* context;
     /* `reason` is OSPLAY_OK unless the session closed because of an error. */
@@ -370,6 +381,14 @@ typedef struct osplay_session_callbacks {
     void (*on_cursor_position)(void* context, const osplay_cursor_position* position);
     /* The peer stopped a stream for good (e.g. the viewer's monitor was unplugged). */
     void (*on_stream_stopped)(void* context, uint8_t stream_id);
+    /* The peer asks to reverse the roles: answer with osplay_session_answer_role_swap, not from
+     * this callback. Without it requests go unanswered (the peer sees NO_ANSWER). The key names the
+     * peer to reconnect to after the swap. */
+    void (*on_role_swap_request)(void* context, const uint8_t* peer_public_key);
+    /* The answer to osplay_session_request_role_swap. After ACCEPTED the peer closes the session
+     * (CLOSED with OSPLAY_OK); this side then hosts if it was the viewer and views if it hosted. */
+    void (*on_role_swap_answer)(void* context, osplay_role_swap_answer answer,
+                                const uint8_t* peer_public_key);
 } osplay_session_callbacks;
 
 typedef struct osplay_session osplay_session;
@@ -439,6 +458,15 @@ osplay_result osplay_session_pause_stream(osplay_session* session, uint8_t strea
 /* Ends one stream for good on both sides (the peer's on_stream_stopped); the session stays up. */
 osplay_result osplay_session_stop_stream(osplay_session* session, uint8_t stream_id);
 osplay_result osplay_session_resume_stream(osplay_session* session, uint8_t stream_id);
+
+/* Asks the peer to reverse the roles (streaming or paused only, one request at a time). The answer
+ * arrives in on_role_swap_answer. */
+osplay_result osplay_session_request_role_swap(osplay_session* session);
+
+/* Answers on_role_swap_request: ACCEPTED sends the acceptance and closes the session; CANNOT_HOST
+ * or BUSY refuses and keeps it running. */
+osplay_result osplay_session_answer_role_swap(osplay_session* session,
+                                              osplay_role_swap_answer answer);
 
 #ifdef __cplusplus
 } /* extern "C" */

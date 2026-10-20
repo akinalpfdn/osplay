@@ -339,6 +339,85 @@ TEST(SessionEngine, ByeClosesThePeerCleanly) {
     EXPECT_EQ(sim.host.observer.close_reason, Error::ConnectionClosed);
 }
 
+// --- Role swap -----------------------------------------------------------------------------------
+
+using osplay::session::RoleSwapAnswer;
+
+TEST(SessionEngine, AnAcceptedRoleSwapClosesBothSidesCleanly) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+    ASSERT_TRUE(sim.viewer.engine.request_role_swap(sim.network.now).has_value());
+    sim.run_for(milliseconds(50));
+    ASSERT_EQ(sim.host.observer.role_swap_requests, 1);
+    ASSERT_TRUE(sim.host.observer.role_swap_peer.has_value());
+    EXPECT_EQ(sim.host.engine.state(), SessionState::Streaming)
+        << "nothing changes before the answer";
+
+    ASSERT_TRUE(
+        sim.host.engine.answer_role_swap(RoleSwapAnswer::Accepted, sim.network.now).has_value());
+    sim.run_for(milliseconds(50));
+    EXPECT_EQ(sim.viewer.observer.role_swap_answers, std::vector{RoleSwapAnswer::Accepted});
+    EXPECT_EQ(sim.host.engine.state(), SessionState::Closed);
+    EXPECT_EQ(sim.viewer.engine.state(), SessionState::Closed);
+    EXPECT_FALSE(sim.host.observer.close_reason.has_value());
+    EXPECT_FALSE(sim.viewer.observer.close_reason.has_value()) << "a swap is not a lost connection";
+}
+
+TEST(SessionEngine, ARefusedRoleSwapKeepsTheSessionRunning) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+    ASSERT_TRUE(sim.host.engine.request_role_swap(sim.network.now).has_value());
+    sim.run_for(milliseconds(50));
+    ASSERT_EQ(sim.viewer.observer.role_swap_requests, 1);
+    ASSERT_TRUE(sim.viewer.engine.answer_role_swap(RoleSwapAnswer::CannotHost, sim.network.now)
+                    .has_value());
+    sim.run_for(milliseconds(50));
+    EXPECT_EQ(sim.host.observer.role_swap_answers, std::vector{RoleSwapAnswer::CannotHost});
+    const std::size_t delivered = sim.viewer.observer.frame_indices.size();
+    sim.run_for(milliseconds(500));
+    EXPECT_EQ(sim.host.engine.state(), SessionState::Streaming);
+    EXPECT_GT(sim.viewer.observer.frame_indices.size(), delivered);
+    EXPECT_FALSE(
+        sim.viewer.engine.answer_role_swap(RoleSwapAnswer::Accepted, sim.network.now).has_value())
+        << "a request is answered once";
+}
+
+TEST(SessionEngine, AnUnansweredRoleSwapIsGivenUpAndCanBeAskedAgain) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+    ASSERT_TRUE(sim.viewer.engine.request_role_swap(sim.network.now).has_value());
+    EXPECT_FALSE(sim.viewer.engine.request_role_swap(sim.network.now).has_value())
+        << "one request at a time";
+    sim.run_for(seconds(11));
+    EXPECT_EQ(sim.viewer.observer.role_swap_answers, std::vector{RoleSwapAnswer::NoAnswer});
+    EXPECT_EQ(sim.viewer.engine.state(), SessionState::Streaming);
+    EXPECT_TRUE(sim.viewer.engine.request_role_swap(sim.network.now).has_value());
+}
+
+TEST(SessionEngine, RoleSwapsAskedByBothSidesAtOnceAgree) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+    ASSERT_TRUE(sim.host.engine.request_role_swap(sim.network.now).has_value());
+    ASSERT_TRUE(sim.viewer.engine.request_role_swap(sim.network.now).has_value());
+    sim.run_for(milliseconds(100));
+    EXPECT_EQ(sim.host.observer.role_swap_answers, std::vector{RoleSwapAnswer::Accepted});
+    EXPECT_EQ(sim.viewer.observer.role_swap_answers, std::vector{RoleSwapAnswer::Accepted});
+    EXPECT_EQ(sim.host.engine.state(), SessionState::Closed);
+    EXPECT_EQ(sim.viewer.engine.state(), SessionState::Closed);
+    EXPECT_FALSE(sim.viewer.observer.close_reason.has_value());
+}
+
+TEST(SessionEngine, ARoleSwapNeedsARunningSession) {
+    Simulation sim;
+    EXPECT_FALSE(sim.viewer.engine.request_role_swap(sim.network.now).has_value());
+    EXPECT_FALSE(
+        sim.host.engine.answer_role_swap(RoleSwapAnswer::Accepted, sim.network.now).has_value());
+}
+
 // --- Cursor
 // ----------------------------------------------------------------------------------------
 

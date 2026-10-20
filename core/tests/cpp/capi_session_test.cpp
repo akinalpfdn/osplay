@@ -50,6 +50,10 @@ struct Side {
     std::vector<uint8_t> cursor_image;
     uint32_t cursor_shape_id = 0;
     std::vector<osplay_cursor_position> cursor_positions;
+    osplay_result close_reason = OSPLAY_OK;
+    int role_swap_requests = 0;
+    std::vector<osplay_role_swap_answer> role_swap_answers;
+    std::array<uint8_t, OSPLAY_KEY_SIZE> role_swap_peer{};
 
     size_t frame_count() {
         const std::scoped_lock lock(mutex);
@@ -79,9 +83,28 @@ struct Side {
     osplay_session_callbacks callbacks() {
         osplay_session_callbacks result{};
         result.context = this;
-        result.on_state = [](void* context, osplay_session_state new_state,
-                             osplay_result /*reason*/) {
-            update(context, [new_state](Side& side) { side.state = new_state; });
+        result.on_state = [](void* context, osplay_session_state new_state, osplay_result reason) {
+            update(context, [new_state, reason](Side& side) {
+                side.state = new_state;
+                side.close_reason = reason;
+            });
+        };
+        result.on_role_swap_request = [](void* context, const uint8_t* key) {
+            std::array<uint8_t, OSPLAY_KEY_SIZE> copy{};
+            std::memcpy(copy.data(), key, copy.size());
+            update(context, [copy](Side& side) {
+                ++side.role_swap_requests;
+                side.role_swap_peer = copy;
+            });
+        };
+        result.on_role_swap_answer = [](void* context, osplay_role_swap_answer answer,
+                                        const uint8_t* key) {
+            std::array<uint8_t, OSPLAY_KEY_SIZE> copy{};
+            std::memcpy(copy.data(), key, copy.size());
+            update(context, [answer, copy](Side& side) {
+                side.role_swap_answers.push_back(answer);
+                side.role_swap_peer = copy;
+            });
         };
         result.on_peer = [](void* context, const osplay_peer_info* peer) {
             update(context,
@@ -267,9 +290,24 @@ TEST(CapiSession, PairsConfiguresAndStreamsOverLoopback) {
     bad.length = 10;
     EXPECT_EQ(osplay_session_push_cursor_shape(host, &bad), OSPLAY_ERROR_INVALID_ARGUMENT);
 
-    ASSERT_EQ(osplay_session_close(viewer), OSPLAY_OK);
+    // Role swap: refused once, then accepted; the accepted swap closes both sides cleanly.
+    EXPECT_EQ(osplay_session_answer_role_swap(host, OSPLAY_ROLE_SWAP_NO_ANSWER),
+              OSPLAY_ERROR_INVALID_ARGUMENT);
+    ASSERT_EQ(osplay_session_request_role_swap(viewer), OSPLAY_OK);
+    ASSERT_TRUE(host_side.wait([](Side& side) { return side.role_swap_requests == 1; }));
+    EXPECT_EQ(host_side.role_swap_peer, host_side.paired.front()) << "the viewer's key";
+    ASSERT_EQ(osplay_session_answer_role_swap(host, OSPLAY_ROLE_SWAP_BUSY), OSPLAY_OK);
+    ASSERT_TRUE(viewer_side.wait([](Side& side) { return !side.role_swap_answers.empty(); }));
+    EXPECT_EQ(viewer_side.role_swap_answers.front(), OSPLAY_ROLE_SWAP_BUSY);
+
+    ASSERT_EQ(osplay_session_request_role_swap(viewer), OSPLAY_OK);
+    ASSERT_TRUE(host_side.wait([](Side& side) { return side.role_swap_requests == 2; }));
+    ASSERT_EQ(osplay_session_answer_role_swap(host, OSPLAY_ROLE_SWAP_ACCEPTED), OSPLAY_OK);
+    ASSERT_TRUE(viewer_side.wait([](Side& side) { return side.role_swap_answers.size() == 2; }));
+    EXPECT_EQ(viewer_side.role_swap_answers.back(), OSPLAY_ROLE_SWAP_ACCEPTED);
     EXPECT_TRUE(viewer_side.wait([](Side& side) { return side.state == OSPLAY_SESSION_CLOSED; }));
     EXPECT_TRUE(host_side.wait([](Side& side) { return side.state == OSPLAY_SESSION_CLOSED; }));
+    EXPECT_EQ(viewer_side.close_reason, OSPLAY_OK) << "a swap is an orderly close";
     EXPECT_EQ(osplay_session_confirm_pairing(viewer, 1), OSPLAY_ERROR_INVALID_STATE);
     osplay_session_destroy(viewer);
     osplay_session_destroy(host);

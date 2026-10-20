@@ -1,6 +1,6 @@
 # Osplay wire protocol
 
-Version 1.0. This document is authoritative: `core/src/protocol/` implements it, and
+Version 1.1. This document is authoritative: `core/src/protocol/` implements it, and
 `protocol/tools/generate_fixtures.py` independently encodes the binary fixtures in
 `protocol/fixtures/` from it. Both implementations must agree byte for byte.
 
@@ -87,6 +87,7 @@ messages (4112 with the 16-byte AEAD tag). A control message is:
 | 0x11 | Error | both | before closing on an error |
 | 0x12 | Bye | both | orderly close |
 | 0x13 | MediaSetup | host → viewer | UDP port and session token |
+| 0x14 | RoleSwap | both | reverse the roles of a running session (minor version 1) |
 
 Stream IDs are 0–3. Monitor IDs are 0–255 and chosen by the viewer.
 
@@ -96,7 +97,7 @@ Stream IDs are 0–3. Monitor IDs are 0–255 and chosen by the viewer.
 |-------|------|--------|
 | role | u8 | 1 host, 2 viewer |
 | platform | u8 | 1 macOS, 2 Windows |
-| protocol_minor | u8 | minor version of the sender (0) |
+| protocol_minor | u8 | minor version of the sender (1) |
 | reserved | u8 | 0 |
 | device_name | string | 1–64 bytes |
 
@@ -237,7 +238,7 @@ Empty body.
 
 | Field | Type | Values |
 |-------|------|--------|
-| reason | u8 | 1 user disconnected, 2 application quit, 3 going to sleep, 4 error |
+| reason | u8 | 1 user disconnected, 2 application quit, 3 going to sleep, 4 error, 5 role swap |
 
 ### 0x13 MediaSetup
 
@@ -245,6 +246,15 @@ Empty body.
 |-------|------|--------|
 | udp_port | u16 | 1–65535, the host's media socket |
 | session_token | bytes[16] | random per session |
+
+### 0x14 RoleSwap
+
+| Field | Type | Values |
+|-------|------|--------|
+| step | u8 | 1 request, 2 accept, 3 refuse |
+| refusal | u8 | 0 for a request or an acceptance; when refusing: 1 cannot host (a permission, driver or service is missing), 2 busy |
+
+See "Role swap" under "Session flow".
 
 ## Media channel (UDP)
 
@@ -349,6 +359,25 @@ is not delivered again.
    received nothing for **10 s** closes with a timeout, so shorter network interruptions are survived
    without user action.
 7. **Close.** Bye, then the TCP connection closes after the queued data.
+
+### Role swap
+
+Either side may ask to reverse the roles while streaming or paused, so the computer used as a
+display becomes the host and the other one its display.
+
+1. The asking side sends RoleSwap(request). It has at most one request outstanding; one without an
+   answer after **10 s** is given up locally.
+2. The other side checks that it can host and answers RoleSwap(accept) followed by **Bye(5)**, or
+   RoleSwap(refuse, reason); a refusal leaves the session running. A request, acceptance or refusal
+   that arrives when none is expected ends the session with Error 5.
+3. If both sides ask at once, they agree: the host answers with accept and Bye(5), the viewer waits
+   for it.
+4. After an accepted swap the former viewer starts a host session and advertises it; the former host
+   browses and connects to the advertisement whose `id` matches the peer's static key (Discovery).
+   The keys are already trusted, so no pairing code is shown.
+
+A peer with protocol minor 0 does not know RoleSwap and ends the session with Error 5 when it
+arrives; Hello tells each side the other's minor version, so the request is not sent to such peers.
 
 ### Loss recovery
 

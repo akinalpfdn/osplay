@@ -29,6 +29,14 @@ static_assert(OSPLAY_CODEC_H264_ANNEX_B == protocol::kCodecH264AnnexB);
 static_assert(static_cast<int>(OSPLAY_SESSION_CLOSED) ==
               static_cast<int>(session::SessionState::Closed));
 static_assert(static_cast<int>(OSPLAY_LOG_ERROR) == static_cast<int>(session::LogLevel::Error));
+static_assert(static_cast<int>(OSPLAY_ROLE_SWAP_ACCEPTED) ==
+              static_cast<int>(session::RoleSwapAnswer::Accepted));
+static_assert(static_cast<int>(OSPLAY_ROLE_SWAP_CANNOT_HOST) ==
+              static_cast<int>(session::RoleSwapAnswer::CannotHost));
+static_assert(static_cast<int>(OSPLAY_ROLE_SWAP_BUSY) ==
+              static_cast<int>(session::RoleSwapAnswer::Busy));
+static_assert(static_cast<int>(OSPLAY_ROLE_SWAP_NO_ANSWER) ==
+              static_cast<int>(session::RoleSwapAnswer::NoAnswer));
 
 osplay_result to_result(Error error) {
     return static_cast<osplay_result>(error);
@@ -253,6 +261,20 @@ public:
     void on_stream_stopped(std::uint8_t stream_id) override {
         if (callbacks_.on_stream_stopped != nullptr) {
             callbacks_.on_stream_stopped(callbacks_.context, stream_id);
+        }
+    }
+
+    void on_role_swap_request(const osplay::crypto::Key& key) override {
+        if (callbacks_.on_role_swap_request != nullptr) {
+            callbacks_.on_role_swap_request(callbacks_.context, key.data());
+        }
+    }
+
+    void on_role_swap_answer(session::RoleSwapAnswer answer,
+                             const osplay::crypto::Key& key) override {
+        if (callbacks_.on_role_swap_answer != nullptr) {
+            callbacks_.on_role_swap_answer(
+                callbacks_.context, static_cast<osplay_role_swap_answer>(answer), key.data());
         }
     }
 
@@ -589,6 +611,28 @@ osplay_result osplay_session_resume_stream(osplay_session* session, uint8_t stre
             return OSPLAY_ERROR_INVALID_ARGUMENT;
         }
         return to_status_result(session->session->resume_stream(stream_id));
+    });
+}
+
+osplay_result osplay_session_request_role_swap(osplay_session* session) {
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        return to_status_result(session->session->request_role_swap());
+    });
+}
+
+osplay_result osplay_session_answer_role_swap(osplay_session* session,
+                                              osplay_role_swap_answer answer) {
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr ||
+            (answer != OSPLAY_ROLE_SWAP_ACCEPTED && answer != OSPLAY_ROLE_SWAP_CANNOT_HOST &&
+             answer != OSPLAY_ROLE_SWAP_BUSY)) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        return to_status_result(
+            session->session->answer_role_swap(static_cast<session::RoleSwapAnswer>(answer)));
     });
 }
 

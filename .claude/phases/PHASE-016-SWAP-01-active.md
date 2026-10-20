@@ -1,5 +1,5 @@
 # Phase 016 (SWAP-01) — Instant role swap
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 12b. Depends on: Phase 12. Runs next, before PHASE-014 (DEVPLAN Phase 13)
 — user decision 2026-10-20.

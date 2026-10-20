@@ -21,6 +21,9 @@ control/error_incompatible.bin	control	valid	17	Error incompatible version
 control/error_unknown_code.bin	control	valid	17	Error with a code from a newer version
 control/bye.bin	control	valid	18	Bye going to sleep
 control/media_setup.bin	control	valid	19	MediaSetup
+control/bye_role_swap.bin	control	valid	18	Bye for a role swap
+control/role_swap_request.bin	control	valid	20	RoleSwap request
+control/role_swap_refuse.bin	control	valid	20	RoleSwap refused: cannot host
 malformed/control_empty.bin	control	error	3	empty input
 malformed/control_prefix_only.bin	control	error	3	prefix without type
 malformed/control_bad_magic.bin	control	error	4	magic is not OP
@@ -55,6 +58,11 @@ malformed/receiver_report_loss.bin	control	error	8	loss 1001 permille
 malformed/heartbeat_with_body.bin	control	error	7	Heartbeat with a body
 malformed/bye_reason_0.bin	control	error	8	reason 0
 malformed/media_setup_port_0.bin	control	error	8	UDP port 0
+malformed/bye_reason_6.bin	control	error	8	reason 6
+malformed/role_swap_step_4.bin	control	error	8	step 4
+malformed/role_swap_accept_reason.bin	control	error	8	acceptance with a reason
+malformed/role_swap_refuse_no_reason.bin	control	error	8	refusal without a reason
+malformed/role_swap_truncated.bin	control	error	3	RoleSwap without its reason
 media/udp_hello.bin	media	valid	1	UdpHello
 media/video_keyframe_single.bin	media	valid	2	keyframe with SPS/PPS in one fragment
 media/video_middle_fragment.bin	media	valid	2	full middle fragment of three

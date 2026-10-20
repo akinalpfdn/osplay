@@ -18,6 +18,8 @@ constexpr std::uint16_t kPeerErrorPairingRejected = 2;
 constexpr std::uint16_t kPeerErrorNotTrusted = 3;
 constexpr std::uint16_t kPeerErrorBusy = 4;
 constexpr std::uint16_t kPeerErrorUnexpected = 5;
+/// The first protocol minor version that knows RoleSwap.
+constexpr std::uint8_t kRoleSwapMinorVersion = 1;
 constexpr std::uint64_t kMicrosPerSecond = 1'000'000;
 constexpr std::uint64_t kMillihertzMicros = 1'000'000'000; // frame interval = this / refresh_mhz
 
@@ -308,6 +310,8 @@ bool SessionEngine::is_expected(protocol::ControlType type) const {
     case ControlType::Nack:
     case ControlType::ReceiverReport:
         return host && negotiated;
+    case ControlType::RoleSwap:
+        return state_ == SessionState::Streaming || state_ == SessionState::Paused;
     case ControlType::Capabilities:
     case ControlType::StreamPause:
     case ControlType::StreamResume:
@@ -351,7 +355,13 @@ void SessionEngine::handle_message(const ControlMessage& message, TimePoint now)
                    [&](const protocol::Pong& m) { handle_pong(m, now); },
                    [&](const protocol::Heartbeat& /*m*/) {},
                    [&](const protocol::PeerError& m) { handle_peer_error(m); },
-                   [&](const protocol::Bye& /*m*/) { abort_session(Error::ConnectionClosed); },
+                   [&](const protocol::Bye& m) {
+                       // A swap the two sides agreed on is an orderly end, not a lost connection.
+                       abort_session(m.reason == protocol::ByeReason::RoleSwap
+                                         ? std::nullopt
+                                         : std::optional<Error>(Error::ConnectionClosed));
+                   },
+                   [&](const protocol::RoleSwap& m) { handle_role_swap(m, now); },
                    [&](const auto& stream_control) { handle_stream_control(stream_control, now); },
                },
                message);
@@ -365,6 +375,7 @@ void SessionEngine::handle_hello(const protocol::Hello& hello) {
         return;
     }
     peer_hello_received_ = true;
+    peer_protocol_minor_ = hello.protocol_minor;
     observer_.on_peer(hello);
     const bool initiator = config_.role == protocol::Role::Viewer;
     handshake_.emplace(initiator ? crypto::HandshakeRole::Initiator
@@ -734,6 +745,86 @@ void SessionEngine::handle_peer_error(const protocol::PeerError& error) {
     abort_session(reason_for_peer_error(error.code));
 }
 
+Status<Error> SessionEngine::request_role_swap(TimePoint now) {
+    if ((state_ != SessionState::Streaming && state_ != SessionState::Paused) || closing_ ||
+        role_swap_requested_at_) {
+        return Status<Error>::failure(Error::InvalidState);
+    }
+    if (peer_protocol_minor_ < kRoleSwapMinorVersion) {
+        return Status<Error>::failure(Error::UnsupportedVersion); // the peer would not know it
+    }
+    role_swap_requested_at_ = now;
+    send(protocol::RoleSwap{.step = protocol::RoleSwapStep::Request}, now);
+    return Status<Error>::ok();
+}
+
+Status<Error> SessionEngine::answer_role_swap(RoleSwapAnswer answer, TimePoint now) {
+    if (!role_swap_offered_ || closing_ || state_ == SessionState::Closed ||
+        answer == RoleSwapAnswer::NoAnswer) {
+        return Status<Error>::failure(answer == RoleSwapAnswer::NoAnswer ? Error::InvalidArgument
+                                                                         : Error::InvalidState);
+    }
+    role_swap_offered_ = false;
+    if (answer == RoleSwapAnswer::Accepted) {
+        send(protocol::RoleSwap{.step = protocol::RoleSwapStep::Accept}, now);
+        close(protocol::ByeReason::RoleSwap, now);
+        return Status<Error>::ok();
+    }
+    send(protocol::RoleSwap{.step = protocol::RoleSwapStep::Refuse,
+                            .refusal = answer == RoleSwapAnswer::CannotHost
+                                           ? protocol::RoleSwapRefusal::CannotHost
+                                           : protocol::RoleSwapRefusal::Busy},
+         now);
+    return Status<Error>::ok();
+}
+
+void SessionEngine::handle_role_swap(const protocol::RoleSwap& message, TimePoint now) {
+    switch (message.step) {
+    case protocol::RoleSwapStep::Request:
+        if (role_swap_requested_at_) {
+            // Both asked at once: they agree. The host answers for both; the viewer waits for it.
+            if (config_.role == protocol::Role::Host) {
+                role_swap_requested_at_.reset();
+                observer_.on_role_swap_answer(RoleSwapAnswer::Accepted, peer_static_);
+                role_swap_offered_ = true;
+                static_cast<void>(answer_role_swap(RoleSwapAnswer::Accepted, now));
+            }
+            return;
+        }
+        if (role_swap_offered_) {
+            fail(Error::UnexpectedMessage, kPeerErrorUnexpected, now);
+            return;
+        }
+        role_swap_offered_ = true;
+        observer_.on_role_swap_request(peer_static_);
+        return;
+    case protocol::RoleSwapStep::Accept:
+    case protocol::RoleSwapStep::Refuse: {
+        if (!role_swap_requested_at_) {
+            fail(Error::UnexpectedMessage, kPeerErrorUnexpected, now);
+            return;
+        }
+        role_swap_requested_at_.reset();
+        RoleSwapAnswer answer = RoleSwapAnswer::Accepted;
+        if (message.step == protocol::RoleSwapStep::Refuse) {
+            answer = message.refusal == protocol::RoleSwapRefusal::CannotHost
+                         ? RoleSwapAnswer::CannotHost
+                         : RoleSwapAnswer::Busy;
+        }
+        observer_.on_role_swap_answer(answer, peer_static_);
+        return;
+    }
+    }
+}
+
+void SessionEngine::expire_role_swap(TimePoint now) {
+    if (role_swap_requested_at_ &&
+        now - *role_swap_requested_at_ >= config_.tunables.role_swap_timeout) {
+        role_swap_requested_at_.reset();
+        observer_.on_role_swap_answer(RoleSwapAnswer::NoAnswer, peer_static_);
+    }
+}
+
 void SessionEngine::close(protocol::ByeReason reason, TimePoint now) {
     if (state_ == SessionState::Closed || closing_) {
         return;
@@ -1036,6 +1127,7 @@ void SessionEngine::on_timer(TimePoint now) {
             next_report_ = now + tunables.report_interval;
         }
     }
+    expire_role_swap(now);
     repeat_tails(now);
     if (now >= next_stats_) {
         publish_stats(now);
