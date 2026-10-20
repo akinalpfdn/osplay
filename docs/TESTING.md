@@ -52,4 +52,4 @@ Record each run in the table at the end: date, build, network (wired or Wi-Fi ba
 
 | Date | Build | Network | Scenarios | Result | Notes |
 |------|-------|---------|-----------|--------|-------|
-| | | | | | |
+| 2026-10-20 | `3fe19bd` | Wi-Fi | I1–I4 (sleep/wake both ways), S3 (Disconnect then Connect) | Pass | Found and fixed on the way: no connect timeout, frozen frame under Modern Standby, stale port after a session |
