@@ -73,6 +73,17 @@ internal abstract class EngineSession : IAsyncDisposable
 
     public abstract Task StopAsync();
 
+    /// <summary>Ends the session telling the other computer this PC is going to sleep.</summary>
+    public Task SuspendAsync() => Native.Run(() =>
+    {
+        if (Handle != 0)
+        {
+            _ = Suspend(Handle);
+        }
+    });
+
+    protected abstract EngineResult Suspend(nint handle);
+
     public async ValueTask DisposeAsync()
     {
         await Native.Run(() =>
@@ -246,6 +257,8 @@ internal sealed unsafe class EngineHost : EngineSession
 
     protected override EngineResult RequestRoleSwap(nint handle) => NativeMethods.HostRequestRoleSwap(handle);
 
+    protected override EngineResult Suspend(nint handle) => NativeMethods.HostSuspend(handle);
+
     protected override EngineResult AnswerRoleSwap(nint handle, RoleSwapAnswer answer) =>
         NativeMethods.HostAnswerRoleSwap(handle, answer);
 }
@@ -270,6 +283,9 @@ internal sealed unsafe class EngineViewer : EngineSession
 
     /// <summary>The figures of every stream, about once a second.</summary>
     public event Action<IReadOnlyList<StreamFigures>>? Statistics;
+
+    /// <summary>An offered monitor changed its mode; the session closes so it can start over.</summary>
+    public event Action? MonitorsChanged;
 
     public static Task<(EngineResult Result, EngineViewer? Viewer)> StartAsync(
         Dispatcher dispatcher, ViewerOptions options)
@@ -309,6 +325,7 @@ internal sealed unsafe class EngineViewer : EngineSession
                         OnPeer = &OnPeer,
                         OnRoleSwapRequest = &OnRoleSwapRequest,
                         OnRoleSwapAnswer = &OnRoleSwapAnswer,
+                        OnMonitorsChanged = &OnMonitorsChanged,
                     };
                     nint handle;
                     EngineResult result = NativeMethods.ViewerStart(&config, &callbacks, &handle);
@@ -377,6 +394,8 @@ internal sealed unsafe class EngineViewer : EngineSession
 
     protected override EngineResult RequestRoleSwap(nint handle) => NativeMethods.ViewerRequestRoleSwap(handle);
 
+    protected override EngineResult Suspend(nint handle) => NativeMethods.ViewerSuspend(handle);
+
     protected override EngineResult AnswerRoleSwap(nint handle, RoleSwapAnswer answer) =>
         NativeMethods.ViewerAnswerRoleSwap(handle, answer);
 
@@ -386,6 +405,14 @@ internal sealed unsafe class EngineViewer : EngineSession
         var self = (EngineViewer)From(context);
         Log.Write(LogLevel.Warning, $"Stream {streamId} stopped: {reason}");
         self.Post(() => self.RaiseStreamFailed(reason));
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnMonitorsChanged(nint context)
+    {
+        var self = (EngineViewer)From(context);
+        Log.Write(LogLevel.Info, "An offered monitor changed its mode; connecting again");
+        self.Post(() => self.MonitorsChanged?.Invoke());
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]

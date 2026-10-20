@@ -26,6 +26,7 @@ internal static class ErrorMessages
         CoreResult.PairingRejected => Localization.Strings.ErrorPairingRejected,
         CoreResult.UnsupportedVersion => Localization.Strings.ErrorIncompatible,
         CoreResult.PeerBusy => Localization.Strings.ErrorPeerBusy,
+        CoreResult.PeerSleeping => Localization.Strings.ErrorPeerSleeping,
         CoreResult.TimedOut or CoreResult.Network or CoreResult.ConnectionClosed => Localization.Strings.ErrorUnreachable,
         _ => LocalizedText.Format(Localization.Strings.ErrorSession, (int)result),
     };

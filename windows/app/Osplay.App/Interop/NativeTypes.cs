@@ -54,6 +54,7 @@ internal enum CoreResult
     PairingRejected = 22,
     PeerBusy = 23,
     Network = 25,
+    PeerSleeping = 27,
 }
 
 /// <summary>osplay_session_state.</summary>
@@ -210,6 +211,7 @@ internal unsafe struct NativeViewerCallbacks
     public delegate* unmanaged[Cdecl]<nint, Platform, byte*, void> OnPeer;
     public delegate* unmanaged[Cdecl]<nint, byte*, void> OnRoleSwapRequest;
     public delegate* unmanaged[Cdecl]<nint, RoleSwapAnswer, byte*, void> OnRoleSwapAnswer;
+    public delegate* unmanaged[Cdecl]<nint, void> OnMonitorsChanged;
 }
 
 /// <summary>osplay_stream_stats.</summary>

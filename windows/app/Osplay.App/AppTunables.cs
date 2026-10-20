@@ -29,6 +29,9 @@ internal static class AppTunables
     /// <summary>A tray click right after the panel lost focus to it closes the panel instead of reopening it.</summary>
     public static readonly TimeSpan PanelReopenGuard = TimeSpan.FromMilliseconds(300);
 
+    /// <summary>Copy diagnostics includes this many of the newest log lines.</summary>
+    public const int DiagnosticsLogLines = 300;
+
     /// <summary>The paired devices the engine can store.</summary>
     public const int MaxPairedDevices = 256;
 }

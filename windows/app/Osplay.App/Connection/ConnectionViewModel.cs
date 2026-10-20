@@ -37,6 +37,15 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private string? _autoConnectDeviceId;
     private CancellationTokenSource? _autoConnectTimeout;
     private GlobalHotkey? _swapHotkey;
+    private GlobalHotkey? _statsHotkey;
+    private ViewedHost? _viewedHost;
+    /// <summary>The user ended the session; it does not come back by itself.</summary>
+    private bool _endedByUser;
+    /// <summary>This PC closed the session itself (sleep, monitor change) and resumes it afterwards.</summary>
+    private bool _resumesAfterClose;
+
+    /// <summary>The host being viewed, so the session can come back after an interruption.</summary>
+    private sealed record ViewedHost(string DeviceId, string Name);
 
     /// <summary>After an accepted role swap: the role this PC takes once the session has closed.</summary>
     private sealed record PendingSwap(ConnectionMode Role, string PeerDeviceId, string PeerName);
@@ -47,6 +56,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         _pairing = pairing;
         _settings = settings;
         _settings.PropertyChanged += OnSettingChanged;
+        Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
         NetworkChange.NetworkAddressChanged += (_, _) => _dispatcher.BeginInvoke(RefreshNetworkAsync);
     }
 
@@ -166,6 +176,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        _statsHotkey?.Dispose();
         _gate.Dispose();
         _autoConnectTimeout?.Dispose();
         _swapHotkey?.Dispose();
@@ -271,6 +283,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task DisconnectAsync()
     {
+        _endedByUser = true;
         if (_host is not null)
         {
             await _host.StopAsync().ConfigureAwait(true);
@@ -407,7 +420,10 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             }
             _viewer = viewer;
             _peerName = device.Name;
+            _viewedHost = new ViewedHost(device.DeviceId, device.Name);
+            _endedByUser = false;
             Attach(viewer);
+            viewer.MonitorsChanged += () => _resumesAfterClose = true;
             viewer.VisibilityChanged += visible => IsViewerVisible = visible;
             viewer.Statistics += OnStatistics;
             IsViewerVisible = true;
@@ -538,31 +554,78 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             return;
         }
         Status = Format(Localization.Strings.ConnectionStatusSwapping, swap.PeerName);
-        DeviceInfo? known = _found.Values.FirstOrDefault(d => d.DeviceId == swap.PeerDeviceId);
-        if (known is not null)
+        if (!await AwaitHostAsync(swap.PeerDeviceId, AppTunables.SwapReconnectTimeout).ConfigureAwait(true))
         {
-            await ConnectAsync(known).ConfigureAwait(true);
-            return;
-        }
-        _autoConnectDeviceId = swap.PeerDeviceId;
-        _autoConnectTimeout?.Cancel();
-        _autoConnectTimeout?.Dispose();
-        _autoConnectTimeout = new CancellationTokenSource();
-        try
-        {
-            await Task.Delay(AppTunables.SwapReconnectTimeout, _autoConnectTimeout.Token).ConfigureAwait(true);
-        }
-        catch (TaskCanceledException)
-        {
-            return; // found, or the mode changed
-        }
-        if (_autoConnectDeviceId == swap.PeerDeviceId)
-        {
-            _autoConnectDeviceId = null;
             ErrorMessage = Localization.Strings.ErrorSwapNotFound;
             Status = Localization.Strings.ConnectionStatusSearching;
         }
     }
+
+    /// <summary>
+    /// Connects to this device as soon as Bonjour finds it as a host. Returns false when the
+    /// timeout passed first; a null timeout waits as long as viewing stays on.
+    /// </summary>
+    private async Task<bool> AwaitHostAsync(string deviceId, TimeSpan? timeout)
+    {
+        DeviceInfo? known = _found.Values.FirstOrDefault(d => d.DeviceId == deviceId);
+        if (known is not null)
+        {
+            await ConnectAsync(known).ConfigureAwait(true);
+            return true;
+        }
+        _autoConnectDeviceId = deviceId;
+        _autoConnectTimeout?.Cancel();
+        _autoConnectTimeout?.Dispose();
+        _autoConnectTimeout = new CancellationTokenSource();
+        if (timeout is null)
+        {
+            return true; // OnFound connects when it appears
+        }
+        try
+        {
+            await Task.Delay(timeout.Value, _autoConnectTimeout.Token).ConfigureAwait(true);
+        }
+        catch (TaskCanceledException)
+        {
+            return true; // found, or the mode changed
+        }
+        if (_autoConnectDeviceId != deviceId)
+        {
+            return true;
+        }
+        _autoConnectDeviceId = null;
+        return false;
+    }
+
+    // --- Interruptions --------------------------------------------------------------------------
+
+    // Raised on a system events thread.
+    private void OnPowerModeChanged(object? sender, Microsoft.Win32.PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == Microsoft.Win32.PowerModes.Suspend)
+        {
+            _ = _dispatcher.BeginInvoke(() => _ = SuspendForSleepAsync());
+        }
+    }
+
+    /// <summary>Tells the other computer this PC is going away for a while; a viewer comes back after wake.</summary>
+    private async Task SuspendForSleepAsync()
+    {
+        if (_viewer is not null)
+        {
+            _resumesAfterClose = true;
+            await _viewer.SuspendAsync().ConfigureAwait(true);
+        }
+        if (_host is not null)
+        {
+            await _host.SuspendAsync().ConfigureAwait(true);
+        }
+    }
+
+    /// <summary>Whether a closed viewer session should wait for its host and connect again.</summary>
+    private bool ComesBack(CoreResult reason) =>
+        _viewedHost is not null && !_endedByUser && Mode == ConnectionMode.Viewing &&
+        (_resumesAfterClose || reason is CoreResult.PeerSleeping or CoreResult.TimedOut or CoreResult.Network);
 
     private void RegisterSwapHotkey()
     {
@@ -572,6 +635,17 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         }
         _swapHotkey = GlobalHotkey.Register(_settings.SwapHotkey, () => SwapRolesCommand.Execute(null));
         IsSwapHotkeyTaken = _swapHotkey is null;
+    }
+
+    /// <summary>The overlay shortcut is optional: a taken one leaves the Settings switch.</summary>
+    private void RegisterStatsHotkey() =>
+        _statsHotkey ??= GlobalHotkey.Register(
+            _settings.StatsHotkey, () => _settings.ShowsStatsOverlay = !_settings.ShowsStatsOverlay);
+
+    private void UnregisterStatsHotkey()
+    {
+        _statsHotkey?.Dispose();
+        _statsHotkey = null;
     }
 
     private void UnregisterSwapHotkey()
@@ -598,6 +672,10 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
                 Status = Format(Localization.Strings.ConnectionStatusConnected, PeerName(session));
                 IsStreaming = true;
                 RegisterSwapHotkey();
+                if (ReferenceEquals(session, _viewer))
+                {
+                    RegisterStatsHotkey();
+                }
                 _ = RefreshPeersAsync();
                 break;
             default:
@@ -610,19 +688,30 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         _pairing.Close();
         IsStreaming = false;
         UnregisterSwapHotkey();
-        if (reason != CoreResult.Ok && reason != CoreResult.ConnectionClosed)
+        bool viewerComesBack = ReferenceEquals(session, _viewer) && ComesBack(reason);
+        // A peer leaving or going to sleep is not an error; neither is a drop that heals by itself.
+        if (reason is not (CoreResult.Ok or CoreResult.ConnectionClosed or CoreResult.PeerSleeping) && !viewerComesBack)
         {
             ErrorMessage = ErrorMessages.For(reason);
         }
         if (ReferenceEquals(session, _viewer))
         {
+            ViewedHost? host = _viewedHost;
             _viewer = null;
+            _viewedHost = null;
+            _resumesAfterClose = false;
             _figures = [];
             IsSessionActive = false;
+            UnregisterStatsHotkey();
             await session.DisposeAsync().ConfigureAwait(true);
             if (_pendingSwap is not null)
             {
                 await PerformSwapAsync().ConfigureAwait(true);
+            }
+            else if (viewerComesBack && host is not null)
+            {
+                Status = Format(Localization.Strings.ConnectionStatusReconnecting, host.Name);
+                _ = await AwaitHostAsync(host.DeviceId, null).ConfigureAwait(true);
             }
             else if (Mode == ConnectionMode.Viewing)
             {
@@ -769,8 +858,11 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         _pairing.Close();
         _autoConnectDeviceId = null;
         _autoConnectTimeout?.Cancel();
+        _endedByUser = true;
+        _viewedHost = null;
         IsStreaming = false;
         UnregisterSwapHotkey();
+        UnregisterStatsHotkey();
         _found.Clear();
         Devices.Clear();
         EngineBrowser? browser = _browser;

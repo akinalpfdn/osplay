@@ -369,4 +369,28 @@
   <data name="ErrorSwapNotFound" xml:space="preserve">
     <value>After the swap the other computer did not appear. Choose it under Nearby computers once it does.</value>
   </data>
+  <data name="ConnectionStatusReconnecting" xml:space="preserve">
+    <value>Waiting for {0} to come back…</value>
+  </data>
+  <data name="ErrorPeerSleeping" xml:space="preserve">
+    <value>The other computer went to sleep.</value>
+  </data>
+  <data name="SettingsStatsHotkey" xml:space="preserve">
+    <value>Show or hide statistics</value>
+  </data>
+  <data name="DiagnosticsTitle" xml:space="preserve">
+    <value>Diagnostics</value>
+  </data>
+  <data name="DiagnosticsCopy" xml:space="preserve">
+    <value>Copy diagnostics</value>
+  </data>
+  <data name="DiagnosticsDescription" xml:space="preserve">
+    <value>Copies versions, settings and the recent log for a bug report. Device names and network addresses are replaced.</value>
+  </data>
+  <data name="DiagnosticsCopied" xml:space="preserve">
+    <value>Copied. Paste it into your bug report.</value>
+  </data>
+  <data name="DiagnosticsFailed" xml:space="preserve">
+    <value>Another program is using the clipboard. Try again.</value>
+  </data>
 </root>

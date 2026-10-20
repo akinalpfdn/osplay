@@ -369,4 +369,28 @@
   <data name="ErrorSwapNotFound" xml:space="preserve">
     <value>Değişimden sonra diğer bilgisayar görünmedi. Göründüğünde Yakındaki bilgisayarlar altından seçin.</value>
   </data>
+  <data name="ConnectionStatusReconnecting" xml:space="preserve">
+    <value>{0} bilgisayarının geri gelmesi bekleniyor…</value>
+  </data>
+  <data name="ErrorPeerSleeping" xml:space="preserve">
+    <value>Diğer bilgisayar uyku moduna geçti.</value>
+  </data>
+  <data name="SettingsStatsHotkey" xml:space="preserve">
+    <value>İstatistikleri göster veya gizle</value>
+  </data>
+  <data name="DiagnosticsTitle" xml:space="preserve">
+    <value>Teşhis</value>
+  </data>
+  <data name="DiagnosticsCopy" xml:space="preserve">
+    <value>Teşhis bilgisini kopyala</value>
+  </data>
+  <data name="DiagnosticsDescription" xml:space="preserve">
+    <value>Hata bildirimi için sürümleri, ayarları ve son kayıtları kopyalar. Cihaz adları ve ağ adresleri gizlenir.</value>
+  </data>
+  <data name="DiagnosticsCopied" xml:space="preserve">
+    <value>Kopyalandı. Hata bildiriminize yapıştırın.</value>
+  </data>
+  <data name="DiagnosticsFailed" xml:space="preserve">
+    <value>Pano başka bir program tarafından kullanılıyor. Yeniden deneyin.</value>
+  </data>
 </root>
