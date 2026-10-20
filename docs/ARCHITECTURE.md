@@ -209,9 +209,11 @@ Consequences for Osplay:
   **disable the device**, which removes the monitor. Both need administrator rights, hence the
   helper service.
 - Osplay never uses the driver's pipe: it cannot change modes, and it is open to every user.
-- Osplay owns `vdd_settings.xml` and rewrites it before every session: one monitor, one mode (the
-  viewer's exact pixel size and refresh rate), no global refresh rates, hardware cursor on (the
-  pointer stays out of captured frames and is sent separately).
+- Osplay owns `vdd_settings.xml` and rewrites it before every session: one monitor per viewer
+  monitor (up to four), every distinct mode they need (the first monitor's first, which is the mode
+  every monitor starts in), no global refresh rates, hardware cursor on (the pointer stays out of
+  captured frames and is sent separately). The driver creates its monitors with connector indexes
+  0…n-1; each monitor offers every listed mode, and the engine sets each one's own mode.
 - Osplay takes over the driver: other software using the same VDD installation will see its
   monitor disabled outside Osplay sessions.
 
@@ -222,10 +224,10 @@ rights and accepts four commands from the engine:
 
 | Command | Effect |
 |---------|--------|
-| Configure (width, height, refresh, GPU name) | Validates the values, writes `vdd_settings.xml`; restarts the device if a monitor is present. |
-| Enable | Enables the device: the monitor appears with the configured mode. Requires a prior Configure. |
-| Disable | Disables the device: the monitor disappears. Persistent across reboots. |
-| Status | Reports whether the driver is installed, the monitor present and the configuration. |
+| Configure (1–4 monitors: width, height, refresh; one GPU name) | Validates the values, writes `vdd_settings.xml`; restarts the device if it is enabled, so a new monitor count applies at once. |
+| Enable | Enables the device: the monitors appear. Requires a prior Configure. |
+| Disable | Disables the device: every monitor disappears. Persistent across reboots. |
+| Status | Reports whether the driver is installed, the device enabled, how many monitors are configured and the first one's mode. |
 
 Safety rules:
 
@@ -251,16 +253,19 @@ All integers little-endian; one request and one response per pipe message; 512 b
 Implemented once in `windows/shared/src/helper_protocol.cpp`.
 
 ```
-Request:  magic u32 = "OSPH" | version u16 = 1 | command u16 | payload_length u32 | payload
-Response: magic u32 = "OSPH" | version u16 = 1 | result u16  | payload_length u32 | payload
+Request:  magic u32 = "OSPH" | version u16 = 2 | command u16 | payload_length u32 | payload
+Response: magic u32 = "OSPH" | version u16 = 2 | result u16  | payload_length u32 | payload
 
 Configure (command 1) payload:
-  width u32 | height u32 | refresh_millihertz u32 | gpu_name_length u16 | gpu_name (UTF-8)
+  count u8 (1–4) | reserved u8 | gpu_name_length u16 | gpu_name (UTF-8) |
+  count × (width u32 | height u32 | refresh_millihertz u32)
 Enable (2), Disable (3), Status (4): no payload
 
 Response payload (always 16 bytes):
-  vdd_installed u8 | device_enabled u8 | configured u8 | reserved u8 |
-  width u32 | height u32 | refresh_millihertz u32
+  vdd_installed u8 | device_enabled u8 | configured u8 | monitor_count u8 |
+  width u32 | height u32 | refresh_millihertz u32   (the first monitor's mode)
+
+Version 1 (one monitor) is refused with UnsupportedVersion: the engine and the helper ship together.
 
 Result codes: 0 Ok, 1 MalformedRequest, 2 UnsupportedVersion, 3 UnknownCommand,
   4 ValueOutOfRange, 5 VddNotInstalled, 6 DeviceControlFailed, 7 ConfigWriteFailed, 8 NotConfigured
@@ -274,14 +279,17 @@ Result codes: 0 Ok, 1 MalformedRequest, 2 UnsupportedVersion, 3 UnknownCommand,
 `HelperVirtualDisplayProvider` implements it over a `HelperChannel` (the named pipe in production,
 a fake in tests).
 
-Creating a monitor is three steps: the helper writes the settings (Configure) and enables the
-device (Enable); then the engine sets the mode. Windows gives a new monitor its own default mode
+Creating the monitors is three steps: the helper writes the settings (Configure) and enables the
+device (Enable); then the engine sets each monitor's mode. Windows gives a new monitor its own default mode
 (800×600 for this driver, measured on the developer PC) even when the driver offers only the
 requested one, and display settings belong to the user's session, which a session-0 service cannot
-change. `GdiDisplayModeApplier` therefore finds the monitor — the active CCD path whose adapter
+change. `GdiDisplayModeApplier` therefore finds the monitors — the active CCD paths whose adapter
 interface path starts with the driver device's instance ID (`ROOT\DISPLAY\0000` →
-`\\?\ROOT#DISPLAY#0000#`) — waits up to 5 s for it to join the desktop, applies the mode with
-`ChangeDisplaySettingsExW` and reads it back. If that fails, the monitor is removed again.
+`\\?\ROOT#DISPLAY#0000#`), ordered by target id — waits up to 5 s for all of them to join the
+desktop, stores each mode with `ChangeDisplaySettingsExW` (`CDS_NORESET`), applies them together
+and reads every one back. If that fails, the monitors are removed again. The host then captures
+each monitor by its GDI name with its own Desktop Duplication and encoder pipeline (one stream per
+viewer monitor); when the viewer stops one stream, the device starts again with the others.
 
 ## Host media pipeline on Windows
 
