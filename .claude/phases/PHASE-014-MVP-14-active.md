@@ -1,5 +1,5 @@
 # Phase 014 (MVP-14) — Robustness and diagnostics
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 13. Depends on: Phase 11, Phase 12.
 
