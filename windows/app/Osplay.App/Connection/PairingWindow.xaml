@@ -1,28 +1,33 @@
-<Window x:Class="Osplay.App.Connection.PairingWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:res="clr-namespace:Osplay.Localization;assembly=Osplay.Localization"
-        Title="{x:Static res:Strings.PairingTitle}"
-        SizeToContent="WidthAndHeight"
-        ResizeMode="NoResize"
-        WindowStartupLocation="CenterScreen"
-        Topmost="True"
-        ShowInTaskbar="True">
-  <StackPanel Margin="{StaticResource Osplay.Thickness.DialogPadding}" Width="{StaticResource Osplay.Width.PairingDialog}">
-    <TextBlock x:Name="Message" TextWrapping="Wrap" TextAlignment="Center"
-               FontSize="{StaticResource Osplay.FontSize.Body}" />
-    <TextBlock x:Name="Code" HorizontalAlignment="Center"
-               Margin="{StaticResource Osplay.Thickness.SectionGap}"
-               FontFamily="{StaticResource Osplay.Font.Monospace}"
-               FontSize="{StaticResource Osplay.FontSize.PairingCode}" FontWeight="SemiBold" />
-    <TextBlock Text="{x:Static res:Strings.PairingHint}" TextWrapping="Wrap" TextAlignment="Center"
-               Foreground="{StaticResource Osplay.Brush.SecondaryText}"
-               FontSize="{StaticResource Osplay.FontSize.Caption}" />
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="{StaticResource Osplay.Thickness.SectionGap}">
-      <Button Content="{x:Static res:Strings.PairingReject}" IsCancel="True" Click="OnReject"
-              MinWidth="{StaticResource Osplay.Width.Button}" Margin="{StaticResource Osplay.Thickness.ButtonGap}" />
-      <Button Content="{x:Static res:Strings.PairingAccept}" IsDefault="True" Click="OnAccept"
-              MinWidth="{StaticResource Osplay.Width.Button}" />
+<ui:FluentWindow x:Class="Osplay.App.Connection.PairingWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:res="clr-namespace:Osplay.Localization;assembly=Osplay.Localization"
+                 Title="{x:Static res:Strings.PairingTitle}"
+                 SizeToContent="WidthAndHeight"
+                 ResizeMode="NoResize"
+                 WindowStartupLocation="CenterScreen"
+                 Topmost="True"
+                 ShowInTaskbar="True"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="Mica"
+                 WindowCornerPreference="Round">
+  <StackPanel Width="{StaticResource Osplay.Width.PairingDialog}">
+    <ui:TitleBar Title="{x:Static res:Strings.PairingTitle}" ShowMaximize="False" ShowMinimize="False" />
+    <StackPanel Margin="{StaticResource Osplay.Thickness.DialogPadding}">
+      <TextBlock x:Name="Message" TextAlignment="Center" Style="{StaticResource Osplay.Text.Body}" />
+      <TextBlock x:Name="Code" HorizontalAlignment="Center" Margin="{StaticResource Osplay.Thickness.SectionGap}"
+                 FontFamily="{StaticResource Osplay.Font.Monospace}"
+                 FontSize="{StaticResource Osplay.FontSize.PairingCode}" FontWeight="{StaticResource Osplay.FontWeight.Emphasis}"
+                 Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+      <TextBlock Margin="{StaticResource Osplay.Thickness.SectionGap}" Text="{x:Static res:Strings.PairingHint}"
+                 TextAlignment="Center" Style="{StaticResource Osplay.Text.Caption}" />
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="{StaticResource Osplay.Thickness.SectionGap}">
+        <ui:Button Content="{x:Static res:Strings.PairingReject}" IsCancel="True" Click="OnReject"
+                   MinWidth="{StaticResource Osplay.Width.Button}" Margin="{StaticResource Osplay.Thickness.ButtonGap}" />
+        <ui:Button Content="{x:Static res:Strings.PairingAccept}" IsDefault="True" Click="OnAccept" Appearance="Primary"
+                   MinWidth="{StaticResource Osplay.Width.Button}" />
+      </StackPanel>
     </StackPanel>
   </StackPanel>
-</Window>
+</ui:FluentWindow>

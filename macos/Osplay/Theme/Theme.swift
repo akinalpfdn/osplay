@@ -83,8 +83,13 @@ enum Theme {
         static let sweepDuration: Double = 2
     }
 
+    /// Images from the asset catalog.
+    enum Artwork {
+        /// Template image: the system tints it for the menu bar.
+        static let menuBar = "MenuBarIcon"
+    }
+
     enum Symbol {
-        static let menuBar = "display.2"
         static let mac = "laptopcomputer"
         static let windows = "pc"
         static let sharing = "display.2"

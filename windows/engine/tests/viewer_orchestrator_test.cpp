@@ -8,6 +8,7 @@
 #include <mutex>
 #include <optional>
 #include <set>
+#include <string>
 #include <vector>
 
 namespace {
@@ -52,6 +53,13 @@ struct StreamRecord {
     std::atomic<bool> visible{true};
     std::atomic<bool> alive{true};
     ViewerStreamSink* sink = nullptr;
+
+    std::string overlay() const {
+        const std::scoped_lock lock(mutex);
+        return overlay_text;
+    }
+    mutable std::mutex mutex;
+    std::string overlay_text;
 };
 
 class FakeStream final : public ViewerStream {
@@ -68,6 +76,10 @@ public:
         ++record_->units;
     }
     void set_visible(bool visible) override { record_->visible = visible; }
+    void set_overlay(const std::string& text) override {
+        const std::scoped_lock lock(record_->mutex);
+        record_->overlay_text = text;
+    }
     [[nodiscard]] ViewerStreamStats stats() const override {
         return {.frames_presented = static_cast<std::uint64_t>(record_->units.load()),
                 .decode_errors = 0};
@@ -156,6 +168,22 @@ TEST(ViewerOrchestrator, EachStreamIsPresentedOnTheMonitorTheHostChose) {
     h.orchestrator.on_access_unit(unit(7)); // unknown stream: ignored
     EXPECT_EQ(h.factory.records[0]->units, 2);
     EXPECT_EQ(h.orchestrator.stats().at(0).frames_presented, 2U);
+}
+
+TEST(ViewerOrchestrator, TheOverlayReachesRunningStreamsAndStreamsThatStartLater) {
+    Harness h;
+    h.orchestrator.set_overlay(1, "early");
+    h.orchestrator.on_stream_config(stream(0, 0));
+    h.orchestrator.on_stream_config(stream(1, 1));
+    h.orchestrator.wait_idle();
+    ASSERT_EQ(h.factory.records.size(), 2U);
+    EXPECT_EQ(h.factory.records[0]->overlay(), "");
+    EXPECT_EQ(h.factory.records[1]->overlay(), "early");
+
+    h.orchestrator.set_overlay(0, "60 fps");
+    h.orchestrator.set_overlay(1, "");
+    EXPECT_EQ(h.factory.records[0]->overlay(), "60 fps");
+    EXPECT_EQ(h.factory.records[1]->overlay(), "");
 }
 
 TEST(ViewerOrchestrator, AStreamForAnUnknownMonitorIsRefused) {

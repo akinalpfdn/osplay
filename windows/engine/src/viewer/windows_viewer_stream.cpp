@@ -7,7 +7,9 @@
 
 #include <windows.h>
 
+#include <d2d1_1.h>
 #include <d3d11_4.h>
+#include <dwrite.h>
 #include <dxgi1_3.h>
 #include <wrl/client.h>
 
@@ -18,6 +20,7 @@
 #include <future>
 #include <mutex>
 #include <optional>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -57,6 +60,21 @@ RECT aspect_fit(UINT source_width, UINT source_height, UINT target_width, UINT t
                 .top = top,
                 .right = static_cast<LONG>(target_width),
                 .bottom = top + static_cast<LONG>(scaled_height)};
+}
+
+std::wstring widen(const std::string& text) {
+    if (text.empty()) {
+        return {};
+    }
+    const int length =
+        MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
+    if (length <= 0) {
+        return {};
+    }
+    std::wstring wide(static_cast<std::size_t>(length), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), wide.data(),
+                        length);
+    return wide;
 }
 
 class WindowsViewerStream final : public ViewerStream {
@@ -118,6 +136,19 @@ public:
 
     void set_visible(bool visible) override { PresentationThread::show_window(window_, visible); }
 
+    void set_overlay(const std::string& text) override {
+        std::wstring wide = widen(text);
+        {
+            const std::scoped_lock lock(mutex_);
+            if (wide == overlay_) {
+                return;
+            }
+            overlay_ = std::move(wide);
+            overlay_changed_ = true;
+        }
+        changed_.notify_all();
+    }
+
     [[nodiscard]] ViewerStreamStats stats() const override {
         return {.frames_presented = presented_.load(), .decode_errors = errors_.load()};
     }
@@ -142,6 +173,7 @@ private:
     /// Media Foundation and COM objects go before this thread leaves its apartment.
     void release() {
         decoder_.reset();
+        release_overlay();
         processor_.Reset();
         enumerator_.Reset();
         swap_chain_.Reset();
@@ -220,11 +252,26 @@ private:
         while (true) {
             QueuedUnit unit;
             bool skip = false;
+            std::optional<std::wstring> overlay;
             {
                 std::unique_lock lock(mutex_);
-                changed_.wait(lock, [this] { return stopping_ || !queue_.empty(); });
+                changed_.wait(lock,
+                              [this] { return stopping_ || !queue_.empty() || overlay_changed_; });
                 if (stopping_) {
                     return;
+                }
+                if (overlay_changed_) {
+                    overlay = overlay_;
+                    overlay_changed_ = false;
+                }
+            }
+            if (overlay) {
+                update_overlay(std::move(*overlay));
+            }
+            {
+                const std::scoped_lock lock(mutex_);
+                if (queue_.empty()) {
+                    continue;
                 }
                 unit = std::move(queue_.front());
                 queue_.pop_front();
@@ -259,9 +306,17 @@ private:
 
     /// Converts the decoded slice into the back buffer and presents it at once.
     void present(ID3D11Texture2D* texture, UINT slice) {
-        // At most one frame queued for the display: wait until the previous one is picked up.
-        if (waitable_ != nullptr) {
-            WaitForSingleObjectEx(waitable_, kPresentWaitMilliseconds, TRUE);
+        wait_for_swap_chain();
+        if (!overlay_text_.empty()) {
+            // The overlay needs the picture kept apart, so a new text can be drawn without a frame.
+            if (!create_frame() || !blit(texture, slice, frame_.Get())) {
+                return;
+            }
+            frame_valid_ = true;
+            if (present_frame()) {
+                ++presented_;
+            }
+            return;
         }
         ComPtr<ID3D11Texture2D> back_buffer;
         if (FAILED(swap_chain_->GetBuffer(0, IID_PPV_ARGS(&back_buffer))) ||
@@ -271,6 +326,162 @@ private:
         if (SUCCEEDED(swap_chain_->Present(0, 0))) {
             ++presented_;
         }
+    }
+
+    /// At most one frame queued for the display: wait until the previous one is picked up.
+    void wait_for_swap_chain() const {
+        if (waitable_ != nullptr) {
+            WaitForSingleObjectEx(waitable_, kPresentWaitMilliseconds, TRUE);
+        }
+    }
+
+    /// A new overlay text: shown on the last picture at once, even while the screen is still.
+    void update_overlay(std::wstring text) {
+        overlay_text_ = std::move(text);
+        if (frame_valid_) {
+            wait_for_swap_chain();
+            static_cast<void>(present_frame()); // a failed redraw waits for the next frame
+        }
+        if (overlay_text_.empty()) {
+            frame_.Reset(); // back to decoding straight into the swap chain
+            frame_valid_ = false;
+        }
+    }
+
+    bool create_frame() {
+        if (frame_ != nullptr) {
+            return true;
+        }
+        D3D11_TEXTURE2D_DESC desc{};
+        desc.Width = monitor_.description.width_px;
+        desc.Height = monitor_.description.height_px;
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.Usage = D3D11_USAGE_DEFAULT;
+        desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+        return SUCCEEDED(device_->CreateTexture2D(&desc, nullptr, &frame_));
+    }
+
+    /// The kept picture with the overlay over it.
+    bool present_frame() {
+        ComPtr<ID3D11Texture2D> back_buffer;
+        if (FAILED(swap_chain_->GetBuffer(0, IID_PPV_ARGS(&back_buffer)))) {
+            return false;
+        }
+        context_->CopyResource(back_buffer.Get(), frame_.Get());
+        draw_overlay(back_buffer.Get()); // the picture still goes out if text cannot be drawn
+        return SUCCEEDED(swap_chain_->Present(0, 0));
+    }
+
+    void draw_overlay(ID3D11Texture2D* back_buffer) {
+        if (overlay_text_.empty() || !create_overlay_resources(back_buffer)) {
+            return;
+        }
+        ComPtr<IDWriteTextLayout> layout;
+        if (FAILED(write_factory_->CreateTextLayout(
+                overlay_text_.c_str(), static_cast<UINT32>(overlay_text_.size()),
+                text_format_.Get(), static_cast<float>(monitor_.description.width_px),
+                static_cast<float>(monitor_.description.height_px), &layout))) {
+            return;
+        }
+        DWRITE_TEXT_METRICS metrics{};
+        if (FAILED(layout->GetMetrics(&metrics))) {
+            return;
+        }
+        const float scale = overlay_scale();
+        const float margin = kOverlayMargin * scale;
+        const float padding = kOverlayPadding * scale;
+        const float radius = kOverlayCornerRadius * scale;
+        const D2D1_RECT_F box{.left = margin,
+                              .top = margin,
+                              .right = margin + metrics.width + (2 * padding),
+                              .bottom = margin + metrics.height + (2 * padding)};
+        draw_context_->SetTarget(draw_target_.Get());
+        draw_context_->BeginDraw();
+        draw_context_->FillRoundedRectangle(
+            D2D1_ROUNDED_RECT{.rect = box, .radiusX = radius, .radiusY = radius},
+            background_brush_.Get());
+        draw_context_->DrawTextLayout(D2D1_POINT_2F{.x = margin + padding, .y = margin + padding},
+                                      layout.Get(), text_brush_.Get());
+        static_cast<void>(draw_context_->EndDraw()); // a lost frame of text is redrawn next time
+        draw_context_->SetTarget(nullptr);
+    }
+
+    /// The monitor's scaling, so the overlay has the same size in points as on the Mac.
+    [[nodiscard]] float overlay_scale() const {
+        const auto percent = monitor_.description.scale_percent;
+        return percent == 0 ? 1.0F : static_cast<float>(percent) / 100.0F;
+    }
+
+    /// Direct2D and DirectWrite objects, made on first use of the overlay.
+    bool create_overlay_resources(ID3D11Texture2D* back_buffer) {
+        if (draw_target_ != nullptr) {
+            return true;
+        }
+        ComPtr<IDXGIDevice> dxgi_device;
+        ComPtr<ID2D1Device> draw_device;
+        ComPtr<IDXGISurface> surface;
+        // Multithreaded: the decoder uses the same D3D11 device from Media Foundation's threads.
+        if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED,
+                                     draw_factory_.GetAddressOf())) ||
+            FAILED(device_.As(&dxgi_device)) ||
+            FAILED(draw_factory_->CreateDevice(dxgi_device.Get(), &draw_device)) ||
+            FAILED(draw_device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
+                                                    &draw_context_)) ||
+            FAILED(
+                DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
+                                    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+                                    reinterpret_cast<IUnknown**>(write_factory_.GetAddressOf()))) ||
+            FAILED(write_factory_->CreateTextFormat(
+                kOverlayFontFamily, nullptr, DWRITE_FONT_WEIGHT_MEDIUM, DWRITE_FONT_STYLE_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL, kOverlayFontSize * overlay_scale(), L"",
+                &text_format_)) ||
+            FAILED(draw_context_->CreateSolidColorBrush(
+                D2D1_COLOR_F{.r = 0.0F, .g = 0.0F, .b = 0.0F, .a = kOverlayBackgroundOpacity},
+                &background_brush_)) ||
+            FAILED(draw_context_->CreateSolidColorBrush(color(kOverlayTextColor), &text_brush_)) ||
+            FAILED(back_buffer->QueryInterface(IID_PPV_ARGS(&surface)))) {
+            release_overlay();
+            return false;
+        }
+        text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+        // The flip-model back buffer 0 always names the buffer being drawn, so one target serves
+        // every frame.
+        const D2D1_BITMAP_PROPERTIES1 properties{
+            .pixelFormat = {.format = DXGI_FORMAT_B8G8R8A8_UNORM,
+                            .alphaMode = D2D1_ALPHA_MODE_IGNORE},
+            .dpiX = 96.0F,
+            .dpiY = 96.0F,
+            .bitmapOptions = D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+            .colorContext = nullptr};
+        if (FAILED(draw_context_->CreateBitmapFromDxgiSurface(surface.Get(), &properties,
+                                                              &draw_target_))) {
+            release_overlay();
+            return false;
+        }
+        return true;
+    }
+
+    static D2D1_COLOR_F color(std::uint32_t rgb) {
+        constexpr float kMax = 255.0F;
+        return {.r = static_cast<float>((rgb >> 16U) & 0xFFU) / kMax,
+                .g = static_cast<float>((rgb >> 8U) & 0xFFU) / kMax,
+                .b = static_cast<float>(rgb & 0xFFU) / kMax,
+                .a = 1.0F};
+    }
+
+    void release_overlay() {
+        draw_target_.Reset();
+        text_brush_.Reset();
+        background_brush_.Reset();
+        text_format_.Reset();
+        write_factory_.Reset();
+        draw_context_.Reset();
+        draw_factory_.Reset();
+        frame_.Reset();
+        frame_valid_ = false;
     }
 
     bool blit(ID3D11Texture2D* source, UINT slice, ID3D11Texture2D* target) {
@@ -370,6 +581,16 @@ private:
     HANDLE waitable_ = nullptr;
     std::unique_ptr<MfH264Decoder> decoder_;
     ULONGLONG last_keyframe_request_ = 0;
+    std::wstring overlay_text_;     // what the overlay shows; empty while hidden
+    ComPtr<ID3D11Texture2D> frame_; // the picture, kept only while the overlay shows
+    bool frame_valid_ = false;
+    ComPtr<ID2D1Factory1> draw_factory_;
+    ComPtr<ID2D1DeviceContext> draw_context_;
+    ComPtr<ID2D1Bitmap1> draw_target_;
+    ComPtr<IDWriteFactory> write_factory_;
+    ComPtr<IDWriteTextFormat> text_format_;
+    ComPtr<ID2D1SolidColorBrush> background_brush_;
+    ComPtr<ID2D1SolidColorBrush> text_brush_;
 
     std::atomic<std::uint64_t> presented_{0};
     std::atomic<std::uint64_t> errors_{0};
@@ -379,6 +600,8 @@ private:
     std::deque<QueuedUnit> queue_;
     bool waiting_for_keyframe_ = true;
     bool stopping_ = false;
+    std::wstring overlay_;         // set by the shell's thread
+    bool overlay_changed_ = false; // tells the decode thread to redraw
     std::thread thread_;
 };
 

@@ -183,7 +183,7 @@ cd osplay
 
 # Allow the repository's helper script for this PowerShell session only.
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-# Load the Visual Studio x64 compiler environment (skip this inside "Developer PowerShell for VS").
+# Load the Visual Studio x64 compiler environment (also inside "Developer PowerShell for VS").
 . .\scripts\windows\Enter-DevShell.ps1
 
 # Native engine, helper service and core tests
@@ -201,12 +201,19 @@ dotnet run --project Osplay.App -c Release
 ```
 
 Build the native part first: the shell copies `OsplayEngine.dll` from `windows\build\debug\bin`
-(another preset: `-p:OsplayNativeBin=<folder>`). The shell starts without a window and shows an
-"O" icon in the notification area; right-click it for the menu. Windows may hide new icons in the
-overflow menu (the `^` arrow on the taskbar).
+(another preset: `-p:OsplayNativeBin=<folder>`). The shell starts without a window and shows the
+Osplay icon (two monitors) in the notification area: click it for the panel, right-click it for the
+quick menu. Windows may hide new icons in the overflow menu (the `^` arrow on the taskbar).
 
 Build outputs land in `windows/build/<preset>/` for native code (executables and
 `OsplayEngine.dll` in `windows/build/<preset>/bin/`) and in `bin/` folders for .NET.
+
+`Enter-DevShell.ps1` finds Visual Studio through the Visual Studio Installer. If the installer has
+lost track of an installation that is still on disk, the script falls back to the newest
+`vcvars64.bat` under `Program Files\Microsoft Visual Studio` and says so. It also clears the
+`Platform=x64` variable the Visual Studio environment sets, which would otherwise make
+`dotnet build` look for a `Release|x64` configuration that the solution does not have. Close the
+running shell before rebuilding: it locks `OsplayEngine.dll` in its output folder.
 
 ### Virtual monitor (developer setup)
 
@@ -320,15 +327,22 @@ The installer will set both up from Phase 14 on; until then, once per machine:
 7. Test both use cases end to end (DEVPLAN Phase 10). Run the WPF shell (`dotnet run --project
    Osplay.App -c Release`) on the PC and the Mac app on the Mac, on the same network:
 
-   - **Use case 1 (the Mac gains the PC's monitors):** Mac menu → Devices → **Share screens**; PC
-     tray → **Use as a display** → **Connect to** → the Mac. The first time, both computers show the
-     same six-digit code; accept on both. The Mac gains one display per PC monitor.
-   - **Use case 2 (Windows gains the MacBook's screen):** PC tray → **Share this PC's screen**; Mac
-     menu → Devices → **Use as display** → **Connect**. The Windows virtual monitor appears full
-     screen on the MacBook with the Windows pointer; ⌃⌥⌘V hides and shows it.
-   - **Revoke:** on either side, Paired devices → the other computer → **Revoke**. Its next
-     connection is refused ("refused this Mac/PC") without a pairing code; **Remove** lets it pair
-     again.
+   - **Use case 1 (the Mac gains the PC's monitors):** Mac menu → **Extend this Mac**; PC panel →
+     **Use as display** → (optionally click a monitor in the picture to leave it out) → the Mac under
+     **Nearby computers**. The first time, both computers show the same six-digit code; accept on
+     both. The Mac gains one display per offered PC monitor; Ctrl+Alt+Shift+V (or the panel's **Hide
+     or show the display**) hides and shows them on the PC.
+   - **Use case 2 (Windows gains the MacBook's screen):** PC panel → **Extend this PC**; Mac menu →
+     **Use as display** → the PC. The Windows virtual monitor appears full screen on the MacBook with
+     the Windows pointer; ⌃⌥⌘V hides and shows it.
+   - **Revoke:** Mac Settings › Devices, or PC Settings › Devices → **Revoke**. The other
+     computer's next connection is refused ("refused this Mac/PC") without a pairing code;
+     **Remove** lets it pair again.
+   - **Shell checks (Phase 12):** switch Windows between light and dark (Settings › Personalization
+     › Colors) with the panel and Settings open — both follow at once, and the tray icon follows the
+     taskbar. Settings › Advanced shows the helper and driver as ready (stop the OsplayHelper
+     service to see the repair message). Turn on the stats overlay and watch a Mac display: one line
+     of figures in its top-left corner.
 
    The identity and paired devices live in the Keychain (items named "Osplay") on the Mac and in
    `%APPDATA%\Osplay` (DPAPI) on Windows; deleting them makes both sides pair again.

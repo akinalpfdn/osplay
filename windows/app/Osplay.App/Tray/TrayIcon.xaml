@@ -4,58 +4,55 @@
                     xmlns:res="clr-namespace:Osplay.Localization;assembly=Osplay.Localization"
                     xmlns:tray="clr-namespace:Osplay.App.Tray"
                     xmlns:connection="clr-namespace:Osplay.App.Connection">
-  <BooleanToVisibilityConverter x:Key="Osplay.Converter.BooleanToVisibility" />
-
-  <!-- A menu entry bound to an item with Header and Command (devices, peer actions). -->
-  <Style x:Key="Osplay.Style.CommandMenuItem" TargetType="MenuItem">
-    <Setter Property="Header" Value="{Binding Header}" />
-    <Setter Property="Command" Value="{Binding Command}" />
-  </Style>
-
-  <!-- A paired device: its name, opening Revoke / Remove. -->
-  <Style x:Key="Osplay.Style.PeerMenuItem" TargetType="MenuItem">
-    <Setter Property="Header" Value="{Binding Header}" />
-    <Setter Property="ItemsSource" Value="{Binding Actions}" />
-    <Setter Property="ItemContainerStyle" Value="{StaticResource Osplay.Style.CommandMenuItem}" />
-  </Style>
-
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="../Theme/Styles.xaml" />
+  </ResourceDictionary.MergedDictionaries>
+  <!-- A click opens the panel; the menu has status and quick actions (DEVPLAN Phase 12). -->
   <tb:TaskbarIcon x:Key="Osplay.Tray.Icon"
                   ToolTipText="{x:Static res:Strings.TrayToolTip}"
+                  NoLeftClickDelay="True"
+                  LeftClickCommand="{Binding TogglePanelCommand}"
                   d:DataContext="{d:DesignInstance Type=tray:TrayViewModel}"
                   xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                   mc:Ignorable="d">
-    <tb:TaskbarIcon.IconSource>
-      <tb:GeneratedIconSource Text="{StaticResource Osplay.Tray.IconGlyph}"
-                              Foreground="{StaticResource Osplay.Brush.TrayIconForeground}"
-                              Background="{StaticResource Osplay.Brush.TrayIconBackground}"
-                              FontSize="{StaticResource Osplay.FontSize.TrayIconGlyph}"
-                              FontWeight="Bold" />
-    </tb:TaskbarIcon.IconSource>
     <tb:TaskbarIcon.ContextMenu>
       <ContextMenu>
         <MenuItem Header="{Binding Connection.Status}" IsEnabled="False" />
         <MenuItem Header="{Binding Connection.ErrorMessage}" IsEnabled="False"
                   Visibility="{Binding Connection.HasError, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
         <Separator />
-        <MenuItem Header="{x:Static res:Strings.TrayModeOff}" IsChecked="{Binding Connection.IsOff, Mode=OneWay}"
-                  Command="{Binding Connection.SetModeCommand}"
-                  CommandParameter="{x:Static connection:ConnectionMode.Off}" />
-        <MenuItem Header="{x:Static res:Strings.TrayModeSharing}" IsChecked="{Binding Connection.IsSharing, Mode=OneWay}"
+        <MenuItem Header="{x:Static res:Strings.RoleSharingTitle}" IsCheckable="False"
+                  IsChecked="{Binding Connection.IsSharing, Mode=OneWay}"
+                  IsEnabled="{Binding Connection.IsEngineAvailable}"
                   Command="{Binding Connection.SetModeCommand}"
                   CommandParameter="{x:Static connection:ConnectionMode.Sharing}" />
-        <MenuItem Header="{x:Static res:Strings.TrayModeViewing}" IsChecked="{Binding Connection.IsViewing, Mode=OneWay}"
+        <MenuItem Header="{x:Static res:Strings.RoleViewingTitle}" IsCheckable="False"
+                  IsChecked="{Binding Connection.IsViewing, Mode=OneWay}"
+                  IsEnabled="{Binding Connection.IsEngineAvailable}"
                   Command="{Binding Connection.SetModeCommand}"
                   CommandParameter="{x:Static connection:ConnectionMode.Viewing}" />
-        <MenuItem Header="{x:Static res:Strings.TrayDevices}" ItemsSource="{Binding Connection.Devices}"
-                  ItemContainerStyle="{StaticResource Osplay.Style.CommandMenuItem}"
-                  Visibility="{Binding Connection.IsViewing, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
+        <MenuItem Header="{x:Static res:Strings.ViewerHideShow}" Command="{Binding Connection.ToggleViewerCommand}">
+          <MenuItem.Style>
+            <Style TargetType="MenuItem">
+              <Setter Property="Visibility" Value="Collapsed" />
+              <Style.Triggers>
+                <MultiDataTrigger>
+                  <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding Connection.IsViewing}" Value="True" />
+                    <Condition Binding="{Binding Connection.IsSessionActive}" Value="True" />
+                  </MultiDataTrigger.Conditions>
+                  <Setter Property="Visibility" Value="Visible" />
+                </MultiDataTrigger>
+              </Style.Triggers>
+            </Style>
+          </MenuItem.Style>
+        </MenuItem>
         <MenuItem Header="{x:Static res:Strings.TrayDisconnect}" Command="{Binding Connection.DisconnectCommand}"
                   Visibility="{Binding Connection.IsSessionActive, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
         <Separator />
-        <MenuItem Header="{x:Static res:Strings.TrayPaired}" ItemsSource="{Binding Connection.Peers}"
-                  ItemContainerStyle="{StaticResource Osplay.Style.PeerMenuItem}" />
-        <Separator />
+        <MenuItem Header="{x:Static res:Strings.TrayOpen}" Command="{Binding TogglePanelCommand}" FontWeight="{StaticResource Osplay.FontWeight.Emphasis}" />
+        <MenuItem Header="{x:Static res:Strings.PanelSettings}" Command="{Binding OpenSettingsCommand}" />
         <MenuItem Header="{x:Static res:Strings.TrayQuit}" Command="{Binding QuitCommand}" />
       </ContextMenu>
     </tb:TaskbarIcon.ContextMenu>

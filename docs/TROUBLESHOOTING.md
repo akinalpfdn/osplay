@@ -50,10 +50,17 @@ whole path is measured with a camera:
 
 DEVPLAN targets: median under 40 ms on wired gigabit, under 60 ms on 5 GHz Wi-Fi.
 
-## Windows viewer: Ctrl+Alt+Shift+V does nothing
+## Windows viewer: the hide/show shortcut does nothing
 
-Another program registered the same global shortcut first. `OsplayViewerTest` says so when it
-starts ("hotkey unavailable"); close the other program or change its shortcut.
+Another program registered the same global shortcut first; Osplay says so when the connection
+starts. Choose another shortcut in Settings › General (it applies from the next connection), or close
+the other program.
+
+## Windows: "Sharing this PC's screen" shows a problem
+
+Sharing needs the OsplayHelper service and the Virtual Display Driver. Settings › Advanced shows
+which one is missing; start "OsplayHelper" in Services, or reinstall Osplay, which installs both
+again and keeps the paired devices. Logs are in `%LOCALAPPDATA%\Osplay\logs`.
 
 ## macOS: a Windows viewer cannot connect
 
@@ -66,7 +73,8 @@ connections for Osplay.
 Both computers must be on the same network and subnet (guest Wi-Fi networks often isolate devices).
 On the Mac, Osplay needs Local Network access (System Settings › Privacy & Security › Local
 Network); without it the list stays empty, or the menu says Bonjour is not allowed. On Windows the
-network profile must be **Private**, and Windows Defender Firewall asks once whether Osplay may
+network profile should be **Private** (on a Public network Osplay suggests this once; a Public
+network can still work when the firewall allows Osplay), and Windows Defender Firewall asks once whether Osplay may
 accept connections: allow it for private networks. `OsplayViewerTest.exe --browse` shows what the
 PC sees.
 

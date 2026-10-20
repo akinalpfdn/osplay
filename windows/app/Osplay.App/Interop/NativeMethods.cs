@@ -7,6 +7,10 @@ internal static unsafe partial class NativeMethods
 {
     private const string _engine = "OsplayEngine";
 
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_core_version")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial NativeVersion CoreVersion();
+
     [LibraryImport(_engine, EntryPoint = "osplay_engine_identity")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult Identity(byte* publicKey, byte* deviceId);
@@ -82,4 +86,24 @@ internal static unsafe partial class NativeMethods
     [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_destroy")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial void ViewerDestroy(nint viewer);
+
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_list_monitors")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial EngineResult ListMonitors(NativeMonitor* monitors, nuint capacity, nuint* count);
+
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_set_overlay")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial EngineResult ViewerSetOverlay(nint viewer, byte streamId, byte* text);
+
+    [LibraryImport(_engine, EntryPoint = "osplay_virtual_display_open")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial EngineResult VirtualDisplayOpen(nint* display);
+
+    [LibraryImport(_engine, EntryPoint = "osplay_virtual_display_status")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial EngineResult VirtualDisplayStatus(nint display, NativeVirtualMonitorStatus* status);
+
+    [LibraryImport(_engine, EntryPoint = "osplay_virtual_display_close")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial void VirtualDisplayClose(nint display);
 }

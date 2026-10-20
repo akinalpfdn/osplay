@@ -420,3 +420,36 @@ choices the plan leaves open are logged here.
 **Revisit if:** The protocol gets a newest-frame announcement in another message (e.g. a host report).
 
 ---
+
+## 2026-10-20 — User decision: the Windows shell mirrors the Mac's menu bar app
+**Chosen:** A tray icon whose click opens a panel (roles, devices, monitors, quality) and a separate Settings window, instead of a main window with a navigation pane.
+**Alternatives:** A Fluent main window with a left navigation pane (Home, Devices, Settings) opened from the tray.
+**Why:** The user wanted both apps to work the same way; Osplay is used in short visits, which a panel suits.
+**Trade-offs:** The panel has a fixed width, so long lists scroll less comfortably than in a window.
+**Revisit if:** The panel grows beyond what fits above the taskbar.
+
+---
+
+## 2026-10-20 — The engine draws the Windows stats overlay; the shell writes its text
+**Chosen:** `osplay_engine_viewer_set_overlay(stream, text)` takes one UTF-8 line that the shell formats (localized) from `on_stats`; the stream thread draws it with Direct2D/DirectWrite on the swap chain. While it shows, frames go through a kept texture so the text can be redrawn without a new frame.
+**Alternatives:** A WPF topmost window over the viewer; the engine formatting the text itself.
+**Why:** A window over the fullscreen swap chain would end independent flip and add latency; the engine returns codes, never user-facing text (DEVPLAN), so the shell owns the wording.
+**Trade-offs:** One extra GPU copy per frame while the overlay is on.
+**Revisit if:** The overlay needs more than one line or per-monitor placement.
+
+---
+
+## 2026-10-20 — Every engine call from the shell runs on one serial queue
+**Chosen:** `Native.Run` chains every P/Invoke call as a thread pool task, one at a time; view models await it.
+**Alternatives:** `Task.Run` per call with a lock per handle; a dedicated engine thread.
+**Why:** DEVPLAN forbids native calls on the UI thread, engine.h forbids overlapping calls on a handle, and a destroy must never race a call on the same handle; one queue guarantees all three with no per-handle bookkeeping.
+**Trade-offs:** A slow call (a session teardown) delays unrelated calls such as listing monitors.
+**Revisit if:** A call routinely takes long enough to make the UI feel stuck.
+
+## 2026-10-20 — User decision: an instant role swap comes right after Phase 12
+**Chosen:** A new DEVPLAN Phase 12b (phase file PHASE-016-SWAP-01): one shortcut on either computer reverses host and viewer of a running session, through a new control message; it runs before Phase 13.
+**Alternatives:** After Phase 13; inside Phase 13 with the reconnect logic.
+**Why:** The user sees it as the feature that sets Osplay apart and wants it next.
+**Trade-offs:** A protocol change before the robustness phase; a swap takes seconds (virtual display creation and the first keyframe), and windows on a removed virtual display move to the main screen.
+**Revisit if:** Swap time is too long to feel useful.
+

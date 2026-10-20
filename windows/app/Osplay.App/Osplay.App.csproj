@@ -9,11 +9,17 @@
     <SatelliteResourceLanguages>en;tr</SatelliteResourceLanguages>
     <!-- Function pointers and fixed buffers for the engine's C API (Interop/). -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>Assets\Osplay.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="H.NotifyIcon.Wpf" />
+    <PackageReference Include="WPF-UI" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Tray-*.ico" />
   </ItemGroup>
 
   <ItemGroup>

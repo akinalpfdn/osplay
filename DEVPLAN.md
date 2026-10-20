@@ -446,6 +446,18 @@ Each phase is meant to be completed in one Claude Code session. A phase is done 
 - [ ] System light/dark switch is reflected live.
 - [ ] Engine crashes or helper unavailability are surfaced clearly, and the shell never hangs on a native call (all native calls off the UI thread).
 
+### Phase 12b: Instant role swap
+**Goal**: One global shortcut reverses the roles of a running session: the display becomes the host and the host becomes its display.
+**Delivers**:
+- A role-swap control message in the protocol (minor version bump); both sides close the session and the new viewer reconnects to the same peer by device ID, without pairing again.
+- Recordable swap shortcut on both apps (defaults ⌃⌥⌘S on macOS, Ctrl+Alt+Shift+S on Windows).
+- A clear, localized refusal when the other side cannot host.
+**Depends on**: Phase 12 (added by user decision on 2026-10-20; runs before Phase 13)
+**Acceptance criteria**:
+- [ ] Pressing the shortcut on either computer swaps the roles without a pairing code.
+- [ ] The swap time (shortcut to first frame) is measured and recorded.
+- [ ] A refused or failed swap leaves both sides in a clear state.
+
 ### Phase 13: Robustness and diagnostics
 **Goal**: The system behaves predictably in everyday disruptions.
 **Delivers**:

@@ -229,7 +229,9 @@ osplay_engine_result osplay_engine_host_start(const osplay_engine_host_config* c
             std::move(channel.value()), std::make_unique<osplay::engine::GdiDisplayModeApplier>());
         host->orchestrator = std::make_unique<osplay::engine::HostOrchestrator>(
             host->port, *host->displays, host->pipelines, host->observer,
-            make_dump(config->dump_directory_utf8));
+            make_dump(config->dump_directory_utf8),
+            config->millibits_per_pixel == 0 ? osplay::engine::kBitsPerPixel
+                                             : config->millibits_per_pixel / 1000.0);
 
         const osplay_session_config session_config{
             .platform = OSPLAY_PLATFORM_WINDOWS,
