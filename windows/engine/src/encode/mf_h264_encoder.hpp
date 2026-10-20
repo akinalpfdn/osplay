@@ -47,6 +47,10 @@ public:
     /// encoder has taken it (at most `kMaxPendingInputs` frames later).
     void submit(ID3D11Texture2D* nv12, std::int64_t sample_time, bool keyframe);
 
+    /// Encodes the following frames at this average bitrate; ignored by encoders that cannot
+    /// change it while running.
+    void set_bitrate(std::uint32_t kbps);
+
     /// Feeds queued input and drains output; returns false once the encoder has failed.
     [[nodiscard]] bool poll();
 

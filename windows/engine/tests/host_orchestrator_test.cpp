@@ -91,14 +91,17 @@ public:
 
 class FakePipeline final : public StreamPipeline {
 public:
-    explicit FakePipeline(int& keyframe_requests) : keyframe_requests_(&keyframe_requests) {}
+    FakePipeline(int& keyframe_requests, std::vector<std::uint32_t>& bitrates)
+        : keyframe_requests_(&keyframe_requests), bitrates_(&bitrates) {}
     void request_keyframe() override { ++*keyframe_requests_; }
+    void set_bitrate(std::uint32_t kbps) override { bitrates_->push_back(kbps); }
     [[nodiscard]] std::optional<MonitorRect> monitor_rect() const override {
         return MonitorRect{.left = 1920, .top = 0, .right = 4480, .bottom = 1664};
     }
 
 private:
     int* keyframe_requests_;
+    std::vector<std::uint32_t>* bitrates_;
 };
 
 class FakePipelines final : public StreamPipelineFactory {
@@ -106,6 +109,7 @@ public:
     std::vector<StreamSettings> started;
     PipelineSink* sink = nullptr;
     int keyframe_requests = 0;
+    std::vector<std::uint32_t> bitrates;
     int alive = 0;
     std::optional<PipelineError> start_error;
 
@@ -117,7 +121,8 @@ public:
         }
         started.push_back(settings);
         sink = &output;
-        return std::unique_ptr<StreamPipeline>(std::make_unique<FakePipeline>(keyframe_requests));
+        return std::unique_ptr<StreamPipeline>(
+            std::make_unique<FakePipeline>(keyframe_requests, bitrates));
     }
 };
 
@@ -284,6 +289,17 @@ TEST(HostOrchestrator, AnEncoderThatCannotStartEndsTheSession) {
     EXPECT_EQ(h.observer.failure, HostFailure::Pipeline);
     EXPECT_EQ(h.displays.removed, 1);
     EXPECT_TRUE(h.core.closed);
+}
+
+TEST(HostOrchestrator, TheCoresBitrateTargetReachesThePipeline) {
+    Harness h;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    const std::vector<osplay_monitor> monitors{monitor()};
+    orchestrator.on_viewer_monitors(monitors);
+    orchestrator.on_bitrate_target(0, 12'000);
+    orchestrator.on_bitrate_target(5, 9'000); // not this host's stream
+    orchestrator.wait_idle();
+    EXPECT_EQ(h.pipelines.bitrates, (std::vector<std::uint32_t>{12'000}));
 }
 
 TEST(HostOrchestrator, BitratesStayWithinLimits) {

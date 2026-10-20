@@ -66,6 +66,12 @@ public:
             static_cast<void>(osplay_session_close(session_)); // fails only when already closing
         }
     }
+    void close_for_sleep() {
+        const std::scoped_lock lock(mutex_);
+        if (session_ != nullptr) {
+            static_cast<void>(osplay_session_close_for_sleep(session_)); // fails only when closing
+        }
+    }
     [[nodiscard]] osplay_result request_role_swap() {
         const std::scoped_lock lock(mutex_);
         return session_ == nullptr ? OSPLAY_ERROR_INVALID_STATE
@@ -190,6 +196,9 @@ osplay_session_callbacks core_callbacks(osplay_engine_host* host) {
     };
     callbacks.on_stream_stopped = [](void* context, uint8_t stream_id) {
         host_of(context)->orchestrator->on_stream_stopped(stream_id);
+    };
+    callbacks.on_bitrate_target = [](void* context, uint8_t stream_id, uint32_t kbps) {
+        host_of(context)->orchestrator->on_bitrate_target(stream_id, kbps);
     };
     callbacks.on_stats = [](void* context, const osplay_session_stats* stats) {
         auto* self = host_of(context);
@@ -335,6 +344,16 @@ osplay_engine_result osplay_engine_host_stop(osplay_engine_host* host) {
             return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
         }
         host->port.close();
+        return OSPLAY_ENGINE_OK;
+    });
+}
+
+osplay_engine_result osplay_engine_host_suspend(osplay_engine_host* host) {
+    return guarded([&] {
+        if (host == nullptr) {
+            return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
+        }
+        host->port.close_for_sleep();
         return OSPLAY_ENGINE_OK;
     });
 }

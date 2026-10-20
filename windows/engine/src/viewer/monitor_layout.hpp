@@ -40,6 +40,11 @@ struct OfferedMonitor {
 [[nodiscard]] std::set<std::uint8_t> still_attached(const std::vector<OfferedMonitor>& offered,
                                                     const std::vector<MonitorCandidate>& active);
 
+/// Whether an offered monitor that is still attached now runs another mode (resolution, refresh
+/// rate or scaling), so the host has to make its display again.
+[[nodiscard]] bool mode_changed(const std::vector<OfferedMonitor>& offered,
+                                const std::vector<MonitorCandidate>& active);
+
 /// Control characters dropped and the result cut at a character boundary to the protocol's
 /// 64-byte limit. Invalid UTF-8 ends the name.
 [[nodiscard]] std::string protocol_name(std::string_view utf8);
