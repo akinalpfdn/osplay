@@ -45,6 +45,8 @@ enum Tunables {
         static let toggleHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_V), modifiers: [.control, .option, .command])
         /// The default role swap hotkey (Phase 12b): ⌃⌥⌘S, next to the toggle.
         static let swapHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_S), modifiers: [.control, .option, .command])
+        /// The default stats overlay hotkey (Phase 13): ⌃⌥⌘I.
+        static let statsHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_I), modifiers: [.control, .option, .command])
 
         /// Debug loopback windows open at half the stream's size.
         static func loopbackWindowSize(streamWidth: Int, streamHeight: Int) -> CGSize {
@@ -58,6 +60,8 @@ enum Tunables {
     }
 
     enum Logs {
+        /// Copy diagnostics includes this many of the newest log lines.
+        static let diagnosticsLines = 300
         /// How far back an exported log reaches (the current run only: the store is per process).
         static let exportWindow: TimeInterval = 24 * 60 * 60
     }
@@ -67,6 +71,9 @@ enum Tunables {
         static let relistenDelay: Duration = .seconds(1)
         /// After a role swap, how long viewing waits for the other computer to advertise itself.
         static let swapReconnectTimeout: Duration = .seconds(20)
+        /// Pause before a dropped viewer tries its host again (an old advertisement can refuse at
+        /// once; this keeps that from becoming a tight loop).
+        static let reconnectDelay: Duration = .seconds(2)
         /// Capabilities this Mac announces in either role.
         static let maximumWidth = 7680
         static let maximumHeight = 4320

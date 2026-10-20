@@ -46,6 +46,8 @@ final class FakeHostCore: HostCoreSession, @unchecked Sendable {
         pushed.append(unit)
     }
 
+    func closeForSleep() { close() }
+
     func close() {
         let first = lock.withLock {
             defer { closed = true }
@@ -163,6 +165,10 @@ final class FakeEncoder: VideoEncoding, @unchecked Sendable {
                     data: Data(forceKeyframe ? [0, 0, 0, 1, 0x67] : [0, 0, 0, 1, 0x41]), isKeyframe: forceKeyframe,
                     captureTimeMicroseconds: UInt64(max(presentationTime.seconds, 0) * 1_000_000))))
     }
+
+    private var bitrates: [Int] = []
+    func setBitrate(kbps: Int) { lock.withLock { bitrates.append(kbps) } }
+    var bitrateChanges: [Int] { lock.withLock { bitrates } }
 
     func flush() {}
     func invalidate() { lock.withLock { invalidated = true } }

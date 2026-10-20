@@ -7,6 +7,7 @@
 #include "host/stream_pipeline.hpp"
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -27,6 +28,7 @@ public:
     DuplicationPipeline& operator=(DuplicationPipeline&&) = delete;
 
     void request_keyframe() override { keyframe_requested_ = true; }
+    void set_bitrate(std::uint32_t kbps) override { requested_bitrate_kbps_ = kbps; }
     [[nodiscard]] std::optional<MonitorRect> monitor_rect() const override { return rect_; }
 
 private:
@@ -35,6 +37,7 @@ private:
     DuplicationPipeline() = default;
 
     std::atomic<bool> keyframe_requested_{true};
+    std::atomic<std::uint32_t> requested_bitrate_kbps_{0}; // 0: no change waiting
     std::atomic<bool> stopping_{false};
     std::optional<MonitorRect> rect_;
     std::thread thread_;

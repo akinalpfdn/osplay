@@ -190,7 +190,8 @@ TEST(CapiSession, PairsConfiguresAndStreamsOverLoopback) {
                                             .device_name = "C Host",
                                             .capabilities = kCapabilities,
                                             .monitors = nullptr,
-                                            .monitor_count = 0};
+                                            .monitor_count = 0,
+                                            .control_port = 0};
     osplay_session* host = nullptr;
     ASSERT_EQ(osplay_host_session_create(&host_config, host_secret.data(), &kRandom,
                                          &host_callbacks, &host),
@@ -210,7 +211,8 @@ TEST(CapiSession, PairsConfiguresAndStreamsOverLoopback) {
                                               .device_name = "C Viewer",
                                               .capabilities = kCapabilities,
                                               .monitors = &monitor,
-                                              .monitor_count = 1};
+                                              .monitor_count = 1,
+                                              .control_port = 0};
     osplay_session* viewer = nullptr;
     ASSERT_EQ(osplay_viewer_session_create(&viewer_config, viewer_secret.data(), &kRandom,
                                            &viewer_callbacks, "127.0.0.1", port, &viewer),
@@ -323,7 +325,8 @@ TEST(CapiSession, RejectsInvalidArguments) {
                                  .device_name = "Host",
                                  .capabilities = kCapabilities,
                                  .monitors = nullptr,
-                                 .monitor_count = 0};
+                                 .monitor_count = 0,
+                                 .control_port = 0};
     EXPECT_EQ(osplay_host_session_create(&config, secret.data(), &kRandom, nullptr, &session),
               OSPLAY_ERROR_INVALID_ARGUMENT);
     EXPECT_EQ(session, nullptr);
@@ -370,7 +373,8 @@ TEST(CapiSession, CommandsInTheWrongStateFail) {
                                        .device_name = "Lonely Host",
                                        .capabilities = kCapabilities,
                                        .monitors = nullptr,
-                                       .monitor_count = 0};
+                                       .monitor_count = 0,
+                                       .control_port = 0};
     osplay_session* host = nullptr;
     ASSERT_EQ(osplay_host_session_create(&config, secret.data(), &kRandom, &callbacks, &host),
               OSPLAY_OK);

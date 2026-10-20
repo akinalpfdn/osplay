@@ -64,7 +64,8 @@ std::uint16_t loss_permille(std::uint64_t dropped, std::uint64_t completed) {
 
 struct SessionEngine::HostStream {
     HostStream(const protocol::StreamConfig& stream_config, const SessionTunables& tunables)
-        : config(stream_config), cache(tunables.retransmit_frames, tunables.retransmit_bytes) {}
+        : config(stream_config), cache(tunables.retransmit_frames, tunables.retransmit_bytes),
+          bitrate(stream_config.bitrate_kbps, tunables.bitrate) {}
 
     protocol::StreamConfig config;
     media::Packetizer packetizer;
@@ -81,6 +82,10 @@ struct SessionEngine::HostStream {
     std::uint64_t bytes_in_window = 0;
     std::uint64_t retransmitted = 0;
     std::uint64_t keyframe_requests = 0;
+    BitrateController bitrate;
+    /// Fragments sent and resent since the last receiver report.
+    std::uint64_t fragments_since_report = 0;
+    std::uint64_t resent_since_report = 0;
     /// The current cursor shape, resent after every keyframe; `cursor_shape.bgra` views this.
     std::vector<std::uint8_t> cursor_image;
     std::optional<media::CursorShape> cursor_shape;
@@ -345,21 +350,21 @@ void SessionEngine::handle_message(const ControlMessage& message, TimePoint now)
                    [&](const protocol::MediaSetup& m) { handle_media_setup(m, now); },
                    [&](const protocol::KeyframeRequest& m) { handle_keyframe_request(m, now); },
                    [&](const protocol::Nack& m) { handle_nack(m, now); },
-                   [&](const protocol::ReceiverReport& m) {
-                       if (const auto it = host_streams_.find(m.stream_id);
-                           it != host_streams_.end()) {
-                           it->second->last_report = m;
-                       }
-                   },
+                   [&](const protocol::ReceiverReport& m) { handle_receiver_report(m); },
                    [&](const protocol::Ping& m) { handle_ping(m, now); },
                    [&](const protocol::Pong& m) { handle_pong(m, now); },
                    [&](const protocol::Heartbeat& /*m*/) {},
                    [&](const protocol::PeerError& m) { handle_peer_error(m); },
                    [&](const protocol::Bye& m) {
-                       // A swap the two sides agreed on is an orderly end, not a lost connection.
-                       abort_session(m.reason == protocol::ByeReason::RoleSwap
-                                         ? std::nullopt
-                                         : std::optional<Error>(Error::ConnectionClosed));
+                       // A swap the two sides agreed on is an orderly end, not a lost connection;
+                       // a peer going to sleep is expected back.
+                       std::optional<Error> reason = Error::ConnectionClosed;
+                       if (m.reason == protocol::ByeReason::RoleSwap) {
+                           reason.reset();
+                       } else if (m.reason == protocol::ByeReason::Sleeping) {
+                           reason = Error::PeerSleeping;
+                       }
+                       abort_session(reason);
                    },
                    [&](const protocol::RoleSwap& m) { handle_role_swap(m, now); },
                    [&](const auto& stream_control) { handle_stream_control(stream_control, now); },
@@ -713,6 +718,7 @@ void SessionEngine::handle_nack(const protocol::Nack& nack, TimePoint /*now*/) {
         media::Packetizer::fragments(nack.frame_id, *unit, range.first_fragment, range.count,
                                      fragments_);
         stream.retransmitted += fragments_.size();
+        stream.resent_since_report += fragments_.size();
         send_fragments(fragments_);
     }
 }
@@ -814,6 +820,22 @@ void SessionEngine::handle_role_swap(const protocol::RoleSwap& message, TimePoin
         observer_.on_role_swap_answer(answer, peer_static_);
         return;
     }
+    }
+}
+
+void SessionEngine::handle_receiver_report(const protocol::ReceiverReport& report) {
+    const auto it = host_streams_.find(report.stream_id);
+    if (it == host_streams_.end()) {
+        return;
+    }
+    HostStream& stream = *it->second;
+    stream.last_report = report;
+    const auto target = stream.bitrate.on_report(
+        report.loss_permille, stream.fragments_since_report, stream.resent_since_report);
+    stream.fragments_since_report = 0;
+    stream.resent_since_report = 0;
+    if (target) {
+        observer_.on_bitrate_target(report.stream_id, *target);
     }
 }
 
@@ -974,6 +996,7 @@ Status<Error> SessionEngine::push_access_unit(const media::AccessUnit& unit, Tim
         return Status<Error>::failure(frame_id.error());
     }
     stream.cache.store(frame_id.value(), unit);
+    stream.fragments_since_report += fragments_.size();
     send_fragments(fragments_);
     stream.last_frame_id = frame_id.value();
     stream.last_frame_sent = now;

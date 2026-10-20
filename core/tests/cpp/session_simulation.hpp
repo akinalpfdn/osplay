@@ -60,6 +60,7 @@ public:
     int role_swap_requests = 0;
     std::vector<session::RoleSwapAnswer> role_swap_answers;
     std::optional<crypto::Key> role_swap_peer;
+    std::vector<std::uint32_t> bitrate_targets;
 
     void on_state(SessionState state, std::optional<Error> reason) override {
         states.push_back(state);
@@ -101,6 +102,9 @@ public:
     void on_role_swap_request(const crypto::Key& key) override {
         ++role_swap_requests;
         role_swap_peer = key;
+    }
+    void on_bitrate_target(std::uint8_t /*stream_id*/, std::uint32_t kbps) override {
+        bitrate_targets.push_back(kbps);
     }
     void on_role_swap_answer(session::RoleSwapAnswer answer, const crypto::Key& key) override {
         role_swap_answers.push_back(answer);

@@ -13,6 +13,8 @@ final class SettingsViewModel {
     /// The last problem with a setting, shown under it.
     private(set) var message: String?
     private(set) var exportedLog: URL?
+    /// "Copied" appears under the button after Copy diagnostics.
+    private(set) var diagnosticsCopied = false
 
     private let connection: ConnectionViewModel
     private let launchAtLogin: any LaunchAtLoginManaging
@@ -57,7 +59,9 @@ final class SettingsViewModel {
 
     /// Takes the new combination when no other app owns it; it applies from the next connection.
     func record(_ hotkey: Hotkey) {
-        take(hotkey, current: settings.viewerHotkey, other: settings.swapHotkey) { settings.viewerHotkey = $0 }
+        take(hotkey, current: settings.viewerHotkey, others: [settings.swapHotkey, settings.statsHotkey]) {
+            settings.viewerHotkey = $0
+        }
     }
 
     func resetHotkey() {
@@ -66,7 +70,20 @@ final class SettingsViewModel {
     }
 
     func recordSwapHotkey(_ hotkey: Hotkey) {
-        take(hotkey, current: settings.swapHotkey, other: settings.viewerHotkey) { settings.swapHotkey = $0 }
+        take(hotkey, current: settings.swapHotkey, others: [settings.viewerHotkey, settings.statsHotkey]) {
+            settings.swapHotkey = $0
+        }
+    }
+
+    func recordStatsHotkey(_ hotkey: Hotkey) {
+        take(hotkey, current: settings.statsHotkey, others: [settings.viewerHotkey, settings.swapHotkey]) {
+            settings.statsHotkey = $0
+        }
+    }
+
+    func resetStatsHotkey() {
+        settings.statsHotkey = Tunables.Viewer.statsHotkey
+        message = nil
     }
 
     func resetSwapHotkey() {
@@ -74,9 +91,9 @@ final class SettingsViewModel {
         message = nil
     }
 
-    private func take(_ hotkey: Hotkey, current: Hotkey, other: Hotkey, store: (Hotkey) -> Void) {
+    private func take(_ hotkey: Hotkey, current: Hotkey, others: [Hotkey], store: (Hotkey) -> Void) {
         guard hotkey != current else { return }
-        guard hotkey != other else {
+        guard !others.contains(hotkey) else {
             message = String(localized: "settings.hotkey.duplicate \(hotkey.displayText)")
             return
         }
@@ -129,6 +146,33 @@ final class SettingsViewModel {
     func remove(_ peer: TrustedPeer) { connection.remove(peer) }
 
     // MARK: Advanced
+
+    /// Copies versions, settings, state and the recent log for a bug report; names and addresses
+    /// are replaced.
+    func copyDiagnostics() {
+        Task {
+            let lines = (try? await logs.recentLines(limit: Tunables.Logs.diagnosticsLines)) ?? []
+            let report = DiagnosticsReport(
+                appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?",
+                coreVersion: CoreVersion.linked.description,
+                system: ProcessInfo.processInfo.operatingSystemVersionString,
+                model: DiagnosticsReport.hardwareModel,
+                facts: [
+                    ("Quality", settings.qualityPreset.rawValue),
+                    ("Stats overlay", String(settings.showsStatsOverlay)),
+                    ("Launch at login", String(launchesAtLogin)),
+                    ("Paired devices", String(connection.peers.count)),
+                    ("Screen Recording", String(connection.hasScreenRecordingAccess)),
+                    ("Mode", String(describing: connection.mode)),
+                ],
+                logLines: lines,
+                privateNames: [connection.localName] + connection.peers.map(\.name))
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(report.text, forType: .string)
+            message = nil
+            diagnosticsCopied = true
+        }
+    }
 
     func exportLogs() {
         Task {

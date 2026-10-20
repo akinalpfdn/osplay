@@ -68,6 +68,8 @@ public:
     // I/O thread never waits for the monitor or the encoder.
     void on_viewer_monitors(std::span<const osplay_monitor> monitors);
     void on_keyframe_request(std::uint8_t stream_id);
+    /// The core's bitrate target for the stream (adapted from receiver reports).
+    void on_bitrate_target(std::uint8_t stream_id, std::uint32_t kbps);
     /// The viewer stopped the stream (e.g. its monitor was unplugged): stop capturing and remove
     /// the monitor; the session stays up.
     void on_stream_stopped(std::uint8_t stream_id);

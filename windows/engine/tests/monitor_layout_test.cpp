@@ -7,6 +7,7 @@
 
 namespace {
 
+using osplay::engine::mode_changed;
 using osplay::engine::MonitorCandidate;
 using osplay::engine::MonitorRect;
 using osplay::engine::offer_monitors;
@@ -82,6 +83,21 @@ TEST(MonitorLayout, AnUnpluggedMonitorIsNoLongerAttached) {
     // After the change Windows renumbers; the key still identifies the remaining monitor.
     EXPECT_EQ(still_attached(offered, {candidate("B", 0)}), (std::set<std::uint8_t>{1}));
     EXPECT_EQ(still_attached(offered, {}), (std::set<std::uint8_t>{}));
+}
+
+TEST(MonitorLayout, ANewResolutionOrScalingIsAModeChange) {
+    const auto offered = offer_monitors({candidate("A", 0), candidate("B", 2560)});
+    EXPECT_FALSE(mode_changed(offered, {candidate("A", 0), candidate("B", 2560)}));
+    EXPECT_FALSE(mode_changed(offered, {candidate("B", 0)})) << "an unplugged monitor is not one";
+
+    MonitorCandidate smaller = candidate("B", 2560);
+    smaller.width_px = 1920;
+    smaller.height_px = 1080;
+    EXPECT_TRUE(mode_changed(offered, {candidate("A", 0), smaller}));
+
+    MonitorCandidate scaled = candidate("A", 0);
+    scaled.dpi = 96;
+    EXPECT_TRUE(mode_changed(offered, {scaled, candidate("B", 2560)}));
 }
 
 } // namespace

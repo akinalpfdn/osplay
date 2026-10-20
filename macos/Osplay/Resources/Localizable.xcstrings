@@ -222,6 +222,23 @@
         }
       }
     },
+    "connection.status.reconnecting %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for %@ to come back…"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bilgisayarının geri gelmesi bekleniyor…"
+          }
+        }
+      }
+    },
     "connection.status.swapping %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1153,6 +1170,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Diğer bilgisayar kendi tarafındaki bir hata yüzünden oturumu sonlandırdı. O bilgisayardaki Osplay'i kontrol edin."
+          }
+        }
+      }
+    },
+    "error.session.peerSleeping" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The other computer went to sleep."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diğer bilgisayar uyku moduna geçti."
           }
         }
       }
@@ -2313,6 +2347,74 @@
         }
       }
     },
+    "settings.diagnostics" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagnostics"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teşhis"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.copied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copied. Paste it into your bug report."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopyalandı. Hata bildiriminize yapıştırın."
+          }
+        }
+      }
+    },
+    "settings.diagnostics.copy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Diagnostics"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teşhis Bilgisini Kopyala"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copies versions, settings and the recent log for a bug report. Device names and network addresses are replaced."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hata bildirimi için sürümleri, ayarları ve son kayıtları kopyalar. Cihaz adları ve ağ adresleri gizlenir."
+          }
+        }
+      }
+    },
     "settings.displays" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2751,6 +2853,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Göster…"
+          }
+        }
+      }
+    },
+    "settings.statsHotkey" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show or hide statistics"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İstatistikleri göster veya gizle"
           }
         }
       }

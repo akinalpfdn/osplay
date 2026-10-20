@@ -338,6 +338,7 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    - **Revoke:** Mac Settings › Devices, or PC Settings › Devices → **Revoke**. The other
      computer's next connection is refused ("refused this Mac/PC") without a pairing code;
      **Remove** lets it pair again.
+   - **Robustness (Phase 13):** run the scenarios in `docs/TESTING.md`.
    - **Role swap (Phase 12b):** during use case 1 or 2 press ⌃⌥⌘S on the Mac or Ctrl+Alt+Shift+S
      on the PC (or **Swap roles**). Both sessions close and reconnect the other way round within a
      few seconds, without a pairing code. Note the time from the key press to the first frame.

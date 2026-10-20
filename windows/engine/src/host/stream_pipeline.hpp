@@ -59,6 +59,8 @@ public:
     virtual ~StreamPipeline() = default;
     /// The next encoded frame is a keyframe; an unchanged screen is encoded again for it.
     virtual void request_keyframe() = 0;
+    /// The link changed: encode at this average bitrate from the next frame. Never blocks.
+    virtual void set_bitrate(std::uint32_t kbps) = 0;
     [[nodiscard]] virtual std::optional<MonitorRect> monitor_rect() const = 0;
 };
 

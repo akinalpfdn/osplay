@@ -270,6 +270,12 @@ public:
         }
     }
 
+    void on_bitrate_target(std::uint8_t stream_id, std::uint32_t bitrate_kbps) override {
+        if (callbacks_.on_bitrate_target != nullptr) {
+            callbacks_.on_bitrate_target(callbacks_.context, stream_id, bitrate_kbps);
+        }
+    }
+
     void on_role_swap_answer(session::RoleSwapAnswer answer,
                              const osplay::crypto::Key& key) override {
         if (callbacks_.on_role_swap_answer != nullptr) {
@@ -425,10 +431,13 @@ osplay_result osplay_host_session_create(const osplay_session_config* config,
     return guarded([&]() -> osplay_result {
         return create_session(
             config, secret_key, random, callbacks, protocol::Role::Host, out_session,
-            [](session::SessionConfig session_config, osplay::crypto::KeyPair identity,
-               osplay_session& handle) {
+            [port = config == nullptr ? std::uint16_t{0} : config->control_port](
+                session::SessionConfig session_config, osplay::crypto::KeyPair identity,
+                osplay_session& handle) {
                 return osplay::transport::AsioSession::create_host(
-                    std::move(session_config), std::move(identity), handle.random, handle.observer);
+                    std::move(session_config), std::move(identity), handle.random, handle.observer,
+                    osplay::transport::TransportOptions{.advertised_media_port = std::nullopt,
+                                                        .control_port = port});
             });
     });
 }
@@ -464,6 +473,16 @@ osplay_result osplay_session_close(osplay_session* session) {
             return OSPLAY_ERROR_INVALID_ARGUMENT;
         }
         session->session->close();
+        return OSPLAY_OK;
+    });
+}
+
+osplay_result osplay_session_close_for_sleep(osplay_session* session) {
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        session->session->close_for_sleep();
         return OSPLAY_OK;
     });
 }

@@ -14,11 +14,13 @@ public final class CoreSession: Sendable {
     /// Holds the callbacks' context; must outlive the core session.
     private let box: CallbackBox
 
-    /// Host: listens for one viewer on an ephemeral TCP port.
+    /// Host: listens for one viewer on `controlPort`, or an ephemeral TCP port for 0 or when it is
+    /// taken. Passing the previous session's port keeps a Bonjour advertisement right.
     public static func host(
-        device: SessionDevice, trust: @escaping @Sendable ([UInt8]) -> TrustDecision
+        device: SessionDevice, controlPort: UInt16 = 0, trust: @escaping @Sendable ([UInt8]) -> TrustDecision
     ) throws(CoreError) -> CoreSession {
-        try CoreSession(device: device, monitors: [], trust: trust) { config, secret, random, callbacks, out in
+        try CoreSession(device: device, monitors: [], controlPort: controlPort, trust: trust) {
+            config, secret, random, callbacks, out in
             osplay_host_session_create(config, secret, random, callbacks, out)
         }
     }
@@ -39,13 +41,13 @@ public final class CoreSession: Sendable {
     ) -> osplay_result
 
     private init(
-        device: SessionDevice, monitors: [MonitorDescription],
+        device: SessionDevice, monitors: [MonitorDescription], controlPort: UInt16 = 0,
         trust: @escaping @Sendable ([UInt8]) -> TrustDecision, create: Create
     ) throws(CoreError) {
         let (events, continuation) = AsyncStream.makeStream(of: SessionEvent.self)
         let box = CallbackBox(continuation: continuation, trust: trust)
         var created: OpaquePointer?
-        let result = withSessionConfig(device: device, monitors: monitors) { config in
+        let result = withSessionConfig(device: device, monitors: monitors, controlPort: controlPort) { config in
             var random = SystemRandom.source
             var callbacks = box.callbacks
             return device.identity.secretKey.withUnsafeBufferPointer { secret in
@@ -154,6 +156,11 @@ public final class CoreSession: Sendable {
     /// Answers `.roleSwapRequested`: `.accepted` closes the session, a refusal keeps it running.
     public func answerRoleSwap(_ answer: RoleSwapAnswer) throws(CoreError) {
         try check(handle.withPointer { osplay_session_answer_role_swap($0, answer.raw) })
+    }
+
+    /// Tells the peer this Mac is going to sleep and closes; the session reports `.closed` later.
+    public func closeForSleep() {
+        _ = handle.withPointer { osplay_session_close_for_sleep($0) }
     }
 
     /// Sends Bye when possible and stops the I/O thread; the session reports `.closed` first.
@@ -280,6 +287,9 @@ private final class CallbackBox: Sendable {
             CallbackBox.from(context)?.continuation.yield(
                 .roleSwapAnswered(RoleSwapAnswer(answer), peerPublicKey: keyBytes(key)))
         }
+        callbacks.on_bitrate_target = { context, streamID, kbps in
+            CallbackBox.from(context)?.continuation.yield(.bitrateTarget(streamID: streamID, kbps: Int(kbps)))
+        }
         callbacks.on_log = { context, level, message in
             let text = message.map { String(cString: $0) } ?? ""
             CallbackBox.from(context)?.continuation.yield(.log(SessionLogLevel(level), text))
@@ -300,7 +310,7 @@ private func keyBytes(_ key: UnsafePointer<UInt8>?) -> [UInt8] {
 
 /// Builds the C configuration; every string stays valid for the duration of `body`.
 private func withSessionConfig(
-    device: SessionDevice, monitors: [MonitorDescription],
+    device: SessionDevice, monitors: [MonitorDescription], controlPort: UInt16,
     _ body: (UnsafePointer<osplay_session_config>) -> osplay_result
 ) -> osplay_result {
     let names: [UnsafeMutablePointer<CChar>?] = monitors.map { strdup($0.name) }
@@ -317,7 +327,8 @@ private func withSessionConfig(
         rawMonitors.withUnsafeBufferPointer { monitorBuffer in
             var config = osplay_session_config(
                 platform: PeerPlatform.macOS.raw, device_name: name, capabilities: device.capabilities.raw,
-                monitors: monitorBuffer.isEmpty ? nil : monitorBuffer.baseAddress, monitor_count: monitorBuffer.count)
+                monitors: monitorBuffer.isEmpty ? nil : monitorBuffer.baseAddress, monitor_count: monitorBuffer.count,
+                control_port: controlPort)
             return body(&config)
         }
     }

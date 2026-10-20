@@ -61,6 +61,11 @@
               <controls:HotkeyRecorder Margin="{StaticResource Osplay.Thickness.ButtonGap}" Gesture="{Binding SwapHotkey}" />
               <ui:Button VerticalAlignment="Top" Content="{x:Static res:Strings.HotkeyReset}" Command="{Binding ResetSwapHotkeyCommand}" />
             </WrapPanel>
+            <TextBlock Text="{x:Static res:Strings.SettingsStatsHotkey}" Style="{StaticResource Osplay.Text.Section}" />
+            <WrapPanel Margin="{StaticResource Osplay.Thickness.ItemGap}">
+              <controls:HotkeyRecorder Margin="{StaticResource Osplay.Thickness.ButtonGap}" Gesture="{Binding StatsHotkey}" />
+              <ui:Button VerticalAlignment="Top" Content="{x:Static res:Strings.HotkeyReset}" Command="{Binding ResetStatsHotkeyCommand}" />
+            </WrapPanel>
             <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{Binding HotkeyMessage}"
                        Style="{StaticResource Osplay.Text.Caption}" Foreground="{DynamicResource SystemFillColorCriticalBrush}"
                        Visibility="{Binding HasHotkeyMessage, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
@@ -150,6 +155,12 @@
                        Style="{StaticResource Osplay.Text.Caption}" />
             <ui:Button Margin="{StaticResource Osplay.Thickness.ItemGap}" Content="{x:Static res:Strings.SettingsLogsOpen}"
                        Command="{Binding OpenLogsCommand}" />
+
+            <TextBlock Text="{x:Static res:Strings.DiagnosticsTitle}" Style="{StaticResource Osplay.Text.Section}" />
+            <ui:Button Margin="{StaticResource Osplay.Thickness.ItemGap}" Content="{x:Static res:Strings.DiagnosticsCopy}"
+                       Command="{Binding CopyDiagnosticsCommand}" />
+            <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{Binding DiagnosticsResult}"
+                       Style="{StaticResource Osplay.Text.Caption}" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>

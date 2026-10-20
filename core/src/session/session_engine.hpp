@@ -103,6 +103,8 @@ public:
     virtual void on_role_swap_request(const crypto::Key& peer_static_key) = 0;
     /// The answer to this side's request. After Accepted the peer closes the session with Bye.
     virtual void on_role_swap_answer(RoleSwapAnswer answer, const crypto::Key& peer_static_key) = 0;
+    /// Host: encode this stream at this bitrate from now on (adapted from receiver reports).
+    virtual void on_bitrate_target(std::uint8_t stream_id, std::uint32_t bitrate_kbps) = 0;
     virtual void on_log(LogLevel level, std::string_view message) = 0;
 };
 
@@ -190,6 +192,7 @@ private:
     void handle_pong(const protocol::Pong& pong, TimePoint now);
     void handle_peer_error(const protocol::PeerError& error);
     void handle_role_swap(const protocol::RoleSwap& message, TimePoint now);
+    void handle_receiver_report(const protocol::ReceiverReport& report);
     void expire_role_swap(TimePoint now);
     void send(const protocol::ControlMessage& message, TimePoint now);
     void handshake_complete(TimePoint now);

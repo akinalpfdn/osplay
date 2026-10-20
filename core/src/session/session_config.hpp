@@ -4,6 +4,7 @@
 // defaults are the shipping values, tests shorten them.
 
 #include "protocol/control_messages.hpp"
+#include "session/bitrate_controller.hpp"
 #include "util/time.hpp"
 
 #include <array>
@@ -16,6 +17,9 @@ namespace osplay::session {
 struct SessionTunables {
     Microseconds tick_interval{2'000};
     Microseconds handshake_timeout{10'000'000};
+    /// Viewer: a host that does not accept the TCP connection within this time (asleep, gone, an
+    /// old advertisement) ends the session with TIMED_OUT instead of the OS's minute-long wait.
+    Microseconds connect_timeout{5'000'000};
     Microseconds heartbeat_interval{1'000'000};
     /// No control message for this long ends the session; must exceed brief network outages.
     Microseconds heartbeat_timeout{10'000'000};
@@ -40,6 +44,8 @@ struct SessionTunables {
     Microseconds missing_cursor_shape_grace{100'000};
     /// A role swap request without an answer for this long is given up (NoAnswer).
     Microseconds role_swap_timeout{10'000'000};
+    /// Host: how receiver reports move each stream's bitrate.
+    BitrateTunables bitrate;
 };
 
 struct SessionConfig {

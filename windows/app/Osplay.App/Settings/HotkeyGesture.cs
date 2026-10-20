@@ -16,6 +16,9 @@ public sealed record HotkeyGesture(uint Modifiers, uint VirtualKey)
     /// <summary>The role swap shortcut (Phase 12b): Ctrl+Alt+Shift+S, next to the viewer's.</summary>
     public static HotkeyGesture DefaultSwap { get; } = new(Control | Alt | Shift, 0x53);
 
+    /// <summary>The stats overlay shortcut (Phase 13): Ctrl+Alt+Shift+I.</summary>
+    public static HotkeyGesture DefaultStats { get; } = new(Control | Alt | Shift, 0x49);
+
     /// <summary>A gesture from a WPF key press, or null without Ctrl, Alt or Win (Shift alone types).</summary>
     public static HotkeyGesture? From(Key key, ModifierKeys modifiers)
     {

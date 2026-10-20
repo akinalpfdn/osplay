@@ -149,4 +149,21 @@ std::set<std::uint8_t> still_attached(const std::vector<OfferedMonitor>& offered
     return attached;
 }
 
+bool mode_changed(const std::vector<OfferedMonitor>& offered,
+                  const std::vector<MonitorCandidate>& active) {
+    const std::vector<OfferedMonitor> now = offer_monitors(active);
+    return std::ranges::any_of(offered, [&](const OfferedMonitor& before) {
+        const auto after = std::ranges::find_if(
+            now, [&](const OfferedMonitor& candidate) { return candidate.key == before.key; });
+        if (after == now.end()) {
+            return false; // unplugged: handled as a stopped stream, not a mode change
+        }
+        const osplay_monitor& old_mode = before.monitor.description;
+        const osplay_monitor& new_mode = after->monitor.description;
+        return old_mode.width_px != new_mode.width_px || old_mode.height_px != new_mode.height_px ||
+               old_mode.refresh_millihertz != new_mode.refresh_millihertz ||
+               old_mode.scale_percent != new_mode.scale_percent;
+    });
+}
+
 } // namespace osplay::engine

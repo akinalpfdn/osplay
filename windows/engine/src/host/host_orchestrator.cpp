@@ -50,6 +50,14 @@ void HostOrchestrator::on_keyframe_request(std::uint8_t stream_id) {
     });
 }
 
+void HostOrchestrator::on_bitrate_target(std::uint8_t stream_id, std::uint32_t kbps) {
+    post([this, stream_id, kbps] {
+        if (stream_id == kHostStreamId && pipeline_) {
+            pipeline_->set_bitrate(kbps);
+        }
+    });
+}
+
 void HostOrchestrator::on_stream_stopped(std::uint8_t stream_id) {
     post([this, stream_id] {
         if (stream_id == kHostStreamId) {

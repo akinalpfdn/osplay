@@ -45,8 +45,15 @@ using std::chrono::seconds;
 
 class SyncObserver final : public session::SessionObserver {
 public:
-    void on_state(SessionState new_state, std::optional<Error> /*reason*/) override {
-        update([&] { state_ = new_state; });
+    void on_state(SessionState new_state, std::optional<Error> reason) override {
+        update([&] {
+            state_ = new_state;
+            reason_ = reason;
+        });
+    }
+    std::optional<Error> close_reason() {
+        const std::scoped_lock lock(mutex_);
+        return reason_;
     }
     void on_peer(const protocol::Hello& /*hello*/) override {}
     TrustDecision on_trust_query(const osplay::crypto::Key& /*key*/) override {
@@ -71,6 +78,7 @@ public:
     }
     void on_stream_stopped(std::uint8_t /*stream_id*/) override {}
     void on_role_swap_request(const osplay::crypto::Key& /*key*/) override {}
+    void on_bitrate_target(std::uint8_t /*stream_id*/, std::uint32_t /*kbps*/) override {}
     void on_role_swap_answer(session::RoleSwapAnswer /*answer*/,
                              const osplay::crypto::Key& /*key*/) override {}
     void on_cursor_shape(const osplay::media::CursorShape& /*shape*/) override {}
@@ -121,6 +129,7 @@ private:
     std::mutex mutex_;
     std::condition_variable changed_;
     SessionState state_ = SessionState::Connecting;
+    std::optional<Error> reason_;
     std::vector<protocol::Monitor> monitors_;
     std::vector<std::uint32_t> frames_;
     bool intact_ = true;
@@ -444,6 +453,48 @@ void expect_opaque(const std::vector<std::uint8_t>& bytes) {
     const std::string text(bytes.begin(), bytes.end());
     EXPECT_EQ(text.find("Wire Viewer"), std::string::npos) << "device name after the handshake";
     EXPECT_EQ(text.find("Wire Host"), std::string::npos) << "device name after the handshake";
+}
+
+TEST(RealSessionsConnect, ANewHostSessionCanListenOnThePreviousPort) {
+    osplay::test::SeededRandom random{6};
+    SyncObserver observer;
+    auto first = osplay::transport::AsioSession::create_host(
+        config(protocol::Role::Host), osplay::test::key_pair(random), random, observer);
+    ASSERT_TRUE(first.has_value());
+    const std::uint16_t port = first.value()->control_port();
+    first.value().reset();
+
+    SyncObserver next_observer;
+    auto second = osplay::transport::AsioSession::create_host(
+        config(protocol::Role::Host), osplay::test::key_pair(random), random, next_observer,
+        osplay::transport::TransportOptions{.advertised_media_port = std::nullopt,
+                                            .control_port = port});
+    ASSERT_TRUE(second.has_value());
+    EXPECT_EQ(second.value()->control_port(), port) << "the advertisement stays right";
+
+    // A taken port falls back to any.
+    SyncObserver third_observer;
+    auto third = osplay::transport::AsioSession::create_host(
+        config(protocol::Role::Host), osplay::test::key_pair(random), random, third_observer,
+        osplay::transport::TransportOptions{.advertised_media_port = std::nullopt,
+                                            .control_port = port});
+    ASSERT_TRUE(third.has_value());
+    EXPECT_NE(third.value()->control_port(), port);
+}
+
+TEST(RealSessionsConnect, AHostThatNeverAnswersEndsTheViewerInsteadOfHangingIt) {
+    // A non-routable address: the SYN goes nowhere (or the network reports it unreachable).
+    auto viewer_config = config(protocol::Role::Viewer);
+    viewer_config.tunables.connect_timeout = osplay::Microseconds{300'000};
+    osplay::test::SeededRandom random{5};
+    SyncObserver observer;
+    auto viewer = osplay::transport::AsioSession::create_viewer(
+        std::move(viewer_config), osplay::test::key_pair(random), random, observer, "10.255.255.1",
+        9);
+    ASSERT_TRUE(viewer.has_value());
+    EXPECT_TRUE(observer.wait_for_state(SessionState::Closed, seconds(3)));
+    const auto reason = observer.close_reason();
+    EXPECT_TRUE(reason == Error::TimedOut || reason == Error::NetworkError);
 }
 
 TEST_F(RealSessions, StreamsFramesEndToEndOverLoopback) {

@@ -35,6 +35,8 @@ final class FakeViewerCore: ViewerCoreSession, @unchecked Sendable {
     func pauseStream(_ streamID: UInt8) throws(CoreError) { lock.withLock { pausedList.append(streamID) } }
     func resumeStream(_ streamID: UInt8) throws(CoreError) { lock.withLock { resumedList.append(streamID) } }
 
+    func closeForSleep() { close() }
+
     func close() {
         let first = lock.withLock {
             defer { closed = true }

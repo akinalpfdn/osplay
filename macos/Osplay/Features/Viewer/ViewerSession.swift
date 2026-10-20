@@ -12,6 +12,7 @@ protocol ViewerCoreSession: AnyObject, Sendable {
     func pauseStream(_ streamID: UInt8) throws(CoreError)
     func resumeStream(_ streamID: UInt8) throws(CoreError)
     func close()
+    func closeForSleep()
 }
 
 extension CoreSession: ViewerCoreSession {}
@@ -86,6 +87,7 @@ actor ViewerSession {
                 eventSink.yield(.state(state))
                 if state == .closed {
                     await tearDown()
+                    core.close()  // releases the core session also after closeForSleep
                     if let reason, reason != .connectionClosed {
                         failure = reason
                     }
@@ -112,7 +114,7 @@ actor ViewerSession {
                 eventSink.yield(.roleSwapRequested(peerPublicKey: key))
             case .roleSwapAnswered(let answer, let key):
                 eventSink.yield(.roleSwapAnswered(answer, peerPublicKey: key))
-            case .viewerMonitors, .keyframeRequested:
+            case .viewerMonitors, .keyframeRequested, .bitrateTarget:
                 break  // host-only
             }
         }
@@ -162,6 +164,11 @@ actor ViewerSession {
     /// Ends the session with Bye; `run` returns once the core reports `.closed`.
     func stop() {
         core.close()
+    }
+
+    /// Ends the session telling the other computer this Mac is going to sleep (it waits for it).
+    func stopForSleep() {
+        core.closeForSleep()
     }
 
     /// Answers `.pairingCode` with the local user's decision.

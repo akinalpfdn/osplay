@@ -175,6 +175,14 @@ void MfH264Encoder::submit(ID3D11Texture2D* nv12, std::int64_t sample_time, bool
     pending_.push_back({.texture = nv12, .sample_time = sample_time, .keyframe = keyframe});
 }
 
+void MfH264Encoder::set_bitrate(std::uint32_t kbps) {
+    if (codec_api_ != nullptr) {
+        // Best effort: the session continues at the previous bitrate if the encoder refuses.
+        static_cast<void>(
+            set_codec_value(codec_api_.Get(), CODECAPI_AVEncCommonMeanBitRate, kbps * 1000U));
+    }
+}
+
 bool MfH264Encoder::poll() {
     while (true) {
         if (!feed()) {

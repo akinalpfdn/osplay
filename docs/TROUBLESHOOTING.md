@@ -94,3 +94,11 @@ from Paired devices; the next connection asks for a pairing code again.
 - The shortcut is ignored: another program owns it; the menu says so. Use the "Swap roles" button or
   record another shortcut in Settings.
 
+## The viewer keeps "waiting for … to come back"
+
+After sleep or a network drop the viewer reconnects when the host advertises itself again. If it
+does not: check that the host is awake and still in its sharing role, and that both are on the same
+network (Local Network permission on the Mac, a Private network on Windows). Choosing the computer
+under Nearby computers, or another role, ends the wait. Copy diagnostics (Settings › Advanced) for a
+bug report.
+

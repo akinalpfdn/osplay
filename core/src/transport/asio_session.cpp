@@ -51,7 +51,7 @@ public:
     Impl(session::SessionConfig config, crypto::KeyPair identity, crypto::RandomSource& random,
          session::SessionObserver& observer, TransportOptions options)
         : work_(asio::make_work_guard(io_)), acceptor_(io_), control_(io_), media_(io_),
-          resolver_(io_), timer_(io_), options_(options),
+          resolver_(io_), timer_(io_), connect_timer_(io_), options_(options),
           engine_(std::move(config), std::move(identity), random, observer, *this) {}
 
     Impl(const Impl&) = delete;
@@ -104,17 +104,37 @@ public:
         start_thread();
     }
 
-    void start_viewer(const std::string& host, std::uint16_t port) {
+    void start_viewer(const std::string& host, std::uint16_t port, Microseconds connect_timeout) {
+        connect_timer_.expires_after(connect_timeout);
+        connect_timer_.async_wait([this](const asio::error_code& error) {
+            if (error || closed_ || connected_) {
+                return; // cancelled, or the connection is up
+            }
+            connect_timed_out_ = true;
+            asio::error_code ignored;
+            resolver_.cancel();
+            control_.close(ignored); // aborts async_connect
+            engine_.on_transport_closed(Error::TimedOut);
+        });
         resolver_.async_resolve(
             host, std::to_string(port),
             [this](const asio::error_code& error, const tcp::resolver::results_type& results) {
+                if (connect_timed_out_) {
+                    return; // already reported
+                }
                 if (error) {
+                    connect_timer_.cancel();
                     engine_.on_transport_closed(Error::NetworkError);
                     return;
                 }
                 asio::async_connect(
                     control_, results,
                     [this](const asio::error_code& connect_error, const tcp::endpoint& endpoint) {
+                        if (connect_timed_out_) {
+                            return; // already reported
+                        }
+                        connected_ = true;
+                        connect_timer_.cancel();
                         if (connect_error) {
                             engine_.on_transport_closed(Error::NetworkError);
                             return;
@@ -204,6 +224,7 @@ public:
         acceptor_.close(ignored);
         media_.close(ignored);
         timer_.cancel();
+        connect_timer_.cancel();
         resolver_.cancel();
         // Let queued control data (Error, Bye) leave before the FIN.
         if (write_queue_.empty()) {
@@ -213,6 +234,13 @@ public:
 
 private:
     bool open_tcp_acceptor(asio::error_code& error) {
+        if (options_.control_port != 0 && open_tcp_acceptor(options_.control_port, error)) {
+            return true;
+        }
+        return open_tcp_acceptor(0, error);
+    }
+
+    bool open_tcp_acceptor(std::uint16_t port, asio::error_code& error) {
         for (const auto protocol : {tcp::v6(), tcp::v4()}) {
             error.clear();
             acceptor_.open(protocol, error);
@@ -222,7 +250,20 @@ private:
             if (protocol == tcp::v6()) {
                 acceptor_.set_option(asio::ip::v6_only(false), error); // also accept IPv4
             }
-            acceptor_.bind(tcp::endpoint(protocol, 0), error);
+#ifndef _WIN32
+            // The previous session's connection may linger in TIME_WAIT on this port. Windows
+            // allows the bind without it, and there the option would let another socket take an
+            // active port.
+            acceptor_.set_option(tcp::acceptor::reuse_address(true), error);
+#endif
+            acceptor_.bind(tcp::endpoint(protocol, port), error);
+            if (error == asio::error::address_in_use && port != 0) {
+                // Another socket has this port. Taking it on IPv4 alone next (which Windows
+                // allows beside a dual-stack listener) would split the port; use any instead.
+                asio::error_code ignored;
+                acceptor_.close(ignored);
+                return false;
+            }
             if (!error) {
                 acceptor_.listen(1, error);
             }
@@ -381,6 +422,9 @@ private:
     udp::socket media_;
     tcp::resolver resolver_;
     asio::steady_timer timer_;
+    asio::steady_timer connect_timer_; // viewer: until the TCP connection is up
+    bool connected_ = false;           // I/O thread only
+    bool connect_timed_out_ = false;   // I/O thread only
     std::array<std::uint8_t, kReadBufferBytes> read_buffer_{};
     std::array<std::uint8_t, protocol::kMaxDatagramSize + 1> datagram_buffer_{};
     udp::endpoint datagram_source_;
@@ -427,10 +471,11 @@ AsioSession::create_viewer(session::SessionConfig config, crypto::KeyPair identi
                            crypto::RandomSource& random, session::SessionObserver& observer,
                            const std::string& host, std::uint16_t port) {
     const auto tick = config.tunables.tick_interval;
+    const auto connect_timeout = config.tunables.connect_timeout;
     auto impl = std::make_unique<Impl>(std::move(config), std::move(identity), random, observer,
                                        TransportOptions{});
     impl->set_tick_interval(tick);
-    impl->start_viewer(host, port);
+    impl->start_viewer(host, port, connect_timeout);
     return std::unique_ptr<AsioSession>(new AsioSession(
         std::move(impl))); // NOLINT(cppcoreguidelines-owning-memory): private constructor
 }
@@ -506,6 +551,11 @@ void AsioSession::close() {
     impl_->post([impl = impl_.get()] {
         impl->engine().close(protocol::ByeReason::UserDisconnected, Impl::now());
     });
+}
+
+void AsioSession::close_for_sleep() {
+    impl_->post(
+        [impl = impl_.get()] { impl->engine().close(protocol::ByeReason::Sleeping, Impl::now()); });
 }
 
 void AsioSession::push_cursor_shape(const media::CursorShape& shape) {

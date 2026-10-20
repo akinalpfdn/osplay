@@ -47,6 +47,12 @@ public:
             static_cast<void>(osplay_session_close(session_)); // fails only when already closing
         }
     }
+    void close_for_sleep() {
+        const std::scoped_lock lock(mutex_);
+        if (session_ != nullptr) {
+            static_cast<void>(osplay_session_close_for_sleep(session_)); // fails only when closing
+        }
+    }
     [[nodiscard]] osplay_result request_role_swap() {
         const std::scoped_lock lock(mutex_);
         return session_ == nullptr ? OSPLAY_ERROR_INVALID_STATE
@@ -318,8 +324,16 @@ osplay_engine_result osplay_engine_viewer_start(const osplay_engine_viewer_confi
                     },
                 .on_display_change =
                     [self] {
-                        const auto attached = osplay::engine::still_attached(
-                            self->offered, osplay::engine::active_physical_monitors());
+                        const auto active = osplay::engine::active_physical_monitors();
+                        if (osplay::engine::mode_changed(self->offered, active)) {
+                            // The host made its displays for the old mode: start over.
+                            if (self->callbacks.on_monitors_changed != nullptr) {
+                                self->callbacks.on_monitors_changed(self->callbacks.context);
+                            }
+                            self->port.close();
+                            return;
+                        }
+                        const auto attached = osplay::engine::still_attached(self->offered, active);
                         self->with_orchestrator([&](osplay::engine::ViewerOrchestrator& o) {
                             o.on_monitors_changed(attached);
                         });
@@ -356,6 +370,7 @@ osplay_engine_result osplay_engine_viewer_start(const osplay_engine_viewer_confi
                              .max_refresh_hz = 240},
             .monitors = descriptions.data(),
             .monitor_count = descriptions.size(),
+            .control_port = 0,
         };
         const osplay_random_source random{.fill = system_random, .context = nullptr};
         const osplay_session_callbacks session_callbacks = core_callbacks(viewer.get());
@@ -473,6 +488,16 @@ osplay_engine_result osplay_engine_viewer_stop(osplay_engine_viewer* viewer) {
             return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
         }
         viewer->port.close();
+        return OSPLAY_ENGINE_OK;
+    });
+}
+
+osplay_engine_result osplay_engine_viewer_suspend(osplay_engine_viewer* viewer) {
+    return guarded([&] {
+        if (viewer == nullptr) {
+            return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
+        }
+        viewer->port.close_for_sleep();
         return OSPLAY_ENGINE_OK;
     });
 }

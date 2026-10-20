@@ -171,6 +171,10 @@ typedef struct osplay_engine_host_config {
     const char* dump_directory_utf8; /* debug: also write the stream as .h264 here, or NULL */
     /* Stream quality: target bits per pixel per frame, in thousandths (100 = 0.1); 0: default. */
     uint32_t millibits_per_pixel;
+    /* TCP port to listen on, 0 for any; pass the previous session's
+     * (osplay_engine_host_control_port) so the advertisement stays right. A taken port falls back
+     * to any. */
+    uint16_t control_port;
 } osplay_engine_host_config;
 
 /*
@@ -226,6 +230,9 @@ osplay_engine_host_answer_role_swap(osplay_engine_host* host, osplay_role_swap_a
 
 /* Ends the session with Bye without waiting; on_state reports CLOSED. */
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_stop(osplay_engine_host* host);
+
+/* As _stop, but tells the viewer this PC is going to sleep, so it waits for it to come back. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_suspend(osplay_engine_host* host);
 
 /* Stops everything, removes the virtual monitor and releases the handle. Accepts NULL. */
 OSPLAY_ENGINE_API void osplay_engine_host_destroy(osplay_engine_host* host);
@@ -299,6 +306,9 @@ typedef struct osplay_engine_viewer_callbacks {
      * session closes cleanly. */
     void (*on_role_swap_answer)(void* context, osplay_role_swap_answer answer,
                                 const uint8_t* peer_device_id);
+    /* An offered monitor changed its mode (resolution, refresh rate, scaling): the session is
+     * closing so the shell can connect again with the new mode. */
+    void (*on_monitors_changed)(void* context);
 } osplay_engine_viewer_callbacks;
 
 typedef struct osplay_engine_stream_figures {
@@ -342,6 +352,9 @@ osplay_engine_viewer_answer_role_swap(osplay_engine_viewer* viewer, osplay_role_
 
 /* Ends the session with Bye without waiting; on_state reports CLOSED. */
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_stop(osplay_engine_viewer* viewer);
+
+/* As _stop, but tells the host this PC is going to sleep. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_suspend(osplay_engine_viewer* viewer);
 
 /* Stops everything, closes the windows and releases the handle. Accepts NULL. */
 OSPLAY_ENGINE_API void osplay_engine_viewer_destroy(osplay_engine_viewer* viewer);

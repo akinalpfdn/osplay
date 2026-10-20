@@ -41,6 +41,9 @@ protocol VideoEncoding: AnyObject, Sendable {
         _ pixelBuffer: CVPixelBuffer, presentationTime: CMTime, forceKeyframe: Bool
     ) throws(VideoEncoderError)
 
+    /// Encodes the following frames at this average bitrate (adapted to the link).
+    func setBitrate(kbps: Int)
+
     /// Returns once every frame submitted so far has been output.
     func flush()
 

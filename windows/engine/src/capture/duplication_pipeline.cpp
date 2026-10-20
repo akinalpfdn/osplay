@@ -234,6 +234,9 @@ bool DuplicationPipeline::Worker::encode_if_needed() {
     if (desktop == nullptr) {
         return true; // nothing captured yet; a pending keyframe request waits for the first image
     }
+    if (const std::uint32_t kbps = owner->requested_bitrate_kbps_.exchange(0); kbps != 0) {
+        encoder->set_bitrate(kbps);
+    }
     const bool keyframe = owner->keyframe_requested_.exchange(false);
     const std::int64_t now = performance_counter();
     if (!pacer.should_encode(now, keyframe)) {

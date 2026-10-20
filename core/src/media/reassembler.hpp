@@ -41,6 +41,9 @@ struct ReassemblerConfig {
     Microseconds frame_interval{16'667};
     Microseconds minimum_rtt{2'000};
     std::size_t max_frames_in_flight = 8;
+    /// Ticks come every few milliseconds; a longer gap means this thread did not run (a
+    /// scheduling stall), and that time is not counted against any frame.
+    Microseconds stall_threshold{8'000};
 };
 
 struct ReassemblerStats {
@@ -96,6 +99,7 @@ private:
     std::optional<std::uint32_t> next_frame_id_; // the next frame to deliver
     bool waiting_for_keyframe_ = true;
     Microseconds rtt_{0};
+    std::optional<TimePoint> last_tick_;
     ReassemblerStats stats_;
 };
 

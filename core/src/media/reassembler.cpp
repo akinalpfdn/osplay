@@ -18,6 +18,7 @@ Microseconds Reassembler::deadline() const {
 void Reassembler::reset() {
     pending_.clear();
     next_frame_id_.reset();
+    last_tick_.reset();
     waiting_for_keyframe_ = true;
 }
 
@@ -155,6 +156,19 @@ void Reassembler::send_nack(std::uint32_t frame_id, const Pending& frame) {
 }
 
 void Reassembler::tick(TimePoint now) {
+    // After a stall the timer can fire before the socket is read, while the rest of a frame is
+    // already waiting there; without this it would be dropped as lost (and everything up to the
+    // next keyframe with it).
+    if (last_tick_) {
+        const auto gap = std::chrono::duration_cast<Microseconds>(now - *last_tick_);
+        if (gap > config_.stall_threshold) {
+            for (auto& [frame_id, frame] : pending_) {
+                frame.last_progress += gap;
+            }
+        }
+    }
+    last_tick_ = now;
+
     while (pending_.size() > config_.max_frames_in_flight) {
         drop_through(pending_.begin()->first);
     }

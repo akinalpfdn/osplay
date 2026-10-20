@@ -54,6 +54,10 @@ Service type `_osplay._tcp`; the SRV record carries the TCP control port. TXT re
 | `roles` | `host`, `viewer` or `host,viewer` |
 | `os` | `macos` or `windows` |
 
+A host listens again on the same TCP port after every session (falling back to any free port when
+it is taken). Bonjour browsing reports instances, not changed ports, so a viewer that resolved the
+advertisement earlier would otherwise keep connecting to a closed port.
+
 ## Control channel (TCP)
 
 Each frame is `u32 length` followed by `length` bytes of payload, 1 ≤ length ≤ 4096 for plaintext
@@ -337,8 +341,9 @@ is not delivered again.
 
 ## Session flow
 
-1. The viewer connects to the host's control port. Both sides send **Hello**; a different major
-   version ends the connection with Error 1.
+1. The viewer connects to the host's control port; a host that does not accept within **5 s** (asleep,
+   gone, an old advertisement) ends the attempt with TIMED_OUT. Both sides send **Hello**; a different
+   major version ends the connection with Error 1.
 2. **Noise XX** (viewer = initiator) in three HandshakeMessages. Everything after it is encrypted.
    The handshake must finish within 10 s.
 3. **Pairing.** Each side checks the peer's static key against its own trust store:
@@ -392,10 +397,22 @@ arrives; Hello tells each side the other's minor version, so the request is not 
   fragment of a stream's newest frame again 50 ms, 200 ms and 700 ms after that frame, unless a
   newer frame went out. A viewer that already has the frame ignores it; one that lost the frame
   learns of it and NACKs the rest. No new message is involved.
+- Time during which the viewer's own I/O thread did not run (a gap of more than 8 ms between its
+  timer ticks) is not counted towards these deadlines: after such a stall the rest of a frame may
+  still be waiting in the socket.
 - A frame without progress for a frame interval plus max(RTT, 2 ms) is dropped. The viewer then
   discards frames until the next keyframe and sends KeyframeRequest (reason 2), at most every
   250 ms per stream. More than 8 frames in flight has the same effect.
 - The host turns requests closer together than 100 ms into a single keyframe.
+
+### Bitrate adaptation
+
+The host adapts each stream's encoder bitrate from the viewer's ReceiverReports (once per second).
+An interval is congested when the viewer lost at least 1% of its frames or the host resent at least
+5% of the fragments it sent; the target then drops to 75%. After three clean intervals in a row it
+rises by 8%. It never exceeds the bitrate in StreamConfig and never drops below a quarter of it
+(at least 1 Mbit/s). Changes under 5% are not passed to the encoder. Nothing on the wire changes:
+StreamConfig keeps the configured bitrate.
 
 ## Encryption
 
@@ -490,6 +507,7 @@ Decoding and encoding report these codes, which are also the values of `osplay_r
 | 24 | INVALID_STATE | the command is not valid in the session's current state |
 | 25 | NETWORK | a socket could not be opened, connected or used |
 | 26 | INTERNAL | the core could not allocate memory or start its I/O thread |
+| 27 | PEER_SLEEPING | the peer closed the session with Bye 3 (going to sleep); it is expected back |
 
 ## Fixtures
 
