@@ -3,10 +3,10 @@ using System.Windows.Interop;
 using H.NotifyIcon;
 using Osplay.App.Connection;
 using Osplay.App.Diagnostics;
-using Osplay.App.TrayPanel;
 using Osplay.App.Services;
 using Osplay.App.Settings;
 using Osplay.App.Tray;
+using Osplay.App.TrayPanel;
 using Wpf.Ui.Appearance;
 
 namespace Osplay.App;

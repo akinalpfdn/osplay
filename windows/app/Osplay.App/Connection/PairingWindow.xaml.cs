@@ -5,7 +5,7 @@ using Wpf.Ui.Appearance;
 namespace Osplay.App.Connection;
 
 /// <summary>The pairing code dialog; closing it without a choice rejects.</summary>
-public partial class PairingWindow
+public partial class PairingWindow : Wpf.Ui.Controls.FluentWindow
 {
     private Action<bool>? _decide;
 

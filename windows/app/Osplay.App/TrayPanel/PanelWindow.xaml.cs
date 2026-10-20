@@ -8,7 +8,7 @@ namespace Osplay.App.TrayPanel;
 /// The panel the tray icon opens, in the corner above the taskbar; it closes when it loses focus,
 /// like the Mac's menu bar window.
 /// </summary>
-public partial class PanelWindow
+public partial class PanelWindow : Wpf.Ui.Controls.FluentWindow
 {
     private DateTime _hiddenAt = DateTime.MinValue;
 

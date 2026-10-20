@@ -5,7 +5,7 @@ using Osplay.App.Settings;
 namespace Osplay.App.Controls;
 
 /// <summary>Click, then press a combination: records a global hotkey. Escape cancels.</summary>
-public partial class HotkeyRecorder
+public partial class HotkeyRecorder : System.Windows.Controls.UserControl
 {
     public static readonly DependencyProperty GestureProperty = DependencyProperty.Register(
         nameof(Gesture), typeof(HotkeyGesture), typeof(HotkeyRecorder),
