@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Interop;
 using H.NotifyIcon;
+using Microsoft.Win32;
 using Osplay.App.Connection;
 using Osplay.App.Diagnostics;
 using Osplay.App.Services;
@@ -32,8 +33,12 @@ public partial class App : Application, IDisposable
         var updates = new UpdatesViewModel(settings);
         _settingsViewModel = new SettingsViewModel(settings, _connection, updates);
         _panel = new PanelWindow(new PanelViewModel(_connection, updates, settings, OpenSettings, QuitAsync));
-        // A window handle now, so the theme follows the system before the panel is first shown.
+        // WPF makes the first window the main window, and every theme apply (also those the Settings
+        // and pairing windows' theme watchers make) clears the main window's background for Mica.
+        // The panel has no backdrop and would turn white, so it must not be the main window.
+        MainWindow = null;
         _ = new WindowInteropHelper(_panel).EnsureHandle();
+        SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
         _connection.ViewerStarted += _panel.Hide;
 
         _trayIcon = (TaskbarIcon)FindResource(TrayResourceKeys.TrayIcon);
@@ -58,7 +63,16 @@ public partial class App : Application, IDisposable
             SystemTheme.HCBlack or SystemTheme.HCWhite or SystemTheme.HC1 or SystemTheme.HC2 => ApplicationTheme.HighContrast,
             _ => ApplicationTheme.Light,
         };
-        ApplicationThemeManager.Apply(theme, Wpf.Ui.Controls.WindowBackdropType.Mica, true);
+        ApplicationThemeManager.Apply(theme, Wpf.Ui.Controls.WindowBackdropType.None, true);
+    }
+
+    // Raised on a system events thread; a light/dark switch arrives as General.
+    private void OnUserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs e)
+    {
+        if (e.Category == UserPreferenceCategory.General)
+        {
+            _ = Dispatcher.BeginInvoke(ApplySystemTheme);
+        }
     }
 
     private void OpenSettings()
@@ -79,6 +93,7 @@ public partial class App : Application, IDisposable
 
     public void Dispose()
     {
+        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         _trayIconTheme?.Dispose();
         _trayIconTheme = null;
         _trayIcon?.Dispose();
