@@ -337,8 +337,9 @@ is not delivered again.
 
 ## Session flow
 
-1. The viewer connects to the host's control port. Both sides send **Hello**; a different major
-   version ends the connection with Error 1.
+1. The viewer connects to the host's control port; a host that does not accept within **5 s** (asleep,
+   gone, an old advertisement) ends the attempt with TIMED_OUT. Both sides send **Hello**; a different
+   major version ends the connection with Error 1.
 2. **Noise XX** (viewer = initiator) in three HandshakeMessages. Everything after it is encrypted.
    The handshake must finish within 10 s.
 3. **Pairing.** Each side checks the peer's static key against its own trust store:

@@ -17,6 +17,9 @@ namespace osplay::session {
 struct SessionTunables {
     Microseconds tick_interval{2'000};
     Microseconds handshake_timeout{10'000'000};
+    /// Viewer: a host that does not accept the TCP connection within this time (asleep, gone, an
+    /// old advertisement) ends the session with TIMED_OUT instead of the OS's minute-long wait.
+    Microseconds connect_timeout{5'000'000};
     Microseconds heartbeat_interval{1'000'000};
     /// No control message for this long ends the session; must exceed brief network outages.
     Microseconds heartbeat_timeout{10'000'000};

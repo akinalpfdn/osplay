@@ -45,8 +45,15 @@ using std::chrono::seconds;
 
 class SyncObserver final : public session::SessionObserver {
 public:
-    void on_state(SessionState new_state, std::optional<Error> /*reason*/) override {
-        update([&] { state_ = new_state; });
+    void on_state(SessionState new_state, std::optional<Error> reason) override {
+        update([&] {
+            state_ = new_state;
+            reason_ = reason;
+        });
+    }
+    std::optional<Error> close_reason() {
+        const std::scoped_lock lock(mutex_);
+        return reason_;
     }
     void on_peer(const protocol::Hello& /*hello*/) override {}
     TrustDecision on_trust_query(const osplay::crypto::Key& /*key*/) override {
@@ -122,6 +129,7 @@ private:
     std::mutex mutex_;
     std::condition_variable changed_;
     SessionState state_ = SessionState::Connecting;
+    std::optional<Error> reason_;
     std::vector<protocol::Monitor> monitors_;
     std::vector<std::uint32_t> frames_;
     bool intact_ = true;
@@ -445,6 +453,21 @@ void expect_opaque(const std::vector<std::uint8_t>& bytes) {
     const std::string text(bytes.begin(), bytes.end());
     EXPECT_EQ(text.find("Wire Viewer"), std::string::npos) << "device name after the handshake";
     EXPECT_EQ(text.find("Wire Host"), std::string::npos) << "device name after the handshake";
+}
+
+TEST(RealSessionsConnect, AHostThatNeverAnswersEndsTheViewerInsteadOfHangingIt) {
+    // A non-routable address: the SYN goes nowhere (or the network reports it unreachable).
+    auto viewer_config = config(protocol::Role::Viewer);
+    viewer_config.tunables.connect_timeout = osplay::Microseconds{300'000};
+    osplay::test::SeededRandom random{5};
+    SyncObserver observer;
+    auto viewer = osplay::transport::AsioSession::create_viewer(
+        std::move(viewer_config), osplay::test::key_pair(random), random, observer, "10.255.255.1",
+        9);
+    ASSERT_TRUE(viewer.has_value());
+    EXPECT_TRUE(observer.wait_for_state(SessionState::Closed, seconds(3)));
+    const auto reason = observer.close_reason();
+    EXPECT_TRUE(reason == Error::TimedOut || reason == Error::NetworkError);
 }
 
 TEST_F(RealSessions, StreamsFramesEndToEndOverLoopback) {
