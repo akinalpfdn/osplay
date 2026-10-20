@@ -13,6 +13,9 @@ public sealed record HotkeyGesture(uint Modifiers, uint VirtualKey)
     /// <summary>User decision: Ctrl+Alt+Shift+V (Ctrl+Alt alone is AltGr on Turkish layouts).</summary>
     public static HotkeyGesture Default { get; } = new(Control | Alt | Shift, 0x56);
 
+    /// <summary>The role swap shortcut (Phase 12b): Ctrl+Alt+Shift+S, next to the viewer's.</summary>
+    public static HotkeyGesture DefaultSwap { get; } = new(Control | Alt | Shift, 0x53);
+
     /// <summary>A gesture from a WPF key press, or null without Ctrl, Alt or Win (Shift alone types).</summary>
     public static HotkeyGesture? From(Key key, ModifierKeys modifiers)
     {

@@ -46,7 +46,30 @@ internal abstract class EngineSession : IAsyncDisposable
     /// <summary>Viewer: one stream could not be shown; the session continues.</summary>
     public event Action<EngineResult>? StreamFailed;
 
+    /// <summary>The other computer asks to reverse the roles; the argument is its device ID (hex).</summary>
+    public event Action<string>? RoleSwapRequested;
+
+    /// <summary>The answer to <see cref="RequestRoleSwapAsync"/>; after Accepted the session closes.</summary>
+    public event Action<RoleSwapAnswer, string>? RoleSwapAnswered;
+
     public abstract Task ConfirmPairingAsync(bool accepted);
+
+    /// <summary>Asks the other computer to reverse the roles; PeerTooOld when its Osplay cannot.</summary>
+    public Task<EngineResult> RequestRoleSwapAsync() =>
+        Native.Run(() => Handle == 0 ? EngineResult.SessionFailed : RequestRoleSwap(Handle));
+
+    /// <summary>Answers <see cref="RoleSwapRequested"/>; Accepted closes the session.</summary>
+    public Task AnswerRoleSwapAsync(RoleSwapAnswer answer) => Native.Run(() =>
+    {
+        if (Handle != 0)
+        {
+            _ = AnswerRoleSwap(Handle, answer);
+        }
+    });
+
+    protected abstract EngineResult RequestRoleSwap(nint handle);
+
+    protected abstract EngineResult AnswerRoleSwap(nint handle, RoleSwapAnswer answer);
 
     public abstract Task StopAsync();
 
@@ -119,6 +142,26 @@ internal abstract class EngineSession : IAsyncDisposable
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    protected static unsafe void OnRoleSwapRequest(nint context, byte* peerDeviceId)
+    {
+        var self = From(context);
+        string peer = DeviceIdOf(peerDeviceId);
+        self.Post(() => self.RoleSwapRequested?.Invoke(peer));
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    protected static unsafe void OnRoleSwapAnswer(nint context, RoleSwapAnswer answer, byte* peerDeviceId)
+    {
+        var self = From(context);
+        string peer = DeviceIdOf(peerDeviceId);
+        self.Post(() => self.RoleSwapAnswered?.Invoke(answer, peer));
+    }
+
+    /// <summary>Lowercase hex, as Bonjour advertisements carry it (DeviceInfo.DeviceId).</summary>
+    private static unsafe string DeviceIdOf(byte* deviceId) =>
+        Convert.ToHexStringLower(new ReadOnlySpan<byte>(deviceId, NativeSizes.DeviceIdSize));
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     protected static unsafe void OnLog(nint context, LogLevel level, byte* message) => Log.Write(level, Utf8.Read(message));
 }
 
@@ -161,6 +204,8 @@ internal sealed unsafe class EngineHost : EngineSession
                     OnStats = 0,
                     OnLog = &OnLog,
                     OnPeer = &OnPeer,
+                    OnRoleSwapRequest = &OnRoleSwapRequest,
+                    OnRoleSwapAnswer = &OnRoleSwapAnswer,
                 };
                 nint handle;
                 EngineResult result = NativeMethods.HostStart(&config, &callbacks, &handle);
@@ -198,6 +243,11 @@ internal sealed unsafe class EngineHost : EngineSession
     });
 
     protected override void Destroy(nint handle) => NativeMethods.HostDestroy(handle);
+
+    protected override EngineResult RequestRoleSwap(nint handle) => NativeMethods.HostRequestRoleSwap(handle);
+
+    protected override EngineResult AnswerRoleSwap(nint handle, RoleSwapAnswer answer) =>
+        NativeMethods.HostAnswerRoleSwap(handle, answer);
 }
 
 /// <summary>Where and how a viewer session runs.</summary>
@@ -257,6 +307,8 @@ internal sealed unsafe class EngineViewer : EngineSession
                         OnStats = &OnStats,
                         OnLog = &OnLog,
                         OnPeer = &OnPeer,
+                        OnRoleSwapRequest = &OnRoleSwapRequest,
+                        OnRoleSwapAnswer = &OnRoleSwapAnswer,
                     };
                     nint handle;
                     EngineResult result = NativeMethods.ViewerStart(&config, &callbacks, &handle);
@@ -322,6 +374,11 @@ internal sealed unsafe class EngineViewer : EngineSession
     });
 
     protected override void Destroy(nint handle) => NativeMethods.ViewerDestroy(handle);
+
+    protected override EngineResult RequestRoleSwap(nint handle) => NativeMethods.ViewerRequestRoleSwap(handle);
+
+    protected override EngineResult AnswerRoleSwap(nint handle, RoleSwapAnswer answer) =>
+        NativeMethods.ViewerAnswerRoleSwap(handle, answer);
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void OnStreamFailed(nint context, byte streamId, EngineResult reason)

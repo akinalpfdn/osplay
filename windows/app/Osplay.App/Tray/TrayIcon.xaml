@@ -48,6 +48,8 @@
             </Style>
           </MenuItem.Style>
         </MenuItem>
+        <MenuItem Header="{x:Static res:Strings.SwapRoles}" Command="{Binding Connection.SwapRolesCommand}"
+                  Visibility="{Binding Connection.IsStreaming, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
         <MenuItem Header="{x:Static res:Strings.TrayDisconnect}" Command="{Binding Connection.DisconnectCommand}"
                   Visibility="{Binding Connection.IsSessionActive, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
         <Separator />

@@ -6,6 +6,9 @@ internal static class AppTunables
     /// <summary>A host session takes one viewer; the next listener starts after this pause.</summary>
     public static readonly TimeSpan RelistenDelay = TimeSpan.FromSeconds(1);
 
+    /// <summary>After a role swap, how long viewing waits for the other computer to advertise itself.</summary>
+    public static readonly TimeSpan SwapReconnectTimeout = TimeSpan.FromSeconds(20);
+
     /// <summary>The log file is rolled over at this size; one older file is kept.</summary>
     public const long LogFileLimitBytes = 5 * 1024 * 1024;
 

@@ -22,6 +22,10 @@ public sealed partial class AppSettings : ObservableObject
     [ObservableProperty]
     private HotkeyGesture _viewerHotkey = HotkeyGesture.Default;
 
+    /// <summary>Reverses the roles of a running session.</summary>
+    [ObservableProperty]
+    private HotkeyGesture _swapHotkey = HotkeyGesture.DefaultSwap;
+
     [ObservableProperty]
     private bool _showsStatsOverlay;
 
@@ -87,6 +91,9 @@ public sealed partial class AppSettings : ObservableObject
             LastUpdateCheck = stored.LastUpdateCheck;
             ExcludedMonitors = stored.ExcludedMonitors ?? [];
             HidesNetworkWarning = stored.HidesNetworkWarning;
+            SwapHotkey = stored.SwapKey == 0
+                ? HotkeyGesture.DefaultSwap
+                : new HotkeyGesture(stored.SwapModifiers, stored.SwapKey);
         }
         finally
         {
@@ -98,7 +105,7 @@ public sealed partial class AppSettings : ObservableObject
     {
         var stored = new Stored(
             Quality, ViewerHotkey.Modifiers, ViewerHotkey.VirtualKey, ShowsStatsOverlay, ChecksForUpdates, LastUpdateCheck,
-            [.. ExcludedMonitors], HidesNetworkWarning);
+            [.. ExcludedMonitors], HidesNetworkWarning, SwapHotkey.Modifiers, SwapHotkey.VirtualKey);
         try
         {
             _ = Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
@@ -112,5 +119,6 @@ public sealed partial class AppSettings : ObservableObject
 
     private sealed record Stored(
         QualityPreset Quality, uint HotkeyModifiers, uint HotkeyKey, bool ShowsStatsOverlay, bool ChecksForUpdates,
-        DateTimeOffset? LastUpdateCheck, List<string>? ExcludedMonitors, bool HidesNetworkWarning = false);
+        DateTimeOffset? LastUpdateCheck, List<string>? ExcludedMonitors, bool HidesNetworkWarning = false,
+        uint SwapModifiers = 0, uint SwapKey = 0);
 }

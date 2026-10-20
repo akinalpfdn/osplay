@@ -333,4 +333,40 @@
   <data name="ErrorNoMonitorSelected" xml:space="preserve">
     <value>Sunmak için monitörlerinizden en az birini seçin.</value>
   </data>
+  <data name="ConnectionStatusSwapping" xml:space="preserve">
+    <value>{0} ile roller değiştiriliyor…</value>
+  </data>
+  <data name="SwapRoles" xml:space="preserve">
+    <value>Rolleri değiştir</value>
+  </data>
+  <data name="SwapHint" xml:space="preserve">
+    <value>{0} rolleri değiştirir: ekran olan bilgisayar genişleten olur.</value>
+  </data>
+  <data name="SwapHotkeyTaken" xml:space="preserve">
+    <value>{0} başka bir program tarafından kullanılıyor; rolleri değiştirmek için düğmeyi kullanın.</value>
+  </data>
+  <data name="SettingsSwapHotkey" xml:space="preserve">
+    <value>Rolleri değiştir</value>
+  </data>
+  <data name="SettingsSwapHotkeyDetail" xml:space="preserve">
+    <value>Bağlıyken her uygulamada çalışır: ekran olarak kullanılan bilgisayar, yeniden eşleştirmeden diğerini genişletmeye başlar. Yeni kısayol bir sonraki bağlantıdan itibaren geçerli olur.</value>
+  </data>
+  <data name="HotkeyDuplicate" xml:space="preserve">
+    <value>{0} zaten Osplay'in diğer kısayolu.</value>
+  </data>
+  <data name="ErrorSwapUnsupported" xml:space="preserve">
+    <value>Diğer bilgisayarda rol değiştirmeyi bilmeyen eski bir Osplay var. İkisini de güncelleyin.</value>
+  </data>
+  <data name="ErrorSwapCannotHost" xml:space="preserve">
+    <value>Diğer bilgisayar şu an kendini genişletemiyor: orada bir izin, sanal ekran sürücüsü ya da yardımcı hizmet eksik.</value>
+  </data>
+  <data name="ErrorSwapBusy" xml:space="preserve">
+    <value>Diğer bilgisayar şu an rolleri değiştiremiyor. Birazdan yeniden deneyin.</value>
+  </data>
+  <data name="ErrorSwapNoAnswer" xml:space="preserve">
+    <value>Diğer bilgisayar rol değiştirme isteğine yanıt vermedi.</value>
+  </data>
+  <data name="ErrorSwapNotFound" xml:space="preserve">
+    <value>Değişimden sonra diğer bilgisayar görünmedi. Göründüğünde Yakındaki bilgisayarlar altından seçin.</value>
+  </data>
 </root>

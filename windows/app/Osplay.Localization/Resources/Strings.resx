@@ -333,4 +333,40 @@
   <data name="ErrorNoMonitorSelected" xml:space="preserve">
     <value>Select at least one of your monitors to offer.</value>
   </data>
+  <data name="ConnectionStatusSwapping" xml:space="preserve">
+    <value>Swapping roles with {0}…</value>
+  </data>
+  <data name="SwapRoles" xml:space="preserve">
+    <value>Swap roles</value>
+  </data>
+  <data name="SwapHint" xml:space="preserve">
+    <value>{0} swaps the roles: the display becomes the computer that extends.</value>
+  </data>
+  <data name="SwapHotkeyTaken" xml:space="preserve">
+    <value>{0} is used by another program; use the button to swap roles.</value>
+  </data>
+  <data name="SettingsSwapHotkey" xml:space="preserve">
+    <value>Swap roles</value>
+  </data>
+  <data name="SettingsSwapHotkeyDetail" xml:space="preserve">
+    <value>Works in any app while connected: the computer used as a display starts extending the other one, without pairing again. A new shortcut applies from the next connection.</value>
+  </data>
+  <data name="HotkeyDuplicate" xml:space="preserve">
+    <value>{0} is already Osplay's other shortcut.</value>
+  </data>
+  <data name="ErrorSwapUnsupported" xml:space="preserve">
+    <value>The other computer runs an older Osplay without role swap. Update both.</value>
+  </data>
+  <data name="ErrorSwapCannotHost" xml:space="preserve">
+    <value>The other computer cannot extend itself right now: a permission, the virtual display driver or the helper service is missing there.</value>
+  </data>
+  <data name="ErrorSwapBusy" xml:space="preserve">
+    <value>The other computer cannot swap roles right now. Try again in a moment.</value>
+  </data>
+  <data name="ErrorSwapNoAnswer" xml:space="preserve">
+    <value>The other computer did not answer the role swap.</value>
+  </data>
+  <data name="ErrorSwapNotFound" xml:space="preserve">
+    <value>After the swap the other computer did not appear. Choose it under Nearby computers once it does.</value>
+  </data>
 </root>
