@@ -6,6 +6,8 @@ import OSLog
 protocol ViewerCoreSession: AnyObject, Sendable {
     var events: AsyncStream<SessionEvent> { get }
     func confirmPairing(_ accepted: Bool) throws(CoreError)
+    func requestRoleSwap() throws(CoreError)
+    func answerRoleSwap(_ answer: RoleSwapAnswer) throws(CoreError)
     func requestKeyframe(_ streamID: UInt8) throws(CoreError)
     func pauseStream(_ streamID: UInt8) throws(CoreError)
     func resumeStream(_ streamID: UInt8) throws(CoreError)
@@ -28,6 +30,10 @@ actor ViewerSession {
         case streamAdded(StreamConfiguration)
         case visibility(Bool)
         case statistics(SessionStatistics)
+        /// The other computer asks to reverse the roles; answer with `answerRoleSwap`.
+        case roleSwapRequested(peerPublicKey: [UInt8])
+        /// The answer to `requestRoleSwap`; after `.accepted` the session closes.
+        case roleSwapAnswered(RoleSwapAnswer, peerPublicKey: [UInt8])
     }
 
     nonisolated let events: AsyncStream<Event>
@@ -102,6 +108,10 @@ actor ViewerSession {
                 eventSink.yield(.pairingCode(code, peerPublicKey: key))
             case .paired(let key):
                 eventSink.yield(.paired(peerPublicKey: key))
+            case .roleSwapRequested(let key):
+                eventSink.yield(.roleSwapRequested(peerPublicKey: key))
+            case .roleSwapAnswered(let answer, let key):
+                eventSink.yield(.roleSwapAnswered(answer, peerPublicKey: key))
             case .viewerMonitors, .keyframeRequested:
                 break  // host-only
             }
@@ -160,6 +170,20 @@ actor ViewerSession {
             try core.confirmPairing(accepted)
         } catch {
             Log.viewer.error("Pairing answer failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Asks the other computer to reverse the roles; throws when it cannot be asked now.
+    func requestRoleSwap() throws(CoreError) {
+        try core.requestRoleSwap()
+    }
+
+    /// Answers `.roleSwapRequested`; `.accepted` closes the session.
+    func answerRoleSwap(_ answer: RoleSwapAnswer) {
+        do throws(CoreError) {
+            try core.answerRoleSwap(answer)
+        } catch {
+            Log.viewer.error("Role swap answer failed: \(String(describing: error), privacy: .public)")
         }
     }
 

@@ -22,6 +22,15 @@ final class ConnectionViewModel {
         case waitingForViewer
         case connecting(peer: String)
         case connected(peer: String)
+        /// The roles are being reversed with this computer.
+        case swapping(peer: String)
+    }
+
+    /// After an accepted role swap: the role this Mac takes once the session has closed.
+    private struct PendingSwap {
+        let role: Mode
+        let peerDeviceID: String
+        let peerName: String
     }
 
     private(set) var mode: Mode = .off
@@ -45,6 +54,12 @@ final class ConnectionViewModel {
     private var liveDisplays: [UInt8: CGDirectDisplayID] = [:]
     private var liveDeviceID: String?
     private var hotkey: HotkeyRegistration?
+    private var swapHotkey: HotkeyRegistration?
+    private(set) var swapHotkeyUnavailable = false
+    private var pendingSwap: PendingSwap?
+    /// Viewing after a swap: connects to this device as soon as Bonjour finds it.
+    private var autoConnectDeviceID: String?
+    private var autoConnectTimeout: Task<Void, Never>?
 
     init(dependencies: AppDependencies, deviceName: String = Host.current().localizedName ?? "Mac") {
         self.dependencies = dependencies
@@ -55,7 +70,7 @@ final class ConnectionViewModel {
     var isSessionActive: Bool {
         switch status {
         case .connecting, .connected: true
-        case .idle, .waitingForViewer: false
+        case .idle, .waitingForViewer, .swapping: false
         }
     }
 
@@ -121,6 +136,23 @@ final class ConnectionViewModel {
         Task { [host, viewer] in
             await host?.stop()
             await viewer?.stop()
+        }
+    }
+
+    /// Reverses the roles with the connected computer: this Mac hosts if it was the display, and
+    /// becomes the display if it was hosting. The other computer must agree (it answers at once).
+    func swapRoles() {
+        guard case .connected = status, pendingSwap == nil else { return }
+        Task { [weak self, host, viewer] in
+            do throws(CoreError) {
+                if let host {
+                    try await host.requestRoleSwap()
+                } else if let viewer {
+                    try await viewer.requestRoleSwap()
+                }
+            } catch {
+                self?.error = error == .unsupportedVersion ? .roleSwapUnsupported : .session(error)
+            }
         }
     }
 
@@ -195,7 +227,13 @@ final class ConnectionViewModel {
     /// A core host session accepts one viewer, so a new one listens after each session.
     private func shareLoop(_ identity: DeviceIdentity) async {
         while mode == .sharing, !Task.isCancelled {
-            if let failure = await shareOnce(identity) {
+            let failure = await shareOnce(identity)
+            if pendingSwap != nil {
+                // Outside this task: switching modes cancels it.
+                Task { [weak self] in self?.performSwap() }
+                return
+            }
+            if let failure {
                 error = failure
                 if case .host(.screenRecordingPermissionMissing) = failure {
                     mode = .off
@@ -254,6 +292,7 @@ final class ConnectionViewModel {
         }
         let failure = await session.run()
         events.cancel()
+        unregisterSwapHotkey()
         host = nil
         liveDisplays = [:]
         liveDeviceID = nil
@@ -279,6 +318,10 @@ final class ConnectionViewModel {
             rememberArrangement(displays)
         case .statistics:
             break
+        case .roleSwapRequested(let key):
+            answerSwap(from: key, becoming: .viewing) { answer in Task { await session.answerRoleSwap(answer) } }
+        case .roleSwapAnswered(let answer, let key):
+            swapAnswered(answer, peer: key, becoming: .viewing)
         }
     }
 
@@ -306,6 +349,11 @@ final class ConnectionViewModel {
             devices.removeAll { $0.label == device.label }
             devices.append(device)
             devices.sort { $0.advertisement.name.localizedStandardCompare($1.advertisement.name) == .orderedAscending }
+            if device.advertisement.deviceID == autoConnectDeviceID {
+                autoConnectDeviceID = nil
+                autoConnectTimeout?.cancel()
+                connect(to: device)
+            }
         case .lost(let label):
             devices.removeAll { $0.label == label }
         case .failed(let reason):
@@ -328,6 +376,10 @@ final class ConnectionViewModel {
             if state == .streaming { connected() }
         case .streamAdded, .visibility, .statistics:
             break
+        case .roleSwapRequested(let key):
+            answerSwap(from: key, becoming: .sharing) { answer in Task { await session.answerRoleSwap(answer) } }
+        case .roleSwapAnswered(let answer, let key):
+            swapAnswered(answer, peer: key, becoming: .sharing)
         }
     }
 
@@ -336,11 +388,80 @@ final class ConnectionViewModel {
         if let hotkey { dependencies.hotkeys.unregister(hotkey) }
         hotkey = nil
         hotkeyUnavailable = false
+        unregisterSwapHotkey()
         viewerTasks.forEach { $0.cancel() }
         viewerTasks = []
         viewer = nil
         dependencies.pairingPrompt.dismiss()
         status = .idle
+        if pendingSwap != nil { performSwap() }
+    }
+
+    // MARK: - Role swap
+
+    /// The other computer asks to reverse the roles: agree when this Mac can take its new role.
+    private func answerSwap(
+        from key: [UInt8], becoming role: Mode, answer: @escaping (RoleSwapAnswer) -> Void
+    ) {
+        let able = role == .sharing ? hasScreenRecordingAccess : LocalMonitor.offered() != nil
+        guard able, pendingSwap == nil else {
+            answer(able ? .busy : .cannotHost)
+            return
+        }
+        pendingSwap = PendingSwap(
+            role: role, peerDeviceID: DeviceIdentity.deviceID(publicKey: key), peerName: peerName)
+        status = .swapping(peer: peerName)
+        answer(.accepted)
+    }
+
+    private func swapAnswered(_ answer: RoleSwapAnswer, peer key: [UInt8], becoming role: Mode) {
+        guard answer == .accepted else {
+            error = .roleSwap(answer)
+            return
+        }
+        pendingSwap = PendingSwap(
+            role: role, peerDeviceID: DeviceIdentity.deviceID(publicKey: key), peerName: peerName)
+        status = .swapping(peer: peerName)
+    }
+
+    /// The session closed after an agreed swap: take the new role. Viewing connects to the same
+    /// computer as soon as it advertises itself as a host; it is already paired, so no code.
+    private func performSwap() {
+        guard let swap = pendingSwap else { return }
+        pendingSwap = nil
+        setMode(swap.role)
+        guard swap.role == .viewing else { return }
+        status = .swapping(peer: swap.peerName)
+        if let device = devices.first(where: { $0.advertisement.deviceID == swap.peerDeviceID }) {
+            connect(to: device)
+            return
+        }
+        autoConnectDeviceID = swap.peerDeviceID
+        autoConnectTimeout = Task { [weak self] in
+            try? await Task.sleep(for: Tunables.Connection.swapReconnectTimeout)
+            guard !Task.isCancelled, let self, autoConnectDeviceID == swap.peerDeviceID else { return }
+            autoConnectDeviceID = nil
+            error = .roleSwapPeerNotFound
+            status = .idle
+        }
+    }
+
+    private func registerSwapHotkey() {
+        guard swapHotkey == nil else { return }
+        do throws(HotkeyError) {
+            swapHotkey = try dependencies.hotkeys.register(dependencies.settings.swapHotkey) { [weak self] in
+                self?.swapRoles()
+            }
+            swapHotkeyUnavailable = false
+        } catch {
+            swapHotkeyUnavailable = true
+        }
+    }
+
+    private func unregisterSwapHotkey() {
+        if let swapHotkey { dependencies.hotkeys.unregister(swapHotkey) }
+        swapHotkey = nil
+        swapHotkeyUnavailable = false
     }
 
     private func registerHotkey(for session: ViewerSession) {
@@ -402,6 +523,7 @@ final class ConnectionViewModel {
 
     private func connected() {
         status = .connected(peer: peerName)
+        registerSwapHotkey()
         if let key = trust.currentPeer {
             update { () throws(KeyStoreError) in try trust.seen(key) }
         }
@@ -424,6 +546,9 @@ final class ConnectionViewModel {
     private func stopAll() {
         modeTask?.cancel()
         modeTask = nil
+        autoConnectDeviceID = nil
+        autoConnectTimeout?.cancel()
+        autoConnectTimeout = nil
         disconnect()
         devices = []
         dependencies.pairingPrompt.dismiss()

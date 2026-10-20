@@ -157,8 +157,8 @@
                 for stream in statistics.streams {
                     bitrates[stream.streamID] = stream.bitrateKbps
                 }
-            case .state, .peer, .pairingCode, .paired:
-                break  // both test sessions trust each other
+            case .state, .peer, .pairingCode, .paired, .roleSwapRequested, .roleSwapAnswered:
+                break  // both test sessions trust each other and never swap
             }
         }
 

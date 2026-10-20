@@ -6,6 +6,8 @@ import OSLog
 protocol HostCoreSession: AnyObject, Sendable {
     var events: AsyncStream<SessionEvent> { get }
     func confirmPairing(_ accepted: Bool) throws(CoreError)
+    func requestRoleSwap() throws(CoreError)
+    func answerRoleSwap(_ answer: RoleSwapAnswer) throws(CoreError)
     func configureStreams(_ streams: [StreamConfiguration]) throws(CoreError)
     func push(_ unit: AccessUnit) throws(CoreError)
     func close()
@@ -48,6 +50,10 @@ actor HostSession {
         /// Streams are configured; each runs on the virtual display with the given ID.
         case streaming([LentDisplay])
         case statistics(SessionStatistics)
+        /// The other computer asks to reverse the roles; answer with `answerRoleSwap`.
+        case roleSwapRequested(peerPublicKey: [UInt8])
+        /// The answer to `requestRoleSwap`; after `.accepted` the session closes.
+        case roleSwapAnswered(RoleSwapAnswer, peerPublicKey: [UInt8])
     }
 
     nonisolated let events: AsyncStream<Event>
@@ -112,6 +118,10 @@ actor HostSession {
                 eventSink.yield(.pairingCode(code, peerPublicKey: key))
             case .paired(let key):
                 eventSink.yield(.paired(peerPublicKey: key))
+            case .roleSwapRequested(let key):
+                eventSink.yield(.roleSwapRequested(peerPublicKey: key))
+            case .roleSwapAnswered(let answer, let key):
+                eventSink.yield(.roleSwapAnswered(answer, peerPublicKey: key))
             case .streamConfiguration, .accessUnit, .cursorShape, .cursorPosition:
                 break  // viewer-only
             }
@@ -131,6 +141,20 @@ actor HostSession {
             try core.confirmPairing(accepted)
         } catch {
             Log.host.error("Pairing answer failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Asks the other computer to reverse the roles; throws when it cannot be asked now.
+    func requestRoleSwap() throws(CoreError) {
+        try core.requestRoleSwap()
+    }
+
+    /// Answers `.roleSwapRequested`; `.accepted` closes the session.
+    func answerRoleSwap(_ answer: RoleSwapAnswer) {
+        do throws(CoreError) {
+            try core.answerRoleSwap(answer)
+        } catch {
+            Log.host.error("Role swap answer failed: \(String(describing: error), privacy: .public)")
         }
     }
 

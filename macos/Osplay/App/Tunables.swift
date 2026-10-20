@@ -43,6 +43,8 @@ enum Tunables {
         static let powerAssertionReason = "Osplay is showing another computer's display"
         /// The default toggle hotkey (User decision: ⌃⌥⌘V); configurable from Phase 11.
         static let toggleHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_V), modifiers: [.control, .option, .command])
+        /// The default role swap hotkey (Phase 12b): ⌃⌥⌘S, next to the toggle.
+        static let swapHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_S), modifiers: [.control, .option, .command])
 
         /// Debug loopback windows open at half the stream's size.
         static func loopbackWindowSize(streamWidth: Int, streamHeight: Int) -> CGSize {
@@ -63,6 +65,8 @@ enum Tunables {
     enum Connection {
         /// Pause before sharing listens again after a session ended.
         static let relistenDelay: Duration = .seconds(1)
+        /// After a role swap, how long viewing waits for the other computer to advertise itself.
+        static let swapReconnectTimeout: Duration = .seconds(20)
         /// Capabilities this Mac announces in either role.
         static let maximumWidth = 7680
         static let maximumHeight = 4320

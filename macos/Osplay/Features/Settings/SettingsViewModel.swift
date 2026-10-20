@@ -57,20 +57,37 @@ final class SettingsViewModel {
 
     /// Takes the new combination when no other app owns it; it applies from the next connection.
     func record(_ hotkey: Hotkey) {
-        guard hotkey != settings.viewerHotkey else { return }
-        do throws(HotkeyError) {
-            let probe = try hotkeys.register(hotkey) {}
-            hotkeys.unregister(probe)
-            settings.viewerHotkey = hotkey
-            message = nil
-        } catch {
-            message = String(localized: "settings.hotkey.taken \(hotkey.displayText)")
-        }
+        take(hotkey, current: settings.viewerHotkey, other: settings.swapHotkey) { settings.viewerHotkey = $0 }
     }
 
     func resetHotkey() {
         settings.viewerHotkey = Tunables.Viewer.toggleHotkey
         message = nil
+    }
+
+    func recordSwapHotkey(_ hotkey: Hotkey) {
+        take(hotkey, current: settings.swapHotkey, other: settings.viewerHotkey) { settings.swapHotkey = $0 }
+    }
+
+    func resetSwapHotkey() {
+        settings.swapHotkey = Tunables.Viewer.swapHotkey
+        message = nil
+    }
+
+    private func take(_ hotkey: Hotkey, current: Hotkey, other: Hotkey, store: (Hotkey) -> Void) {
+        guard hotkey != current else { return }
+        guard hotkey != other else {
+            message = String(localized: "settings.hotkey.duplicate \(hotkey.displayText)")
+            return
+        }
+        do throws(HotkeyError) {
+            let probe = try hotkeys.register(hotkey) {}
+            hotkeys.unregister(probe)
+            store(hotkey)
+            message = nil
+        } catch {
+            message = String(localized: "settings.hotkey.taken \(hotkey.displayText)")
+        }
     }
 
     func openPermissions() { showPermissions() }

@@ -11,6 +11,12 @@ enum ConnectionError: Error, Equatable, Sendable {
     case noDisplay
     /// The other device speaks a different protocol version.
     case incompatible
+    /// The other computer refused or did not answer a role swap.
+    case roleSwap(RoleSwapAnswer)
+    /// The other computer runs an Osplay without role swap.
+    case roleSwapUnsupported
+    /// After a swap the other computer did not appear as a host in time.
+    case roleSwapPeerNotFound
 }
 
 extension ConnectionError {
@@ -36,6 +42,16 @@ extension ConnectionError {
             String(localized: "error.connection.noDisplay")
         case .incompatible:
             String(localized: "error.connection.incompatible")
+        case .roleSwap(let answer):
+            switch answer {
+            case .cannotHost: String(localized: "error.swap.cannotHost")
+            case .busy, .accepted: String(localized: "error.swap.busy")
+            case .noAnswer: String(localized: "error.swap.noAnswer")
+            }
+        case .roleSwapUnsupported:
+            String(localized: "error.swap.unsupported")
+        case .roleSwapPeerNotFound:
+            String(localized: "error.swap.notFound")
         }
     }
 
