@@ -17,12 +17,13 @@ as a display becomes the host and the other one becomes its display, without pai
 - [x] Docs: ARCHITECTURE, TROUBLESHOOTING, BUILDING test steps; DECISIONS entries.
 
 ## Acceptance Criteria
-- [ ] Pressing the shortcut on either computer swaps the roles without a pairing code.
+- [x] Pressing the shortcut on either computer swaps the roles without a pairing code.
 - [ ] Measured swap time (shortcut to first frame) is recorded on the reference hardware.
-- [ ] A refused or failed swap leaves both sides in a clear state (no half-open session, message shown).
+- [x] A refused or failed swap leaves both sides in a clear state (no half-open session, message shown).
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
 - One RoleSwap message (request/accept/refuse), accept followed by Bye(5); host settles simultaneous requests; 10 s local timeout.
 - The Windows engine hands the shell the peer's device ID (not the key) so it can match Bonjour advertisements.
 - The swap shortcut is registered only while frames flow; a "Swap roles" button is in both menus.
+- Accepted on the reference hardware 2026-10-20 (swap both ways, refusal with the helper stopped); swap time still to be recorded.
