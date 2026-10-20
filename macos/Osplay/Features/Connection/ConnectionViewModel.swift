@@ -554,6 +554,7 @@ final class ConnectionViewModel {
         guard swapHotkey == nil else { return }
         do throws(HotkeyError) {
             swapHotkey = try dependencies.hotkeys.register(dependencies.settings.swapHotkey) { [weak self] in
+                MenuWindow.close()
                 self?.swapRoles()
             }
             swapHotkeyUnavailable = false
@@ -571,6 +572,7 @@ final class ConnectionViewModel {
     private func registerHotkey(for session: ViewerSession) {
         do throws(HotkeyError) {
             hotkey = try dependencies.hotkeys.register(dependencies.settings.viewerHotkey) {
+                MenuWindow.close()
                 Task { await session.toggleVisibility() }
             }
         } catch {
@@ -579,6 +581,7 @@ final class ConnectionViewModel {
         // The overlay switch is optional: a taken shortcut leaves the Settings toggle.
         statsHotkey = try? dependencies.hotkeys.register(dependencies.settings.statsHotkey) {
             [settings = dependencies.settings] in
+            MenuWindow.close()
             settings.showsStatsOverlay.toggle()
         }
     }

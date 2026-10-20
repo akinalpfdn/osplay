@@ -414,6 +414,7 @@ again after every session (DEVPLAN Phase 13, test matrix in TESTING.md).
 | Disruption | What happens |
 |------------|--------------|
 | This computer goes to sleep | It closes with Bye 3 first (`osplay_session_close_for_sleep`); a viewer resumes after wake |
+| A Windows PC turns its display off (Modern Standby sends no suspend and keeps the network up) | Treated as sleep: Bye 3; when the display comes back on, sharing listens again |
 | The other computer goes to sleep | The session closes with PEER_SLEEPING; a viewer waits for that host and reconnects when it advertises again |
 | Network outage under 10 s | The session survives (heartbeat timeout 10 s); the stream freezes and resumes |
 | Longer outage or network change | The session times out; a viewer waits for the same host (by device ID) and reconnects |

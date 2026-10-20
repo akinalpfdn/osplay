@@ -14,6 +14,23 @@ enum MenuWindow {
 
     fileprivate static func attached(_ window: NSWindow) {
         self.window = window
+        closesOnClicksElsewhere()
+    }
+
+    /// A click in another Osplay window (a full-screen viewer) does not dismiss a menu bar window
+    /// by itself, unlike a click in another app; this closes it then.
+    private static var clickMonitor: Any?
+
+    private static func closesOnClicksElsewhere() {
+        guard clickMonitor == nil else { return }
+        clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
+            MainActor.assumeIsolated {
+                if let window, window.isVisible, event.window !== window {
+                    close()
+                }
+            }
+            return event
+        }
     }
 }
 

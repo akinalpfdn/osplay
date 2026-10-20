@@ -38,6 +38,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _autoConnectTimeout;
     private GlobalHotkey? _swapHotkey;
     private GlobalHotkey? _statsHotkey;
+    private readonly ConsoleDisplayMonitor _display = new();
     private ViewedHost? _viewedHost;
     /// <summary>The user ended the session; it does not come back by itself.</summary>
     private bool _endedByUser;
@@ -57,6 +58,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         _settings = settings;
         _settings.PropertyChanged += OnSettingChanged;
         Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        // Modern Standby sends no suspend; the display turning off is the moment the PC sleeps.
+        _display.DisplayOffChanged += off => _ = off ? SuspendForSleepAsync() : RefreshAfterWakeAsync();
         NetworkChange.NetworkAddressChanged += (_, _) => _dispatcher.BeginInvoke(RefreshNetworkAsync);
     }
 
@@ -177,6 +180,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        _display.Dispose();
         _statsHotkey?.Dispose();
         _gate.Dispose();
         _autoConnectTimeout?.Dispose();
