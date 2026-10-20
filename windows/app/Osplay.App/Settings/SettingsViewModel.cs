@@ -45,8 +45,45 @@ public sealed partial class SettingsViewModel : ObservableObject
         StartsWithWindows = StartupRegistration.IsEnabled;
     }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHotkeyMessage))]
+    private string? _hotkeyMessage;
+
+    public bool HasHotkeyMessage => HotkeyMessage is not null;
+
+    /// <summary>The viewer's hide/show shortcut; refused when it is the swap shortcut.</summary>
+    public HotkeyGesture ViewerHotkey
+    {
+        get => Settings.ViewerHotkey;
+        set => Take(value, Settings.SwapHotkey, gesture => Settings.ViewerHotkey = gesture, nameof(ViewerHotkey));
+    }
+
+    /// <summary>The role swap shortcut; refused when it is the viewer's.</summary>
+    public HotkeyGesture SwapHotkey
+    {
+        get => Settings.SwapHotkey;
+        set => Take(value, Settings.ViewerHotkey, gesture => Settings.SwapHotkey = gesture, nameof(SwapHotkey));
+    }
+
     [RelayCommand]
-    private void ResetHotkey() => Settings.ViewerHotkey = HotkeyGesture.Default;
+    private void ResetHotkey() => ViewerHotkey = HotkeyGesture.Default;
+
+    [RelayCommand]
+    private void ResetSwapHotkey() => SwapHotkey = HotkeyGesture.DefaultSwap;
+
+    private void Take(HotkeyGesture gesture, HotkeyGesture other, Action<HotkeyGesture> store, string property)
+    {
+        if (gesture == other)
+        {
+            HotkeyMessage = LocalizedText.Format(Localization.Strings.HotkeyDuplicate, gesture.DisplayText);
+        }
+        else
+        {
+            store(gesture);
+            HotkeyMessage = null;
+        }
+        OnPropertyChanged(property); // the recorder shows the stored value again after a refusal
+    }
 
     [RelayCommand]
     private void OpenLogs() => Shell.OpenFolder(LogsFolder);

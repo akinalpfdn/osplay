@@ -44,6 +44,8 @@
     <Setter Property="HorizontalAlignment" Value="Stretch" />
     <Setter Property="Margin" Value="{StaticResource Osplay.Thickness.ItemGap}" />
     <Setter Property="Cursor" Value="Hand" />
+    <!-- Icons inside a card inherit this; WPF's default control text is black in either theme. -->
+    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
@@ -75,6 +77,7 @@
   <!-- A monitor in the picker: selected ones are drawn in the accent color. -->
   <Style x:Key="Osplay.Toggle.Monitor" TargetType="ToggleButton">
     <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ToggleButton">

@@ -384,3 +384,25 @@ with `DynamicResource`), every string from `Osplay.Localization` (English and Tu
   `%LOCALAPPDATA%\Osplay\logs\osplay.log` from a background writer, rolled over at 5 MB.
 - **Theme.** WPF-UI applies the system theme at start, and `SystemThemeWatcher` switches it live.
 
+## Role swap
+
+One shortcut (⌃⌥⌘S on macOS, Ctrl+Alt+Shift+S on Windows, both recordable) or the "Swap roles"
+button reverses a running session: the computer used as a display becomes the host and the host
+becomes its display (protocol: RoleSwap, PROTOCOL.md "Role swap").
+
+```
+A presses the shortcut ─► RoleSwap(request) ─► B checks it can take its new role
+                                               (Mac host: Screen Recording; Windows host: helper and
+                                               driver; either viewer: a monitor to offer)
+A ◄─ RoleSwap(accept) + Bye(5) ◄───────────── B, or RoleSwap(refuse) and the session goes on
+both sessions close ─► the new host advertises ─► the new viewer browses and connects to the
+                                                  advertisement whose id is the peer's device ID
+```
+
+- The core reports the peer's static key with the request and the answer; the Windows engine turns
+  it into the device ID the shell compares with Bonjour advertisements.
+- Each app keeps a pending swap until its session has closed, then switches modes the usual way
+  (Sharing or Viewing); a viewer that does not find the peer within 20 s says so and keeps browsing.
+- Both keys are already trusted, so no pairing code appears. The swap shortcut is registered only
+  while frames flow; if another program owns it, the button still works.
+

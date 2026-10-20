@@ -36,6 +36,7 @@ enum class ControlType : std::uint8_t {
     Error = 0x11,
     Bye = 0x12,
     MediaSetup = 0x13,
+    RoleSwap = 0x14,
 };
 
 enum class Role : std::uint8_t { Host = 1, Viewer = 2 };
@@ -54,8 +55,11 @@ enum class ByeReason : std::uint8_t {
     UserDisconnected = 1,
     ApplicationQuit = 2,
     Sleeping = 3,
-    Error = 4
+    Error = 4,
+    RoleSwap = 5
 };
+enum class RoleSwapStep : std::uint8_t { Request = 1, Accept = 2, Refuse = 3 };
+enum class RoleSwapRefusal : std::uint8_t { None = 0, CannotHost = 1, Busy = 2 };
 
 inline constexpr std::uint32_t kCodecH264AnnexB = 1U << 0U;
 inline constexpr std::uint8_t kCapabilitySendsCursor = 1U << 0U;
@@ -225,10 +229,18 @@ struct MediaSetup {
     bool operator==(const MediaSetup&) const = default;
 };
 
+/// Either side asks to reverse the roles; the other accepts (then closes with Bye 5) or refuses.
+struct RoleSwap {
+    static constexpr ControlType kType = ControlType::RoleSwap;
+    RoleSwapStep step = RoleSwapStep::Request;
+    RoleSwapRefusal refusal = RoleSwapRefusal::None; ///< set only when refusing
+    bool operator==(const RoleSwap&) const = default;
+};
+
 using ControlMessage =
     std::variant<Hello, HandshakeMessage, PairingConfirm, Capabilities, ViewerMonitors,
                  StreamConfig, StreamStart, StreamPause, StreamResume, StreamStop, KeyframeRequest,
-                 Nack, ReceiverReport, Ping, Pong, Heartbeat, PeerError, Bye, MediaSetup>;
+                 Nack, ReceiverReport, Ping, Pong, Heartbeat, PeerError, Bye, MediaSetup, RoleSwap>;
 
 [[nodiscard]] ControlType type_of(const ControlMessage& message);
 

@@ -31,6 +31,16 @@ internal enum EngineResult
     KeyStoreUnavailable = 21,
     KeyStoreDamaged = 22,
     DiscoveryUnavailable = 23,
+    PeerTooOld = 24,
+}
+
+/// <summary>osplay_role_swap_answer.</summary>
+internal enum RoleSwapAnswer
+{
+    Accepted = 1,
+    CannotHost = 2,
+    Busy = 3,
+    NoAnswer = 4,
 }
 
 /// <summary>osplay_result: the core's reason a session closed.</summary>
@@ -166,6 +176,8 @@ internal unsafe struct NativeHostCallbacks
     public nint OnStats;
     public delegate* unmanaged[Cdecl]<nint, LogLevel, byte*, void> OnLog;
     public delegate* unmanaged[Cdecl]<nint, Platform, byte*, void> OnPeer;
+    public delegate* unmanaged[Cdecl]<nint, byte*, void> OnRoleSwapRequest;
+    public delegate* unmanaged[Cdecl]<nint, RoleSwapAnswer, byte*, void> OnRoleSwapAnswer;
 }
 
 /// <summary>osplay_engine_viewer_config.</summary>
@@ -196,6 +208,8 @@ internal unsafe struct NativeViewerCallbacks
     public delegate* unmanaged[Cdecl]<nint, NativeSessionStats*, void> OnStats;
     public delegate* unmanaged[Cdecl]<nint, LogLevel, byte*, void> OnLog;
     public delegate* unmanaged[Cdecl]<nint, Platform, byte*, void> OnPeer;
+    public delegate* unmanaged[Cdecl]<nint, byte*, void> OnRoleSwapRequest;
+    public delegate* unmanaged[Cdecl]<nint, RoleSwapAnswer, byte*, void> OnRoleSwapAnswer;
 }
 
 /// <summary>osplay_stream_stats.</summary>

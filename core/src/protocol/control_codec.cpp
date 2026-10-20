@@ -176,8 +176,19 @@ Check validate(const PeerError& /*m*/) {
 }
 
 Check validate(const Bye& m) {
-    return in_range(static_cast<std::uint8_t>(m.reason), 1, 4) ? ok()
+    return in_range(static_cast<std::uint8_t>(m.reason), 1, 5) ? ok()
                                                                : fail(Error::ValueOutOfRange);
+}
+
+Check validate(const RoleSwap& m) {
+    const auto step = static_cast<std::uint8_t>(m.step);
+    const auto refusal = static_cast<std::uint8_t>(m.refusal);
+    if (!in_range(step, 1, 3)) {
+        return fail(Error::ValueOutOfRange);
+    }
+    // A refusal says why; a request or an acceptance carries none.
+    const bool reason_ok = m.step == RoleSwapStep::Refuse ? in_range(refusal, 1, 2) : refusal == 0;
+    return reason_ok ? ok() : fail(Error::ValueOutOfRange);
 }
 
 Check validate(const MediaSetup& m) {
@@ -369,6 +380,16 @@ Decoded read_bye(Reader& r) {
     return Bye{.reason = static_cast<ByeReason>(reason)};
 }
 
+Decoded read_role_swap(Reader& r) {
+    std::uint8_t step = 0;
+    std::uint8_t refusal = 0;
+    if (!r.u8(step) || !r.u8(refusal)) {
+        return decode_failure(Error::Truncated);
+    }
+    return RoleSwap{.step = static_cast<RoleSwapStep>(step),
+                    .refusal = static_cast<RoleSwapRefusal>(refusal)};
+}
+
 Decoded read_media_setup(Reader& r) {
     MediaSetup m;
     std::span<const std::uint8_t> token;
@@ -419,6 +440,8 @@ Decoded read_body(std::uint8_t type, Reader& r) {
         return read_bye(r);
     case ControlType::MediaSetup:
         return read_media_setup(r);
+    case ControlType::RoleSwap:
+        return read_role_swap(r);
     }
     return decode_failure(Error::UnknownType);
 }
@@ -521,6 +544,10 @@ void write_body(Writer& w, const ControlMessage& message) {
                    [&](const MediaSetup& m) {
                        w.u16(m.udp_port);
                        w.bytes(m.session_token);
+                   },
+                   [&](const RoleSwap& m) {
+                       w.u8(static_cast<std::uint8_t>(m.step));
+                       w.u8(static_cast<std::uint8_t>(m.refusal));
                    },
                },
                message);

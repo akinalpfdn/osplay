@@ -82,6 +82,8 @@ std::vector<ControlMessage> boundary_messages() {
         protocol::PeerError{.code = 0xFFFF},
         protocol::Bye{.reason = protocol::ByeReason::Error},
         protocol::MediaSetup{.udp_port = 65535, .session_token = token},
+        protocol::RoleSwap{.step = protocol::RoleSwapStep::Refuse,
+                           .refusal = protocol::RoleSwapRefusal::Busy},
     };
 }
 
@@ -122,6 +124,11 @@ TEST(ControlCodec, EncoderRefusesWhatTheDecoderWouldReject) {
                                        33, {.first_fragment = 0, .count = 1})}),
               Error::ValueOutOfRange);
     EXPECT_EQ(error(protocol::MediaSetup{.udp_port = 0}), Error::ValueOutOfRange);
+    EXPECT_EQ(error(protocol::RoleSwap{.step = protocol::RoleSwapStep::Accept,
+                                       .refusal = protocol::RoleSwapRefusal::Busy}),
+              Error::ValueOutOfRange);
+    EXPECT_EQ(error(protocol::RoleSwap{.step = protocol::RoleSwapStep::Refuse}),
+              Error::ValueOutOfRange);
 }
 
 TEST(MediaCodec, FramesSplitIntoFullFragmentsRoundTrip) {

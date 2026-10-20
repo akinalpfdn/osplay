@@ -50,9 +50,20 @@
             <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{x:Static res:Strings.SettingsHotkeyDetail}"
                        Style="{StaticResource Osplay.Text.Caption}" />
             <WrapPanel Margin="{StaticResource Osplay.Thickness.ItemGap}">
-              <controls:HotkeyRecorder Margin="{StaticResource Osplay.Thickness.ButtonGap}" Gesture="{Binding Settings.ViewerHotkey}" />
+              <controls:HotkeyRecorder Margin="{StaticResource Osplay.Thickness.ButtonGap}" Gesture="{Binding ViewerHotkey}" />
               <ui:Button VerticalAlignment="Top" Content="{x:Static res:Strings.HotkeyReset}" Command="{Binding ResetHotkeyCommand}" />
             </WrapPanel>
+
+            <TextBlock Text="{x:Static res:Strings.SettingsSwapHotkey}" Style="{StaticResource Osplay.Text.Section}" />
+            <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{x:Static res:Strings.SettingsSwapHotkeyDetail}"
+                       Style="{StaticResource Osplay.Text.Caption}" />
+            <WrapPanel Margin="{StaticResource Osplay.Thickness.ItemGap}">
+              <controls:HotkeyRecorder Margin="{StaticResource Osplay.Thickness.ButtonGap}" Gesture="{Binding SwapHotkey}" />
+              <ui:Button VerticalAlignment="Top" Content="{x:Static res:Strings.HotkeyReset}" Command="{Binding ResetSwapHotkeyCommand}" />
+            </WrapPanel>
+            <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{Binding HotkeyMessage}"
+                       Style="{StaticResource Osplay.Text.Caption}" Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                       Visibility="{Binding HasHotkeyMessage, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
 
             <TextBlock Text="{x:Static res:Strings.UpdatesTitle}" Style="{StaticResource Osplay.Text.Section}" />
             <ui:CardControl Margin="{StaticResource Osplay.Thickness.ItemGap}">

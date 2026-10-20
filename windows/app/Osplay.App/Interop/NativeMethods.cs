@@ -106,4 +106,20 @@ internal static unsafe partial class NativeMethods
     [LibraryImport(_engine, EntryPoint = "osplay_virtual_display_close")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial void VirtualDisplayClose(nint display);
+
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_host_request_role_swap")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial EngineResult HostRequestRoleSwap(nint host);
+
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_host_answer_role_swap")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial EngineResult HostAnswerRoleSwap(nint host, RoleSwapAnswer answer);
+
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_request_role_swap")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial EngineResult ViewerRequestRoleSwap(nint viewer);
+
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_answer_role_swap")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial EngineResult ViewerAnswerRoleSwap(nint viewer, RoleSwapAnswer answer);
 }

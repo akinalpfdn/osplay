@@ -45,7 +45,7 @@ struct Fixture: Sendable, CustomTestStringConvertible {
 struct FixtureTests {
     @Test("The manifest is readable and lists every fixture")
     func manifestIsReadable() {
-        #expect(Fixture.all.count == 82)
+        #expect(Fixture.all.count == 90)
     }
 
     @Test("Each fixture reaches the outcome the manifest promises", arguments: Fixture.all)

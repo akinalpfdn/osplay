@@ -222,6 +222,23 @@
         }
       }
     },
+    "connection.status.swapping %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swapping roles with %@…"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ile roller değiştiriliyor…"
+          }
+        }
+      }
+    },
     "connection.status.waiting" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1191,6 +1208,91 @@
         }
       }
     },
+    "error.swap.busy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The other computer cannot swap roles right now. Try again in a moment."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diğer bilgisayar şu an rolleri değiştiremiyor. Birazdan yeniden deneyin."
+          }
+        }
+      }
+    },
+    "error.swap.cannotHost" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The other computer cannot extend itself right now: a permission, the virtual display driver or the helper service is missing there."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diğer bilgisayar şu an kendini genişletemiyor: orada bir izin, sanal ekran sürücüsü ya da yardımcı hizmet eksik."
+          }
+        }
+      }
+    },
+    "error.swap.noAnswer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The other computer did not answer the role swap."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diğer bilgisayar rol değiştirme isteğine yanıt vermedi."
+          }
+        }
+      }
+    },
+    "error.swap.notFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After the swap the other computer did not appear. Choose it under Nearby computers once it does."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Değişimden sonra diğer bilgisayar görünmedi. Göründüğünde Yakındaki bilgisayarlar altından seçin."
+          }
+        }
+      }
+    },
+    "error.swap.unsupported" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The other computer runs an older Osplay without role swap. Update both."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diğer bilgisayarda rol değiştirmeyi bilmeyen eski bir Osplay var. İkisini de güncelleyin."
+          }
+        }
+      }
+    },
     "error.virtualDisplay.creationFailed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1646,6 +1748,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Paylaşılmıyor, görüntülenmiyor"
+          }
+        }
+      }
+    },
+    "menu.swap" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swap roles"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rolleri değiştir"
+          }
+        }
+      }
+    },
+    "menu.swap.hint %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ swaps the roles: the display becomes the computer that extends."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ rolleri değiştirir: ekran olan bilgisayar genişleten olur."
+          }
+        }
+      }
+    },
+    "menu.swap.hotkeyTaken %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is used by another app; use the button to swap roles."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ başka bir uygulama tarafından kullanılıyor; rolleri değiştirmek için düğmeyi kullanın."
           }
         }
       }
@@ -2330,6 +2483,23 @@
         }
       }
     },
+    "settings.hotkey.duplicate %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is already Osplay's other shortcut."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ zaten Osplay'in diğer kısayolu."
+          }
+        }
+      }
+    },
     "settings.hotkey.hint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2615,6 +2785,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saniyedeki kare, bit hızı, gidiş-dönüş süresi, kayıp ve gecikme sol üst köşede gösterilir."
+          }
+        }
+      }
+    },
+    "settings.swapHotkey" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swap roles"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rolleri değiştir"
+          }
+        }
+      }
+    },
+    "settings.swapHotkey.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Works in any app while connected: the computer used as a display starts extending the other one, without pairing again. A new shortcut applies from the next connection."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlıyken her uygulamada çalışır: ekran olarak kullanılan bilgisayar, yeniden eşleştirmeden diğerini genişletmeye başlar. Yeni kısayol bir sonraki bağlantıdan itibaren geçerli olur."
           }
         }
       }

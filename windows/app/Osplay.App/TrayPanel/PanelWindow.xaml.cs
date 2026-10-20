@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Input;
-using Wpf.Ui.Appearance;
 
 namespace Osplay.App.TrayPanel;
 
@@ -16,7 +15,9 @@ public partial class PanelWindow : Wpf.Ui.Controls.FluentWindow
     {
         InitializeComponent();
         DataContext = viewModel;
-        SystemThemeWatcher.Watch(this);
+        // No SystemThemeWatcher here: it makes the window background transparent for a backdrop,
+        // which leaves this borderless panel white. The XAML's ApplicationBackgroundBrush follows the
+        // theme the app applies on system changes.
         SizeChanged += (_, _) => PlaceAboveTaskbar();
     }
 

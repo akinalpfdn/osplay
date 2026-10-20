@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using Osplay.App.Diagnostics;
 using Osplay.App.Engine;
 using Osplay.App.Interop;
+using Osplay.App.Services;
 using Osplay.App.Settings;
 
 namespace Osplay.App.Connection;
@@ -32,6 +33,13 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private EngineViewer? _viewer;
     private string _peerName = string.Empty;
     private IReadOnlyList<StreamFigures> _figures = [];
+    private PendingSwap? _pendingSwap;
+    private string? _autoConnectDeviceId;
+    private CancellationTokenSource? _autoConnectTimeout;
+    private GlobalHotkey? _swapHotkey;
+
+    /// <summary>After an accepted role swap: the role this PC takes once the session has closed.</summary>
+    private sealed record PendingSwap(ConnectionMode Role, string PeerDeviceId, string PeerName);
 
     internal ConnectionViewModel(Dispatcher dispatcher, IPairingPrompt pairing, AppSettings settings)
     {
@@ -62,6 +70,15 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _isBusy;
+
+    /// <summary>Frames flow: the roles can be swapped.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SwapRolesCommand))]
+    private bool _isStreaming;
+
+    /// <summary>The swap shortcut is owned by another program; the button still works.</summary>
+    [ObservableProperty]
+    private bool _isSwapHotkeyTaken;
 
     /// <summary>False when the engine library could not be loaded; everything is disabled.</summary>
     [ObservableProperty]
@@ -129,6 +146,13 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     /// <summary>Settings › Advanced: the problem, or that sharing is ready.</summary>
     public string HealthStatusText => HostProblem is null ? Localization.Strings.HealthReady : HostProblemMessage;
 
+    /// <summary>"Ctrl+Alt+Shift+S swaps the roles…", or that another program owns the shortcut.</summary>
+    public string SwapHint => LocalizedText.Format(
+        IsSwapHotkeyTaken ? Localization.Strings.SwapHotkeyTaken : Localization.Strings.SwapHint,
+        _settings.SwapHotkey.DisplayText);
+
+    partial void OnIsSwapHotkeyTakenChanged(bool value) => OnPropertyChanged(nameof(SwapHint));
+
     /// <summary>The viewer hotkey, for hints ("Ctrl+Alt+Shift+V hides and shows the display").</summary>
     public string HotkeyHint => LocalizedText.Format(Localization.Strings.ViewerHotkeyHint, _settings.ViewerHotkey.DisplayText);
 
@@ -140,7 +164,12 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     /// <summary>This PC's monitors; the selected ones are offered to hosts.</summary>
     public ObservableCollection<MonitorTile> Monitors { get; } = [];
 
-    public void Dispose() => _gate.Dispose();
+    public void Dispose()
+    {
+        _gate.Dispose();
+        _autoConnectTimeout?.Dispose();
+        _swapHotkey?.Dispose();
+    }
 
     /// <summary>Loads the engine state; called once after start.</summary>
     public async Task InitializeAsync()
@@ -185,14 +214,16 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task SetModeAsync(ConnectionMode mode)
+    private Task SetModeAsync(ConnectionMode mode) =>
+        // Selecting the active role again turns it off, like the Mac's role cards.
+        SwitchModeAsync(mode == Mode ? ConnectionMode.Off : mode);
+
+    private async Task SwitchModeAsync(ConnectionMode target)
     {
         await _gate.WaitAsync().ConfigureAwait(true);
         IsBusy = true;
         try
         {
-            // Selecting the active role again turns it off, like the Mac's role cards.
-            ConnectionMode target = mode == Mode ? ConnectionMode.Off : mode;
             await StopAllAsync().ConfigureAwait(true);
             Mode = target;
             ErrorMessage = null;
@@ -215,6 +246,25 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         {
             IsBusy = false;
             _ = _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Reverses the roles with the connected computer: this PC hosts if it was the display, and
+    /// becomes the display if it was hosting. The other computer answers at once.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(IsStreaming))]
+    private async Task SwapRolesAsync()
+    {
+        EngineSession? session = (EngineSession?)_host ?? _viewer;
+        if (session is null || _pendingSwap is not null)
+        {
+            return;
+        }
+        EngineResult result = await session.RequestRoleSwapAsync().ConfigureAwait(true);
+        if (result != EngineResult.Ok)
+        {
+            ErrorMessage = result == EngineResult.PeerTooOld ? Localization.Strings.ErrorSwapUnsupported : ErrorMessages.For(result);
         }
     }
 
@@ -296,6 +346,12 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         }
         _found[device.Label] = device;
         RebuildDevices();
+        if (device.DeviceId == _autoConnectDeviceId)
+        {
+            _autoConnectDeviceId = null;
+            _autoConnectTimeout?.Cancel();
+            _ = ConnectAsync(device);
+        }
     }
 
     private void OnLost(string label)
@@ -421,6 +477,108 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         };
         session.StreamFailed += reason => ErrorMessage = ErrorMessages.For(reason);
         session.Closed += reason => _ = OnClosedAsync(session, reason);
+        session.RoleSwapRequested += peer => _ = AnswerSwapAsync(session, peer);
+        session.RoleSwapAnswered += (answer, peer) => SwapAnswered(session, answer, peer);
+    }
+
+    // --- Role swap ------------------------------------------------------------------------------
+
+    /// <summary>The role this PC takes after swapping away from the given session.</summary>
+    private ConnectionMode RoleAfterSwap(EngineSession session) =>
+        ReferenceEquals(session, _host) ? ConnectionMode.Viewing : ConnectionMode.Sharing;
+
+    /// <summary>The other computer asks to reverse the roles: agree when this PC can take its new role.</summary>
+    private async Task AnswerSwapAsync(EngineSession session, string peerDeviceId)
+    {
+        ConnectionMode role = RoleAfterSwap(session);
+        bool able = role == ConnectionMode.Sharing
+            ? await EngineHealth.CheckAsync().ConfigureAwait(true) == HostHealth.Ready
+            : Monitors.Count == 0 || Monitors.Any(m => m.IsSelected);
+        if (!able || _pendingSwap is not null)
+        {
+            await session.AnswerRoleSwapAsync(able ? RoleSwapAnswer.Busy : RoleSwapAnswer.CannotHost).ConfigureAwait(true);
+            return;
+        }
+        _pendingSwap = new PendingSwap(role, peerDeviceId, PeerName(session));
+        Status = Format(Localization.Strings.ConnectionStatusSwapping, PeerName(session));
+        await session.AnswerRoleSwapAsync(RoleSwapAnswer.Accepted).ConfigureAwait(true);
+    }
+
+    private void SwapAnswered(EngineSession session, RoleSwapAnswer answer, string peerDeviceId)
+    {
+        if (answer != RoleSwapAnswer.Accepted)
+        {
+            ErrorMessage = answer switch
+            {
+                RoleSwapAnswer.CannotHost => Localization.Strings.ErrorSwapCannotHost,
+                RoleSwapAnswer.NoAnswer => Localization.Strings.ErrorSwapNoAnswer,
+                _ => Localization.Strings.ErrorSwapBusy,
+            };
+            return;
+        }
+        _pendingSwap = new PendingSwap(RoleAfterSwap(session), peerDeviceId, PeerName(session));
+        Status = Format(Localization.Strings.ConnectionStatusSwapping, PeerName(session));
+    }
+
+    /// <summary>
+    /// The session closed after an agreed swap: take the new role. Viewing connects to the same
+    /// computer as soon as it advertises itself as a host; it is already paired, so no code.
+    /// </summary>
+    private async Task PerformSwapAsync()
+    {
+        PendingSwap? swap = _pendingSwap;
+        _pendingSwap = null;
+        if (swap is null)
+        {
+            return;
+        }
+        await SwitchModeAsync(swap.Role).ConfigureAwait(true);
+        if (swap.Role != ConnectionMode.Viewing || Mode != ConnectionMode.Viewing)
+        {
+            return;
+        }
+        Status = Format(Localization.Strings.ConnectionStatusSwapping, swap.PeerName);
+        DeviceInfo? known = _found.Values.FirstOrDefault(d => d.DeviceId == swap.PeerDeviceId);
+        if (known is not null)
+        {
+            await ConnectAsync(known).ConfigureAwait(true);
+            return;
+        }
+        _autoConnectDeviceId = swap.PeerDeviceId;
+        _autoConnectTimeout?.Cancel();
+        _autoConnectTimeout?.Dispose();
+        _autoConnectTimeout = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(AppTunables.SwapReconnectTimeout, _autoConnectTimeout.Token).ConfigureAwait(true);
+        }
+        catch (TaskCanceledException)
+        {
+            return; // found, or the mode changed
+        }
+        if (_autoConnectDeviceId == swap.PeerDeviceId)
+        {
+            _autoConnectDeviceId = null;
+            ErrorMessage = Localization.Strings.ErrorSwapNotFound;
+            Status = Localization.Strings.ConnectionStatusSearching;
+        }
+    }
+
+    private void RegisterSwapHotkey()
+    {
+        if (_swapHotkey is not null)
+        {
+            return;
+        }
+        _swapHotkey = GlobalHotkey.Register(_settings.SwapHotkey, () => SwapRolesCommand.Execute(null));
+        IsSwapHotkeyTaken = _swapHotkey is null;
+    }
+
+    private void UnregisterSwapHotkey()
+    {
+        _swapHotkey?.Dispose();
+        _swapHotkey = null;
+        IsSwapHotkeyTaken = false;
     }
 
     private string PeerName(EngineSession session) =>
@@ -438,6 +596,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
                 break;
             case SessionState.Streaming:
                 Status = Format(Localization.Strings.ConnectionStatusConnected, PeerName(session));
+                IsStreaming = true;
+                RegisterSwapHotkey();
                 _ = RefreshPeersAsync();
                 break;
             default:
@@ -448,6 +608,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private async Task OnClosedAsync(EngineSession session, CoreResult reason)
     {
         _pairing.Close();
+        IsStreaming = false;
+        UnregisterSwapHotkey();
         if (reason != CoreResult.Ok && reason != CoreResult.ConnectionClosed)
         {
             ErrorMessage = ErrorMessages.For(reason);
@@ -458,7 +620,11 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             _figures = [];
             IsSessionActive = false;
             await session.DisposeAsync().ConfigureAwait(true);
-            if (Mode == ConnectionMode.Viewing)
+            if (_pendingSwap is not null)
+            {
+                await PerformSwapAsync().ConfigureAwait(true);
+            }
+            else if (Mode == ConnectionMode.Viewing)
             {
                 Status = Localization.Strings.ConnectionStatusSearching;
             }
@@ -474,7 +640,11 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             {
                 await advertiser.DisposeAsync().ConfigureAwait(true);
             }
-            if (Mode == ConnectionMode.Sharing)
+            if (_pendingSwap is not null)
+            {
+                await PerformSwapAsync().ConfigureAwait(true);
+            }
+            else if (Mode == ConnectionMode.Sharing)
             {
                 // A core host session takes one viewer; listen again for the next one.
                 Status = Localization.Strings.ConnectionStatusWaiting;
@@ -578,6 +748,9 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             case nameof(AppSettings.HidesNetworkWarning):
                 OnPropertyChanged(nameof(ShowsNetworkWarning));
                 break;
+            case nameof(AppSettings.SwapHotkey):
+                OnPropertyChanged(nameof(SwapHint));
+                break;
             default:
                 break;
         }
@@ -594,6 +767,10 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private async Task StopAllAsync()
     {
         _pairing.Close();
+        _autoConnectDeviceId = null;
+        _autoConnectTimeout?.Cancel();
+        IsStreaming = false;
+        UnregisterSwapHotkey();
         _found.Clear();
         Devices.Clear();
         EngineBrowser? browser = _browser;

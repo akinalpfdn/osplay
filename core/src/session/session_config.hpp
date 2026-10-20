@@ -38,6 +38,8 @@ struct SessionTunables {
     /// Viewer: positions naming a shape it does not have for this long trigger a keyframe
     /// request, which brings the shape again. Covers a shape change still in flight.
     Microseconds missing_cursor_shape_grace{100'000};
+    /// A role swap request without an answer for this long is given up (NoAnswer).
+    Microseconds role_swap_timeout{10'000'000};
 };
 
 struct SessionConfig {

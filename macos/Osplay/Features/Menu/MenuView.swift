@@ -24,9 +24,10 @@ struct MenuView: View {
             case .off:
                 EmptyView()
             case .sharing:
-                SharingSection(connection: connection, quality: $settings.qualityPreset)
+                SharingSection(
+                    connection: connection, quality: $settings.qualityPreset, swapHotkey: settings.swapHotkey)
             case .viewing:
-                ViewingSection(connection: connection, hotkey: settings.viewerHotkey)
+                ViewingSection(connection: connection, hotkey: settings.viewerHotkey, swapHotkey: settings.swapHotkey)
             }
 
             if let error = connection.error {
@@ -99,6 +100,7 @@ private struct MenuHeader: View {
         case .waitingForViewer: "connection.status.waiting"
         case .connecting(let peer): "connection.status.connecting \(peer)"
         case .connected(let peer): "connection.status.connected \(peer)"
+        case .swapping(let peer): "connection.status.swapping \(peer)"
         }
     }
 }
@@ -189,6 +191,7 @@ private struct PermissionsBanner: View {
 private struct SharingSection: View {
     let connection: ConnectionViewModel
     @Binding var quality: QualityPreset
+    let swapHotkey: Hotkey
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
@@ -208,6 +211,9 @@ private struct SharingSection: View {
                     }
                 }
             }
+            if connection.isSessionActive {
+                SwapRow(connection: connection, hotkey: swapHotkey)
+            }
             Picker("menu.quality", selection: $quality) {
                 ForEach(QualityPreset.allCases) { preset in
                     Text(preset.title).tag(preset)
@@ -225,6 +231,7 @@ private struct SharingSection: View {
 private struct ViewingSection: View {
     let connection: ConnectionViewModel
     let hotkey: Hotkey
+    let swapHotkey: Hotkey
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
@@ -255,7 +262,28 @@ private struct ViewingSection: View {
                     Spacer()
                     Button("connection.disconnect") { connection.disconnect() }
                 }
+                SwapRow(connection: connection, hotkey: swapHotkey)
             }
+        }
+    }
+}
+
+/// Reverses the roles of the running session, by button or by the swap hotkey.
+private struct SwapRow: View {
+    let connection: ConnectionViewModel
+    let hotkey: Hotkey
+
+    var body: some View {
+        HStack(alignment: .top) {
+            Text(
+                connection.swapHotkeyUnavailable
+                    ? "menu.swap.hotkeyTaken \(hotkey.displayText)" : "menu.swap.hint \(hotkey.displayText)"
+            )
+            .font(Theme.Typography.caption)
+            .foregroundStyle(Theme.Colors.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            Spacer()
+            Button("menu.swap") { connection.swapRoles() }
         }
     }
 }

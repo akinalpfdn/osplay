@@ -21,6 +21,13 @@ final class FakeHostCore: HostCoreSession, @unchecked Sendable {
 
     func confirmPairing(_ accepted: Bool) throws(CoreError) { lock.withLock { pairingAnswers.append(accepted) } }
 
+    private var swapRequests = 0
+    private var swapAnswers: [RoleSwapAnswer] = []
+    var roleSwapRequests: Int { lock.withLock { swapRequests } }
+    var roleSwapAnswers: [RoleSwapAnswer] { lock.withLock { swapAnswers } }
+    func requestRoleSwap() throws(CoreError) { lock.withLock { swapRequests += 1 } }
+    func answerRoleSwap(_ answer: RoleSwapAnswer) throws(CoreError) { lock.withLock { swapAnswers.append(answer) } }
+
     init() {
         (events, continuation) = AsyncStream.makeStream(of: SessionEvent.self)
     }

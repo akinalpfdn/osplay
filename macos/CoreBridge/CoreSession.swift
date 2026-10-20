@@ -146,6 +146,16 @@ public final class CoreSession: Sendable {
         try check(handle.withPointer { osplay_session_resume_stream($0, streamID) })
     }
 
+    /// Asks the peer to reverse the roles; the answer arrives as `.roleSwapAnswered`.
+    public func requestRoleSwap() throws(CoreError) {
+        try check(handle.withPointer { osplay_session_request_role_swap($0) })
+    }
+
+    /// Answers `.roleSwapRequested`: `.accepted` closes the session, a refusal keeps it running.
+    public func answerRoleSwap(_ answer: RoleSwapAnswer) throws(CoreError) {
+        try check(handle.withPointer { osplay_session_answer_role_swap($0, answer.raw) })
+    }
+
     /// Sends Bye when possible and stops the I/O thread; the session reports `.closed` first.
     /// Later commands fail with `.invalidState`.
     public func close() {
@@ -262,6 +272,13 @@ private final class CallbackBox: Sendable {
                 streams: UnsafeBufferPointer(start: stats.streams, count: stats.stream_count).map(StreamStatistics.init)
             )
             CallbackBox.from(context)?.continuation.yield(.statistics(statistics))
+        }
+        callbacks.on_role_swap_request = { context, key in
+            CallbackBox.from(context)?.continuation.yield(.roleSwapRequested(peerPublicKey: keyBytes(key)))
+        }
+        callbacks.on_role_swap_answer = { context, answer, key in
+            CallbackBox.from(context)?.continuation.yield(
+                .roleSwapAnswered(RoleSwapAnswer(answer), peerPublicKey: keyBytes(key)))
         }
         callbacks.on_log = { context, level, message in
             let text = message.map { String(cString: $0) } ?? ""

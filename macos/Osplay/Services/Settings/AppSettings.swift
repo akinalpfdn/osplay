@@ -14,6 +14,11 @@ final class AppSettings {
         didSet { save(viewerHotkey, forKey: Key.viewerHotkey) }
     }
 
+    /// Reverses the roles of a running session.
+    var swapHotkey: Hotkey {
+        didSet { save(swapHotkey, forKey: Key.swapHotkey) }
+    }
+
     /// A small box with fps, bitrate, round trip, loss and latency over the watched display.
     var showsStatsOverlay: Bool {
         didSet { defaults.set(showsStatsOverlay, forKey: Key.statsOverlay) }
@@ -35,6 +40,7 @@ final class AppSettings {
         self.defaults = defaults
         qualityPreset = defaults.string(forKey: Key.qualityPreset).flatMap(QualityPreset.init) ?? .high
         viewerHotkey = Self.load(Hotkey.self, from: defaults, forKey: Key.viewerHotkey) ?? Tunables.Viewer.toggleHotkey
+        swapHotkey = Self.load(Hotkey.self, from: defaults, forKey: Key.swapHotkey) ?? Tunables.Viewer.swapHotkey
         showsStatsOverlay = defaults.bool(forKey: Key.statsOverlay)
         hasCompletedOnboarding = defaults.bool(forKey: Key.onboarding)
         hiDPIChoices = Self.load([String: HiDPIChoice].self, from: defaults, forKey: Key.hiDPIChoices) ?? [:]
@@ -81,6 +87,7 @@ final class AppSettings {
     private enum Key {
         static let qualityPreset = "qualityPreset"
         static let viewerHotkey = "viewerHotkey"
+        static let swapHotkey = "swapHotkey"
         static let statsOverlay = "showsStatsOverlay"
         static let hiDPIChoices = "hiDPIChoices"
         static let onboarding = "hasCompletedOnboarding"

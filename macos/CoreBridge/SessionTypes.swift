@@ -347,6 +347,40 @@ public enum SessionEvent: Sendable {
     case cursorPosition(CursorPosition)
     case statistics(SessionStatistics)
     case log(SessionLogLevel, String)
+    /// The peer asks to reverse the roles: answer with `answerRoleSwap` (the key names the peer to
+    /// reconnect to after the swap).
+    case roleSwapRequested(peerPublicKey: [UInt8])
+    /// The answer to `requestRoleSwap`; after `.accepted` the peer closes the session.
+    case roleSwapAnswered(RoleSwapAnswer, peerPublicKey: [UInt8])
+}
+
+/// The outcome of a role swap request.
+public enum RoleSwapAnswer: Sendable, Equatable {
+    case accepted
+    /// The other side lacks a permission, driver or service to host.
+    case cannotHost
+    /// The other side cannot swap right now.
+    case busy
+    /// No answer within 10 seconds.
+    case noAnswer
+
+    init(_ raw: osplay_role_swap_answer) {
+        switch raw {
+        case OSPLAY_ROLE_SWAP_ACCEPTED: self = .accepted
+        case OSPLAY_ROLE_SWAP_CANNOT_HOST: self = .cannotHost
+        case OSPLAY_ROLE_SWAP_BUSY: self = .busy
+        default: self = .noAnswer
+        }
+    }
+
+    var raw: osplay_role_swap_answer {
+        switch self {
+        case .accepted: OSPLAY_ROLE_SWAP_ACCEPTED
+        case .cannotHost: OSPLAY_ROLE_SWAP_CANNOT_HOST
+        case .busy: OSPLAY_ROLE_SWAP_BUSY
+        case .noAnswer: OSPLAY_ROLE_SWAP_NO_ANSWER
+        }
+    }
 }
 
 /// This device as the session presents it to the peer.

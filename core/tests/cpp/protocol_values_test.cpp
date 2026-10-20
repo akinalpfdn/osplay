@@ -137,6 +137,13 @@ TEST(ProtocolValues, TimingAndSessionMessages) {
               ControlMessage(protocol::Bye{.reason = protocol::ByeReason::Sleeping}));
     EXPECT_EQ(control("media_setup.bin"),
               ControlMessage(protocol::MediaSetup{.udp_port = 50'123, .session_token = token()}));
+    EXPECT_EQ(control("bye_role_swap.bin"),
+              ControlMessage(protocol::Bye{.reason = protocol::ByeReason::RoleSwap}));
+    EXPECT_EQ(control("role_swap_request.bin"),
+              ControlMessage(protocol::RoleSwap{.step = protocol::RoleSwapStep::Request}));
+    EXPECT_EQ(control("role_swap_refuse.bin"),
+              ControlMessage(protocol::RoleSwap{.step = protocol::RoleSwapStep::Refuse,
+                                                .refusal = protocol::RoleSwapRefusal::CannotHost}));
 }
 
 TEST(ProtocolValues, MediaPackets) {

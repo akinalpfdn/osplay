@@ -64,6 +64,8 @@ public:
     [[nodiscard]] Status<Error> pause_stream(std::uint8_t stream_id);
     [[nodiscard]] Status<Error> stop_stream(std::uint8_t stream_id);
     [[nodiscard]] Status<Error> resume_stream(std::uint8_t stream_id);
+    [[nodiscard]] Status<Error> request_role_swap();
+    [[nodiscard]] Status<Error> answer_role_swap(session::RoleSwapAnswer answer);
 
     /// Copies the access unit and queues it; returns without waiting for the network.
     void push_access_unit(const media::AccessUnit& unit);

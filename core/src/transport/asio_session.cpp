@@ -481,6 +481,17 @@ Status<Error> AsioSession::resume_stream(std::uint8_t stream_id) {
         Status<Error>::failure(Error::InvalidState));
 }
 
+Status<Error> AsioSession::request_role_swap() {
+    return impl_->run_sync([this] { return impl_->engine().request_role_swap(Impl::now()); },
+                           Status<Error>::failure(Error::InvalidState));
+}
+
+Status<Error> AsioSession::answer_role_swap(session::RoleSwapAnswer answer) {
+    return impl_->run_sync(
+        [this, answer] { return impl_->engine().answer_role_swap(answer, Impl::now()); },
+        Status<Error>::failure(Error::InvalidState));
+}
+
 void AsioSession::push_access_unit(const media::AccessUnit& unit) {
     auto bytes = std::make_shared<std::vector<std::uint8_t>>(unit.data.begin(), unit.data.end());
     impl_->post([impl = impl_.get(), unit, bytes] {

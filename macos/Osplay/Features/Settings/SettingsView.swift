@@ -47,6 +47,17 @@ private struct GeneralSettings: View {
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Colors.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            LabeledContent("settings.swapHotkey") {
+                VStack(alignment: .trailing, spacing: Theme.Spacing.small) {
+                    HotkeyRecorder(hotkey: viewModel.settings.swapHotkey, record: viewModel.recordSwapHotkey)
+                    Button("settings.hotkey.reset", action: viewModel.resetSwapHotkey)
+                        .buttonStyle(.link)
+                }
+            }
+            Text("settings.swapHotkey.description")
+                .font(Theme.Typography.caption)
+                .foregroundStyle(Theme.Colors.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             LabeledContent("settings.permissions") {
                 Button("settings.permissions.open", action: viewModel.openPermissions)
             }

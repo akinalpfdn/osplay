@@ -121,6 +121,14 @@
                 AutomationProperties.Name="{x:Static res:Strings.QualityTitle}" />
       <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{x:Static res:Strings.QualityHint}"
                  Style="{StaticResource Osplay.Text.Caption}" />
+      <WrapPanel Margin="{StaticResource Osplay.Thickness.SectionGap}"
+                 Visibility="{Binding Connection.IsStreaming, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">
+        <ui:Button Margin="{StaticResource Osplay.Thickness.ButtonGap}" Command="{Binding Connection.SwapRolesCommand}"
+                   Content="{x:Static res:Strings.SwapRoles}" Appearance="Primary" />
+      </WrapPanel>
+      <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{Binding Connection.SwapHint}"
+                 Style="{StaticResource Osplay.Text.Caption}"
+                 Visibility="{Binding Connection.IsStreaming, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
     </StackPanel>
 
     <!-- Viewing: which monitors to offer, then a nearby computer. -->
@@ -164,6 +172,15 @@
         <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{Binding Connection.HotkeyHint}"
                    Style="{StaticResource Osplay.Text.Caption}" />
       </StackPanel>
+      <WrapPanel Margin="{StaticResource Osplay.Thickness.SectionGap}"
+                 Visibility="{Binding Connection.IsStreaming, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">
+        <ui:Button Margin="{StaticResource Osplay.Thickness.ButtonGap}" Command="{Binding Connection.SwapRolesCommand}"
+                   Content="{x:Static res:Strings.SwapRoles}" Appearance="Primary" />
+      </WrapPanel>
+      <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{Binding Connection.SwapHint}"
+                 Style="{StaticResource Osplay.Text.Caption}"
+                 Visibility="{Binding Connection.IsStreaming, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
+
 
       <StackPanel Visibility="{Binding Connection.IsSessionActive, Converter={StaticResource Osplay.Converter.InverseBooleanToVisibility}}">
         <TextBlock Text="{x:Static res:Strings.NearbyTitle}" Style="{StaticResource Osplay.Text.Section}" />

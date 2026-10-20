@@ -70,6 +70,9 @@ public:
         });
     }
     void on_stream_stopped(std::uint8_t /*stream_id*/) override {}
+    void on_role_swap_request(const osplay::crypto::Key& /*key*/) override {}
+    void on_role_swap_answer(session::RoleSwapAnswer /*answer*/,
+                             const osplay::crypto::Key& /*key*/) override {}
     void on_cursor_shape(const osplay::media::CursorShape& /*shape*/) override {}
     void on_cursor_position(const protocol::CursorPosition& /*position*/) override {}
     void on_stats(const session::SessionStats& /*stats*/) override {}

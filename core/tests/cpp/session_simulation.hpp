@@ -57,6 +57,9 @@ public:
     std::vector<std::uint32_t> frame_indices; // decoded from delivered access units
     bool frames_intact = true;
     std::optional<session::SessionStats> stats;
+    int role_swap_requests = 0;
+    std::vector<session::RoleSwapAnswer> role_swap_answers;
+    std::optional<crypto::Key> role_swap_peer;
 
     void on_state(SessionState state, std::optional<Error> reason) override {
         states.push_back(state);
@@ -95,6 +98,14 @@ public:
         cursor_positions.push_back(position);
     }
     void on_stats(const session::SessionStats& latest) override { stats = latest; }
+    void on_role_swap_request(const crypto::Key& key) override {
+        ++role_swap_requests;
+        role_swap_peer = key;
+    }
+    void on_role_swap_answer(session::RoleSwapAnswer answer, const crypto::Key& key) override {
+        role_swap_answers.push_back(answer);
+        role_swap_peer = key;
+    }
     void on_log(session::LogLevel /*level*/, std::string_view /*message*/) override {}
 
     [[nodiscard]] SessionState state() const {

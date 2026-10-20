@@ -81,6 +81,34 @@ struct HostSessionTests {
         _ = await run.value
     }
 
+    @Test("A role swap request reaches the UI, and the answer and new requests reach the core")
+    func roleSwap() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        let received = Task {
+            var events: [HostSession.Event] = []
+            for await event in session.events {
+                events.append(event)
+                if case .roleSwapAnswered = event { break }
+            }
+            return events
+        }
+        let key = [UInt8](repeating: 9, count: 32)
+        harness.core.emit(.roleSwapRequested(peerPublicKey: key))
+        await session.answerRoleSwap(.cannotHost)
+        try await session.requestRoleSwap()
+        harness.core.emit(.roleSwapAnswered(.accepted, peerPublicKey: key))
+
+        let events = await received.value
+        #expect(events.contains { if case .roleSwapRequested(key) = $0 { true } else { false } })
+        #expect(events.contains { if case .roleSwapAnswered(.accepted, key) = $0 { true } else { false } })
+        #expect(harness.core.roleSwapAnswers == [.cannotHost])
+        #expect(harness.core.roleSwapRequests == 1)
+        await session.stop()
+        _ = await run.value
+    }
+
     @Test("Captured frames reach the core, starting with a keyframe")
     func pushesEncodedFrames() async throws {
         let harness = Harness()

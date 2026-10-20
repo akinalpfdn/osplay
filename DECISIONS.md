@@ -453,3 +453,10 @@ choices the plan leaves open are logged here.
 **Trade-offs:** A protocol change before the robustness phase; a swap takes seconds (virtual display creation and the first keyframe), and windows on a removed virtual display move to the main screen.
 **Revisit if:** Swap time is too long to feel useful.
 
+## 2026-10-20 — Role swap is one control message with request, accept and refuse
+**Chosen:** RoleSwap (0x14) with a step field; the accepting side sends accept then Bye(5) and both sessions close; the former viewer hosts and the former host reconnects by device ID through Bonjour. Simultaneous requests are settled by the host accepting. An unanswered request expires after 10 s locally. Protocol minor version 1; requests are not sent to minor-0 peers.
+**Alternatives:** Only Bye(5) without asking (the other side might be unable to host and both would end up disconnected); turning the running connection around in place (a host and a viewer are different sessions with different sockets, so it would need a new session anyway); keeping both directions open at once.
+**Why:** Asking first lets the side that would host check its permission, driver and service before anything closes, so a refused swap leaves the session untouched; reconnecting through the normal discovery and session paths needs no new transport code.
+**Trade-offs:** A swap takes seconds (new virtual displays, the first keyframe) and windows on a removed virtual display move to the main screen.
+**Revisit if:** Measured swap times are too long; then keep a warm host listener on the viewer side.
+

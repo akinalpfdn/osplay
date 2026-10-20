@@ -7,6 +7,10 @@
 #include "../keystore/dpapi_key_store.hpp"
 
 #include <osplay/engine.h>
+#include <osplay/osplay.h>
+
+#include <array>
+#include <cstdint>
 
 namespace osplay::engine {
 
@@ -64,6 +68,29 @@ inline osplay_engine_result to_result(KeyStoreError error) {
     return error == KeyStoreError::Damaged ? OSPLAY_ENGINE_ERROR_KEY_STORE_DAMAGED
                                            : OSPLAY_ENGINE_ERROR_KEY_STORE_UNAVAILABLE;
 }
+
+/// A role swap request or answer: the core's result as the shell sees it.
+inline osplay_engine_result role_swap_result(osplay_result result) {
+    switch (result) {
+    case OSPLAY_OK:
+        return OSPLAY_ENGINE_OK;
+    case OSPLAY_ERROR_UNSUPPORTED_VERSION:
+        return OSPLAY_ENGINE_ERROR_PEER_TOO_OLD;
+    case OSPLAY_ERROR_INVALID_ARGUMENT:
+        return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
+    default:
+        return OSPLAY_ENGINE_ERROR_SESSION_FAILED;
+    }
+}
+
+/// The 16-byte device ID of a peer key, for the shell's role swap callbacks (it matches the
+/// advertisement's `id`).
+struct PeerDeviceId {
+    explicit PeerDeviceId(const std::uint8_t* public_key) {
+        static_cast<void>(osplay_identity_device_id(public_key, bytes.data())); // valid 32-byte key
+    }
+    std::array<std::uint8_t, OSPLAY_DEVICE_ID_SIZE> bytes{};
+};
 
 /// No C++ exception may cross the C boundary.
 template <typename Body>

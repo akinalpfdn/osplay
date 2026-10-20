@@ -16,6 +16,7 @@ internal static class ErrorMessages
         EngineResult.MonitorNotFound => Localization.Strings.ErrorMonitorNotFound,
         EngineResult.EncoderUnavailable or EngineResult.EncoderFailed => Localization.Strings.ErrorEncoder,
         EngineResult.DecoderUnavailable => Localization.Strings.ErrorDecoder,
+        EngineResult.PeerTooOld => Localization.Strings.ErrorSwapUnsupported,
         _ => LocalizedText.Format(Localization.Strings.ErrorEngine, (int)result),
     };
 

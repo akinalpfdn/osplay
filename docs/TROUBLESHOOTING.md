@@ -82,3 +82,15 @@ PC sees.
 
 The other side revoked it ("refused this Mac" / "refused this PC"). On that side, remove the device
 from Paired devices; the next connection asks for a pairing code again.
+
+## Swap roles does nothing or fails
+
+- "older Osplay without role swap": update both computers; the swap needs protocol 1.1 on both.
+- "cannot extend itself right now": the other computer lacks what hosting needs — Screen Recording on
+  a Mac, the OsplayHelper service and the Virtual Display Driver on Windows (Settings › Advanced
+  there says which).
+- "did not appear after the swap": the new host could not advertise (Local Network permission on the
+  Mac, a Public network on Windows). Pick it under Nearby computers once it shows up.
+- The shortcut is ignored: another program owns it; the menu says so. Use the "Swap roles" button or
+  record another shortcut in Settings.
+

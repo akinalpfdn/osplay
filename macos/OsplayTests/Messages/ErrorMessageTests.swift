@@ -27,6 +27,8 @@ struct ErrorMessageTests {
         let errors: [ConnectionError] = [
             .keyStore(.damaged), .keyStore(.keychain(-25300)), .discovery(.localNetworkDenied),
             .discovery(.service(-65563)), .noDisplay, .incompatible, .host(.screenRecordingPermissionMissing),
+            .roleSwap(.cannotHost), .roleSwap(.busy), .roleSwap(.noAnswer), .roleSwapUnsupported,
+            .roleSwapPeerNotFound,
         ]
         for error in errors {
             #expect(!error.message.isEmpty)

@@ -45,6 +45,14 @@ enum class SessionState : std::uint8_t {
 };
 
 enum class TrustDecision : std::uint8_t { Trusted = 1, Unknown = 2, Blocked = 3 };
+
+/// The outcome of a role swap request, as both sides see it.
+enum class RoleSwapAnswer : std::uint8_t {
+    Accepted = 1,
+    CannotHost = 2, ///< the other side lacks a permission, driver or service to host
+    Busy = 3,       ///< the other side cannot swap right now
+    NoAnswer = 4,   ///< local only: no answer within role_swap_timeout
+};
 enum class LogLevel : std::uint8_t { Debug = 1, Info = 2, Warning = 3, Error = 4 };
 
 struct StreamStats {
@@ -90,6 +98,11 @@ public:
     /// Viewer: the newest cursor position (older ones are dropped).
     virtual void on_cursor_position(const protocol::CursorPosition& position) = 0;
     virtual void on_stats(const SessionStats& stats) = 0;
+    /// The peer asks to reverse the roles; answer with SessionEngine::answer_role_swap (later, not
+    /// from this callback). The key identifies the peer to reconnect to after an accepted swap.
+    virtual void on_role_swap_request(const crypto::Key& peer_static_key) = 0;
+    /// The answer to this side's request. After Accepted the peer closes the session with Bye.
+    virtual void on_role_swap_answer(RoleSwapAnswer answer, const crypto::Key& peer_static_key) = 0;
     virtual void on_log(LogLevel level, std::string_view message) = 0;
 };
 
@@ -145,6 +158,11 @@ public:
     /// Ends one stream for good on both sides (StreamStop); the session stays up.
     [[nodiscard]] Status<Error> stop_stream(std::uint8_t stream_id, TimePoint now);
     [[nodiscard]] Status<Error> resume_stream(std::uint8_t stream_id, TimePoint now);
+    /// Asks the peer to reverse the roles (Streaming or Paused only, one request at a time).
+    [[nodiscard]] Status<Error> request_role_swap(TimePoint now);
+    /// Answers on_role_swap_request: Accepted closes the session with Bye (role swap); a refusal
+    /// (CannotHost or Busy) keeps it running.
+    [[nodiscard]] Status<Error> answer_role_swap(RoleSwapAnswer answer, TimePoint now);
     /// Sends Bye (when the channel is encrypted) and closes.
     void close(protocol::ByeReason reason, TimePoint now);
 
@@ -171,6 +189,8 @@ private:
     void handle_ping(const protocol::Ping& ping, TimePoint now);
     void handle_pong(const protocol::Pong& pong, TimePoint now);
     void handle_peer_error(const protocol::PeerError& error);
+    void handle_role_swap(const protocol::RoleSwap& message, TimePoint now);
+    void expire_role_swap(TimePoint now);
     void send(const protocol::ControlMessage& message, TimePoint now);
     void handshake_complete(TimePoint now);
     void finish_pairing_if_agreed(TimePoint now);
@@ -212,12 +232,16 @@ private:
     std::unique_ptr<crypto::MediaOpener> opener_;
     crypto::Key peer_static_{};
     bool peer_hello_received_ = false;
+    std::uint8_t peer_protocol_minor_ = 0;
     bool closing_ = false;
 
     TrustDecision trust_ = TrustDecision::Unknown;
     bool local_decision_made_ = false;
     bool local_accepted_ = false;
     bool peer_accepted_ = false;
+
+    std::optional<TimePoint> role_swap_requested_at_; // this side asked, no answer yet
+    bool role_swap_offered_ = false;                  // the peer asked, not answered yet
 
     bool monitors_received_ = false; // host
     std::optional<protocol::SessionToken> session_token_;
