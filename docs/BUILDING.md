@@ -338,6 +338,11 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    - **Revoke:** Mac Settings › Devices, or PC Settings › Devices → **Revoke**. The other
      computer's next connection is refused ("refused this Mac/PC") without a pairing code;
      **Remove** lets it pair again.
+   - **Role swap (Phase 12b):** during use case 1 or 2 press ⌃⌥⌘S on the Mac or Ctrl+Alt+Shift+S
+     on the PC (or **Swap roles**). Both sessions close and reconnect the other way round within a
+     few seconds, without a pairing code. Note the time from the key press to the first frame.
+     Stop the OsplayHelper service and swap from use case 1: the Mac reports that the PC cannot
+     extend itself and the session continues.
    - **Shell checks (Phase 12):** switch Windows between light and dark (Settings › Personalization
      › Colors) with the panel and Settings open — both follow at once, and the tray icon follows the
      taskbar. Settings › Advanced shows the helper and driver as ready (stop the OsplayHelper

@@ -9,12 +9,12 @@ One global shortcut on either computer reverses the roles of a running session: 
 as a display becomes the host and the other one becomes its display, without pairing again.
 
 ## Tasks
-- [ ] Core: a role-swap control message (request, accept), protocol minor version bump, PROTOCOL.md, fixtures, fuzz corpus, tests.
-- [ ] Core/session: on swap both sides close cleanly; the new viewer reconnects to the same peer by device ID.
-- [ ] Mac: recordable swap shortcut (default ⌃⌥⌘S), swap in ConnectionViewModel (host ⇄ viewer), menu shows the swap state.
-- [ ] Windows engine/shell: recordable swap shortcut (default Ctrl+Alt+Shift+S, registered while a session runs), swap in ConnectionViewModel.
-- [ ] Both: swap refused cleanly when the other side cannot host (missing permission, helper/driver) with a localized reason.
-- [ ] Docs: ARCHITECTURE, TROUBLESHOOTING, BUILDING test steps; DECISIONS entries.
+- [x] Core: a role-swap control message (request, accept), protocol minor version bump, PROTOCOL.md, fixtures, fuzz corpus, tests.
+- [x] Core/session: on swap both sides close cleanly; the new viewer reconnects to the same peer by device ID.
+- [x] Mac: recordable swap shortcut (default ⌃⌥⌘S), swap in ConnectionViewModel (host ⇄ viewer), menu shows the swap state.
+- [x] Windows engine/shell: recordable swap shortcut (default Ctrl+Alt+Shift+S, registered while a session runs), swap in ConnectionViewModel.
+- [x] Both: swap refused cleanly when the other side cannot host (missing permission, helper/driver) with a localized reason.
+- [x] Docs: ARCHITECTURE, TROUBLESHOOTING, BUILDING test steps; DECISIONS entries.
 
 ## Acceptance Criteria
 - [ ] Pressing the shortcut on either computer swaps the roles without a pairing code.
@@ -23,3 +23,6 @@ as a display becomes the host and the other one becomes its display, without pai
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
+- One RoleSwap message (request/accept/refuse), accept followed by Bye(5); host settles simultaneous requests; 10 s local timeout.
+- The Windows engine hands the shell the peer's device ID (not the key) so it can match Bonjour advertisements.
+- The swap shortcut is registered only while frames flow; a "Swap roles" button is in both menus.
