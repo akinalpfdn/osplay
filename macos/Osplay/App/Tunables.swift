@@ -71,6 +71,9 @@ enum Tunables {
         static let relistenDelay: Duration = .seconds(1)
         /// After a role swap, how long viewing waits for the other computer to advertise itself.
         static let swapReconnectTimeout: Duration = .seconds(20)
+        /// Pause before a dropped viewer tries its host again (an old advertisement can refuse at
+        /// once; this keeps that from becoming a tight loop).
+        static let reconnectDelay: Duration = .seconds(2)
         /// Capabilities this Mac announces in either role.
         static let maximumWidth = 7680
         static let maximumHeight = 4320

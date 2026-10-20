@@ -70,6 +70,7 @@ final class ConnectionViewModel {
     /// Viewing after a swap: connects to this device as soon as Bonjour finds it.
     private var autoConnectDeviceID: String?
     private var autoConnectTimeout: Task<Void, Never>?
+    private var reconnectTask: Task<Void, Never>?
     private var statsHotkey: HotkeyRegistration?
     private var viewedHost: ViewedHost?
     /// The user ended the session; it does not come back by itself.
@@ -432,7 +433,12 @@ final class ConnectionViewModel {
         let expectedBack = resumes || failure == .peerSleeping || failure == .timedOut || failure == .network
         if let host, expectedBack, !endedByUser, mode == .viewing {
             status = .reconnecting(peer: host.name)
-            awaitHost(host.deviceID, timeout: nil)
+            reconnectTask?.cancel()
+            reconnectTask = Task { [weak self] in
+                try? await Task.sleep(for: Tunables.Connection.reconnectDelay)
+                guard !Task.isCancelled, let self, mode == .viewing, viewer == nil else { return }
+                awaitHost(host.deviceID, timeout: nil)
+            }
             return
         }
         if let failure { error = .session(failure) }
@@ -445,6 +451,9 @@ final class ConnectionViewModel {
         systemObservers = [
             workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { _ in
                 MainActor.assumeIsolated { [weak self] in self?.willSleep() }
+            },
+            workspace.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { [weak self] in self?.didWake() }
             },
             NotificationCenter.default.addObserver(
                 forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
@@ -463,6 +472,14 @@ final class ConnectionViewModel {
         if let host {
             Task { await host.stopForSleep() }
         }
+    }
+
+    /// Sockets and the Bonjour registration from before sleep may be stale: sharing without a
+    /// viewer listens and advertises anew.
+    private func didWake() {
+        guard mode == .sharing, !isSessionActive, let host else { return }
+        // The share loop listens again right after this session ends.
+        Task { await host.stop() }
     }
 
     /// The display this Mac shows the stream on changed (resolution, lid, unplugged): connect again
@@ -638,6 +655,8 @@ final class ConnectionViewModel {
     private func stopAll() {
         modeTask?.cancel()
         modeTask = nil
+        reconnectTask?.cancel()
+        reconnectTask = nil
         autoConnectDeviceID = nil
         autoConnectTimeout?.cancel()
         autoConnectTimeout = nil

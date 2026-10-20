@@ -6,6 +6,12 @@ internal static class AppTunables
     /// <summary>A host session takes one viewer; the next listener starts after this pause.</summary>
     public static readonly TimeSpan RelistenDelay = TimeSpan.FromSeconds(1);
 
+    /// <summary>
+    /// Pause before a dropped viewer tries its host again (an old advertisement can refuse at once;
+    /// this keeps that from becoming a tight loop).
+    /// </summary>
+    public static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(2);
+
     /// <summary>After a role swap, how long viewing waits for the other computer to advertise itself.</summary>
     public static readonly TimeSpan SwapReconnectTimeout = TimeSpan.FromSeconds(20);
 

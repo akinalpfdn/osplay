@@ -606,6 +606,10 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         {
             _ = _dispatcher.BeginInvoke(() => _ = SuspendForSleepAsync());
         }
+        else if (e.Mode == Microsoft.Win32.PowerModes.Resume)
+        {
+            _ = _dispatcher.BeginInvoke(() => _ = RefreshAfterWakeAsync());
+        }
     }
 
     /// <summary>Tells the other computer this PC is going away for a while; a viewer comes back after wake.</summary>
@@ -619,6 +623,32 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         if (_host is not null)
         {
             await _host.SuspendAsync().ConfigureAwait(true);
+        }
+    }
+
+    /// <summary>
+    /// Sockets and Bonjour registrations from before sleep may be stale: sharing without a viewer
+    /// listens and advertises anew, and viewing browses anew (a pending reconnect is kept).
+    /// </summary>
+    private async Task RefreshAfterWakeAsync()
+    {
+        if (Mode == ConnectionMode.Sharing && _host is not null && !IsSessionActive)
+        {
+            await _host.StopAsync().ConfigureAwait(true); // OnClosedAsync listens again
+        }
+        else if (Mode == ConnectionMode.Viewing && _viewer is null && _browser is not null)
+        {
+            EngineBrowser browser = _browser;
+            _browser = null;
+            _found.Clear();
+            Devices.Clear();
+            await browser.DisposeAsync().ConfigureAwait(true);
+            string status = Status;
+            await StartBrowsingAsync().ConfigureAwait(true);
+            if (_autoConnectDeviceId is not null)
+            {
+                Status = status; // still "waiting for … to come back"
+            }
         }
     }
 
@@ -711,7 +741,11 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             else if (viewerComesBack && host is not null)
             {
                 Status = Format(Localization.Strings.ConnectionStatusReconnecting, host.Name);
-                _ = await AwaitHostAsync(host.DeviceId, null).ConfigureAwait(true);
+                await Task.Delay(AppTunables.ReconnectDelay).ConfigureAwait(true);
+                if (Mode == ConnectionMode.Viewing && _viewer is null)
+                {
+                    _ = await AwaitHostAsync(host.DeviceId, null).ConfigureAwait(true);
+                }
             }
             else if (Mode == ConnectionMode.Viewing)
             {
