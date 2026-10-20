@@ -73,8 +73,8 @@ connections for Osplay.
 Both computers must be on the same network and subnet (guest Wi-Fi networks often isolate devices).
 On the Mac, Osplay needs Local Network access (System Settings › Privacy & Security › Local
 Network); without it the list stays empty, or the menu says Bonjour is not allowed. On Windows the
-network profile must be **Private** (Osplay warns when a connected network is Public and opens
-the network settings), and Windows Defender Firewall asks once whether Osplay may
+network profile should be **Private** (on a Public network Osplay suggests this once; a Public
+network can still work when the firewall allows Osplay), and Windows Defender Firewall asks once whether Osplay may
 accept connections: allow it for private networks. `OsplayViewerTest.exe --browse` shows what the
 PC sees.
 

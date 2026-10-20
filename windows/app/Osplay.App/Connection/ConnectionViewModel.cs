@@ -73,7 +73,27 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private HostHealth? _hostProblem;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsNetworkWarning))]
     private bool _isNetworkPublic;
+
+    /// <summary>
+    /// The panel's hint about a Public network, until the user closes it once. Public networks often
+    /// work (the firewall rule may allow Osplay), so it only suggests what to try when nothing connects.
+    /// </summary>
+    public bool ShowsNetworkWarning
+    {
+        get => IsNetworkPublic && !_settings.HidesNetworkWarning;
+        set
+        {
+            if (!value)
+            {
+                _settings.HidesNetworkWarning = true;
+            }
+        }
+    }
+
+    /// <summary>A viewer session started: the panel gets out of the way of the new display.</summary>
+    public event Action? ViewerStarted;
 
     public bool IsOff => Mode == ConnectionMode.Off;
 
@@ -336,6 +356,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             viewer.Statistics += OnStatistics;
             IsViewerVisible = true;
             IsSessionActive = true;
+            ViewerStarted?.Invoke();
             Status = Format(Localization.Strings.ConnectionStatusConnecting, _peerName);
             if (!viewer.HotkeyRegistered)
             {
@@ -553,6 +574,9 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
                 break;
             case nameof(AppSettings.ViewerHotkey):
                 OnPropertyChanged(nameof(HotkeyHint));
+                break;
+            case nameof(AppSettings.HidesNetworkWarning):
+                OnPropertyChanged(nameof(ShowsNetworkWarning));
                 break;
             default:
                 break;

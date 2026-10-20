@@ -31,6 +31,10 @@ public sealed partial class AppSettings : ObservableObject
     [ObservableProperty]
     private DateTimeOffset? _lastUpdateCheck;
 
+    /// <summary>The user closed the public-network hint; it is not shown in the panel again.</summary>
+    [ObservableProperty]
+    private bool _hidesNetworkWarning;
+
     /// <summary>Monitors not offered to hosts, by <see cref="MonitorKey"/>.</summary>
     [ObservableProperty]
     private IReadOnlyList<string> _excludedMonitors = [];
@@ -82,6 +86,7 @@ public sealed partial class AppSettings : ObservableObject
             ChecksForUpdates = stored.ChecksForUpdates;
             LastUpdateCheck = stored.LastUpdateCheck;
             ExcludedMonitors = stored.ExcludedMonitors ?? [];
+            HidesNetworkWarning = stored.HidesNetworkWarning;
         }
         finally
         {
@@ -93,7 +98,7 @@ public sealed partial class AppSettings : ObservableObject
     {
         var stored = new Stored(
             Quality, ViewerHotkey.Modifiers, ViewerHotkey.VirtualKey, ShowsStatsOverlay, ChecksForUpdates, LastUpdateCheck,
-            [.. ExcludedMonitors]);
+            [.. ExcludedMonitors], HidesNetworkWarning);
         try
         {
             _ = Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
@@ -107,5 +112,5 @@ public sealed partial class AppSettings : ObservableObject
 
     private sealed record Stored(
         QualityPreset Quality, uint HotkeyModifiers, uint HotkeyKey, bool ShowsStatsOverlay, bool ChecksForUpdates,
-        DateTimeOffset? LastUpdateCheck, List<string>? ExcludedMonitors);
+        DateTimeOffset? LastUpdateCheck, List<string>? ExcludedMonitors, bool HidesNetworkWarning = false);
 }

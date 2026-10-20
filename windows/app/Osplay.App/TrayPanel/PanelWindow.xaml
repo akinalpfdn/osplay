@@ -18,7 +18,8 @@
                  Topmost="True"
                  WindowStyle="None"
                  ExtendsContentIntoTitleBar="True"
-                 WindowBackdropType="Acrylic"
+                 WindowBackdropType="None"
+                 Background="{DynamicResource ApplicationBackgroundBrush}"
                  WindowCornerPreference="Round">
   <ui:FluentWindow.Resources>
     <Style x:Key="Osplay.Button.SharingRole" TargetType="Button" BasedOn="{StaticResource Osplay.Button.Card}">
@@ -67,10 +68,10 @@
                 Title="{x:Static res:Strings.HealthTitle}"
                 Message="{Binding Connection.HostProblemMessage}"
                 IsOpen="{Binding Connection.HasHostProblem, Mode=OneWay}" />
-    <StackPanel Visibility="{Binding Connection.IsNetworkPublic, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">
-      <ui:InfoBar Margin="{StaticResource Osplay.Thickness.SectionGap}" Severity="Warning" IsClosable="False"
+    <StackPanel Visibility="{Binding Connection.ShowsNetworkWarning, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">
+      <ui:InfoBar Margin="{StaticResource Osplay.Thickness.SectionGap}" Severity="Informational" IsClosable="True"
                   Title="{x:Static res:Strings.NetworkPublicTitle}" Message="{x:Static res:Strings.NetworkPublicMessage}"
-                  IsOpen="True" />
+                  IsOpen="{Binding Connection.ShowsNetworkWarning}" />
       <ui:Button Margin="{StaticResource Osplay.Thickness.ItemGap}" Content="{x:Static res:Strings.NetworkOpenSettings}"
                  Command="{Binding OpenNetworkSettingsCommand}" />
     </StackPanel>

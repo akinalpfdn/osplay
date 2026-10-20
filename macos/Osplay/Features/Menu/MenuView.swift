@@ -43,6 +43,7 @@ struct MenuView: View {
         }
         .padding(Theme.Spacing.large)
         .frame(width: Theme.Size.menuWidth, alignment: .leading)
+        .background(MenuWindowReader())
     }
 
     private var needsPermissions: Bool {
@@ -240,7 +241,10 @@ private struct ViewingSection: View {
                 DeviceRow(
                     name: connection.displayName(of: device), platform: device.advertisement.platform,
                     isPaired: connection.isPaired(device), isBusy: connection.isSessionActive
-                ) { connection.connect(to: device) }
+                ) {
+                    connection.connect(to: device)
+                    MenuWindow.close()  // the session continues; the menu is in the way of the new display
+                }
             }
             if connection.isSessionActive {
                 HStack {

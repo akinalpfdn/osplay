@@ -211,13 +211,13 @@
     <value>Ağ</value>
   </data>
   <data name="NetworkPrivate" xml:space="preserve">
-    <value>Ağınız özel: diğer bilgisayarlar bu bilgisayarı bulup bağlanabilir.</value>
+    <value>Ağınız özel; Windows diğer bilgisayarların bu bilgisayarı bulup bağlanmasına izin verir.</value>
   </data>
   <data name="NetworkPublicTitle" xml:space="preserve">
     <value>Bu ağ Ortak olarak ayarlı</value>
   </data>
   <data name="NetworkPublicMessage" xml:space="preserve">
-    <value>Windows ortak ağlarda keşfi ve bağlantıları engeller. Windows Ayarları'nda bu ağı Özel yapın.</value>
+    <value>Diğer bilgisayar bu bilgisayarı bulamaz ya da bağlanamazsa Windows Ayarları'nda bu ağı Özel yapmayı deneyin.</value>
   </data>
   <data name="NetworkOpenSettings" xml:space="preserve">
     <value>Ağ ayarlarını aç</value>

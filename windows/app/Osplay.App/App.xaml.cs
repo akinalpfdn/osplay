@@ -34,6 +34,7 @@ public partial class App : Application, IDisposable
         _panel = new PanelWindow(new PanelViewModel(_connection, updates, settings, OpenSettings, QuitAsync));
         // A window handle now, so the theme follows the system before the panel is first shown.
         _ = new WindowInteropHelper(_panel).EnsureHandle();
+        _connection.ViewerStarted += _panel.Hide;
 
         _trayIcon = (TaskbarIcon)FindResource(TrayResourceKeys.TrayIcon);
         _trayIcon.DataContext = new TrayViewModel(_connection, _panel.Toggle, OpenSettings, QuitAsync);

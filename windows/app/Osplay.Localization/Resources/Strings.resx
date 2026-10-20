@@ -211,13 +211,13 @@
     <value>Network</value>
   </data>
   <data name="NetworkPrivate" xml:space="preserve">
-    <value>Your network is private: other computers can find and reach this PC.</value>
+    <value>Your network is private, so Windows lets other computers find and reach this PC.</value>
   </data>
   <data name="NetworkPublicTitle" xml:space="preserve">
     <value>This network is set to Public</value>
   </data>
   <data name="NetworkPublicMessage" xml:space="preserve">
-    <value>Windows blocks discovery and connections on public networks. Set this network to Private in Windows Settings.</value>
+    <value>If the other computer cannot find or reach this PC, set this network to Private in Windows Settings.</value>
   </data>
   <data name="NetworkOpenSettings" xml:space="preserve">
     <value>Open network settings</value>
