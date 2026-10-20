@@ -54,6 +54,10 @@ Service type `_osplay._tcp`; the SRV record carries the TCP control port. TXT re
 | `roles` | `host`, `viewer` or `host,viewer` |
 | `os` | `macos` or `windows` |
 
+A host listens again on the same TCP port after every session (falling back to any free port when
+it is taken). Bonjour browsing reports instances, not changed ports, so a viewer that resolved the
+advertisement earlier would otherwise keep connecting to a closed port.
+
 ## Control channel (TCP)
 
 Each frame is `u32 length` followed by `length` bytes of payload, 1 ≤ length ≤ 4096 for plaintext

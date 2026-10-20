@@ -270,6 +270,9 @@ typedef struct osplay_session_config {
     osplay_capabilities capabilities;
     const osplay_monitor* monitors; /* viewer: the monitors it offers; host: NULL */
     size_t monitor_count;
+    /* Host: TCP port to listen on, 0 for any. Pass the previous session's port when listening
+     * again, so an existing Bonjour advertisement stays right; a taken port falls back to any. */
+    uint16_t control_port;
 } osplay_session_config;
 
 typedef struct osplay_stream_config {

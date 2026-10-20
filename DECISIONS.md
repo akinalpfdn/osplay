@@ -476,3 +476,10 @@ choices the plan leaves open are logged here.
 **Trade-offs:** Recovery takes a few seconds (a new handshake and first keyframe); windows on removed virtual displays move to the main screen.
 **Revisit if:** Users find reconnects after display changes too slow.
 
+## 2026-10-20 — A host keeps its control port across sessions
+**Chosen:** Each new host session listens on the previous session's TCP port (falling back to an ephemeral one when it is taken), so the Bonjour advertisement viewers already resolved stays right.
+**Alternatives:** Resolving the service again before every connection attempt; a fixed well-known port.
+**Why:** A host listens anew after every session; with a new ephemeral port each time, a viewer whose browse saw no change (Bonjour reports instances, not changed SRV records) kept connecting to the closed old port, so Disconnect followed by Connect never worked. Reusing the port needs no change in either app's discovery.
+**Trade-offs:** If the port is taken in between, the stale-port case returns until the advertisement changes; a changed IP address is not covered.
+**Revisit if:** Users hit failed reconnects after IP changes; then resolve again before each connection.
+

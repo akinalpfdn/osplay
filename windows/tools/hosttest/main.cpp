@@ -369,6 +369,7 @@ int run(const Options& options) {
                          .max_refresh_hz = 240},
         .monitors = &monitor,
         .monitor_count = 1,
+        .control_port = 0,
     };
     const osplay_session_callbacks viewer_events = viewer_callbacks(measurements);
     osplay_session* viewer = nullptr;

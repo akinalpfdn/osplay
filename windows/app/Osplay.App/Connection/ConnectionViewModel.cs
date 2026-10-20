@@ -38,6 +38,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _autoConnectTimeout;
     private GlobalHotkey? _swapHotkey;
     private GlobalHotkey? _statsHotkey;
+    private ushort _sharePort;
     private readonly ConsoleDisplayMonitor _display = new();
     private ViewedHost? _viewedHost;
     /// <summary>The user ended the session; it does not come back by itself.</summary>
@@ -315,7 +316,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private async Task StartSharingAsync()
     {
         (EngineResult started, EngineHost? host) = await EngineHost
-            .StartAsync(_dispatcher, _deviceName, _settings.Quality.MillibitsPerPixel())
+            .StartAsync(_dispatcher, _deviceName, _settings.Quality.MillibitsPerPixel(), _sharePort)
             .ConfigureAwait(true);
         if (host is null)
         {
@@ -324,6 +325,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             return;
         }
         HostProblem = null;
+        // The next session listens here again, so the advertisement viewers resolved stays right.
+        _sharePort = host.ControlPort;
         (EngineResult advertised, EngineAdvertiser? advertiser) = await EngineAdvertiser
             .StartAsync(_deviceName, Roles.Host, host.ControlPort)
             .ConfigureAwait(true);

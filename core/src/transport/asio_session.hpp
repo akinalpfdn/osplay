@@ -25,6 +25,9 @@ struct TransportOptions {
     /// Host: UDP port to announce instead of the socket's own, when a forwarder sits in between
     /// (port forwarding; the wire-inspection tests use it to route media through a relay).
     std::optional<std::uint16_t> advertised_media_port;
+    /// Host: TCP port to listen on (0: any). Reusing the previous session's port keeps an existing
+    /// Bonjour advertisement right; a port that is taken falls back to any.
+    std::uint16_t control_port = 0;
 };
 
 class AsioSession {

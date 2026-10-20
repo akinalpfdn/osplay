@@ -278,6 +278,7 @@ osplay_engine_result osplay_engine_host_start(const osplay_engine_host_config* c
                              .max_refresh_hz = 240},
             .monitors = nullptr,
             .monitor_count = 0,
+            .control_port = config->control_port,
         };
         const osplay_random_source random{.fill = system_random, .context = nullptr};
         const osplay_session_callbacks session_callbacks = core_callbacks(host.get());

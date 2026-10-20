@@ -71,6 +71,8 @@ final class ConnectionViewModel {
     private var autoConnectDeviceID: String?
     private var autoConnectTimeout: Task<Void, Never>?
     private var reconnectTask: Task<Void, Never>?
+    /// The port sharing listened on last; the next session listens there again.
+    private var sharePort: UInt16 = 0
     private var statsHotkey: HotkeyRegistration?
     private var viewedHost: ViewedHost?
     /// The user ended the session; it does not come back by itself.
@@ -280,12 +282,14 @@ final class ConnectionViewModel {
     private func shareOnce(_ identity: DeviceIdentity) async -> ConnectionError? {
         let core: CoreSession
         do throws(CoreError) {
+            // The previous session's port keeps the advertisement viewers already resolved right.
             core = try CoreSession.host(
                 device: sessionDevice(identity, maximumStreams: Tunables.VirtualDisplay.maximumDisplayCount),
-                trust: { [trust] key in trust.trust(key) })
+                controlPort: sharePort, trust: { [trust] key in trust.trust(key) })
         } catch {
             return .session(error)
         }
+        sharePort = core.controlPort
         let advertising: any Advertising
         do throws(DiscoveryError) {
             advertising = try dependencies.discovery.advertise(

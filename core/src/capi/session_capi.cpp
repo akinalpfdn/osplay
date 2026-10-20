@@ -431,10 +431,13 @@ osplay_result osplay_host_session_create(const osplay_session_config* config,
     return guarded([&]() -> osplay_result {
         return create_session(
             config, secret_key, random, callbacks, protocol::Role::Host, out_session,
-            [](session::SessionConfig session_config, osplay::crypto::KeyPair identity,
-               osplay_session& handle) {
+            [port = config == nullptr ? std::uint16_t{0} : config->control_port](
+                session::SessionConfig session_config, osplay::crypto::KeyPair identity,
+                osplay_session& handle) {
                 return osplay::transport::AsioSession::create_host(
-                    std::move(session_config), std::move(identity), handle.random, handle.observer);
+                    std::move(session_config), std::move(identity), handle.random, handle.observer,
+                    osplay::transport::TransportOptions{.advertised_media_port = std::nullopt,
+                                                        .control_port = port});
             });
     });
 }

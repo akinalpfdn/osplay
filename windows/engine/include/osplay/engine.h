@@ -171,6 +171,10 @@ typedef struct osplay_engine_host_config {
     const char* dump_directory_utf8; /* debug: also write the stream as .h264 here, or NULL */
     /* Stream quality: target bits per pixel per frame, in thousandths (100 = 0.1); 0: default. */
     uint32_t millibits_per_pixel;
+    /* TCP port to listen on, 0 for any; pass the previous session's
+     * (osplay_engine_host_control_port) so the advertisement stays right. A taken port falls back
+     * to any. */
+    uint16_t control_port;
 } osplay_engine_host_config;
 
 /*

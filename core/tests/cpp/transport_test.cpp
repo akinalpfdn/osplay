@@ -455,6 +455,33 @@ void expect_opaque(const std::vector<std::uint8_t>& bytes) {
     EXPECT_EQ(text.find("Wire Host"), std::string::npos) << "device name after the handshake";
 }
 
+TEST(RealSessionsConnect, ANewHostSessionCanListenOnThePreviousPort) {
+    osplay::test::SeededRandom random{6};
+    SyncObserver observer;
+    auto first = osplay::transport::AsioSession::create_host(
+        config(protocol::Role::Host), osplay::test::key_pair(random), random, observer);
+    ASSERT_TRUE(first.has_value());
+    const std::uint16_t port = first.value()->control_port();
+    first.value().reset();
+
+    SyncObserver next_observer;
+    auto second = osplay::transport::AsioSession::create_host(
+        config(protocol::Role::Host), osplay::test::key_pair(random), random, next_observer,
+        osplay::transport::TransportOptions{.advertised_media_port = std::nullopt,
+                                            .control_port = port});
+    ASSERT_TRUE(second.has_value());
+    EXPECT_EQ(second.value()->control_port(), port) << "the advertisement stays right";
+
+    // A taken port falls back to any.
+    SyncObserver third_observer;
+    auto third = osplay::transport::AsioSession::create_host(
+        config(protocol::Role::Host), osplay::test::key_pair(random), random, third_observer,
+        osplay::transport::TransportOptions{.advertised_media_port = std::nullopt,
+                                            .control_port = port});
+    ASSERT_TRUE(third.has_value());
+    EXPECT_NE(third.value()->control_port(), port);
+}
+
 TEST(RealSessionsConnect, AHostThatNeverAnswersEndsTheViewerInsteadOfHangingIt) {
     // A non-routable address: the SYN goes nowhere (or the network reports it unreachable).
     auto viewer_config = config(protocol::Role::Viewer);

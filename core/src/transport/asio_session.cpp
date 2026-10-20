@@ -234,6 +234,13 @@ public:
 
 private:
     bool open_tcp_acceptor(asio::error_code& error) {
+        if (options_.control_port != 0 && open_tcp_acceptor(options_.control_port, error)) {
+            return true;
+        }
+        return open_tcp_acceptor(0, error);
+    }
+
+    bool open_tcp_acceptor(std::uint16_t port, asio::error_code& error) {
         for (const auto protocol : {tcp::v6(), tcp::v4()}) {
             error.clear();
             acceptor_.open(protocol, error);
@@ -243,7 +250,13 @@ private:
             if (protocol == tcp::v6()) {
                 acceptor_.set_option(asio::ip::v6_only(false), error); // also accept IPv4
             }
-            acceptor_.bind(tcp::endpoint(protocol, 0), error);
+#ifndef _WIN32
+            // The previous session's connection may linger in TIME_WAIT on this port. Windows
+            // allows the bind without it, and there the option would let another socket take an
+            // active port.
+            acceptor_.set_option(tcp::acceptor::reuse_address(true), error);
+#endif
+            acceptor_.bind(tcp::endpoint(protocol, port), error);
             if (!error) {
                 acceptor_.listen(1, error);
             }

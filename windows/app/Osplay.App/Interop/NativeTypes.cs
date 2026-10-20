@@ -161,6 +161,7 @@ internal struct NativeHostConfig
     public nint DeviceName;
     public nint DumpDirectory;
     public uint MillibitsPerPixel;
+    public ushort ControlPort;
 }
 
 /// <summary>osplay_engine_host_callbacks.</summary>

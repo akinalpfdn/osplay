@@ -188,7 +188,7 @@ internal sealed unsafe class EngineHost : EngineSession
     public ushort ControlPort { get; private set; }
 
     public static Task<(EngineResult Result, EngineHost? Host)> StartAsync(
-        Dispatcher dispatcher, string deviceName, uint millibitsPerPixel)
+        Dispatcher dispatcher, string deviceName, uint millibitsPerPixel, ushort controlPort)
     {
         var created = new EngineHost(dispatcher);
         return Native.Run(() =>
@@ -202,6 +202,7 @@ internal sealed unsafe class EngineHost : EngineSession
                     DeviceName = name,
                     DumpDirectory = 0,
                     MillibitsPerPixel = millibitsPerPixel,
+                    ControlPort = controlPort,
                 };
                 var callbacks = new NativeHostCallbacks
                 {

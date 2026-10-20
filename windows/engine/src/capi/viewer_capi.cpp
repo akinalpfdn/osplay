@@ -370,6 +370,7 @@ osplay_engine_result osplay_engine_viewer_start(const osplay_engine_viewer_confi
                              .max_refresh_hz = 240},
             .monitors = descriptions.data(),
             .monitor_count = descriptions.size(),
+            .control_port = 0,
         };
         const osplay_random_source random{.fill = system_random, .context = nullptr};
         const osplay_session_callbacks session_callbacks = core_callbacks(viewer.get());
