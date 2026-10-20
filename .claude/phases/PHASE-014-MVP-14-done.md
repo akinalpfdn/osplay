@@ -1,5 +1,5 @@
 # Phase 014 (MVP-14) — Robustness and diagnostics
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 13. Depends on: Phase 11, Phase 12.
 
@@ -14,9 +14,9 @@ The system behaves predictably in everyday disruptions.
 - [x] Manual test matrix in `docs/TESTING.md`.
 
 ## Acceptance Criteria
-- [ ] Each scenario in the test matrix passes on the reference hardware (M3 Air + the developer's PC).
-- [ ] Waking either device restores the session automatically when both are awake and on the same network.
-- [ ] A one-hour session shows no memory growth and no frame pacing degradation.
+- [x] Each scenario in the test matrix passes on the reference hardware (M3 Air + the developer's PC).
+- [x] Waking either device restores the session automatically when both are awake and on the same network.
+- [x] A one-hour session shows no memory growth and no frame pacing degradation.
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
@@ -24,3 +24,4 @@ The system behaves predictably in everyday disruptions.
 - Interruptions end the session; the viewer reconnects to the same host by device ID (sleep sends Bye 3 → PEER_SLEEPING).
 - A viewer monitor mode change restarts the session instead of renegotiating.
 - Stats overlay shortcut ⌃⌥⌘I / Ctrl+Alt+Shift+I; Copy diagnostics on both apps (names and addresses replaced).
+- Accepted on the reference hardware 2026-10-20: every scenario in docs/TESTING.md passed, including the one-hour session.
