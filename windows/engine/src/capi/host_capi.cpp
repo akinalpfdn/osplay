@@ -2,6 +2,7 @@
 #include "../display/gdi_display_mode_applier.hpp"
 #include "../display/helper_virtual_display_provider.hpp"
 #include "../display/pipe_helper_channel.hpp"
+#include "../engine_tunables.hpp"
 #include "../host/host_orchestrator.hpp"
 #include "engine_results.hpp"
 #include "session_trust.hpp"
@@ -271,7 +272,8 @@ osplay_engine_result osplay_engine_host_start(const osplay_engine_host_config* c
             .platform = OSPLAY_PLATFORM_WINDOWS,
             .device_name = config->device_name_utf8,
             .capabilities = {.codecs = OSPLAY_CODEC_H264_ANNEX_B,
-                             .max_streams = 1,
+                             .max_streams =
+                                 static_cast<std::uint8_t>(osplay::engine::kMaxHostStreams),
                              .flags = 0,
                              .max_width = 7680,
                              .max_height = 4320,

@@ -28,7 +28,7 @@ Bytes RequestHandler::handle(std::span<const std::uint8_t> message) {
 Response RequestHandler::handle(const Request& request) {
     switch (request.command) {
     case Command::Configure:
-        return configure(request.config);
+        return configure(request.monitors);
     case Command::Enable:
         return enable();
     case Command::Disable:
@@ -41,7 +41,7 @@ Response RequestHandler::handle(const Request& request) {
 }
 
 void RequestHandler::reset() {
-    config_.reset();
+    monitors_.clear();
     if (device_.is_installed() && device_.is_enabled()) {
         if (device_.set_enabled(false)) {
             log_.info("Virtual monitor removed (reset)");
@@ -51,19 +51,24 @@ void RequestHandler::reset() {
     }
 }
 
-Response RequestHandler::configure(const MonitorConfig& config) {
+Response RequestHandler::configure(const std::vector<MonitorConfig>& monitors) {
     // decode_request already validates; requests built in-process are checked here.
-    if (!is_valid(config)) {
+    if (!is_valid(monitors)) {
         log_.warning("Rejected configure: value out of range");
         return with(ResultCode::ValueOutOfRange);
     }
-    if (!settings_.write(render_vdd_settings(config))) {
+    if (!settings_.write(render_vdd_settings(monitors))) {
         log_.error("Could not write the virtual display driver settings");
         return with(ResultCode::ConfigWriteFailed);
     }
-    config_ = config;
-    log_.info("Configured " + std::to_string(config.width) + "x" + std::to_string(config.height) +
-              " @ " + std::to_string(config.refresh_millihertz) + " mHz");
+    monitors_ = monitors;
+    std::string modes;
+    for (const MonitorConfig& monitor : monitors) {
+        modes += (modes.empty() ? "" : ", ") + std::to_string(monitor.width) + "x" +
+                 std::to_string(monitor.height) + " @ " +
+                 std::to_string(monitor.refresh_millihertz) + " mHz";
+    }
+    log_.info("Configured " + std::to_string(monitors.size()) + " monitor(s): " + modes);
 
     // The driver reads its settings only when the device starts.
     if (device_.is_installed() && device_.is_enabled() && !restart_device()) {
@@ -76,7 +81,7 @@ Response RequestHandler::enable() {
     if (!device_.is_installed()) {
         return with(ResultCode::VddNotInstalled);
     }
-    if (!config_) {
+    if (monitors_.empty()) {
         return with(ResultCode::NotConfigured);
     }
     if (device_.is_enabled()) {
@@ -109,11 +114,12 @@ Response RequestHandler::status() {
     Response response = with(ResultCode::Ok);
     response.status.vdd_installed = device_.is_installed();
     response.status.device_enabled = response.status.vdd_installed && device_.is_enabled();
-    response.status.configured = config_.has_value();
-    if (config_) {
-        response.status.width = config_->width;
-        response.status.height = config_->height;
-        response.status.refresh_millihertz = config_->refresh_millihertz;
+    response.status.configured = !monitors_.empty();
+    response.status.monitor_count = static_cast<std::uint8_t>(monitors_.size());
+    if (!monitors_.empty()) {
+        response.status.width = monitors_.front().width;
+        response.status.height = monitors_.front().height;
+        response.status.refresh_millihertz = monitors_.front().refresh_millihertz;
     }
     return response;
 }

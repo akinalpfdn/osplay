@@ -20,7 +20,7 @@ std::size_t count_of(const std::string& haystack, const std::string& needle) {
 
 TEST(VddSettings, DescribesExactlyOneMonitorWithOneMode) {
     const std::string xml = render_vdd_settings(
-        {.width = 2560, .height = 1664, .refresh_millihertz = 60'000, .gpu_name = ""});
+        {{.width = 2560, .height = 1664, .refresh_millihertz = 60'000, .gpu_name = ""}});
 
     EXPECT_NE(xml.find("<count>1</count>"), std::string::npos);
     EXPECT_EQ(count_of(xml, "<resolution>"), 1U);
@@ -33,15 +33,15 @@ TEST(VddSettings, DescribesExactlyOneMonitorWithOneMode) {
 
 TEST(VddSettings, EmptyGpuNameLetsTheDriverChoose) {
     const std::string xml = render_vdd_settings(
-        {.width = 1920, .height = 1080, .refresh_millihertz = 60'000, .gpu_name = ""});
+        {{.width = 1920, .height = 1080, .refresh_millihertz = 60'000, .gpu_name = ""}});
     EXPECT_NE(xml.find("<friendlyname>default</friendlyname>"), std::string::npos);
 }
 
 TEST(VddSettings, EscapesGpuName) {
-    const std::string xml = render_vdd_settings({.width = 1920,
-                                                 .height = 1080,
-                                                 .refresh_millihertz = 60'000,
-                                                 .gpu_name = "A&B <x> \"q\" 'y'"});
+    const std::string xml = render_vdd_settings({{.width = 1920,
+                                                  .height = 1080,
+                                                  .refresh_millihertz = 60'000,
+                                                  .gpu_name = "A&B <x> \"q\" 'y'"}});
     EXPECT_NE(
         xml.find("<friendlyname>A&amp;B &lt;x&gt; &quot;q&quot; &apos;y&apos;</friendlyname>"),
         std::string::npos);
@@ -50,7 +50,7 @@ TEST(VddSettings, EscapesGpuName) {
 TEST(VddSettings, FormatsFractionalRefreshRates) {
     const auto refresh = [](std::uint32_t millihertz) {
         return render_vdd_settings(
-            {.width = 1920, .height = 1080, .refresh_millihertz = millihertz, .gpu_name = ""});
+            {{.width = 1920, .height = 1080, .refresh_millihertz = millihertz, .gpu_name = ""}});
     };
     EXPECT_NE(refresh(59'940).find("<refresh_rate>59.94</refresh_rate>"), std::string::npos);
     EXPECT_NE(refresh(144'000).find("<refresh_rate>144</refresh_rate>"), std::string::npos);
@@ -58,9 +58,21 @@ TEST(VddSettings, FormatsFractionalRefreshRates) {
     EXPECT_NE(refresh(60'001).find("<refresh_rate>60.001</refresh_rate>"), std::string::npos);
 }
 
+TEST(VddSettings, ListsEveryMonitorAndEachDistinctModeOnce) {
+    const osplay::win::helper::MonitorConfig large{
+        .width = 2560, .height = 1440, .refresh_millihertz = 60'000, .gpu_name = ""};
+    const osplay::win::helper::MonitorConfig small{
+        .width = 1920, .height = 1080, .refresh_millihertz = 60'000, .gpu_name = ""};
+    const std::string xml = render_vdd_settings({large, small, large});
+    EXPECT_NE(xml.find("<count>3</count>"), std::string::npos);
+    EXPECT_EQ(count_of(xml, "<resolution>"), 2U);
+    EXPECT_LT(xml.find("<width>2560</width>"), xml.find("<width>1920</width>"))
+        << "the first monitor's mode is the preferred one";
+}
+
 TEST(VddSettings, KeepsHardwareCursorOutOfFrames) {
     const std::string xml = render_vdd_settings(
-        {.width = 1920, .height = 1080, .refresh_millihertz = 60'000, .gpu_name = ""});
+        {{.width = 1920, .height = 1080, .refresh_millihertz = 60'000, .gpu_name = ""}});
     EXPECT_NE(xml.find("<HardwareCursor>true</HardwareCursor>"), std::string::npos);
 }
 

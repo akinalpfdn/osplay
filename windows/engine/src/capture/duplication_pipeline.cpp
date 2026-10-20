@@ -1,7 +1,6 @@
 #include "capture/duplication_pipeline.hpp"
 
 #include "capture/dxgi_output.hpp"
-#include "display/vdd_monitor.hpp"
 #include "encode/mf_h264_encoder.hpp"
 #include "encode/nv12_converter.hpp"
 #include "engine_tunables.hpp"
@@ -131,11 +130,10 @@ std::optional<PipelineError> DuplicationPipeline::Worker::initialize() {
                            ? counter_frequency / 60
                            : counter_frequency * 1000 / settings.refresh_millihertz);
 
-    auto name = vdd_gdi_device_name();
-    if (!name) {
+    if (settings.gdi_name.empty()) {
         return PipelineError::MonitorNotFound;
     }
-    gdi_name = name.value();
+    gdi_name = settings.gdi_name;
     auto opened = open_duplication_target(gdi_name);
     if (!opened) {
         return opened.error();
@@ -380,13 +378,14 @@ DuplicationPipeline::start(const StreamSettings& settings, PipelineSink& sink) {
     std::promise<std::optional<PipelineError>> started;
     auto result = started.get_future();
     DuplicationPipeline* owner = pipeline.get();
-    pipeline->thread_ = std::thread([owner, settings, &sink, &started] {
+    // The settings are copied here, so nothing in the thread's lambda can throw.
+    pipeline->thread_ = std::thread([owner, own_settings = settings, &sink, &started]() mutable {
         const MediaThreadScope scope;
         const PrecisionTimerScope timer;
         Worker worker;
         worker.owner = owner;
         worker.sink = &sink;
-        worker.settings = settings;
+        worker.settings = std::move(own_settings);
         const auto failure =
             scope.ready() ? worker.initialize() : PipelineError::EncoderUnavailable;
         if (!failure) {

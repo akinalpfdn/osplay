@@ -6,6 +6,7 @@
 
 #include <windows.h>
 
+#include <algorithm>
 #include <cwchar>
 #include <iterator>
 #include <optional>
@@ -26,12 +27,14 @@ std::wstring interface_path_prefix(const std::wstring& instance) {
     return prefix;
 }
 
-/// GDI name (\\.\DISPLAYn) of the active display driven by the adapter with this interface prefix.
-std::optional<std::wstring> find_gdi_device_name(const std::wstring& prefix) {
+/// GDI names (\\.\DISPLAYn) of the active displays driven by the adapter with this interface
+/// prefix, ordered by target id.
+std::vector<std::wstring> find_gdi_device_names(const std::wstring& prefix) {
     const auto paths = active_display_paths();
     if (!paths) {
-        return std::nullopt;
+        return {};
     }
+    std::vector<std::pair<UINT32, std::wstring>> found;
     for (const DISPLAYCONFIG_PATH_INFO& path : *paths) {
         DISPLAYCONFIG_ADAPTER_NAME adapter{
             .header = {.type = DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME,
@@ -45,16 +48,22 @@ std::optional<std::wstring> find_gdi_device_name(const std::wstring& prefix) {
             continue;
         }
         if (auto name = source_gdi_name(path)) {
-            return name;
+            found.emplace_back(path.targetInfo.id, std::move(*name));
         }
     }
-    return std::nullopt;
+    std::ranges::sort(found, {}, &std::pair<UINT32, std::wstring>::first);
+    std::vector<std::wstring> names;
+    names.reserve(found.size());
+    for (auto& entry : found) {
+        names.push_back(std::move(entry.second));
+    }
+    return names;
 }
 
 } // namespace
 
-win::Expected<std::wstring, DisplayError> vdd_gdi_device_name() {
-    using Result = win::Expected<std::wstring, DisplayError>;
+win::Expected<std::vector<std::wstring>, DisplayError> vdd_gdi_device_names() {
+    using Result = win::Expected<std::vector<std::wstring>, DisplayError>;
     const auto device = win::find_device(win::kVddHardwareId);
     if (!device) {
         return Result::failure(DisplayError::VddNotInstalled);
@@ -63,11 +72,11 @@ win::Expected<std::wstring, DisplayError> vdd_gdi_device_name() {
     if (!instance) {
         return Result::failure(DisplayError::MonitorNotFound);
     }
-    auto name = find_gdi_device_name(interface_path_prefix(*instance));
-    if (!name) {
+    auto names = find_gdi_device_names(interface_path_prefix(*instance));
+    if (names.empty()) {
         return Result::failure(DisplayError::MonitorNotFound);
     }
-    return std::move(*name);
+    return names;
 }
 
 } // namespace osplay::engine

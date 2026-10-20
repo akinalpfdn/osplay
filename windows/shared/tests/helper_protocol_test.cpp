@@ -22,7 +22,7 @@ MonitorConfig valid_config() {
 }
 
 Request configure(MonitorConfig config) {
-    return Request{.command = Command::Configure, .config = std::move(config)};
+    return Request{.command = Command::Configure, .monitors = {std::move(config)}};
 }
 
 DecodeError request_error(const Bytes& bytes) {
@@ -32,17 +32,45 @@ DecodeError request_error(const Bytes& bytes) {
 }
 
 TEST(HelperProtocol, StatusRequestHasPinnedByteLayout) {
-    const Bytes expected{'O', 'S', 'P', 'H', 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00};
-    EXPECT_EQ(helper::encode(Request{.command = Command::Status, .config = {}}), expected);
+    const Bytes expected{'O', 'S', 'P', 'H', 0x02, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00};
+    EXPECT_EQ(helper::encode(Request{.command = Command::Status, .monitors = {}}), expected);
 }
 
 TEST(HelperProtocol, ConfigureRequestHasPinnedByteLayout) {
     MonitorConfig config = valid_config();
     config.gpu_name = "GPU";
-    const Bytes expected{'O',  'S',  'P',  'H',  0x01, 0x00, 0x01, 0x00, 0x11, 0x00,
-                         0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x80, 0x06, 0x00, 0x00,
-                         0x60, 0xEA, 0x00, 0x00, 0x03, 0x00, 'G',  'P',  'U'};
+    // Header, then count 1, reserved, GPU name length 3, "GPU", then width, height, refresh.
+    const Bytes expected{'O',  'S',  'P',  'H',  0x02, 0x00, 0x01, 0x00, 0x13, 0x00, 0x00,
+                         0x00, 0x01, 0x00, 0x03, 0x00, 'G',  'P',  'U',  0x00, 0x0A, 0x00,
+                         0x00, 0x80, 0x06, 0x00, 0x00, 0x60, 0xEA, 0x00, 0x00};
     EXPECT_EQ(helper::encode(configure(config)), expected);
+}
+
+TEST(HelperProtocol, SeveralMonitorsRoundTripInOrder) {
+    MonitorConfig second{
+        .width = 1920, .height = 1080, .refresh_millihertz = 59'940, .gpu_name = ""};
+    const Request request{.command = Command::Configure,
+                          .monitors = {valid_config(), second, valid_config(), second}};
+    const auto decoded = helper::decode_request(helper::encode(request));
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_EQ(decoded.value(), request);
+}
+
+TEST(HelperProtocol, ConfigureNeedsOneToFourMonitorsOnOneGpu) {
+    EXPECT_FALSE(helper::is_valid(std::vector<MonitorConfig>{}));
+    EXPECT_FALSE(
+        helper::is_valid(std::vector<MonitorConfig>(helper::kMaxMonitors + 1, valid_config())));
+    EXPECT_TRUE(helper::is_valid(std::vector<MonitorConfig>(helper::kMaxMonitors, valid_config())));
+    MonitorConfig other_gpu = valid_config();
+    other_gpu.gpu_name = "Other";
+    EXPECT_FALSE(helper::is_valid(std::vector<MonitorConfig>{valid_config(), other_gpu}));
+
+    Bytes none = helper::encode(configure(valid_config()));
+    none[12] = 0; // monitor count
+    EXPECT_EQ(request_error(none), DecodeError::ValueOutOfRange);
+    Bytes five = helper::encode(configure(valid_config()));
+    five[12] = 5;
+    EXPECT_EQ(request_error(five), DecodeError::ValueOutOfRange);
 }
 
 TEST(HelperProtocol, EveryRequestRoundTrips) {
@@ -51,9 +79,9 @@ TEST(HelperProtocol, EveryRequestRoundTrips) {
     const std::vector<Request> requests{
         configure(valid_config()),
         configure(named),
-        Request{.command = Command::Enable, .config = {}},
-        Request{.command = Command::Disable, .config = {}},
-        Request{.command = Command::Status, .config = {}},
+        Request{.command = Command::Enable, .monitors = {}},
+        Request{.command = Command::Disable, .monitors = {}},
+        Request{.command = Command::Status, .monitors = {}},
     };
     for (const Request& request : requests) {
         const auto decoded = helper::decode_request(helper::encode(request));
@@ -68,6 +96,7 @@ TEST(HelperProtocol, ResponseRoundTrips) {
         .status = {.vdd_installed = true,
                    .device_enabled = true,
                    .configured = true,
+                   .monitor_count = 2,
                    .width = 2560,
                    .height = 1664,
                    .refresh_millihertz = 60'000},
@@ -78,26 +107,26 @@ TEST(HelperProtocol, ResponseRoundTrips) {
 }
 
 TEST(HelperProtocol, RejectsTruncatedHeader) {
-    Bytes bytes = helper::encode(Request{.command = Command::Status, .config = {}});
+    Bytes bytes = helper::encode(Request{.command = Command::Status, .monitors = {}});
     bytes.resize(helper::kHeaderSize - 1);
     EXPECT_EQ(request_error(bytes), DecodeError::Truncated);
     EXPECT_EQ(request_error({}), DecodeError::Truncated);
 }
 
 TEST(HelperProtocol, RejectsBadMagic) {
-    Bytes bytes = helper::encode(Request{.command = Command::Status, .config = {}});
+    Bytes bytes = helper::encode(Request{.command = Command::Status, .monitors = {}});
     bytes[0] = 'X';
     EXPECT_EQ(request_error(bytes), DecodeError::BadMagic);
 }
 
 TEST(HelperProtocol, RejectsOtherVersions) {
-    Bytes bytes = helper::encode(Request{.command = Command::Status, .config = {}});
-    bytes[4] = 2;
+    Bytes bytes = helper::encode(Request{.command = Command::Status, .monitors = {}});
+    bytes[4] = 1; // a helper or engine from before several monitors
     EXPECT_EQ(request_error(bytes), DecodeError::UnsupportedVersion);
 }
 
 TEST(HelperProtocol, RejectsUnknownCommands) {
-    Bytes bytes = helper::encode(Request{.command = Command::Status, .config = {}});
+    Bytes bytes = helper::encode(Request{.command = Command::Status, .monitors = {}});
     bytes[6] = 0x7F;
     EXPECT_EQ(request_error(bytes), DecodeError::UnknownCommand);
     bytes[6] = 0x00;
@@ -105,17 +134,17 @@ TEST(HelperProtocol, RejectsUnknownCommands) {
 }
 
 TEST(HelperProtocol, RejectsPayloadLengthMismatch) {
-    Bytes bytes = helper::encode(Request{.command = Command::Status, .config = {}});
+    Bytes bytes = helper::encode(Request{.command = Command::Status, .monitors = {}});
     bytes.push_back(0);
     EXPECT_EQ(request_error(bytes), DecodeError::LengthMismatch);
 
-    Bytes payload_on_enable = helper::encode(Request{.command = Command::Enable, .config = {}});
+    Bytes payload_on_enable = helper::encode(Request{.command = Command::Enable, .monitors = {}});
     payload_on_enable[8] = 1;
     payload_on_enable.push_back(0);
     EXPECT_EQ(request_error(payload_on_enable), DecodeError::LengthMismatch);
 
     Bytes configure_bytes = helper::encode(configure(valid_config()));
-    configure_bytes[24] = 5; // GPU name length larger than what follows
+    configure_bytes[14] = 5; // GPU name length larger than what follows
     EXPECT_EQ(request_error(configure_bytes), DecodeError::LengthMismatch);
 }
 
@@ -123,7 +152,12 @@ TEST(HelperProtocol, RejectsShortConfigurePayload) {
     Bytes bytes = helper::encode(configure(valid_config()));
     bytes.resize(bytes.size() - 2);
     bytes[8] = static_cast<std::uint8_t>(bytes.size() - helper::kHeaderSize);
-    EXPECT_EQ(request_error(bytes), DecodeError::Truncated);
+    EXPECT_EQ(request_error(bytes), DecodeError::LengthMismatch) << "a mode cut short";
+
+    Bytes header_only = helper::encode(configure(valid_config()));
+    header_only.resize(helper::kHeaderSize + 2);
+    header_only[8] = 2;
+    EXPECT_EQ(request_error(header_only), DecodeError::Truncated);
 }
 
 TEST(HelperProtocol, RejectsOversizedMessages) {

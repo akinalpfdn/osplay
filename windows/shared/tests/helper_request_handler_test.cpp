@@ -63,10 +63,11 @@ protected:
     static Request configure_request() {
         return Request{
             .command = Command::Configure,
-            .config = {.width = 2560, .height = 1664, .refresh_millihertz = 60'000, .gpu_name = ""},
+            .monitors =
+                {{.width = 2560, .height = 1664, .refresh_millihertz = 60'000, .gpu_name = ""}},
         };
     }
-    static Request simple(Command command) { return Request{.command = command, .config = {}}; }
+    static Request simple(Command command) { return Request{.command = command, .monitors = {}}; }
 };
 
 TEST_F(RequestHandlerTest, ConfigureWritesSettingsAndEnableAddsMonitor) {
@@ -156,10 +157,11 @@ TEST_F(RequestHandlerTest, FailuresAreReportedAndLogged) {
 
 TEST_F(RequestHandlerTest, MalformedMessagesAreRejectedAndLogged) {
     Bytes message = encode(configure_request());
-    message[12] = 0x01; // width becomes 1
-    message[13] = 0x00;
-    message[14] = 0x00;
-    message[15] = 0x00;
+    // After the header: count, reserved, GPU name length 0, then the first monitor's width.
+    message[16] = 0x01; // width becomes 1
+    message[17] = 0x00;
+    message[18] = 0x00;
+    message[19] = 0x00;
 
     const auto response = decode_response(handler.handle(message));
 
@@ -172,7 +174,7 @@ TEST_F(RequestHandlerTest, MalformedMessagesAreRejectedAndLogged) {
 
 TEST_F(RequestHandlerTest, OutOfRangeInProcessRequestsAreRejected) {
     Request request = configure_request();
-    request.config.width = 100;
+    request.monitors.front().width = 100;
     EXPECT_EQ(handler.handle(request).result, ResultCode::ValueOutOfRange);
     EXPECT_TRUE(settings.written.empty());
 }

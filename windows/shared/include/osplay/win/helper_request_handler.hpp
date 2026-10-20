@@ -49,7 +49,7 @@ public:
     void reset();
 
 private:
-    Response configure(const MonitorConfig& config);
+    Response configure(const std::vector<MonitorConfig>& monitors);
     Response enable();
     Response disable();
     Response status();
@@ -58,7 +58,7 @@ private:
     VirtualMonitorDevice& device_;
     SettingsStore& settings_;
     HelperLog& log_;
-    std::optional<MonitorConfig> config_;
+    std::vector<MonitorConfig> monitors_; // empty until configured
 };
 
 [[nodiscard]] std::string_view to_string(DecodeError error);
