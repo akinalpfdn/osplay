@@ -19,6 +19,11 @@ final class AppSettings {
         didSet { save(swapHotkey, forKey: Key.swapHotkey) }
     }
 
+    /// Shows and hides the stats overlay while viewing.
+    var statsHotkey: Hotkey {
+        didSet { save(statsHotkey, forKey: Key.statsHotkey) }
+    }
+
     /// A small box with fps, bitrate, round trip, loss and latency over the watched display.
     var showsStatsOverlay: Bool {
         didSet { defaults.set(showsStatsOverlay, forKey: Key.statsOverlay) }
@@ -41,6 +46,7 @@ final class AppSettings {
         qualityPreset = defaults.string(forKey: Key.qualityPreset).flatMap(QualityPreset.init) ?? .high
         viewerHotkey = Self.load(Hotkey.self, from: defaults, forKey: Key.viewerHotkey) ?? Tunables.Viewer.toggleHotkey
         swapHotkey = Self.load(Hotkey.self, from: defaults, forKey: Key.swapHotkey) ?? Tunables.Viewer.swapHotkey
+        statsHotkey = Self.load(Hotkey.self, from: defaults, forKey: Key.statsHotkey) ?? Tunables.Viewer.statsHotkey
         showsStatsOverlay = defaults.bool(forKey: Key.statsOverlay)
         hasCompletedOnboarding = defaults.bool(forKey: Key.onboarding)
         hiDPIChoices = Self.load([String: HiDPIChoice].self, from: defaults, forKey: Key.hiDPIChoices) ?? [:]
@@ -88,6 +94,7 @@ final class AppSettings {
         static let qualityPreset = "qualityPreset"
         static let viewerHotkey = "viewerHotkey"
         static let swapHotkey = "swapHotkey"
+        static let statsHotkey = "statsHotkey"
         static let statsOverlay = "showsStatsOverlay"
         static let hiDPIChoices = "hiDPIChoices"
         static let onboarding = "hasCompletedOnboarding"

@@ -101,6 +101,14 @@ final class StreamPipeline: @unchecked Sendable {
         }
     }
 
+    /// The link changed: the encoder follows the core's bitrate target from the next frame.
+    func setBitrate(kbps: Int) {
+        queue.async { [weak self] in
+            guard let self, !stopped else { return }
+            encoder?.setBitrate(kbps: kbps)
+        }
+    }
+
     func stop() async {
         await capture?.stop()
         queue.sync {

@@ -183,12 +183,26 @@ private struct AdvancedSettings: View {
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Colors.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            LabeledContent("settings.statsHotkey") {
+                VStack(alignment: .trailing, spacing: Theme.Spacing.small) {
+                    HotkeyRecorder(hotkey: settings.statsHotkey, record: viewModel.recordStatsHotkey)
+                    Button("settings.hotkey.reset", action: viewModel.resetStatsHotkey)
+                        .buttonStyle(.link)
+                }
+            }
             LabeledContent("settings.logs") {
                 HStack {
                     Button("settings.logs.export", action: viewModel.exportLogs)
                     Button("settings.logs.open", action: viewModel.openLogsFolder)
                 }
             }
+            LabeledContent("settings.diagnostics") {
+                Button("settings.diagnostics.copy", action: viewModel.copyDiagnostics)
+            }
+            Text(viewModel.diagnosticsCopied ? "settings.diagnostics.copied" : "settings.diagnostics.description")
+                .font(Theme.Typography.caption)
+                .foregroundStyle(Theme.Colors.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             if let message = viewModel.message {
                 Text(message)
                     .font(Theme.Typography.caption)

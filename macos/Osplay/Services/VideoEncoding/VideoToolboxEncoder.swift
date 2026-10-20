@@ -50,6 +50,20 @@ final class VideoToolboxEncoder: VideoEncoding, @unchecked Sendable {
         guard status == noErr else { throw .encodeFailed(status) }
     }
 
+    func setBitrate(kbps: Int) {
+        guard !isInvalidated else { return }
+        let bitsPerSecond = kbps * 1000
+        let average = VTSessionSetProperty(
+            session, key: kVTCompressionPropertyKey_AverageBitRate, value: bitsPerSecond as CFNumber)
+        if average != noErr {
+            Log.encoding.error("Encoder rejected bitrate \(kbps) kbps: \(average)")
+        }
+        // Not every encoder supports a data rate limit; the average alone still applies.
+        let limits =
+            [Double(bitsPerSecond) * Tunables.Encoding.peakBitrateFactor / 8, 1.0] as CFArray
+        _ = VTSessionSetProperty(session, key: kVTCompressionPropertyKey_DataRateLimits, value: limits)
+    }
+
     func flush() {
         guard !isInvalidated else { return }
         VTCompressionSessionCompleteFrames(session, untilPresentationTimeStamp: .invalid)

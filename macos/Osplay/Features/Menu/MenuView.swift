@@ -101,6 +101,7 @@ private struct MenuHeader: View {
         case .connecting(let peer): "connection.status.connecting \(peer)"
         case .connected(let peer): "connection.status.connected \(peer)"
         case .swapping(let peer): "connection.status.swapping \(peer)"
+        case .reconnecting(let peer): "connection.status.reconnecting \(peer)"
         }
     }
 }

@@ -74,6 +74,7 @@ extension CoreError {
         case .unsupportedVersion: String(localized: "error.connection.incompatible")
         case .peerBusy: String(localized: "error.session.peerBusy")
         case .timedOut, .network, .connectionClosed: String(localized: "error.session.unreachable")
+        case .peerSleeping: String(localized: "error.session.peerSleeping")
         case .invalidArgument, .bufferTooSmall, .truncated, .badMagic, .unknownType, .trailingBytes,
             .valueOutOfRange, .invalidString, .tooLarge, .unexpectedMessage, .handshakeOutOfOrder:
             String(localized: "error.session.protocol")

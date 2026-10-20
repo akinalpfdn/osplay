@@ -156,6 +156,11 @@ public final class CoreSession: Sendable {
         try check(handle.withPointer { osplay_session_answer_role_swap($0, answer.raw) })
     }
 
+    /// Tells the peer this Mac is going to sleep and closes; the session reports `.closed` later.
+    public func closeForSleep() {
+        _ = handle.withPointer { osplay_session_close_for_sleep($0) }
+    }
+
     /// Sends Bye when possible and stops the I/O thread; the session reports `.closed` first.
     /// Later commands fail with `.invalidState`.
     public func close() {
@@ -279,6 +284,9 @@ private final class CallbackBox: Sendable {
         callbacks.on_role_swap_answer = { context, answer, key in
             CallbackBox.from(context)?.continuation.yield(
                 .roleSwapAnswered(RoleSwapAnswer(answer), peerPublicKey: keyBytes(key)))
+        }
+        callbacks.on_bitrate_target = { context, streamID, kbps in
+            CallbackBox.from(context)?.continuation.yield(.bitrateTarget(streamID: streamID, kbps: Int(kbps)))
         }
         callbacks.on_log = { context, level, message in
             let text = message.map { String(cString: $0) } ?? ""

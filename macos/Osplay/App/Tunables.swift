@@ -45,6 +45,8 @@ enum Tunables {
         static let toggleHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_V), modifiers: [.control, .option, .command])
         /// The default role swap hotkey (Phase 12b): ⌃⌥⌘S, next to the toggle.
         static let swapHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_S), modifiers: [.control, .option, .command])
+        /// The default stats overlay hotkey (Phase 13): ⌃⌥⌘I.
+        static let statsHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_I), modifiers: [.control, .option, .command])
 
         /// Debug loopback windows open at half the stream's size.
         static func loopbackWindowSize(streamWidth: Int, streamHeight: Int) -> CGSize {
@@ -58,6 +60,8 @@ enum Tunables {
     }
 
     enum Logs {
+        /// Copy diagnostics includes this many of the newest log lines.
+        static let diagnosticsLines = 300
         /// How far back an exported log reaches (the current run only: the store is per process).
         static let exportWindow: TimeInterval = 24 * 60 * 60
     }

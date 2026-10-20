@@ -352,6 +352,8 @@ public enum SessionEvent: Sendable {
     case roleSwapRequested(peerPublicKey: [UInt8])
     /// The answer to `requestRoleSwap`; after `.accepted` the peer closes the session.
     case roleSwapAnswered(RoleSwapAnswer, peerPublicKey: [UInt8])
+    /// Host: encode this stream at this bitrate from now on (adapted to the link).
+    case bitrateTarget(streamID: UInt8, kbps: Int)
 }
 
 /// The outcome of a role swap request.

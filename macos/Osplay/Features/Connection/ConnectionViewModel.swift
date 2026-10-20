@@ -24,6 +24,16 @@ final class ConnectionViewModel {
         case connected(peer: String)
         /// The roles are being reversed with this computer.
         case swapping(peer: String)
+        /// The connection dropped (sleep, network); it comes back when this computer reappears.
+        case reconnecting(peer: String)
+    }
+
+    /// The host being viewed, so the session can come back after sleep, a network change or a
+    /// display change on this Mac.
+    private struct ViewedHost {
+        let deviceID: String
+        let name: String
+        let monitor: MonitorDescription
     }
 
     /// After an accepted role swap: the role this Mac takes once the session has closed.
@@ -60,17 +70,28 @@ final class ConnectionViewModel {
     /// Viewing after a swap: connects to this device as soon as Bonjour finds it.
     private var autoConnectDeviceID: String?
     private var autoConnectTimeout: Task<Void, Never>?
+    private var statsHotkey: HotkeyRegistration?
+    private var viewedHost: ViewedHost?
+    /// The user ended the session; it does not come back by itself.
+    private var endedByUser = false
+    /// This Mac closed the session itself (sleep, display change) and resumes it afterwards.
+    private var resumesAfterClose = false
+    @ObservationIgnored private var systemObservers: [NSObjectProtocol] = []
 
     init(dependencies: AppDependencies, deviceName: String = Host.current().localizedName ?? "Mac") {
         self.dependencies = dependencies
         self.deviceName = deviceName
         trust = PeerTrustCache(store: dependencies.keyStore)
+        observeSystem()
     }
+
+    /// This Mac's name as other computers see it (hidden in diagnostics).
+    var localName: String { deviceName }
 
     var isSessionActive: Bool {
         switch status {
         case .connecting, .connected: true
-        case .idle, .waitingForViewer, .swapping: false
+        case .idle, .waitingForViewer, .swapping, .reconnecting: false
         }
     }
 
@@ -116,6 +137,9 @@ final class ConnectionViewModel {
             showsStats: { [settings = dependencies.settings] in await MainActor.run { settings.showsStatsOverlay } })
         viewer = session
         peerName = device.advertisement.name
+        viewedHost = ViewedHost(
+            deviceID: device.advertisement.deviceID, name: displayName(of: device), monitor: local.description)
+        endedByUser = false
         status = .connecting(peer: peerName)
         registerHotkey(for: session)
         viewerTasks = [
@@ -133,6 +157,7 @@ final class ConnectionViewModel {
 
     /// Ends the current session; sharing goes back to waiting for a viewer.
     func disconnect() {
+        endedByUser = true
         Task { [host, viewer] in
             await host?.stop()
             await viewer?.stop()
@@ -384,9 +409,10 @@ final class ConnectionViewModel {
     }
 
     private func viewerEnded(_ failure: CoreError?) {
-        if let failure { error = .session(failure) }
         if let hotkey { dependencies.hotkeys.unregister(hotkey) }
         hotkey = nil
+        if let statsHotkey { dependencies.hotkeys.unregister(statsHotkey) }
+        statsHotkey = nil
         hotkeyUnavailable = false
         unregisterSwapHotkey()
         viewerTasks.forEach { $0.cancel() }
@@ -394,7 +420,76 @@ final class ConnectionViewModel {
         viewer = nil
         dependencies.pairingPrompt.dismiss()
         status = .idle
-        if pendingSwap != nil { performSwap() }
+        let host = viewedHost
+        viewedHost = nil
+        let resumes = resumesAfterClose
+        resumesAfterClose = false
+        if pendingSwap != nil {
+            performSwap()
+            return
+        }
+        // Sleep, a network change or a display change: wait for the same host and connect again.
+        let expectedBack = resumes || failure == .peerSleeping || failure == .timedOut || failure == .network
+        if let host, expectedBack, !endedByUser, mode == .viewing {
+            status = .reconnecting(peer: host.name)
+            awaitHost(host.deviceID, timeout: nil)
+            return
+        }
+        if let failure { error = .session(failure) }
+    }
+
+    // MARK: - Interruptions
+
+    private func observeSystem() {
+        let workspace = NSWorkspace.shared.notificationCenter
+        systemObservers = [
+            workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { [weak self] in self?.willSleep() }
+            },
+            NotificationCenter.default.addObserver(
+                forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+            ) { _ in
+                MainActor.assumeIsolated { [weak self] in self?.screensChanged() }
+            },
+        ]
+    }
+
+    /// Tells the other computer this Mac is going away for a while; a viewer comes back after wake.
+    private func willSleep() {
+        if let viewer {
+            resumesAfterClose = true
+            Task { await viewer.stopForSleep() }
+        }
+        if let host {
+            Task { await host.stopForSleep() }
+        }
+    }
+
+    /// The display this Mac shows the stream on changed (resolution, lid, unplugged): connect again
+    /// so the host makes its display match.
+    private func screensChanged() {
+        guard let viewer, let host = viewedHost, LocalMonitor.offered()?.description != host.monitor else { return }
+        resumesAfterClose = true
+        Task { await viewer.stop() }
+    }
+
+    /// Connects to this device as soon as Bonjour finds it as a host; `timeout` nil waits as long as
+    /// viewing stays on.
+    private func awaitHost(_ deviceID: String, timeout: Duration?, onTimeout: (() -> Void)? = nil) {
+        autoConnectTimeout?.cancel()
+        if let device = devices.first(where: { $0.advertisement.deviceID == deviceID }) {
+            autoConnectDeviceID = nil
+            connect(to: device)
+            return
+        }
+        autoConnectDeviceID = deviceID
+        guard let timeout else { return }
+        autoConnectTimeout = Task { [weak self] in
+            try? await Task.sleep(for: timeout)
+            guard !Task.isCancelled, let self, autoConnectDeviceID == deviceID else { return }
+            autoConnectDeviceID = nil
+            onTimeout?()
+        }
     }
 
     // MARK: - Role swap
@@ -432,17 +527,9 @@ final class ConnectionViewModel {
         setMode(swap.role)
         guard swap.role == .viewing else { return }
         status = .swapping(peer: swap.peerName)
-        if let device = devices.first(where: { $0.advertisement.deviceID == swap.peerDeviceID }) {
-            connect(to: device)
-            return
-        }
-        autoConnectDeviceID = swap.peerDeviceID
-        autoConnectTimeout = Task { [weak self] in
-            try? await Task.sleep(for: Tunables.Connection.swapReconnectTimeout)
-            guard !Task.isCancelled, let self, autoConnectDeviceID == swap.peerDeviceID else { return }
-            autoConnectDeviceID = nil
-            error = .roleSwapPeerNotFound
-            status = .idle
+        awaitHost(swap.peerDeviceID, timeout: Tunables.Connection.swapReconnectTimeout) { [weak self] in
+            self?.error = .roleSwapPeerNotFound
+            self?.status = .idle
         }
     }
 
@@ -471,6 +558,11 @@ final class ConnectionViewModel {
             }
         } catch {
             hotkeyUnavailable = true
+        }
+        // The overlay switch is optional: a taken shortcut leaves the Settings toggle.
+        statsHotkey = try? dependencies.hotkeys.register(dependencies.settings.statsHotkey) {
+            [settings = dependencies.settings] in
+            settings.showsStatsOverlay.toggle()
         }
     }
 

@@ -11,6 +11,7 @@ protocol HostCoreSession: AnyObject, Sendable {
     func configureStreams(_ streams: [StreamConfiguration]) throws(CoreError)
     func push(_ unit: AccessUnit) throws(CoreError)
     func close()
+    func closeForSleep()
 }
 
 extension CoreSession: HostCoreSession {}
@@ -97,13 +98,18 @@ actor HostSession {
                 await startStreams(for: monitors)
             case .keyframeRequested(let streamID):
                 pipelines[streamID]?.requestKeyframe()
+            case .bitrateTarget(let streamID, let kbps):
+                Log.host.info("Stream \(streamID) bitrate target \(kbps) kbps")
+                pipelines[streamID]?.setBitrate(kbps: kbps)
             case .streamStopped(let streamID):
                 await stopStream(streamID)
             case .state(let state, let reason):
                 eventSink.yield(.state(state))
                 if state == .closed {
                     await stopStreams()
-                    if failure == nil, let reason, reason != .connectionClosed {
+                    core.close()  // releases the core session also after closeForSleep
+                    // A viewer leaving or going to sleep is a normal end for a host.
+                    if failure == nil, let reason, reason != .connectionClosed, reason != .peerSleeping {
                         failure = .session(reason)
                     }
                     return failure
@@ -133,6 +139,11 @@ actor HostSession {
     /// Ends the session with Bye; `run` returns once the core reports `.closed`.
     func stop() {
         core.close()
+    }
+
+    /// Ends the session telling the other computer this Mac is going to sleep (it waits for it).
+    func stopForSleep() {
+        core.closeForSleep()
     }
 
     /// Answers `.pairingCode` with the local user's decision.

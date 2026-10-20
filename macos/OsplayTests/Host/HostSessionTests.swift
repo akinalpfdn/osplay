@@ -109,6 +109,19 @@ struct HostSessionTests {
         _ = await run.value
     }
 
+    @Test("The core's bitrate target reaches the stream's encoder")
+    func bitrateTarget() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        harness.core.emit(.viewerMonitors([monitors[0]]))
+        try await eventually { harness.encoders.encoders.count == 1 }
+        harness.core.emit(.bitrateTarget(streamID: 0, kbps: 9_000))
+        try await eventually { harness.encoders.encoders[0].bitrateChanges == [9_000] }
+        await session.stop()
+        _ = await run.value
+    }
+
     @Test("Captured frames reach the core, starting with a keyframe")
     func pushesEncodedFrames() async throws {
         let harness = Harness()

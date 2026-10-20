@@ -28,6 +28,8 @@ public enum CoreError: Error, Equatable, Sendable {
     case invalidState
     case network
     case internalFailure
+    /// The peer closed because it is going to sleep; it is expected back.
+    case peerSleeping
     /// A code added to the core after this app was built.
     case unknown(code: UInt32)
 
@@ -61,6 +63,7 @@ public enum CoreError: Error, Equatable, Sendable {
         case OSPLAY_ERROR_INVALID_STATE: self = .invalidState
         case OSPLAY_ERROR_NETWORK: self = .network
         case OSPLAY_ERROR_INTERNAL: self = .internalFailure
+        case OSPLAY_ERROR_PEER_SLEEPING: self = .peerSleeping
         default: self = .unknown(code: result.rawValue)
         }
     }
@@ -94,6 +97,7 @@ public enum CoreError: Error, Equatable, Sendable {
         case .invalidState: OSPLAY_ERROR_INVALID_STATE.rawValue
         case .network: OSPLAY_ERROR_NETWORK.rawValue
         case .internalFailure: OSPLAY_ERROR_INTERNAL.rawValue
+        case .peerSleeping: OSPLAY_ERROR_PEER_SLEEPING.rawValue
         case .unknown(let code): code
         }
     }

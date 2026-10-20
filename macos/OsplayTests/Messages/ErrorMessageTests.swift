@@ -8,7 +8,7 @@ import Testing
 @Suite("Error messages")
 struct ErrorMessageTests {
     /// Every documented core result code (docs/PROTOCOL.md "Error codes").
-    private static let coreCodes: [UInt32] = Array(1...26)
+    private static let coreCodes: [UInt32] = Array(1...27)
 
     @Test("Every core error code has its own message; only internal failures show the code")
     func everyCoreErrorIsExplained() throws {

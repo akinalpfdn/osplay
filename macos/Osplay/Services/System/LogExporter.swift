@@ -11,6 +11,8 @@ enum LogExportError: Error, Equatable, Sendable {
 protocol LogExporting: Sendable {
     var folder: URL { get }
     func export() async throws(LogExportError) -> URL
+    /// The newest `limit` lines of Osplay's log, oldest first.
+    func recentLines(limit: Int) async throws(LogExportError) -> [String]
 }
 
 struct UnifiedLogExporter: LogExporting {
@@ -19,6 +21,24 @@ struct UnifiedLogExporter: LogExporting {
     }
 
     func export() async throws(LogExportError) -> URL {
+        let text = try lines().joined(separator: "\n")
+        let formatter = ISO8601DateFormatter()
+        let stamp = formatter.string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        let file = folder.appending(path: "Osplay-\(stamp).log")
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try (text + "\n").write(to: file, atomically: true, encoding: .utf8)
+        } catch {
+            throw .unwritable(error.localizedDescription)
+        }
+        return file
+    }
+
+    func recentLines(limit: Int) async throws(LogExportError) -> [String] {
+        Array(try lines().suffix(limit))
+    }
+
+    private func lines() throws(LogExportError) -> [String] {
         let entries: [OSLogEntryLog]
         do {
             let store = try OSLogStore(scope: .currentProcessIdentifier)
@@ -30,17 +50,8 @@ struct UnifiedLogExporter: LogExporting {
         }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let text = entries.map { entry in
+        return entries.map { entry in
             "\(formatter.string(from: entry.date)) [\(entry.category)] \(entry.composedMessage)"
-        }.joined(separator: "\n")
-        let stamp = formatter.string(from: Date()).replacingOccurrences(of: ":", with: "-")
-        let file = folder.appending(path: "Osplay-\(stamp).log")
-        do {
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            try (text + "\n").write(to: file, atomically: true, encoding: .utf8)
-        } catch {
-            throw .unwritable(error.localizedDescription)
         }
-        return file
     }
 }
