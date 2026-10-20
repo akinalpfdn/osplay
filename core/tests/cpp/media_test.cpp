@@ -217,6 +217,19 @@ TEST_F(ReassemblerTest, KeepsAFrameThatIsStillArrivingPastTheDeadline) {
     EXPECT_EQ(sink.keyframe_requests, 0);
 }
 
+TEST_F(ReassemblerTest, AStallOfThisThreadIsNotCountedAgainstAFrame) {
+    feed(make(500, true));
+    reassembler.tick(now);
+    const auto frame = make(3000, false);
+    feed({frame[0]});
+    // No tick for 30 ms: the thread did not run, and the rest of the frame waits in the socket.
+    now += milliseconds(30);
+    reassembler.tick(now);
+    feed({frame[1], frame[2]});
+    EXPECT_EQ(sink.frame_ids, (std::vector<std::uint32_t>{0, 1}));
+    EXPECT_EQ(reassembler.stats().frames_dropped, 0U);
+}
+
 TEST_F(ReassemblerTest, NacksWholeFramesThatNeverArrived) {
     feed(make(500, true));
     make(500, false); // frame 1: lost entirely

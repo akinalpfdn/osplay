@@ -392,6 +392,9 @@ arrives; Hello tells each side the other's minor version, so the request is not 
   fragment of a stream's newest frame again 50 ms, 200 ms and 700 ms after that frame, unless a
   newer frame went out. A viewer that already has the frame ignores it; one that lost the frame
   learns of it and NACKs the rest. No new message is involved.
+- Time during which the viewer's own I/O thread did not run (a gap of more than 8 ms between its
+  timer ticks) is not counted towards these deadlines: after such a stall the rest of a frame may
+  still be waiting in the socket.
 - A frame without progress for a frame interval plus max(RTT, 2 ms) is dropped. The viewer then
   discards frames until the next keyframe and sends KeyframeRequest (reason 2), at most every
   250 ms per stream. More than 8 frames in flight has the same effect.
