@@ -50,6 +50,7 @@ typedef enum osplay_engine_result {
     OSPLAY_ENGINE_ERROR_KEY_STORE_UNAVAILABLE = 21, /* %APPDATA%\Osplay cannot be read or written */
     OSPLAY_ENGINE_ERROR_KEY_STORE_DAMAGED = 22, /* a stored identity or peer list is unreadable */
     OSPLAY_ENGINE_ERROR_DISCOVERY_UNAVAILABLE = 23, /* the system DNS-SD service refused */
+    OSPLAY_ENGINE_ERROR_PEER_TOO_OLD = 24, /* the other computer's Osplay lacks this feature */
     OSPLAY_ENGINE_RESULT_MAX_ENUM = 0x7FFFFFFF
 } osplay_engine_result;
 /* NOLINTEND(cppcoreguidelines-use-enum-class,performance-enum-size) */
@@ -192,6 +193,14 @@ typedef struct osplay_engine_host_callbacks {
     void (*on_log)(void* context, osplay_log_level level, const char* message);
     /* The other device introduced itself (before any pairing code). */
     void (*on_peer)(void* context, osplay_platform platform, const char* device_name_utf8);
+    /* The other computer asks to reverse the roles: answer with
+     * osplay_engine_host_answer_role_swap, not from this callback. `peer_device_id`
+     * (OSPLAY_DEVICE_ID_SIZE bytes) names the computer to reconnect to after the swap. */
+    void (*on_role_swap_request)(void* context, const uint8_t* peer_device_id);
+    /* The answer to osplay_engine_host_request_role_swap; after OSPLAY_ROLE_SWAP_ACCEPTED the
+     * session closes cleanly. */
+    void (*on_role_swap_answer)(void* context, osplay_role_swap_answer answer,
+                                const uint8_t* peer_device_id);
 } osplay_engine_host_callbacks;
 
 /* Connects to the helper service and starts listening on an ephemeral TCP port. */
@@ -206,6 +215,14 @@ OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_control_port(osplay_en
 /* Answers on_pairing_code (`accepted` is 0 or 1). */
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_confirm_pairing(osplay_engine_host* host,
                                                                           uint8_t accepted);
+
+/* Asks the viewer to reverse the roles (streaming only); PEER_TOO_OLD when its Osplay cannot. */
+OSPLAY_ENGINE_API osplay_engine_result
+osplay_engine_host_request_role_swap(osplay_engine_host* host);
+
+/* Answers on_role_swap_request: ACCEPTED closes the session, CANNOT_HOST or BUSY refuses. */
+OSPLAY_ENGINE_API osplay_engine_result
+osplay_engine_host_answer_role_swap(osplay_engine_host* host, osplay_role_swap_answer answer);
 
 /* Ends the session with Bye without waiting; on_state reports CLOSED. */
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_stop(osplay_engine_host* host);
@@ -274,6 +291,14 @@ typedef struct osplay_engine_viewer_callbacks {
     void (*on_log)(void* context, osplay_log_level level, const char* message);
     /* The other device introduced itself (before any pairing code). */
     void (*on_peer)(void* context, osplay_platform platform, const char* device_name_utf8);
+    /* The other computer asks to reverse the roles: answer with
+     * osplay_engine_viewer_answer_role_swap, not from this callback. `peer_device_id`
+     * (OSPLAY_DEVICE_ID_SIZE bytes) names the computer to reconnect to after the swap. */
+    void (*on_role_swap_request)(void* context, const uint8_t* peer_device_id);
+    /* The answer to osplay_engine_viewer_request_role_swap; after OSPLAY_ROLE_SWAP_ACCEPTED the
+     * session closes cleanly. */
+    void (*on_role_swap_answer)(void* context, osplay_role_swap_answer answer,
+                                const uint8_t* peer_device_id);
 } osplay_engine_viewer_callbacks;
 
 typedef struct osplay_engine_stream_figures {
@@ -308,6 +333,12 @@ OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_stream_stats(
  * it. The shell formats the text (localized) from on_stats. */
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_set_overlay(
     osplay_engine_viewer* viewer, uint8_t stream_id, const char* text_utf8);
+
+/* As osplay_engine_host_request_role_swap and _answer_role_swap, for a viewer session. */
+OSPLAY_ENGINE_API osplay_engine_result
+osplay_engine_viewer_request_role_swap(osplay_engine_viewer* viewer);
+OSPLAY_ENGINE_API osplay_engine_result
+osplay_engine_viewer_answer_role_swap(osplay_engine_viewer* viewer, osplay_role_swap_answer answer);
 
 /* Ends the session with Bye without waiting; on_state reports CLOSED. */
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_stop(osplay_engine_viewer* viewer);

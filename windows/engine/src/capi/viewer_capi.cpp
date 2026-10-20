@@ -47,6 +47,16 @@ public:
             static_cast<void>(osplay_session_close(session_)); // fails only when already closing
         }
     }
+    [[nodiscard]] osplay_result request_role_swap() {
+        const std::scoped_lock lock(mutex_);
+        return session_ == nullptr ? OSPLAY_ERROR_INVALID_STATE
+                                   : osplay_session_request_role_swap(session_);
+    }
+    [[nodiscard]] osplay_result answer_role_swap(osplay_role_swap_answer answer) {
+        const std::scoped_lock lock(mutex_);
+        return session_ == nullptr ? OSPLAY_ERROR_INVALID_STATE
+                                   : osplay_session_answer_role_swap(session_, answer);
+    }
     [[nodiscard]] osplay_result confirm_pairing(std::uint8_t accepted) {
         const std::scoped_lock lock(mutex_);
         return session_ == nullptr ? OSPLAY_ERROR_INVALID_STATE
@@ -186,6 +196,21 @@ osplay_session_callbacks core_callbacks(osplay_engine_viewer* viewer) {
         auto* self = viewer_of(context);
         if (self->callbacks.on_stats != nullptr) {
             self->callbacks.on_stats(self->callbacks.context, stats);
+        }
+    };
+    callbacks.on_role_swap_request = [](void* context, const uint8_t* key) {
+        auto* self = viewer_of(context);
+        if (self->callbacks.on_role_swap_request != nullptr) {
+            const osplay::engine::PeerDeviceId peer(key);
+            self->callbacks.on_role_swap_request(self->callbacks.context, peer.bytes.data());
+        }
+    };
+    callbacks.on_role_swap_answer = [](void* context, osplay_role_swap_answer answer,
+                                       const uint8_t* key) {
+        auto* self = viewer_of(context);
+        if (self->callbacks.on_role_swap_answer != nullptr) {
+            const osplay::engine::PeerDeviceId peer(key);
+            self->callbacks.on_role_swap_answer(self->callbacks.context, answer, peer.bytes.data());
         }
     };
     callbacks.on_log = [](void* context, osplay_log_level level, const char* message) {
@@ -420,6 +445,25 @@ osplay_engine_result osplay_engine_viewer_set_overlay(osplay_engine_viewer* view
         }
         viewer->orchestrator->set_overlay(stream_id, std::move(text));
         return OSPLAY_ENGINE_OK;
+    });
+}
+
+osplay_engine_result osplay_engine_viewer_request_role_swap(osplay_engine_viewer* viewer) {
+    return guarded([&] {
+        if (viewer == nullptr) {
+            return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
+        }
+        return osplay::engine::role_swap_result(viewer->port.request_role_swap());
+    });
+}
+
+osplay_engine_result osplay_engine_viewer_answer_role_swap(osplay_engine_viewer* viewer,
+                                                           osplay_role_swap_answer answer) {
+    return guarded([&] {
+        if (viewer == nullptr) {
+            return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
+        }
+        return osplay::engine::role_swap_result(viewer->port.answer_role_swap(answer));
     });
 }
 

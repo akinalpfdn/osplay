@@ -66,6 +66,16 @@ public:
             static_cast<void>(osplay_session_close(session_)); // fails only when already closing
         }
     }
+    [[nodiscard]] osplay_result request_role_swap() {
+        const std::scoped_lock lock(mutex_);
+        return session_ == nullptr ? OSPLAY_ERROR_INVALID_STATE
+                                   : osplay_session_request_role_swap(session_);
+    }
+    [[nodiscard]] osplay_result answer_role_swap(osplay_role_swap_answer answer) {
+        const std::scoped_lock lock(mutex_);
+        return session_ == nullptr ? OSPLAY_ERROR_INVALID_STATE
+                                   : osplay_session_answer_role_swap(session_, answer);
+    }
 
 private:
     std::mutex mutex_;
@@ -187,6 +197,21 @@ osplay_session_callbacks core_callbacks(osplay_engine_host* host) {
             self->callbacks.on_stats(self->callbacks.context, stats);
         }
     };
+    callbacks.on_role_swap_request = [](void* context, const uint8_t* key) {
+        auto* self = host_of(context);
+        if (self->callbacks.on_role_swap_request != nullptr) {
+            const osplay::engine::PeerDeviceId peer(key);
+            self->callbacks.on_role_swap_request(self->callbacks.context, peer.bytes.data());
+        }
+    };
+    callbacks.on_role_swap_answer = [](void* context, osplay_role_swap_answer answer,
+                                       const uint8_t* key) {
+        auto* self = host_of(context);
+        if (self->callbacks.on_role_swap_answer != nullptr) {
+            const osplay::engine::PeerDeviceId peer(key);
+            self->callbacks.on_role_swap_answer(self->callbacks.context, answer, peer.bytes.data());
+        }
+    };
     callbacks.on_log = [](void* context, osplay_log_level level, const char* message) {
         auto* self = host_of(context);
         if (self->callbacks.on_log != nullptr) {
@@ -282,6 +307,25 @@ osplay_engine_result osplay_engine_host_confirm_pairing(osplay_engine_host* host
         return osplay_session_confirm_pairing(host->session, accepted) == OSPLAY_OK
                    ? OSPLAY_ENGINE_OK
                    : OSPLAY_ENGINE_ERROR_SESSION_FAILED;
+    });
+}
+
+osplay_engine_result osplay_engine_host_request_role_swap(osplay_engine_host* host) {
+    return guarded([&] {
+        if (host == nullptr) {
+            return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
+        }
+        return osplay::engine::role_swap_result(host->port.request_role_swap());
+    });
+}
+
+osplay_engine_result osplay_engine_host_answer_role_swap(osplay_engine_host* host,
+                                                         osplay_role_swap_answer answer) {
+    return guarded([&] {
+        if (host == nullptr) {
+            return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
+        }
+        return osplay::engine::role_swap_result(host->port.answer_role_swap(answer));
     });
 }
 
