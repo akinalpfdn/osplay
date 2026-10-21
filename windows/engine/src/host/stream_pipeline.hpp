@@ -1,6 +1,6 @@
 #pragma once
 
-// One capture → encode pipeline for the virtual monitor (Desktop Duplication and Media Foundation
+// One capture → encode pipeline for one virtual monitor (Desktop Duplication and Media Foundation
 // on Windows, fakes in tests). The orchestrator only sees this interface.
 
 #include "media/pointer_shape.hpp"
@@ -20,6 +20,8 @@ struct StreamSettings {
     std::uint32_t height = 0;
     std::uint32_t refresh_millihertz = 0;
     std::uint32_t bitrate_kbps = 0;
+    /// The virtual monitor to capture (\\.\DISPLAYn).
+    std::wstring gdi_name;
 };
 
 enum class PipelineError : std::uint8_t {

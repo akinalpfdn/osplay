@@ -1,8 +1,9 @@
 #pragma once
 
-// Host session orchestration in the engine (DEVPLAN Phase 8): when the viewer offers its monitors,
-// add the virtual monitor in the first one's mode, start capture and encoding, configure the
-// stream, and feed access units and the cursor to the core. Mirrors HostSession on macOS.
+// Host session orchestration in the engine (DEVPLAN Phase 8, Phase 13b): when the viewer offers
+// its monitors, add one virtual monitor per viewer monitor in its mode, start capture and encoding
+// for each, configure the streams, and feed access units and the cursor to the core. Mirrors
+// HostSession on macOS.
 
 #include "display/virtual_display_provider.hpp"
 #include "engine_tunables.hpp"
@@ -16,6 +17,7 @@
 #include <cstdint>
 #include <deque>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -52,13 +54,13 @@ public:
     virtual void on_host_failed(HostFailure failure, std::uint32_t detail) = 0;
 };
 
-class HostOrchestrator final : private PipelineSink {
+class HostOrchestrator final {
 public:
     HostOrchestrator(HostCorePort& core, VirtualDisplayProvider& displays,
                      StreamPipelineFactory& pipelines, HostObserver& observer,
                      std::unique_ptr<StreamDump> dump = nullptr,
                      double bits_per_pixel = kBitsPerPixel);
-    ~HostOrchestrator() override;
+    ~HostOrchestrator();
     HostOrchestrator(const HostOrchestrator&) = delete;
     HostOrchestrator& operator=(const HostOrchestrator&) = delete;
     HostOrchestrator(HostOrchestrator&&) = delete;
@@ -70,10 +72,10 @@ public:
     void on_keyframe_request(std::uint8_t stream_id);
     /// The core's bitrate target for the stream (adapted from receiver reports).
     void on_bitrate_target(std::uint8_t stream_id, std::uint32_t kbps);
-    /// The viewer stopped the stream (e.g. its monitor was unplugged): stop capturing and remove
-    /// the monitor; the session stays up.
+    /// The viewer stopped a stream (e.g. its monitor was unplugged): that virtual monitor goes, the
+    /// others are made again without it; the session stays up.
     void on_stream_stopped(std::uint8_t stream_id);
-    /// The session ended: stop capturing and remove the monitor.
+    /// The session ended: stop capturing and remove the monitors.
     void on_session_closed();
 
     /// Blocks until queued work has run (tests).
@@ -84,18 +86,34 @@ public:
                                            double bits_per_pixel = kBitsPerPixel);
 
 private:
+    class StreamOutput;
+
+    /// One stream: its configuration, the sink tagging the pipeline's output with its ID, and the
+    /// pipeline capturing its virtual monitor (declared last, so it stops before the sink goes).
+    struct Stream {
+        Stream(const osplay_stream_config& stream_config, HostOrchestrator& owner);
+
+        osplay_stream_config config;
+        std::unique_ptr<StreamOutput> output;
+        std::unique_ptr<StreamPipeline> pipeline;
+    };
+
     void post(std::function<void()> task);
     void run();
-    void start(const osplay_monitor& monitor);
+    void start(const std::vector<osplay_monitor>& monitors);
+    /// Makes one virtual monitor per stream and (re)starts every pipeline on its monitor.
+    bool open_streams();
+    void stop_stream(std::uint8_t stream_id);
     void stop_streaming();
     void fail(HostFailure failure, std::uint32_t detail);
 
-    void on_access_unit(std::span<const std::uint8_t> annexb, bool keyframe,
-                        std::uint64_t capture_time_us) override;
-    void on_cursor_shape(std::uint32_t shape_id, const CursorImage& image) override;
-    void on_cursor_position(bool visible, std::uint32_t shape_id, std::int32_t x, std::int32_t y,
-                            std::uint64_t capture_time_us) override;
-    void on_pipeline_failed(PipelineError error) override;
+    // From the pipelines' threads, through StreamOutput.
+    void on_access_unit(std::uint8_t stream_id, std::span<const std::uint8_t> annexb, bool keyframe,
+                        std::uint64_t capture_time_us);
+    void on_cursor_shape(std::uint8_t stream_id, std::uint32_t shape_id, const CursorImage& image);
+    void on_cursor_position(std::uint8_t stream_id, bool visible, std::uint32_t shape_id,
+                            std::int32_t x, std::int32_t y, std::uint64_t capture_time_us);
+    void on_pipeline_failed(PipelineError error);
 
     HostCorePort* core_;               // never null; outlives the orchestrator
     VirtualDisplayProvider* displays_; // never null
@@ -104,8 +122,8 @@ private:
     std::unique_ptr<StreamDump> dump_;
     double bits_per_pixel_;
 
-    std::unique_ptr<StreamPipeline> pipeline_; // worker thread only
-    bool monitor_added_ = false;               // worker thread only
+    std::map<std::uint8_t, Stream> streams_; // worker thread only
+    bool monitors_added_ = false;            // worker thread only
     std::atomic<bool> failed_{false};
 
     std::mutex mutex_;

@@ -472,6 +472,17 @@ Each phase is meant to be completed in one Claude Code session. A phase is done 
 - [ ] Waking either device restores the session automatically when both are awake and on the same network.
 - [ ] A one-hour session shows no memory growth and no frame pacing degradation.
 
+### Phase 13b: Every direction, every monitor
+**Goal**: Osplay works the same in every direction — Mac→Mac, Mac→PC, PC→Mac, PC→PC — with every monitor the viewer offers, and a host can extend itself onto several computers at once.
+**Delivers** (three parts, phase files SYM-01…03):
+- Windows host: one virtual display per viewer monitor (helper and driver control for several monitors, one capture/encode pipeline per monitor).
+- Mac viewer: offers every attached display with a picker; all four directions tested with all monitors.
+- Several viewers at once on either host.
+**Depends on**: Phase 13 (added by user decision on 2026-10-21; runs before Phase 14). Replaces the earlier assumption that a Windows host shows one display on a single-screen MacBook.
+**Acceptance criteria**:
+- [ ] Each of the four directions shows one display per offered monitor.
+- [ ] A laptop extends onto two other computers at once, on macOS and on Windows.
+
 ### Phase 14: Packaging, release and documentation
 **Goal**: Anyone can install Osplay from GitHub Releases, and contributors can build it from the docs alone.
 **Delivers**:

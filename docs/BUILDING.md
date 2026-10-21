@@ -244,7 +244,8 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    ```
 
    The service points at this build folder. Run `.\OsplayHelper.exe --uninstall` before deleting
-   or moving the folder, and reinstall after rebuilding the helper. Its log is
+   or moving the folder, and reinstall after rebuilding the helper (the engine refuses a helper
+   that speaks another protocol version with "helper not trusted/unavailable"). Its log is
    `%ProgramData%\Osplay\logs\helper.log`.
 
 3. Drive the monitor from a **normal** (non-administrator) command line with the developer tool:

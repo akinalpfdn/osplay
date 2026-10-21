@@ -11,8 +11,9 @@ inline constexpr std::uint32_t kMonitorArrivalPollMilliseconds = 100;
 /// Topology can change between sizing and querying the display configuration.
 inline constexpr int kDisplayConfigQueryAttempts = 3;
 
-/// A Windows host sends one stream: its single virtual monitor.
-inline constexpr std::uint8_t kHostStreamId = 0;
+/// A Windows host sends one stream per viewer monitor, each from its own virtual monitor
+/// (OSPLAY_MAX_STREAMS); stream IDs are 0...n-1 in the viewer's order.
+inline constexpr std::size_t kMaxHostStreams = 4;
 /// Target bitrate in bits per pixel per frame: 0.1 gives ~25 Mbit/s for 2560×1664 at 60 Hz. The
 /// shell's quality preset replaces it; this is the default.
 inline constexpr double kBitsPerPixel = 0.1;

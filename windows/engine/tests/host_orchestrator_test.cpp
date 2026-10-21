@@ -69,18 +69,25 @@ public:
 
 class FakeDisplays final : public VirtualDisplayProvider {
 public:
-    std::vector<VirtualMonitorConfig> created;
+    std::vector<VirtualMonitorConfig> created; // every monitor of every call, in order
+    std::vector<std::size_t> batches;          // monitors per call
     int removed = 0;
     std::optional<DisplayError> create_error;
 
-    win::Status<DisplayError> create_monitor(const VirtualMonitorConfig& config) override {
+    win::Expected<std::vector<std::wstring>, DisplayError>
+    create_monitors(std::span<const VirtualMonitorConfig> configs) override {
         if (create_error) {
-            return win::Status<DisplayError>::failure(*create_error);
+            return win::Expected<std::vector<std::wstring>, DisplayError>::failure(*create_error);
         }
-        created.push_back(config);
-        return win::Status<DisplayError>::ok();
+        std::vector<std::wstring> names;
+        for (const VirtualMonitorConfig& config : configs) {
+            created.push_back(config);
+            names.push_back(L"\\\\.\\DISPLAY" + std::to_wstring(10 + names.size()));
+        }
+        batches.push_back(configs.size());
+        return names;
     }
-    win::Status<DisplayError> remove_monitor() override {
+    win::Status<DisplayError> remove_monitors() override {
         ++removed;
         return win::Status<DisplayError>::ok();
     }
@@ -107,7 +114,8 @@ private:
 class FakePipelines final : public StreamPipelineFactory {
 public:
     std::vector<StreamSettings> started;
-    PipelineSink* sink = nullptr;
+    PipelineSink* sink = nullptr;     // the last pipeline's
+    std::vector<PipelineSink*> sinks; // every pipeline's, in start order
     int keyframe_requests = 0;
     std::vector<std::uint32_t> bitrates;
     int alive = 0;
@@ -121,6 +129,7 @@ public:
         }
         started.push_back(settings);
         sink = &output;
+        sinks.push_back(&output);
         return std::unique_ptr<StreamPipeline>(
             std::make_unique<FakePipeline>(keyframe_requests, bitrates));
     }
@@ -157,10 +166,10 @@ struct Harness {
     RecordingObserver observer;
 };
 
-TEST(HostOrchestrator, TheFirstViewerMonitorBecomesTheVirtualMonitorAndTheStream) {
+TEST(HostOrchestrator, TheViewerMonitorBecomesTheVirtualMonitorAndTheStream) {
     Harness h;
     HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
-    const std::vector<osplay_monitor> monitors{monitor(4), monitor(5)};
+    const std::vector<osplay_monitor> monitors{monitor(4)};
     orchestrator.on_viewer_monitors(monitors);
     orchestrator.wait_idle();
 
@@ -175,6 +184,73 @@ TEST(HostOrchestrator, TheFirstViewerMonitorBecomesTheVirtualMonitorAndTheStream
     EXPECT_EQ(h.core.configured[0].cursor_mode, OSPLAY_CURSOR_SEPARATE);
     ASSERT_TRUE(h.observer.streaming.has_value());
     EXPECT_EQ(h.observer.streaming->left, 1920);
+}
+
+TEST(HostOrchestrator, EveryViewerMonitorGetsItsOwnVirtualMonitorAndStream) {
+    Harness h;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    osplay_monitor small = monitor(9);
+    small.width_px = 1920;
+    small.height_px = 1080;
+    const std::vector<osplay_monitor> monitors{monitor(4), small};
+    orchestrator.on_viewer_monitors(monitors);
+    orchestrator.wait_idle();
+
+    EXPECT_EQ(h.displays.batches, (std::vector<std::size_t>{2}));
+    ASSERT_EQ(h.displays.created.size(), 2U);
+    EXPECT_EQ(h.displays.created[1].width, 1920U);
+    ASSERT_EQ(h.pipelines.started.size(), 2U);
+    EXPECT_EQ(h.pipelines.started[0].gdi_name, L"\\\\.\\DISPLAY10");
+    EXPECT_EQ(h.pipelines.started[1].gdi_name, L"\\\\.\\DISPLAY11");
+    EXPECT_EQ(h.pipelines.started[1].width, 1920U);
+    ASSERT_EQ(h.core.configured.size(), 2U);
+    EXPECT_EQ(h.core.configured[0].stream_id, 0);
+    EXPECT_EQ(h.core.configured[0].monitor_id, 4);
+    EXPECT_EQ(h.core.configured[1].stream_id, 1);
+    EXPECT_EQ(h.core.configured[1].monitor_id, 9);
+
+    // Each pipeline's output carries its own stream ID.
+    const std::vector<std::uint8_t> frame{0, 0, 0, 1, 0x41};
+    h.pipelines.sinks[1]->on_cursor_position(true, 1, 5, 5, 1);
+    h.pipelines.sinks[0]->on_cursor_position(true, 1, 6, 6, 2);
+    ASSERT_EQ(h.core.positions.size(), 2U);
+    EXPECT_EQ(h.core.positions[0].stream_id, 1);
+    EXPECT_EQ(h.core.positions[1].stream_id, 0);
+}
+
+TEST(HostOrchestrator, AtMostFourMonitorsAreMade) {
+    Harness h;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    const std::vector<osplay_monitor> monitors{monitor(0), monitor(1), monitor(2), monitor(3),
+                                               monitor(4)};
+    orchestrator.on_viewer_monitors(monitors);
+    orchestrator.wait_idle();
+    EXPECT_EQ(h.displays.created.size(), 4U);
+    EXPECT_EQ(h.core.configured.size(), 4U);
+}
+
+TEST(HostOrchestrator, StoppingOneOfTwoStreamsMakesTheOtherMonitorAgain) {
+    Harness h;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    osplay_monitor small = monitor(9);
+    small.width_px = 1920;
+    small.height_px = 1080;
+    const std::vector<osplay_monitor> monitors{monitor(4), small};
+    orchestrator.on_viewer_monitors(monitors);
+    orchestrator.on_stream_stopped(0);
+    orchestrator.wait_idle();
+    EXPECT_EQ(h.displays.batches, (std::vector<std::size_t>{2, 1}));
+    EXPECT_EQ(h.displays.created.back().width, 1920U) << "the remaining stream's monitor";
+    EXPECT_EQ(h.displays.removed, 0);
+    ASSERT_EQ(h.pipelines.started.size(), 3U);
+    EXPECT_EQ(h.pipelines.started.back().width, 1920U);
+    orchestrator.on_keyframe_request(1);
+    orchestrator.wait_idle();
+    EXPECT_EQ(h.pipelines.keyframe_requests, 1) << "stream 1 keeps its ID";
+    orchestrator.on_stream_stopped(1);
+    orchestrator.wait_idle();
+    EXPECT_EQ(h.displays.removed, 1);
+    EXPECT_FALSE(h.core.closed);
 }
 
 TEST(HostOrchestrator, AHighRefreshMonitorGetsASixtyHertzStream) {

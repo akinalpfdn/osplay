@@ -483,3 +483,10 @@ choices the plan leaves open are logged here.
 **Trade-offs:** If the port is taken in between, the stale-port case returns until the advertisement changes; a changed IP address is not covered.
 **Revisit if:** Users hit failed reconnects after IP changes; then resolve again before each connection.
 
+## 2026-10-21 — User decision: every direction, every monitor, several viewers — before release
+**Chosen:** New DEVPLAN Phase 13b (SYM-01…03) before Phase 14: Windows hosts make one virtual display per viewer monitor, Mac viewers offer every display, and hosts serve several viewers at once; Mac→Mac and PC→PC are first-class.
+**Alternatives:** Ship with the original asymmetry (Windows host: one display) and add this later; only symmetry now, several viewers later.
+**Why:** The single-display Windows host came from an early assumption (a single-screen MacBook as the viewer) that was never put to the user; a laptop extending onto a two-monitor PC, or onto two other laptops, is a core use.
+**Trade-offs:** Release moves later; the Windows multi-monitor work changes the helper protocol and needs testing on the developer's hardware.
+**Revisit if:** —
+

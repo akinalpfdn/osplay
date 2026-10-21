@@ -7,6 +7,7 @@
 
 #include <exception>
 #include <memory>
+#include <span>
 
 struct osplay_virtual_display {
     std::unique_ptr<osplay::engine::VirtualDisplayProvider> provider;
@@ -56,7 +57,7 @@ osplay_virtual_display_create_monitor(osplay_virtual_display* display,
             .refresh_millihertz = config->refresh_millihertz,
             .gpu_name = config->gpu_name_utf8 != nullptr ? config->gpu_name_utf8 : "",
         };
-        const auto created = display->provider->create_monitor(monitor);
+        const auto created = display->provider->create_monitors(std::span(&monitor, 1));
         return created ? OSPLAY_ENGINE_OK : to_result(created.error());
     });
 }
@@ -66,7 +67,7 @@ osplay_engine_result osplay_virtual_display_remove_monitor(osplay_virtual_displa
         if (display == nullptr) {
             return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
         }
-        const auto removed = display->provider->remove_monitor();
+        const auto removed = display->provider->remove_monitors();
         return removed ? OSPLAY_ENGINE_OK : to_result(removed.error());
     });
 }
@@ -98,7 +99,7 @@ void osplay_virtual_display_close(osplay_virtual_display* display) {
     const std::unique_ptr<osplay_virtual_display> owned(display);
     if (owned) {
         static_cast<void>(guarded([&] {
-            const auto removed = owned->provider->remove_monitor();
+            const auto removed = owned->provider->remove_monitors();
             return removed ? OSPLAY_ENGINE_OK : to_result(removed.error());
         }));
     }

@@ -1,11 +1,13 @@
 #include <osplay/win/helper_protocol.hpp>
 
+#include <algorithm>
 #include <optional>
 
 namespace osplay::win::helper {
 namespace {
 
-constexpr std::size_t kConfigureFixedSize = 14; // width, height, refresh, gpu name length
+constexpr std::size_t kConfigureFixedSize = 4; // count, reserved, gpu name length
+constexpr std::size_t kModeSize = 12;          // width, height, refresh
 constexpr std::size_t kStatusPayloadSize = 16;
 
 class Writer {
@@ -167,14 +169,29 @@ bool is_valid(const MonitorConfig& config) {
            is_valid_utf8_without_controls(config.gpu_name);
 }
 
+bool is_valid(const std::vector<MonitorConfig>& monitors) {
+    if (monitors.empty() || monitors.size() > kMaxMonitors) {
+        return false;
+    }
+    return std::ranges::all_of(monitors, [&](const MonitorConfig& monitor) {
+        return is_valid(monitor) && monitor.gpu_name == monitors.front().gpu_name;
+    });
+}
+
 Bytes encode(const Request& request) {
     return Writer::message(static_cast<std::uint16_t>(request.command), [&](Writer& out) {
         if (request.command == Command::Configure) {
-            out.u32(request.config.width);
-            out.u32(request.config.height);
-            out.u32(request.config.refresh_millihertz);
-            out.u16(static_cast<std::uint16_t>(request.config.gpu_name.size()));
-            out.raw(request.config.gpu_name);
+            const std::string gpu =
+                request.monitors.empty() ? std::string() : request.monitors.front().gpu_name;
+            out.u8(static_cast<std::uint8_t>(request.monitors.size()));
+            out.u8(0); // reserved
+            out.u16(static_cast<std::uint16_t>(gpu.size()));
+            out.raw(gpu);
+            for (const MonitorConfig& monitor : request.monitors) {
+                out.u32(monitor.width);
+                out.u32(monitor.height);
+                out.u32(monitor.refresh_millihertz);
+            }
         }
     });
 }
@@ -185,12 +202,63 @@ Bytes encode(const Response& response) {
         out.u8(status.vdd_installed ? 1 : 0);
         out.u8(status.device_enabled ? 1 : 0);
         out.u8(status.configured ? 1 : 0);
-        out.u8(0); // reserved
+        out.u8(status.monitor_count);
         out.u32(status.width);
         out.u32(status.height);
         out.u32(status.refresh_millihertz);
     });
 }
+
+namespace {
+
+Expected<Request, DecodeError> decode_configure(Reader& reader, std::uint32_t payload_length) {
+    using Result = Expected<Request, DecodeError>;
+    Request request;
+    if (payload_length < kConfigureFixedSize) {
+        return Result::failure(DecodeError::Truncated);
+    }
+    const auto count = reader.u8();
+    const auto reserved = reader.u8();
+    const auto name_length = reader.u16();
+    if (!count || !reserved || !name_length) {
+        return Result::failure(DecodeError::Truncated);
+    }
+    if (*reserved != 0 || *count == 0 || *count > kMaxMonitors) {
+        return Result::failure(DecodeError::ValueOutOfRange);
+    }
+    if (*name_length > kMaxGpuNameBytes) {
+        return Result::failure(DecodeError::InvalidGpuName);
+    }
+    if (reader.remaining() != *name_length + (std::size_t{*count} * kModeSize)) {
+        return Result::failure(DecodeError::LengthMismatch);
+    }
+    const auto name = reader.text(*name_length);
+    if (!name) {
+        return Result::failure(DecodeError::Truncated);
+    }
+    if (!is_valid_utf8_without_controls(*name)) {
+        return Result::failure(DecodeError::InvalidGpuName);
+    }
+    request.command = Command::Configure;
+    for (std::uint8_t i = 0; i < *count; ++i) {
+        const auto width = reader.u32();
+        const auto height = reader.u32();
+        const auto refresh = reader.u32();
+        if (!width || !height || !refresh) {
+            return Result::failure(DecodeError::Truncated);
+        }
+        request.monitors.push_back({.width = *width,
+                                    .height = *height,
+                                    .refresh_millihertz = *refresh,
+                                    .gpu_name = *name});
+    }
+    if (!is_valid(request.monitors)) {
+        return Result::failure(DecodeError::ValueOutOfRange);
+    }
+    return request;
+}
+
+} // namespace
 
 Expected<Request, DecodeError> decode_request(std::span<const std::uint8_t> message) {
     using Result = Expected<Request, DecodeError>;
@@ -210,38 +278,8 @@ Expected<Request, DecodeError> decode_request(std::span<const std::uint8_t> mess
         }
         request.command = static_cast<Command>(header.value().code);
         return request;
-    case Command::Configure: {
-        if (header.value().payload_length < kConfigureFixedSize) {
-            return Result::failure(DecodeError::Truncated);
-        }
-        const auto width = reader.u32();
-        const auto height = reader.u32();
-        const auto refresh = reader.u32();
-        const auto name_length = reader.u16();
-        if (!width || !height || !refresh || !name_length) {
-            return Result::failure(DecodeError::Truncated);
-        }
-        if (*name_length != reader.remaining()) {
-            return Result::failure(DecodeError::LengthMismatch);
-        }
-        if (*name_length > kMaxGpuNameBytes) {
-            return Result::failure(DecodeError::InvalidGpuName);
-        }
-        const auto name = reader.text(*name_length);
-        if (!name) {
-            return Result::failure(DecodeError::Truncated);
-        }
-        request.command = Command::Configure;
-        request.config = MonitorConfig{
-            .width = *width, .height = *height, .refresh_millihertz = *refresh, .gpu_name = *name};
-        if (!is_valid_utf8_without_controls(request.config.gpu_name)) {
-            return Result::failure(DecodeError::InvalidGpuName);
-        }
-        if (!is_valid(request.config)) {
-            return Result::failure(DecodeError::ValueOutOfRange);
-        }
-        return request;
-    }
+    case Command::Configure:
+        return decode_configure(reader, header.value().payload_length);
     }
     return Result::failure(DecodeError::UnknownCommand);
 }
@@ -263,11 +301,11 @@ Expected<Response, DecodeError> decode_response(std::span<const std::uint8_t> me
     const auto installed = reader.u8();
     const auto enabled = reader.u8();
     const auto configured = reader.u8();
-    const auto reserved = reader.u8();
+    const auto count = reader.u8();
     const auto width = reader.u32();
     const auto height = reader.u32();
     const auto refresh = reader.u32();
-    if (!installed || !enabled || !configured || !reserved || !width || !height || !refresh) {
+    if (!installed || !enabled || !configured || !count || !width || !height || !refresh) {
         return Result::failure(DecodeError::Truncated);
     }
     return Response{
@@ -275,6 +313,7 @@ Expected<Response, DecodeError> decode_response(std::span<const std::uint8_t> me
         .status = {.vdd_installed = *installed != 0,
                    .device_enabled = *enabled != 0,
                    .configured = *configured != 0,
+                   .monitor_count = *count,
                    .width = *width,
                    .height = *height,
                    .refresh_millihertz = *refresh},

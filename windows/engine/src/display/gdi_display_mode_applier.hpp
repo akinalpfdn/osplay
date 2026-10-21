@@ -4,11 +4,12 @@
 
 namespace osplay::engine {
 
-/// Finds the Virtual Display Driver's monitor through the CCD API and sets its mode with
-/// ChangeDisplaySettingsExW, then reads the mode back to confirm it.
+/// Finds the Virtual Display Driver's monitors through the CCD API, sets each one's mode with
+/// ChangeDisplaySettingsExW (all at once), then reads every mode back to confirm it.
 class GdiDisplayModeApplier final : public DisplayModeApplier {
 public:
-    win::Status<DisplayError> apply(const VirtualMonitorConfig& config) override;
+    win::Expected<std::vector<std::wstring>, DisplayError>
+    apply(std::span<const VirtualMonitorConfig> configs) override;
 };
 
 } // namespace osplay::engine

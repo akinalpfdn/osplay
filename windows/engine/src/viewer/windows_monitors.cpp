@@ -138,8 +138,8 @@ std::optional<MonitorCandidate> describe(HMONITOR monitor,
 
 std::vector<MonitorCandidate> active_physical_monitors() {
     const PhysicalPixelsScope scope;
-    const auto vdd =
-        vdd_gdi_device_name(); // fails when the driver is absent or idle: nothing to skip
+    // Fails when the driver is absent or idle: nothing to skip.
+    const auto vdd = vdd_gdi_device_names();
     const auto details = path_details();
     std::vector<HMONITOR> handles;
     EnumDisplayMonitors(nullptr, nullptr, collect_monitor, reinterpret_cast<LPARAM>(&handles));
@@ -149,7 +149,9 @@ std::vector<MonitorCandidate> active_physical_monitors() {
         if (!candidate) {
             continue;
         }
-        if (vdd && candidate->key == utf8(vdd.value())) {
+        if (vdd && std::ranges::any_of(vdd.value(), [&](const std::wstring& name) {
+                return candidate->key == utf8(name);
+            })) {
             continue;
         }
         monitors.push_back(std::move(*candidate));

@@ -27,8 +27,8 @@ using osplay::engine::OfferedMonitor;
 using osplay::engine::system_random;
 using osplay::engine::to_result;
 
-/// Streams the Windows viewer shows at once (DEVPLAN: one per physical monitor, up to two).
-constexpr std::uint8_t kMaxViewerStreams = 2;
+/// Streams the Windows viewer shows at once: one per offered monitor (Phase 13b: every monitor).
+constexpr std::uint8_t kMaxViewerStreams = OSPLAY_MAX_STREAMS;
 
 /// The orchestrator's view of the core session; detached before the session is destroyed.
 class CapiViewerPort final : public osplay::engine::ViewerCorePort {

@@ -16,7 +16,8 @@
 namespace osplay::win::helper {
 
 inline constexpr std::uint32_t kMagic = 0x4850'534F; // "OSPH" as little-endian bytes
-inline constexpr std::uint16_t kVersion = 1;
+/// Version 2: Configure carries one mode per virtual monitor (several monitors).
+inline constexpr std::uint16_t kVersion = 2;
 inline constexpr std::size_t kHeaderSize = 12;
 inline constexpr std::size_t kMaxMessageSize = 512;
 inline constexpr const wchar_t* kPipeName = L"\\\\.\\pipe\\OsplayHelper";
@@ -29,6 +30,8 @@ inline constexpr std::uint32_t kMaxHeight = 4320;
 inline constexpr std::uint32_t kMinRefreshMillihertz = 24'000;
 inline constexpr std::uint32_t kMaxRefreshMillihertz = 240'000;
 inline constexpr std::size_t kMaxGpuNameBytes = 128;
+/// Virtual monitors at once: one per viewer monitor (OSPLAY_MAX_MONITORS).
+inline constexpr std::size_t kMaxMonitors = 4;
 
 enum class Command : std::uint16_t {
     Configure = 1,
@@ -60,7 +63,8 @@ enum class DecodeError : std::uint8_t {
     InvalidGpuName,
 };
 
-/// Settings for the single virtual monitor. An empty GPU name lets the driver choose.
+/// Settings for one virtual monitor. An empty GPU name lets the driver choose; all monitors of
+/// one Configure share the first one's GPU.
 struct MonitorConfig {
     std::uint32_t width = 0;
     std::uint32_t height = 0;
@@ -72,7 +76,7 @@ struct MonitorConfig {
 
 struct Request {
     Command command = Command::Status;
-    MonitorConfig config; // meaningful for Command::Configure only
+    std::vector<MonitorConfig> monitors; // Command::Configure only: 1...kMaxMonitors, in order
 
     bool operator==(const Request&) const = default;
 };
@@ -81,6 +85,7 @@ struct MonitorStatus {
     bool vdd_installed = false;
     bool device_enabled = false;
     bool configured = false;
+    std::uint8_t monitor_count = 0; // configured monitors; the mode below is the first one's
     std::uint32_t width = 0;
     std::uint32_t height = 0;
     std::uint32_t refresh_millihertz = 0;
@@ -99,6 +104,8 @@ using Bytes = std::vector<std::uint8_t>;
 
 /// True when every value is within the documented bounds and the GPU name is clean UTF-8.
 [[nodiscard]] bool is_valid(const MonitorConfig& config);
+/// One to kMaxMonitors valid monitors that name the same GPU.
+[[nodiscard]] bool is_valid(const std::vector<MonitorConfig>& monitors);
 
 [[nodiscard]] Bytes encode(const Request& request);
 [[nodiscard]] Bytes encode(const Response& response);

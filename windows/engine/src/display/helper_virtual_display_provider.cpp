@@ -10,38 +10,42 @@ HelperVirtualDisplayProvider::HelperVirtualDisplayProvider(
     std::unique_ptr<HelperChannel> channel, std::unique_ptr<DisplayModeApplier> mode_applier)
     : channel_(std::move(channel)), mode_applier_(std::move(mode_applier)) {}
 
-win::Status<DisplayError>
-HelperVirtualDisplayProvider::create_monitor(const VirtualMonitorConfig& config) {
-    if (!helper::is_valid(config)) {
-        return win::Status<DisplayError>::failure(DisplayError::InvalidArgument);
+win::Expected<std::vector<std::wstring>, DisplayError>
+HelperVirtualDisplayProvider::create_monitors(std::span<const VirtualMonitorConfig> configs) {
+    using Result = win::Expected<std::vector<std::wstring>, DisplayError>;
+    std::vector<VirtualMonitorConfig> monitors(configs.begin(), configs.end());
+    if (!helper::is_valid(monitors)) {
+        return Result::failure(DisplayError::InvalidArgument);
     }
-    const auto configured =
-        send_expecting_ok({.command = helper::Command::Configure, .config = config});
-    if (!configured) {
-        return configured;
+    // Configure restarts an enabled device, so the count changes take effect at once.
+    if (const auto configured = send_expecting_ok(
+            {.command = helper::Command::Configure, .monitors = std::move(monitors)});
+        !configured) {
+        return Result::failure(configured.error());
     }
-    const auto enabled = send_expecting_ok({.command = helper::Command::Enable, .config = {}});
-    if (!enabled) {
-        return enabled;
+    if (const auto enabled =
+            send_expecting_ok({.command = helper::Command::Enable, .monitors = {}});
+        !enabled) {
+        return Result::failure(enabled.error());
     }
-    // Windows gives a new monitor its own default mode; the exact mode is set from the user
+    // Windows gives a new monitor its own default mode; the exact modes are set from the user
     // session.
-    const auto applied = mode_applier_->apply(config);
+    auto applied = mode_applier_->apply(configs);
     if (!applied) {
-        // A monitor with the wrong size is worse than none: remove it and report why.
-        static_cast<void>(remove_monitor());
-        return applied;
+        // Monitors with the wrong size are worse than none: remove them and report why.
+        static_cast<void>(remove_monitors());
+        return Result::failure(applied.error());
     }
-    return win::Status<DisplayError>::ok();
+    return applied;
 }
 
-win::Status<DisplayError> HelperVirtualDisplayProvider::remove_monitor() {
-    return send_expecting_ok({.command = helper::Command::Disable, .config = {}});
+win::Status<DisplayError> HelperVirtualDisplayProvider::remove_monitors() {
+    return send_expecting_ok({.command = helper::Command::Disable, .monitors = {}});
 }
 
 win::Expected<VirtualMonitorStatus, DisplayError> HelperVirtualDisplayProvider::status() {
     using Result = win::Expected<VirtualMonitorStatus, DisplayError>;
-    const auto response = send({.command = helper::Command::Status, .config = {}});
+    const auto response = send({.command = helper::Command::Status, .monitors = {}});
     if (!response) {
         return Result::failure(response.error());
     }

@@ -8,6 +8,34 @@
 
 namespace osplay::engine {
 
+/// Hands one pipeline's output to the orchestrator with its stream ID.
+class HostOrchestrator::StreamOutput final : public PipelineSink {
+public:
+    StreamOutput(HostOrchestrator& owner, std::uint8_t stream_id)
+        : owner_(&owner), stream_id_(stream_id) {}
+
+    void on_access_unit(std::span<const std::uint8_t> annexb, bool keyframe,
+                        std::uint64_t capture_time_us) override {
+        owner_->on_access_unit(stream_id_, annexb, keyframe, capture_time_us);
+    }
+    void on_cursor_shape(std::uint32_t shape_id, const CursorImage& image) override {
+        owner_->on_cursor_shape(stream_id_, shape_id, image);
+    }
+    void on_cursor_position(bool visible, std::uint32_t shape_id, std::int32_t x, std::int32_t y,
+                            std::uint64_t capture_time_us) override {
+        owner_->on_cursor_position(stream_id_, visible, shape_id, x, y, capture_time_us);
+    }
+    void on_pipeline_failed(PipelineError error) override { owner_->on_pipeline_failed(error); }
+
+private:
+    HostOrchestrator* owner_; // never null; owns this output
+    std::uint8_t stream_id_;
+};
+
+HostOrchestrator::Stream::Stream(const osplay_stream_config& stream_config, HostOrchestrator& owner)
+    : config(stream_config),
+      output(std::make_unique<StreamOutput>(owner, stream_config.stream_id)) {}
+
 HostOrchestrator::HostOrchestrator(HostCorePort& core, VirtualDisplayProvider& displays,
                                    StreamPipelineFactory& pipelines, HostObserver& observer,
                                    std::unique_ptr<StreamDump> dump, double bits_per_pixel)
@@ -34,36 +62,36 @@ void HostOrchestrator::on_viewer_monitors(std::span<const osplay_monitor> monito
     if (monitors.empty()) {
         return;
     }
-    // Copied: the core's strings are valid only during its callback.
-    osplay_monitor first = monitors.front();
-    first.name = nullptr;
-    // High refresh streams come after the MVP (DEVPLAN); a 120 Hz monitor shows a 60 Hz stream.
-    first.refresh_millihertz = std::min(first.refresh_millihertz, kMaxStreamRefreshMillihertz);
-    post([this, first] { start(first); });
+    std::vector<osplay_monitor> offered;
+    for (osplay_monitor monitor : monitors.first(std::min(monitors.size(), kMaxHostStreams))) {
+        // Copied: the core's strings are valid only during its callback.
+        monitor.name = nullptr;
+        // High refresh streams come after the MVP (DEVPLAN); a 120 Hz monitor gets a 60 Hz stream.
+        monitor.refresh_millihertz =
+            std::min(monitor.refresh_millihertz, kMaxStreamRefreshMillihertz);
+        offered.push_back(monitor);
+    }
+    post([this, offered = std::move(offered)] { start(offered); });
 }
 
 void HostOrchestrator::on_keyframe_request(std::uint8_t stream_id) {
     post([this, stream_id] {
-        if (stream_id == kHostStreamId && pipeline_) {
-            pipeline_->request_keyframe();
+        if (const auto it = streams_.find(stream_id); it != streams_.end() && it->second.pipeline) {
+            it->second.pipeline->request_keyframe();
         }
     });
 }
 
 void HostOrchestrator::on_bitrate_target(std::uint8_t stream_id, std::uint32_t kbps) {
     post([this, stream_id, kbps] {
-        if (stream_id == kHostStreamId && pipeline_) {
-            pipeline_->set_bitrate(kbps);
+        if (const auto it = streams_.find(stream_id); it != streams_.end() && it->second.pipeline) {
+            it->second.pipeline->set_bitrate(kbps);
         }
     });
 }
 
 void HostOrchestrator::on_stream_stopped(std::uint8_t stream_id) {
-    post([this, stream_id] {
-        if (stream_id == kHostStreamId) {
-            stop_streaming();
-        }
-    });
+    post([this, stream_id] { stop_stream(stream_id); });
 }
 
 void HostOrchestrator::on_session_closed() {
@@ -82,7 +110,7 @@ osplay_stream_config HostOrchestrator::stream_for(const osplay_monitor& monitor,
     const double bits = std::clamp(bits_per_pixel, kMinBitsPerPixel, kMaxBitsPerPixel);
     const auto kbps = static_cast<std::uint32_t>(pixels_per_second * bits / 1000.0);
     return osplay_stream_config{
-        .stream_id = kHostStreamId,
+        .stream_id = 0,
         .monitor_id = monitor.monitor_id,
         .width = monitor.width_px,
         .height = monitor.height_px,
@@ -124,46 +152,81 @@ void HostOrchestrator::run() {
     }
 }
 
-void HostOrchestrator::start(const osplay_monitor& monitor) {
-    if (pipeline_ || failed_) {
-        return; // one stream per session on a Windows host
+void HostOrchestrator::start(const std::vector<osplay_monitor>& monitors) {
+    if (!streams_.empty() || failed_) {
+        return; // the viewer's monitors arrive once per session
     }
-    const osplay_stream_config stream = stream_for(monitor, bits_per_pixel_);
-    const VirtualMonitorConfig config{.width = stream.width,
-                                      .height = stream.height,
-                                      .refresh_millihertz = stream.refresh_millihertz,
-                                      .gpu_name = {}};
-    if (const auto created = displays_->create_monitor(config); !created) {
-        fail(HostFailure::Display, static_cast<std::uint32_t>(created.error()));
+    std::vector<osplay_stream_config> configs;
+    for (std::size_t index = 0; index < monitors.size(); ++index) {
+        osplay_stream_config config = stream_for(monitors[index], bits_per_pixel_);
+        config.stream_id = static_cast<std::uint8_t>(index);
+        configs.push_back(config);
+        streams_.try_emplace(config.stream_id, config, *this);
+    }
+    if (!open_streams()) {
         return;
     }
-    monitor_added_ = true;
-
-    auto pipeline = pipelines_->start({.width = stream.width,
-                                       .height = stream.height,
-                                       .refresh_millihertz = stream.refresh_millihertz,
-                                       .bitrate_kbps = stream.bitrate_kbps},
-                                      *this);
-    if (!pipeline) {
-        fail(HostFailure::Pipeline, static_cast<std::uint32_t>(pipeline.error()));
-        return;
-    }
-    pipeline_ = std::move(pipeline.value());
-    if (const osplay_result configured = core_->configure_streams(std::span(&stream, 1));
+    if (const osplay_result configured = core_->configure_streams(configs);
         configured != OSPLAY_OK) {
         fail(HostFailure::Session, static_cast<std::uint32_t>(configured));
         return;
     }
-    observer_->on_streaming(pipeline_->monitor_rect().value_or(MonitorRect{}));
+    observer_->on_streaming(
+        streams_.begin()->second.pipeline->monitor_rect().value_or(MonitorRect{}));
+}
+
+bool HostOrchestrator::open_streams() {
+    std::vector<VirtualMonitorConfig> monitors;
+    for (auto& [stream_id, stream] : streams_) {
+        stream.pipeline.reset(); // its monitor is about to be made again
+        monitors.push_back({.width = stream.config.width,
+                            .height = stream.config.height,
+                            .refresh_millihertz = stream.config.refresh_millihertz,
+                            .gpu_name = {}});
+    }
+    const auto created = displays_->create_monitors(monitors);
+    if (!created) {
+        fail(HostFailure::Display, static_cast<std::uint32_t>(created.error()));
+        return false;
+    }
+    monitors_added_ = true;
+    std::size_t index = 0;
+    for (auto& [stream_id, stream] : streams_) {
+        auto pipeline = pipelines_->start({.width = stream.config.width,
+                                           .height = stream.config.height,
+                                           .refresh_millihertz = stream.config.refresh_millihertz,
+                                           .bitrate_kbps = stream.config.bitrate_kbps,
+                                           .gdi_name = created.value().at(index++)},
+                                          *stream.output);
+        if (!pipeline) {
+            fail(HostFailure::Pipeline, static_cast<std::uint32_t>(pipeline.error()));
+            return false;
+        }
+        stream.pipeline = std::move(pipeline.value());
+    }
+    return true;
+}
+
+void HostOrchestrator::stop_stream(std::uint8_t stream_id) {
+    if (streams_.erase(stream_id) == 0) {
+        return;
+    }
+    if (streams_.empty()) {
+        stop_streaming();
+        return;
+    }
+    // The driver cannot drop one monitor: the device starts again with the others, whose captures
+    // start over on their monitors (each begins with a keyframe).
+    static_cast<void>(open_streams());
 }
 
 void HostOrchestrator::stop_streaming() {
-    pipeline_.reset();
-    if (monitor_added_) {
-        monitor_added_ = false;
-        // Removal failures leave nothing to undo here; the helper removes the monitor anyway
+    streams_.clear();
+    if (monitors_added_) {
+        monitors_added_ = false;
+        // Removal failures leave nothing to undo here; the helper removes the monitors anyway
         // when the engine's pipe closes.
-        static_cast<void>(displays_->remove_monitor());
+        static_cast<void>(displays_->remove_monitors());
     }
 }
 
@@ -176,9 +239,9 @@ void HostOrchestrator::fail(HostFailure failure, std::uint32_t detail) {
     core_->close();
 }
 
-void HostOrchestrator::on_access_unit(std::span<const std::uint8_t> annexb, bool keyframe,
-                                      std::uint64_t capture_time_us) {
-    const osplay_access_unit unit{.stream_id = kHostStreamId,
+void HostOrchestrator::on_access_unit(std::uint8_t stream_id, std::span<const std::uint8_t> annexb,
+                                      bool keyframe, std::uint64_t capture_time_us) {
+    const osplay_access_unit unit{.stream_id = stream_id,
                                   .keyframe = keyframe ? std::uint8_t{1} : std::uint8_t{0},
                                   .codec_config = keyframe ? std::uint8_t{1} : std::uint8_t{0},
                                   .frame_id = 0,
@@ -187,13 +250,14 @@ void HostOrchestrator::on_access_unit(std::span<const std::uint8_t> annexb, bool
                                   .length = annexb.size()};
     // Fails only while the session is closing; the frame is of no use then.
     static_cast<void>(core_->push_access_unit(unit));
-    if (dump_) {
+    if (dump_ && stream_id == 0) {
         dump_->write(annexb);
     }
 }
 
-void HostOrchestrator::on_cursor_shape(std::uint32_t shape_id, const CursorImage& image) {
-    const osplay_cursor_shape shape{.stream_id = kHostStreamId,
+void HostOrchestrator::on_cursor_shape(std::uint8_t stream_id, std::uint32_t shape_id,
+                                       const CursorImage& image) {
+    const osplay_cursor_shape shape{.stream_id = stream_id,
                                     .shape_id = shape_id,
                                     .width = image.width,
                                     .height = image.height,
@@ -204,9 +268,10 @@ void HostOrchestrator::on_cursor_shape(std::uint32_t shape_id, const CursorImage
     static_cast<void>(core_->push_cursor_shape(shape));
 }
 
-void HostOrchestrator::on_cursor_position(bool visible, std::uint32_t shape_id, std::int32_t x,
-                                          std::int32_t y, std::uint64_t capture_time_us) {
-    const osplay_cursor_position position{.stream_id = kHostStreamId,
+void HostOrchestrator::on_cursor_position(std::uint8_t stream_id, bool visible,
+                                          std::uint32_t shape_id, std::int32_t x, std::int32_t y,
+                                          std::uint64_t capture_time_us) {
+    const osplay_cursor_position position{.stream_id = stream_id,
                                           .visible = visible ? std::uint8_t{1} : std::uint8_t{0},
                                           .shape_id = shape_id,
                                           .x = x,

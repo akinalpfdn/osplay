@@ -3,6 +3,8 @@
 #include <gtest/gtest.h>
 
 #include <deque>
+#include <optional>
+#include <string>
 #include <vector>
 
 namespace {
@@ -40,11 +42,19 @@ public:
 class FakeModeApplier final : public DisplayModeApplier {
 public:
     std::vector<VirtualMonitorConfig> applied;
-    win::Status<DisplayError> result = win::Status<DisplayError>::ok();
+    std::optional<DisplayError> error;
 
-    win::Status<DisplayError> apply(const VirtualMonitorConfig& config) override {
-        applied.push_back(config);
-        return result;
+    win::Expected<std::vector<std::wstring>, DisplayError>
+    apply(std::span<const VirtualMonitorConfig> configs) override {
+        applied.assign(configs.begin(), configs.end());
+        if (error) {
+            return win::Expected<std::vector<std::wstring>, DisplayError>::failure(*error);
+        }
+        std::vector<std::wstring> names;
+        for (std::size_t i = 0; i < configs.size(); ++i) {
+            names.push_back(L"DISPLAY" + std::to_wstring(i));
+        }
+        return names;
     }
 };
 
@@ -72,11 +82,11 @@ TEST(HelperVirtualDisplayProvider, CreateConfiguresThenEnables) {
     f.channel->reply(helper::ResultCode::Ok);
     f.channel->reply(helper::ResultCode::Ok);
 
-    EXPECT_TRUE(f.provider->create_monitor(config()).has_value());
+    EXPECT_TRUE(f.provider->create_monitors(std::vector{config()}).has_value());
 
     ASSERT_EQ(f.channel->requests.size(), 2U);
     EXPECT_EQ(f.channel->requests[0].command, helper::Command::Configure);
-    EXPECT_EQ(f.channel->requests[0].config, config());
+    EXPECT_EQ(f.channel->requests[0].monitors, std::vector{config()});
     EXPECT_EQ(f.channel->requests[1].command, helper::Command::Enable);
     ASSERT_EQ(f.applier->applied.size(), 1U);
     EXPECT_EQ(f.applier->applied[0], config());
@@ -84,12 +94,12 @@ TEST(HelperVirtualDisplayProvider, CreateConfiguresThenEnables) {
 
 TEST(HelperVirtualDisplayProvider, ModeFailureRemovesTheMonitor) {
     Fixture f;
-    f.applier->result = win::Status<DisplayError>::failure(DisplayError::ModeChangeFailed);
+    f.applier->error = DisplayError::ModeChangeFailed;
     f.channel->reply(helper::ResultCode::Ok); // configure
     f.channel->reply(helper::ResultCode::Ok); // enable
     f.channel->reply(helper::ResultCode::Ok); // disable
 
-    const auto result = f.provider->create_monitor(config());
+    const auto result = f.provider->create_monitors(std::vector{config()});
 
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error(), DisplayError::ModeChangeFailed);
@@ -102,7 +112,7 @@ TEST(HelperVirtualDisplayProvider, EnableFailureSkipsTheModeChange) {
     f.channel->reply(helper::ResultCode::Ok);
     f.channel->reply(helper::ResultCode::DeviceControlFailed);
 
-    const auto result = f.provider->create_monitor(config());
+    const auto result = f.provider->create_monitors(std::vector{config()});
 
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error(), DisplayError::DeviceControlFailed);
@@ -114,7 +124,7 @@ TEST(HelperVirtualDisplayProvider, InvalidConfigNeverReachesTheHelper) {
     VirtualMonitorConfig bad = config();
     bad.refresh_millihertz = 1;
 
-    const auto result = f.provider->create_monitor(bad);
+    const auto result = f.provider->create_monitors(std::vector{bad});
 
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error(), DisplayError::InvalidArgument);
@@ -125,7 +135,7 @@ TEST(HelperVirtualDisplayProvider, ConfigureFailureStopsBeforeEnable) {
     Fixture f;
     f.channel->reply(helper::ResultCode::ConfigWriteFailed);
 
-    const auto result = f.provider->create_monitor(config());
+    const auto result = f.provider->create_monitors(std::vector{config()});
 
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error(), DisplayError::ConfigWriteFailed);
@@ -150,7 +160,7 @@ TEST(HelperVirtualDisplayProvider, TransportErrorsPassThrough) {
     f.channel->replies.emplace_back(
         win::Expected<helper::Bytes, DisplayError>::failure(DisplayError::ConnectionLost));
 
-    const auto result = f.provider->remove_monitor();
+    const auto result = f.provider->remove_monitors();
 
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error(), DisplayError::ConnectionLost);
