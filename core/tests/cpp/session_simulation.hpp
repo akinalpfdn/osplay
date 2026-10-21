@@ -52,6 +52,7 @@ public:
     std::vector<std::uint32_t> pairing_codes;
     std::vector<crypto::Key> paired;
     std::vector<protocol::Monitor> monitors;
+    std::vector<std::string> info_logs;
     std::vector<protocol::StreamConfig> stream_configs;
     int keyframe_requests = 0;
     std::vector<std::uint32_t> frame_indices; // decoded from delivered access units
@@ -110,7 +111,11 @@ public:
         role_swap_answers.push_back(answer);
         role_swap_peer = key;
     }
-    void on_log(session::LogLevel /*level*/, std::string_view /*message*/) override {}
+    void on_log(session::LogLevel level, std::string_view message) override {
+        if (level == session::LogLevel::Info) {
+            info_logs.emplace_back(message);
+        }
+    }
 
     [[nodiscard]] SessionState state() const {
         return states.empty() ? SessionState::Connecting : states.back();

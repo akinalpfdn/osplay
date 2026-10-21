@@ -389,7 +389,8 @@ with `DynamicResource`), every string from `Osplay.Localization` (English and Tu
   never overlap; engine callbacks are marshalled to the dispatcher. A missing or damaged engine is
   detected at start and disables the roles with a message.
 - **Logs** (`Diagnostics/Log.cs`). Engine and core log lines go to
-  `%LOCALAPPDATA%\Osplay\logs\osplay.log` from a background writer, rolled over at 5 MB.
+  `%LOCALAPPDATA%\Osplay\logs\osplay.log` from a background writer, rolled over at 5 MB into
+  `osplay.1.log` (the previous one is deleted), so the logs never take more than 10 MB.
 - **Theme.** WPF-UI applies the system theme at start, and `SystemThemeWatcher` switches it live.
 
 ## Role swap
@@ -438,6 +439,9 @@ Foundation encoder change their average bitrate on the fly. The configured quali
 ceiling.
 
 **Diagnostics.** Settings › Advanced › **Copy diagnostics** puts versions, settings, state and the
-newest log lines on the clipboard, with device names and IP addresses replaced. The stats overlay
+newest log lines on the clipboard, with device names and IP addresses replaced. The core logs each
+session state, each stream's configuration, every bitrate target and, every 10 s, one summary line
+per stream (frame rate, bitrate, loss, RTT, and totals of dropped frames, resends, NACKs and
+keyframe requests), so a report shows how a session went. The stats overlay
 also has a shortcut (⌃⌥⌘I / Ctrl+Alt+Shift+I, recordable).
 

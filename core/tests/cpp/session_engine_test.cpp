@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <limits>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -230,6 +232,23 @@ TEST(SessionEngine, ALargeFrameLeavesSpreadOverPartOfTheFrameInterval) {
     EXPECT_GE(sim.host.transport.datagrams_sent - before, 26U) << "all of it within the window";
     sim.run_for(milliseconds(20));
     EXPECT_EQ(sim.viewer.observer.frame_indices, std::vector<std::uint32_t>{0});
+}
+
+TEST(SessionEngine, ASessionLeavesALogABugReportCanUse) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(12));
+    ASSERT_EQ(sim.viewer.engine.state(), SessionState::Streaming);
+
+    const auto count = [](const std::vector<std::string>& lines, std::string_view text) {
+        return std::ranges::count_if(
+            lines, [&](const std::string& line) { return line.find(text) != std::string::npos; });
+    };
+    for (const auto* side : {&sim.host.observer, &sim.viewer.observer}) {
+        EXPECT_EQ(count(side->info_logs, "Session streaming"), 1);
+        EXPECT_EQ(count(side->info_logs, "Stream 0: 2560x1440 at 60 Hz"), 1);
+        EXPECT_EQ(count(side->info_logs, " fps, "), 2) << "a summary at the start and after 10 s";
+    }
 }
 
 TEST(SessionEngine, StreamsShareThePacingWindow) {

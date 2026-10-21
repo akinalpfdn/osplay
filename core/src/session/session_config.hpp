@@ -26,6 +26,9 @@ struct SessionTunables {
     Microseconds ping_interval{1'000'000};
     Microseconds report_interval{1'000'000};
     Microseconds stats_interval{1'000'000};
+    /// A summary line per stream goes to the log this often: enough to read a session back
+    /// from a bug report without growing the log much (about 50 kB an hour per stream).
+    Microseconds stats_log_interval{10'000'000};
     Microseconds udp_hello_interval{250'000};
     /// Viewer: minimum spacing of KeyframeRequests per stream.
     Microseconds keyframe_request_interval{250'000};

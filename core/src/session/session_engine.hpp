@@ -279,6 +279,7 @@ private:
     TimePoint next_ping_;
     TimePoint next_report_;
     TimePoint next_stats_;
+    TimePoint next_stats_log_;
     TimePoint next_udp_hello_;
     std::optional<TimePoint> last_media_received_;
     std::uint32_t next_ping_id_ = 0;
