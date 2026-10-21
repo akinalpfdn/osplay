@@ -46,6 +46,11 @@ struct SessionTunables {
     Microseconds role_swap_timeout{10'000'000};
     /// Host: how receiver reports move each stream's bitrate.
     BitrateTunables bitrate;
+    /// Host: a frame's fragments are spread over this share of the stream's frame interval
+    /// (divided among the streams) instead of leaving in one burst, which Wi-Fi queues drop.
+    double pacing_fraction = 0.5;
+    /// Host: frames of at most this many fragments go out at once.
+    std::size_t pacing_minimum_fragments = 4;
 };
 
 struct SessionConfig {

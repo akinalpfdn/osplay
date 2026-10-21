@@ -25,6 +25,7 @@
 
 #include <array>
 #include <cstdint>
+#include <deque>
 #include <map>
 #include <memory>
 #include <optional>
@@ -205,6 +206,8 @@ private:
     void deliver_cursor_shape(const protocol::CursorShapeFragment& fragment);
     void deliver_cursor_position(const protocol::CursorPosition& position, TimePoint now);
     void send_fragments(const std::vector<protocol::VideoFragment>& fragments);
+    /// Sends the queued fragments whose time has come (host pacing).
+    void send_paced(TimePoint now);
     void send_udp_hello();
     void repeat_tails(TimePoint now);
     [[nodiscard]] bool seal_and_send(const protocol::MediaPacket& packet);
@@ -252,6 +255,19 @@ private:
     std::uint64_t next_sequence_ = 0;
     std::array<std::uint8_t, protocol::kMaxDatagramSize> datagram_{};
     std::vector<protocol::VideoFragment> fragments_;
+
+    /// A frame being sent spread over `window` from `start`; fragments come from the stream's
+    /// retransmit cache, which holds the frame anyway.
+    struct PacedFrame {
+        std::uint8_t stream_id = 0;
+        std::uint32_t frame_id = 0;
+        std::uint16_t next = 0;
+        std::uint16_t count = 0;
+        TimePoint start;
+        Microseconds window{0};
+    };
+    std::deque<PacedFrame> paced_;
+    TimePoint paced_until_; // when the last queued frame finishes
     std::vector<protocol::CursorShapeFragment> cursor_fragments_;
 
     std::map<std::uint8_t, std::unique_ptr<HostStream>> host_streams_;

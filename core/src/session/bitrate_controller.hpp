@@ -11,15 +11,16 @@
 namespace osplay::session {
 
 struct BitrateTunables {
-    double decrease_factor = 0.75;
+    double decrease_factor = 0.85;
     double increase_factor = 1.08;
     /// The target never drops below this share of the configured bitrate, nor below the minimum.
     double floor_fraction = 0.25;
     std::uint32_t minimum_kbps = 1'000;
     /// Frames the viewer reports lost, per mille of the interval's frames.
     std::uint16_t loss_threshold_permille = 10;
-    /// Fragments the host resent, per mille of the fragments it sent in the interval.
-    std::uint16_t resend_threshold_permille = 50;
+    /// Fragments the host resent, per mille of the fragments it sent in the interval. Resends
+    /// usually repair a frame in time, so only a heavy share counts as congestion.
+    std::uint16_t resend_threshold_permille = 200;
     /// Clean reports in a row before each step up.
     int clean_reports_per_increase = 3;
     /// Smaller changes are not worth reconfiguring the encoder for.

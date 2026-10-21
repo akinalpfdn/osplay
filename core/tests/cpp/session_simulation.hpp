@@ -130,6 +130,7 @@ public:
 
     std::optional<std::uint16_t> media_port;
     bool media_source_accepted = false;
+    std::size_t datagrams_sent = 0;
     bool closed = false;
 
 private:
@@ -245,6 +246,7 @@ inline void SimulatedTransport::send_control(std::span<const std::uint8_t> frame
     network_.enqueue_control(side_, frame);
 }
 inline void SimulatedTransport::send_datagram(std::span<const std::uint8_t> datagram) {
+    ++datagrams_sent;
     network_.enqueue_datagram(side_, datagram);
 }
 inline void SimulatedTransport::close() {

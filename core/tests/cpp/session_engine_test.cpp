@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <limits>
 #include <vector>
 
 namespace {
@@ -28,38 +29,48 @@ protocol::Capabilities capabilities() {
             .max_refresh_hz = 240};
 }
 
-session::SessionConfig host_config() {
-    return {.role = protocol::Role::Host,
-            .platform = protocol::Platform::MacOS,
-            .device_name = "Test Host",
-            .capabilities = capabilities(),
-            .monitors = {},
-            .tunables = {}};
+/// `paced` false sends every frame in one burst, so a loss window covers whole frames only.
+session::SessionConfig host_config(bool paced = true) {
+    session::SessionConfig config{.role = protocol::Role::Host,
+                                  .platform = protocol::Platform::MacOS,
+                                  .device_name = "Test Host",
+                                  .capabilities = capabilities(),
+                                  .monitors = {},
+                                  .tunables = {}};
+    if (!paced) {
+        config.tunables.pacing_minimum_fragments = std::numeric_limits<std::size_t>::max();
+    }
+    return config;
 }
 
-session::SessionConfig viewer_config() {
-    return {.role = protocol::Role::Viewer,
-            .platform = protocol::Platform::Windows,
-            .device_name = "Test Viewer",
-            .capabilities = capabilities(),
-            .monitors = {{.monitor_id = 0,
-                          .width_px = 2560,
-                          .height_px = 1440,
-                          .refresh_millihertz = 60'000,
-                          .physical_width_mm = 597,
-                          .physical_height_mm = 336,
-                          .scale_percent = 100,
-                          .name = "Test"}},
-            .tunables = {}};
+session::SessionConfig viewer_config(std::uint8_t monitor_count = 1) {
+    session::SessionConfig config{.role = protocol::Role::Viewer,
+                                  .platform = protocol::Platform::Windows,
+                                  .device_name = "Test Viewer",
+                                  .capabilities = capabilities(),
+                                  .monitors = {},
+                                  .tunables = {}};
+    for (std::uint8_t id = 0; id < monitor_count; ++id) {
+        config.monitors.push_back({.monitor_id = id,
+                                   .width_px = 2560,
+                                   .height_px = 1440,
+                                   .refresh_millihertz = 60'000,
+                                   .physical_width_mm = 597,
+                                   .physical_height_mm = 336,
+                                   .scale_percent = 100,
+                                   .name = "Test"});
+    }
+    return config;
 }
 
 /// Two engines on a simulated network, with a host-side "encoder" producing 60 fps synthetic
-/// frames and honouring keyframe requests.
+/// frames on stream 0 and honouring keyframe requests. The host streams every offered monitor.
 struct Simulation {
     explicit Simulation(TrustDecision host_trust = TrustDecision::Trusted,
-                        TrustDecision viewer_trust = TrustDecision::Trusted)
-        : host(network, SimulatedNetwork::kHost, host_config(), 1),
-          viewer(network, SimulatedNetwork::kViewer, viewer_config(), 2) {
+                        TrustDecision viewer_trust = TrustDecision::Trusted, bool paced = true,
+                        std::uint8_t monitor_count = 1)
+        : host(network, SimulatedNetwork::kHost, host_config(paced), 1),
+          viewer(network, SimulatedNetwork::kViewer, viewer_config(monitor_count), 2) {
         network.attach(&host, &viewer);
         host.observer.trust = host_trust;
         viewer.observer.trust = viewer_trust;
@@ -89,18 +100,19 @@ struct Simulation {
         if (!configured && !host.observer.monitors.empty() &&
             host.engine.state() == SessionState::Negotiating) {
             configured = true;
-            const auto& monitor = host.observer.monitors.front();
-            const auto result =
-                host.engine.configure_streams({{.stream_id = 0,
-                                                .monitor_id = monitor.monitor_id,
-                                                .width = monitor.width_px,
-                                                .height = monitor.height_px,
-                                                .refresh_millihertz = monitor.refresh_millihertz,
-                                                .codec = protocol::Codec::H264,
-                                                .profile = protocol::H264Profile::High,
-                                                .cursor_mode = protocol::CursorMode::InVideo,
-                                                .bitrate_kbps = 20'000}},
-                                              network.now);
+            std::vector<protocol::StreamConfig> streams;
+            for (const auto& monitor : host.observer.monitors) {
+                streams.push_back({.stream_id = static_cast<std::uint8_t>(streams.size()),
+                                   .monitor_id = monitor.monitor_id,
+                                   .width = monitor.width_px,
+                                   .height = monitor.height_px,
+                                   .refresh_millihertz = monitor.refresh_millihertz,
+                                   .codec = protocol::Codec::H264,
+                                   .profile = protocol::H264Profile::High,
+                                   .cursor_mode = protocol::CursorMode::InVideo,
+                                   .bitrate_kbps = 20'000});
+            }
+            const auto result = host.engine.configure_streams(streams, network.now);
             EXPECT_TRUE(result.has_value());
         }
         if (producing && host.engine.state() == SessionState::Streaming &&
@@ -194,8 +206,59 @@ TEST(SessionEngine, ACleanLinkKeepsTheConfiguredBitrate) {
     EXPECT_TRUE(sim.host.observer.bitrate_targets.empty());
 }
 
-TEST(SessionEngine, ALostLastFrameArrivesAfterTheScreenStopsChanging) {
+TEST(SessionEngine, ALargeFrameLeavesSpreadOverPartOfTheFrameInterval) {
     Simulation sim;
+    sim.producing = false;
+    sim.connect();
+    sim.run_for(seconds(1));
+    ASSERT_EQ(sim.host.engine.state(), SessionState::Streaming);
+
+    const auto before = sim.host.transport.datagrams_sent;
+    const auto bytes = osplay::test::synthetic_frame(0, true); // 30 kB: 26 fragments
+    ASSERT_TRUE(sim.host.engine
+                    .push_access_unit({.stream_id = 0,
+                                       .keyframe = true,
+                                       .codec_config = true,
+                                       .capture_time_us = 0,
+                                       .data = bytes},
+                                      sim.network.now)
+                    .has_value());
+    const auto at_once = sim.host.transport.datagrams_sent - before;
+    EXPECT_GE(at_once, 1U);
+    EXPECT_LE(at_once, 3U) << "not the whole frame in one burst";
+    sim.run_for(milliseconds(12)); // half of a 60 Hz frame interval, and some slack
+    EXPECT_GE(sim.host.transport.datagrams_sent - before, 26U) << "all of it within the window";
+    sim.run_for(milliseconds(20));
+    EXPECT_EQ(sim.viewer.observer.frame_indices, std::vector<std::uint32_t>{0});
+}
+
+TEST(SessionEngine, StreamsShareThePacingWindow) {
+    Simulation sim(TrustDecision::Trusted, TrustDecision::Trusted, true, 2);
+    sim.producing = false;
+    sim.connect();
+    sim.run_for(seconds(1));
+    ASSERT_EQ(sim.host.engine.state(), SessionState::Streaming);
+
+    const auto before = sim.host.transport.datagrams_sent;
+    const auto bytes = osplay::test::synthetic_frame(0, true);
+    for (std::uint8_t stream = 0; stream < 2; ++stream) {
+        ASSERT_TRUE(sim.host.engine
+                        .push_access_unit({.stream_id = stream,
+                                           .keyframe = true,
+                                           .codec_config = true,
+                                           .capture_time_us = 0,
+                                           .data = bytes},
+                                          sim.network.now)
+                        .has_value());
+    }
+    sim.run_for(milliseconds(12));
+    EXPECT_GE(sim.host.transport.datagrams_sent - before, 52U)
+        << "both frames within half a frame interval, not one after the other";
+}
+
+TEST(SessionEngine, ALostLastFrameArrivesAfterTheScreenStopsChanging) {
+    // A loss window that starts mid-frame would drop that frame; these cover whole frames.
+    Simulation sim(TrustDecision::Trusted, TrustDecision::Trusted, false);
     sim.connect();
     sim.run_for(seconds(2));
     ASSERT_FALSE(sim.pushed.empty());
@@ -513,7 +576,8 @@ TEST(SessionEngine, OlderCursorPositionsAreDropped) {
 }
 
 TEST(SessionEngine, ALostCursorShapeReturnsWhenPositionsNameIt) {
-    Simulation sim;
+    // A loss window that starts mid-frame would drop that frame; these cover whole frames.
+    Simulation sim(TrustDecision::Trusted, TrustDecision::Trusted, false);
     sim.connect();
     sim.run_for(seconds(1));
     sim.network.media_loss = 1.0;
