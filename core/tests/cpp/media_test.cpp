@@ -16,6 +16,7 @@ namespace media = osplay::media;
 namespace protocol = osplay::protocol;
 using osplay::Microseconds;
 using osplay::TimePoint;
+using std::chrono::microseconds;
 using std::chrono::milliseconds;
 
 std::vector<std::uint8_t> frame_bytes(std::size_t size, std::uint8_t seed) {
@@ -228,6 +229,24 @@ TEST_F(ReassemblerTest, AStallOfThisThreadIsNotCountedAgainstAFrame) {
     feed({frame[1], frame[2]});
     EXPECT_EQ(sink.frame_ids, (std::vector<std::uint32_t>{0, 1}));
     EXPECT_EQ(reassembler.stats().frames_dropped, 0U);
+}
+
+TEST_F(ReassemblerTest, ACoarseTimerStillNacksAndDropsInTime) {
+    feed(make(500, true));
+    reassembler.tick(now);
+    auto frame = make(3000, false);
+    feed({frame[0]});
+    // Windows' default timer resolution: ticks 15.6 ms apart instead of 2 ms.
+    for (int tick = 0; tick < 2; ++tick) {
+        now += microseconds(15'625);
+        reassembler.tick(now);
+    }
+    ASSERT_EQ(sink.nacks.size(), 1U) << "NACKed within two coarse ticks";
+    for (int tick = 0; tick < 3; ++tick) {
+        now += microseconds(15'625);
+        reassembler.tick(now);
+    }
+    EXPECT_TRUE(reassembler.waiting_for_keyframe()) << "dropped, not held until 8 frames pile up";
 }
 
 TEST_F(ReassemblerTest, NacksWholeFramesThatNeverArrived) {

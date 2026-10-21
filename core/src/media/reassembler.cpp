@@ -161,9 +161,11 @@ void Reassembler::tick(TimePoint now) {
     // next keyframe with it).
     if (last_tick_) {
         const auto gap = std::chrono::duration_cast<Microseconds>(now - *last_tick_);
+        // Only the part beyond the threshold: a coarse timer (15.6 ms on Windows by default) then
+        // slows the deadlines down instead of stopping them.
         if (gap > config_.stall_threshold) {
             for (auto& [frame_id, frame] : pending_) {
-                frame.last_progress += gap;
+                frame.last_progress += gap - config_.stall_threshold;
             }
         }
     }

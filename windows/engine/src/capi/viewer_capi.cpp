@@ -1,4 +1,5 @@
 #include "../engine_tunables.hpp"
+#include "../media/precision_timer_scope.hpp"
 #include "../present/presentation_thread.hpp"
 #include "../viewer/monitor_layout.hpp"
 #include "../viewer/viewer_orchestrator.hpp"
@@ -109,6 +110,8 @@ struct osplay_engine_viewer final : private osplay::engine::ViewerObserver {
     osplay_engine_viewer& operator=(osplay_engine_viewer&&) = delete;
 
     osplay_engine_viewer_callbacks callbacks;
+    /// The session's tick sends NACKs and drops late frames; at 15.6 ms it does neither in time.
+    osplay::engine::PrecisionTimerScope timer;
     std::vector<OfferedMonitor> offered;
     std::unique_ptr<osplay::engine::PresentationThread> presentation;
     std::unique_ptr<osplay::engine::WindowsViewerStreamFactory> streams;
