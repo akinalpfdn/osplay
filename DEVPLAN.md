@@ -218,7 +218,7 @@ Phase 3 writes the authoritative `docs/PROTOCOL.md` and binary fixtures in `prot
 
 ### Media behavior
 - Host encoders: realtime, no frame reordering, very long GOP, IDR only on request or stream start, capped bitrate from the quality preset, low-latency rate control where available.
-- Viewer: no jitter buffer. Decode and present immediately. If a frame is incomplete at its deadline (default one frame interval plus measured RTT), drop it, send a NACK once if time allows, otherwise request an IDR. IDR requests are rate-limited per stream.
+- Viewer: no jitter buffer. Decode and present immediately. If a frame is incomplete at its deadline (default one frame interval plus measured RTT), drop it, send a NACK once if time allows, otherwise request an IDR. (Changed 2026-10-22: up to 3 NACKs per frame and a deadline that leaves time for them, see DECISIONS.md.) IDR requests are rate-limited per stream.
 - Quality presets: Balanced, High, Ultra. Each maps to bits-per-pixel-per-second, so bitrate scales with resolution and refresh. Defaults live in one constants file per platform.
 - Simple bitrate adaptation from ReceiverReports: step down on sustained loss, step up slowly when clean, bounded by the preset.
 

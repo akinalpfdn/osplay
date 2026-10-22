@@ -167,7 +167,7 @@ TEST_F(ReassemblerTest, ReordersFragmentsAndHoldsAFrameUntilItsPredecessorComple
     EXPECT_EQ(sink.frames[1], sent[1]);
 }
 
-TEST_F(ReassemblerTest, NacksMissingFragmentsOnceAndRecoversWithTheRetransmission) {
+TEST_F(ReassemblerTest, NacksMissingFragmentsAndRecoversWithTheRetransmission) {
     feed(make(500, true));
     auto frame = make(5 * protocol::kMaxVideoPayload, false);
     feed({frame[0], frame[2], frame[4]});
@@ -182,7 +182,7 @@ TEST_F(ReassemblerTest, NacksMissingFragmentsOnceAndRecoversWithTheRetransmissio
               (std::vector<protocol::NackRange>{{.first_fragment = 1, .count = 1},
                                                 {.first_fragment = 3, .count = 1}}));
     reassembler.tick(now + milliseconds(1));
-    EXPECT_EQ(sink.nacks.size(), 1U) << "a frame is NACKed only once";
+    EXPECT_EQ(sink.nacks.size(), 1U) << "the repair gets time before the next NACK";
     feed({frame[1], frame[3]});
     EXPECT_EQ(sink.frame_ids, (std::vector<std::uint32_t>{0, 1}));
 }
@@ -193,7 +193,7 @@ TEST_F(ReassemblerTest, DropsAtTheDeadlineAndSkipsToTheNextKeyframe) {
     feed({lost[0], lost[1]});
     auto dependent = make(500, false);
     feed(dependent);
-    now += milliseconds(19); // frame interval 16 ms + minimum RTT 2 ms
+    now += milliseconds(34); // half the frame interval, then three NACKs of 8 ms each
     reassembler.tick(now);
     EXPECT_TRUE(reassembler.waiting_for_keyframe());
     EXPECT_GE(sink.keyframe_requests, 1);
@@ -241,12 +241,28 @@ TEST_F(ReassemblerTest, ACoarseTimerStillNacksAndDropsInTime) {
         now += microseconds(15'625);
         reassembler.tick(now);
     }
-    ASSERT_EQ(sink.nacks.size(), 1U) << "NACKed within two coarse ticks";
+    ASSERT_GE(sink.nacks.size(), 1U) << "NACKed within two coarse ticks";
     for (int tick = 0; tick < 3; ++tick) {
         now += microseconds(15'625);
         reassembler.tick(now);
     }
     EXPECT_TRUE(reassembler.waiting_for_keyframe()) << "dropped, not held until 8 frames pile up";
+}
+
+TEST_F(ReassemblerTest, NacksAgainWhenTheRepairDoesNotArrive) {
+    feed(make(500, true));
+    reassembler.set_rtt(milliseconds(20));
+    auto frame = make(3000, false);
+    feed({frame[0], frame[2]});
+    for (int step = 0; step < 90; ++step) { // 1 ms ticks
+        now += milliseconds(1);
+        reassembler.tick(now);
+    }
+    ASSERT_EQ(sink.nacks.size(), 3U) << "at 8 ms, then every 1.5 RTT (30 ms)";
+    EXPECT_FALSE(reassembler.waiting_for_keyframe()) << "the third NACK still has time";
+    feed({frame[1]}); // the third repair arrives in time
+    EXPECT_EQ(sink.frame_ids, (std::vector<std::uint32_t>{0, 1}));
+    EXPECT_EQ(sink.keyframe_requests, 0);
 }
 
 TEST_F(ReassemblerTest, NacksWholeFramesThatNeverArrived) {

@@ -11,8 +11,21 @@ using protocol::kMaxVideoPayload;
 Reassembler::Reassembler(std::uint8_t stream_id, ReassemblerConfig config, ReassemblySink& sink)
     : stream_id_(stream_id), config_(config), sink_(&sink) {}
 
+Microseconds Reassembler::nack_interval() const {
+    const Microseconds rtt = std::max(rtt_, config_.minimum_rtt);
+    return std::max(config_.frame_interval / 2, rtt + rtt / 2);
+}
+
+bool Reassembler::nack_due(const Pending& frame, Microseconds elapsed, TimePoint now) const {
+    if (elapsed < config_.frame_interval / 2) {
+        return false;
+    }
+    return frame.nacks == 0 ||
+           (frame.nacks < config_.max_nacks && now - frame.last_nack >= nack_interval());
+}
+
 Microseconds Reassembler::deadline() const {
-    return config_.frame_interval + std::max(rtt_, config_.minimum_rtt);
+    return config_.frame_interval / 2 + nack_interval() * config_.max_nacks;
 }
 
 void Reassembler::reset() {
@@ -166,6 +179,7 @@ void Reassembler::tick(TimePoint now) {
         if (gap > config_.stall_threshold) {
             for (auto& [frame_id, frame] : pending_) {
                 frame.last_progress += gap - config_.stall_threshold;
+                frame.last_nack += gap - config_.stall_threshold;
             }
         }
     }
@@ -191,8 +205,9 @@ void Reassembler::tick(TimePoint now) {
                 break;
             }
             const bool useful = !waiting_for_keyframe_ || frame.keyframe;
-            if (!frame.nacked && useful && elapsed >= config_.frame_interval / 2) {
-                frame.nacked = true;
+            if (useful && nack_due(frame, elapsed, now)) {
+                ++frame.nacks;
+                frame.last_nack = now;
                 send_nack(frame_id, frame);
             }
         }
