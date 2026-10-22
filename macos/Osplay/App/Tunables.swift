@@ -35,6 +35,8 @@ enum Tunables {
     enum Viewer {
         /// Refresh rate offered for a display that reports none (built-in panels report 0 Hz).
         static let defaultRefreshRate = 60.0
+        /// Displays a viewer offers at most (the protocol's OSPLAY_MAX_MONITORS).
+        static let maximumDisplays = 4
         /// The local pointer hides after this many seconds without movement over a viewer.
         static let cursorIdleDelay: TimeInterval = 2
         /// Decoder errors closer together than this send one keyframe request (the core limits

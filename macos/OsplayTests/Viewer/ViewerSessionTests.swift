@@ -1,4 +1,5 @@
 import CoreBridge
+import CoreGraphics
 import Foundation
 import Testing
 
@@ -114,6 +115,51 @@ struct ViewerSessionTests {
         try await eventually { harness.presenters.presenters.first?.cursorPositions.count == 1 }
 
         #expect(harness.presenters.presenters.first?.cursorShapes == [4])
+        await session.stop()
+        _ = await run.value
+    }
+
+    @Test("A stream for a monitor this Mac did not offer is stopped on the host")
+    func stopsUnofferedMonitor() async throws {
+        let harness = Harness()
+        let session = ViewerSession(
+            core: harness.core, decoders: harness.decoders, presenters: harness.presenters, power: harness.power,
+            target: { $0.monitorID == 0 ? .fullScreen(1) : nil })
+        let run = Task { await session.run() }
+        let elsewhere = StreamConfiguration(
+            streamID: 3, monitorID: 2, width: 1920, height: 1080, refreshMillihertz: 60_000, profile: .high,
+            cursorMode: .separate, bitrateKbps: 20_000)
+        harness.core.emit(.streamConfiguration(elsewhere))
+        try await eventually { harness.core.stopped == [3] }
+
+        #expect(harness.presenters.presenters.isEmpty)
+        #expect(harness.power.active == 0)
+        await session.stop()
+        _ = await run.value
+    }
+
+    @Test("A display that goes away ends only its own stream")
+    func removedDisplayEndsItsStream() async throws {
+        let harness = Harness()
+        let session = ViewerSession(
+            core: harness.core, decoders: harness.decoders, presenters: harness.presenters, power: harness.power,
+            target: { .fullScreen(CGDirectDisplayID($0.monitorID) + 10) })
+        let run = Task { await session.run() }
+        let second = StreamConfiguration(
+            streamID: 1, monitorID: 1, width: 2560, height: 1440, refreshMillihertz: 60_000, profile: .high,
+            cursorMode: .separate, bitrateKbps: 20_000)
+        harness.core.emit(.streamConfiguration(stream))
+        harness.core.emit(.streamConfiguration(second))
+        try await eventually { harness.presenters.presenters.count == 2 }
+
+        await session.displaysRemoved([1])
+        let kept = try #require(harness.presenters.presenters.first { $0.stream.streamID == 0 })
+        let removed = try #require(harness.presenters.presenters.first { $0.stream.streamID == 1 })
+        #expect(removed.isClosed)
+        #expect(harness.core.stopped == [1], "the host stops only that stream")
+        #expect(kept.isShown && !kept.isClosed)
+        #expect(kept.target == .fullScreen(10))
+        #expect(harness.power.active == 1, "the other display still shows frames")
         await session.stop()
         _ = await run.value
     }

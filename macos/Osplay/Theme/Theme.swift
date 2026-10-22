@@ -58,6 +58,22 @@ enum Theme {
         static let border = Color.primary.opacity(0.35)
     }
 
+    /// This Mac's displays in the menu while viewing, where they sit; like the Windows panel's
+    /// monitor picker.
+    enum DisplayPicker {
+        static let height: CGFloat = 110
+        static let gap: CGFloat = 6
+        static let cornerRadius: CGFloat = 4
+        static let borderWidth: CGFloat = 2
+        static let fill = Color.primary.opacity(0.06)
+        static let hoverFill = Color.primary.opacity(0.12)
+        static let border = Color.primary.opacity(0.2)
+        /// An offered display.
+        static let selectedBorder = Color.accentColor
+        /// Lets a long name fit a small display before it would be cut.
+        static let minimumTextScale: CGFloat = 0.75
+    }
+
     /// The stats box over a watched display: readable on any picture.
     enum StatsOverlay {
         static let background = Color.black.opacity(0.6)

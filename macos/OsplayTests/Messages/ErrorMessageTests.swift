@@ -26,7 +26,8 @@ struct ErrorMessageTests {
     func serviceErrors() {
         let errors: [ConnectionError] = [
             .keyStore(.damaged), .keyStore(.keychain(-25300)), .discovery(.localNetworkDenied),
-            .discovery(.service(-65563)), .noDisplay, .incompatible, .host(.screenRecordingPermissionMissing),
+            .discovery(.service(-65563)), .noDisplay, .noDisplaySelected, .incompatible,
+            .host(.screenRecordingPermissionMissing),
             .roleSwap(.cannotHost), .roleSwap(.busy), .roleSwap(.noAnswer), .roleSwapUnsupported,
             .roleSwapPeerNotFound,
         ]

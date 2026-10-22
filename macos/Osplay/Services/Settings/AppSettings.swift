@@ -34,6 +34,11 @@ final class AppSettings {
         didSet { defaults.set(hasCompletedOnboarding, forKey: Key.onboarding) }
     }
 
+    /// This Mac's displays not offered to hosts, by `LocalDisplay.key`.
+    var excludedDisplays: Set<String> {
+        didSet { save(excludedDisplays, forKey: Key.excludedDisplays) }
+    }
+
     /// Per paired device (by device ID), how its monitors' virtual displays start.
     private(set) var hiDPIChoices: [String: HiDPIChoice] {
         didSet { save(hiDPIChoices, forKey: Key.hiDPIChoices) }
@@ -49,6 +54,7 @@ final class AppSettings {
         statsHotkey = Self.load(Hotkey.self, from: defaults, forKey: Key.statsHotkey) ?? Tunables.Viewer.statsHotkey
         showsStatsOverlay = defaults.bool(forKey: Key.statsOverlay)
         hasCompletedOnboarding = defaults.bool(forKey: Key.onboarding)
+        excludedDisplays = Self.load(Set<String>.self, from: defaults, forKey: Key.excludedDisplays) ?? []
         hiDPIChoices = Self.load([String: HiDPIChoice].self, from: defaults, forKey: Key.hiDPIChoices) ?? [:]
         arrangements = Self.load([String: [ArrangedMonitor]].self, from: defaults, forKey: Key.arrangements) ?? [:]
     }
@@ -99,5 +105,6 @@ final class AppSettings {
         static let hiDPIChoices = "hiDPIChoices"
         static let onboarding = "hasCompletedOnboarding"
         static let arrangements = "displayArrangements"
+        static let excludedDisplays = "excludedViewerDisplays"
     }
 }

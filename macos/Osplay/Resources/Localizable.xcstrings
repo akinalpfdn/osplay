@@ -868,6 +868,23 @@
         }
       }
     },
+    "error.connection.noDisplaySelected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select at least one of your displays to offer."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunmak için ekranlarınızdan en az birini seçin."
+          }
+        }
+      }
+    },
     "error.discovery.localNetwork" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1548,19 +1565,121 @@
         }
       }
     },
+    "menu.displays" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your displays"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ekranlarınız"
+          }
+        }
+      }
+    },
+    "menu.displays.fallback %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Display %lld"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ekran %lld"
+          }
+        }
+      }
+    },
+    "menu.displays.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selected displays are offered to the other computer. Click one to leave it out."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seçili ekranlar diğer bilgisayara sunulur. Dışarıda bırakmak için birine tıklayın."
+          }
+        }
+      }
+    },
+    "menu.displays.leftOut" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Left out"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dışarıda"
+          }
+        }
+      }
+    },
+    "menu.displays.offered" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offered"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunuluyor"
+          }
+        }
+      }
+    },
+    "menu.displays.size %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld × %2$lld"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld × %2$lld"
+          }
+        }
+      }
+    },
     "menu.hotkeyHint %@" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ hides and shows the display."
+            "value" : "%@ hides and shows the displays."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ ekranı gizler ve gösterir."
+            "value" : "%@ ekranları gizler ve gösterir."
           }
         }
       }
@@ -1707,13 +1826,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show another computer's extra display on this Mac's screen."
+            "value" : "Show another computer's extra displays on this Mac's displays."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Başka bir bilgisayarın ek ekranını bu Mac'in ekranında gösterin."
+            "value" : "Başka bir bilgisayarın ek ekranlarını bu Mac'in ekranlarında gösterin."
           }
         }
       }
