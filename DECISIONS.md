@@ -496,10 +496,3 @@ choices the plan leaves open are logged here.
 **Why:** On Wi-Fi the user saw constant loss and grainy video while scrolling, with good fps and ping: a keyframe or scroll frame of dozens of datagrams sent at once overflows the access point's queue. Each loss then lowered the bitrate steeply, which made the picture grainy even when resends had already repaired the frames.
 **Trade-offs:** A large frame arrives up to half a frame interval later (about 8 ms at 60 Hz); a burst outage that begins mid-frame now costs that frame instead of only later ones.
 **Revisit if:** Latency tests (Q4) get worse, or loss stays high on Wi-Fi; then consider FEC.
-
-## 2026-10-22 — Up to three NACKs per frame, with a deadline that allows them
-**Chosen:** A frame is NACKed at half a frame interval and again every max(half a frame interval, 1.5 RTT) while unrepaired, at most 3 times; it is dropped after half a frame interval plus 3 of those intervals without progress (about 33 ms on a quiet link, about 100 ms at 20 ms RTT).
-**Alternatives:** One NACK and a deadline of one frame interval plus RTT (DEVPLAN's original rule); FEC.
-**Why:** Over Wi-Fi the Windows viewer's log showed 65 NACKs, 17 dropped frames and 16 keyframe requests in 30 s: one NACK left about 9 ms of margin against 15–24 ms RTT with jitter, so a quarter of the repairs came too late, and each became a keyframe wait that froze the picture and lowered the bitrate.
-**Trade-offs:** A frame that is truly lost now holds the stream up to about 100 ms before the keyframe request instead of about 40 ms; host resends grow on lossy links.
-**Revisit if:** Latency tests (Q4) show long holds, or loss is mostly whole bursts where repeats do not help.

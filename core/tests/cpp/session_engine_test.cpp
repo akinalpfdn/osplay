@@ -194,7 +194,7 @@ TEST(SessionEngine, RecoversFromFivePercentDatagramLossThroughNacksAndKeyframes)
 
 TEST(SessionEngine, HeavyLossLowersTheHostsBitrateTarget) {
     Simulation sim;
-    sim.network.media_loss = 0.30; // NACKs repair 10%; this many resends count as congestion
+    sim.network.media_loss = 0.10;
     sim.connect();
     sim.run_for(seconds(8));
     ASSERT_FALSE(sim.host.observer.bitrate_targets.empty());

@@ -2,10 +2,9 @@
 
 // Viewer-side frame reassembly for one stream (DEVPLAN "Media behavior"): no jitter buffer —
 // frames are delivered the moment they are complete and in order. A missing fragment is NACKed
-// halfway through the frame interval, and again (up to `max_nacks` times) while the repair does
-// not arrive within 1.5 RTT; a frame still incomplete after its last NACK had that time is
-// dropped, and since later frames reference it, everything up to the next keyframe is discarded
-// and a keyframe is requested.
+// once halfway through the frame interval; a frame still incomplete at its deadline (frame
+// interval plus RTT) is dropped, and since later frames reference it, everything up to the next
+// keyframe is discarded and a keyframe is requested.
 
 #include "protocol/media_packets.hpp"
 #include "util/time.hpp"
@@ -42,9 +41,6 @@ struct ReassemblerConfig {
     Microseconds frame_interval{16'667};
     Microseconds minimum_rtt{2'000};
     std::size_t max_frames_in_flight = 8;
-    /// NACKs per frame: a lost NACK repair or Wi-Fi jitter beyond one RTT would otherwise cost
-    /// a keyframe, which freezes the picture longer than another round trip.
-    int max_nacks = 3;
     /// Ticks come every few milliseconds; a longer gap means this thread did not run (a
     /// scheduling stall), and the time beyond this is not counted against any frame.
     Microseconds stall_threshold{8'000};
@@ -84,8 +80,7 @@ private:
         bool keyframe = false;
         bool codec_config = false;
         std::uint64_t capture_time_us = 0;
-        int nacks = 0;
-        TimePoint last_nack;
+        bool nacked = false;
 
         [[nodiscard]] bool complete() const {
             return fragment_count > 0 && fragments_received == fragment_count;
@@ -95,9 +90,6 @@ private:
     void deliver_ready();
     void drop_through(std::uint32_t frame_id);
     void send_nack(std::uint32_t frame_id, const Pending& frame);
-    /// Time a NACK gets for its repair before the next one.
-    [[nodiscard]] Microseconds nack_interval() const;
-    [[nodiscard]] bool nack_due(const Pending& frame, Microseconds elapsed, TimePoint now) const;
     [[nodiscard]] Microseconds deadline() const;
 
     std::uint8_t stream_id_;

@@ -389,9 +389,7 @@ arrives; Hello tells each side the other's minor version, so the request is not 
 - The viewer delivers frames of a stream in frame_id order.
 - Timing restarts whenever a frame makes progress: a new fragment arrives, or a later frame shows
   that it is missing entirely. So a large keyframe that is still arriving is not given up. A frame
-  that makes no progress for half a frame interval is NACKed, and NACKed again while the repair
-has not arrived within max(half a frame interval, 1.5 × max(RTT, 2 ms)), at most 3 times; a
-frame of which nothing
+  that makes no progress for half a frame interval is NACKed once; a frame of which nothing
   arrived is NACKed as the range (0, 4096).
 - The host keeps the last 16 frames (at most 8 MiB) for retransmission.
 - The host paces large frames: a frame of more than 4 fragments goes out evenly over half its
@@ -405,7 +403,7 @@ frame of which nothing
 - When the viewer's own I/O thread did not run (its timer ticks more than 8 ms apart), the time
   beyond those 8 ms is not counted towards these deadlines: after such a stall the rest of a frame
   may still be waiting in the socket. A coarse timer only slows the deadlines down.
-- A frame without progress for half a frame interval plus 3 times that NACK interval is dropped. The viewer then
+- A frame without progress for a frame interval plus max(RTT, 2 ms) is dropped. The viewer then
   discards frames until the next keyframe and sends KeyframeRequest (reason 2), at most every
   250 ms per stream. More than 8 frames in flight has the same effect.
 - The host turns requests closer together than 100 ms into a single keyframe.
