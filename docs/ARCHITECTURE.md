@@ -115,9 +115,10 @@ ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─�
 A menu bar app (`LSUIElement`) with three surfaces, all built from `Theme` tokens and the string
 catalog (English and Turkish):
 
-- **Menu bar window** (`Features/Menu`): the role (off, share screens, use as display), nearby
-  computers with their paired state, the current session with Disconnect, the quality preset, and
-  links to Settings and Permissions. `ConnectionViewModel` (`Features/Connection`) owns discovery,
+- **Menu bar window** (`Features/Menu`): the role (off, share screens, use as display), this
+  Mac's displays to offer when used as a display (drawn where they sit, like the Windows panel's
+  monitor picker), nearby computers with their paired state, the current session with Disconnect,
+  the quality preset, and links to Settings and Permissions. `ConnectionViewModel` (`Features/Connection`) owns discovery,
   sessions and pairing behind it.
 - **Settings** (`Features/Settings`, SwiftUI `Settings` scene): General (launch at login through
   `SMAppService`, recordable hide/show shortcut, permissions), Displays (per-device arrangement
@@ -142,6 +143,14 @@ core session, and per stream a `ViewerStreamPipeline` (decoder) and a presenter.
 core access unit ─► decode queue ─► VideoToolbox ─► AVSampleBufferVideoRenderer (display immediately)
 core cursor shape/position ─► main actor ─► cursor layer above the video
 ```
+
+- **Displays** (`Services/FramePresenting/LocalDisplays.swift`). Every attached display, up to
+  four, in physical pixels; ids follow the arrangement, left to right, as on Windows. The menu's
+  picker leaves displays out (`AppSettings.excludedDisplays`, keyed by name and place). Each stream
+  is shown on the display whose monitor it extends onto; a stream for a monitor that was not offered
+  is stopped on the host. During a session displays are matched by `CGDirectDisplayID`: a viewed
+  display with a new size, refresh rate or scale starts the session again, one that is unplugged
+  ends only its own stream (unless it was the last one, which starts the session again too).
 
 - **Decode** (`Services/VideoDecoding/`). Annex B is split into NAL units; the SPS and PPS in
   front of each keyframe build the format description, slices go to a realtime
