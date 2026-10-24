@@ -53,6 +53,45 @@ std::uint32_t per_second(std::uint64_t count, Microseconds interval) {
     return static_cast<std::uint32_t>(count * kMicrosPerSecond / micros);
 }
 
+const char* state_name(SessionState state) {
+    switch (state) {
+    case SessionState::Connecting:
+        return "connecting";
+    case SessionState::Handshaking:
+        return "handshaking";
+    case SessionState::AwaitingPairing:
+        return "awaiting pairing";
+    case SessionState::Negotiating:
+        return "negotiating";
+    case SessionState::Streaming:
+        return "streaming";
+    case SessionState::Paused:
+        return "paused";
+    case SessionState::Closed:
+        return "closed";
+    }
+    return "unknown";
+}
+
+std::string describe(const protocol::StreamConfig& stream) {
+    return "Stream " + std::to_string(stream.stream_id) + ": " + std::to_string(stream.width) +
+           "x" + std::to_string(stream.height) + " at " +
+           std::to_string(stream.refresh_millihertz / 1000) + " Hz, " +
+           std::to_string(stream.bitrate_kbps) + " kbps";
+}
+
+/// Totals are since the stream started; `nacks` only counts on a viewer.
+std::string describe(const StreamStats& stream, std::uint32_t rtt_us, std::uint64_t nacks) {
+    return "Stream " + std::to_string(stream.stream_id) + ": " +
+           std::to_string(stream.frames_per_second) + " fps, " +
+           std::to_string(stream.bitrate_kbps) + " kbps, loss " +
+           std::to_string(stream.loss_permille / 10) + "." +
+           std::to_string(stream.loss_permille % 10) + "%, rtt " + std::to_string(rtt_us / 1000) +
+           " ms; total dropped " + std::to_string(stream.frames_dropped) + ", resent " +
+           std::to_string(stream.retransmitted_fragments) + ", nacks " + std::to_string(nacks) +
+           ", keyframe requests " + std::to_string(stream.keyframe_requests);
+}
+
 std::uint16_t loss_permille(std::uint64_t dropped, std::uint64_t completed) {
     const std::uint64_t total = dropped + completed;
     return total == 0 ? std::uint16_t{0} : static_cast<std::uint16_t>(dropped * 1000 / total);
@@ -187,6 +226,11 @@ void SessionEngine::set_state(SessionState state, std::optional<Error> reason) {
         return;
     }
     state_ = state;
+    std::string line = std::string("Session ") + state_name(state);
+    if (reason) {
+        line += " (error " + std::to_string(static_cast<int>(*reason)) + ")";
+    }
+    log(LogLevel::Info, line);
     observer_.on_state(state, reason);
 }
 
@@ -529,6 +573,7 @@ Status<Error> SessionEngine::configure_streams(const std::vector<protocol::Strea
     for (const auto& stream : streams) {
         host_streams_.emplace(stream.stream_id,
                               std::make_unique<HostStream>(stream, config_.tunables));
+        log(LogLevel::Info, describe(stream));
     }
     send(protocol::MediaSetup{.udp_port = transport_.local_media_port(), .session_token = token},
          now);
@@ -550,6 +595,7 @@ void SessionEngine::handle_stream_config(const protocol::StreamConfig& config) {
     viewer_streams_.erase(config.stream_id);
     viewer_streams_.emplace(config.stream_id,
                             std::make_unique<ViewerStream>(*this, config, config_.tunables));
+    log(LogLevel::Info, describe(config));
     observer_.on_stream_config(config);
 }
 
@@ -835,6 +881,8 @@ void SessionEngine::handle_receiver_report(const protocol::ReceiverReport& repor
     stream.fragments_since_report = 0;
     stream.resent_since_report = 0;
     if (target) {
+        log(LogLevel::Info, "Stream " + std::to_string(report.stream_id) + " bitrate target " +
+                                std::to_string(*target) + " kbps");
         observer_.on_bitrate_target(report.stream_id, *target);
     }
 }
@@ -877,6 +925,40 @@ bool SessionEngine::seal_and_send(const protocol::MediaPacket& packet) {
     }
     transport_.send_datagram(std::span(datagram_).first(sealed.value()));
     return true;
+}
+
+void SessionEngine::send_paced(TimePoint now) {
+    while (!paced_.empty()) {
+        PacedFrame& frame = paced_.front();
+        if (now < frame.start) {
+            return;
+        }
+        // The first fragment leaves at once, the rest evenly over the window.
+        const auto elapsed = std::chrono::duration_cast<Microseconds>(now - frame.start);
+        std::uint16_t due = frame.count;
+        if (frame.window.count() > 0 && elapsed < frame.window) {
+            due = static_cast<std::uint16_t>(std::min<std::int64_t>(
+                frame.count,
+                1 + (std::int64_t{frame.count} * elapsed.count() / frame.window.count())));
+        }
+        const auto stream = host_streams_.find(frame.stream_id);
+        const media::AccessUnit* unit =
+            stream == host_streams_.end() ? nullptr : stream->second->cache.find(frame.frame_id);
+        if (unit == nullptr) {
+            paced_.pop_front(); // the stream stopped, or the frame was evicted: nothing to send
+            continue;
+        }
+        if (due > frame.next) {
+            media::Packetizer::fragments(frame.frame_id, *unit, frame.next,
+                                         static_cast<std::uint16_t>(due - frame.next), fragments_);
+            send_fragments(fragments_);
+            frame.next = due;
+        }
+        if (frame.next < frame.count) {
+            return;
+        }
+        paced_.pop_front();
+    }
 }
 
 void SessionEngine::send_fragments(const std::vector<protocol::VideoFragment>& fragments) {
@@ -997,7 +1079,26 @@ Status<Error> SessionEngine::push_access_unit(const media::AccessUnit& unit, Tim
     }
     stream.cache.store(frame_id.value(), unit);
     stream.fragments_since_report += fragments_.size();
-    send_fragments(fragments_);
+    if (fragments_.size() <= config_.tunables.pacing_minimum_fragments) {
+        send_fragments(fragments_);
+    } else {
+        const auto interval = Microseconds{static_cast<std::int64_t>(
+            kMillihertzMicros / std::max<std::uint32_t>(stream.config.refresh_millihertz, 1))};
+        // Streams share the queue, so each gets its part of the window; otherwise two streams at
+        // half an interval each would fill it and the queue would only grow.
+        const auto window = std::chrono::duration_cast<Microseconds>(
+            interval * config_.tunables.pacing_fraction /
+            static_cast<double>(std::max<std::size_t>(host_streams_.size(), 1)));
+        const TimePoint start = std::max(now, paced_until_);
+        paced_.push_back({.stream_id = unit.stream_id,
+                          .frame_id = frame_id.value(),
+                          .next = 0,
+                          .count = static_cast<std::uint16_t>(fragments_.size()),
+                          .start = start,
+                          .window = window});
+        paced_until_ = start + window;
+        send_paced(now);
+    }
     stream.last_frame_id = frame_id.value();
     stream.last_frame_sent = now;
     stream.tail_repeats = 0;
@@ -1151,6 +1252,7 @@ void SessionEngine::on_timer(TimePoint now) {
         }
     }
     expire_role_swap(now);
+    send_paced(now);
     repeat_tails(now);
     if (now >= next_stats_) {
         publish_stats(now);
@@ -1181,7 +1283,7 @@ void SessionEngine::send_reports(TimePoint now) {
     }
 }
 
-void SessionEngine::publish_stats(TimePoint /*now*/) {
+void SessionEngine::publish_stats(TimePoint now) {
     const Microseconds interval = config_.tunables.stats_interval;
     SessionStats stats{.rtt_us = rtt_ ? static_cast<std::uint32_t>(rtt_->count()) : 0,
                        .clock_offset_us = clock_offset_us_,
@@ -1212,6 +1314,16 @@ void SessionEngine::publish_stats(TimePoint /*now*/) {
              .latency_us = stream->last_latency_us});
         stream->frames_in_window = 0;
         stream->bytes_in_window = 0;
+    }
+    if (now >= next_stats_log_) {
+        next_stats_log_ = now + config_.tunables.stats_log_interval;
+        for (const auto& stream : stats.streams) {
+            const auto viewer = viewer_streams_.find(stream.stream_id);
+            const std::uint64_t nacks = viewer == viewer_streams_.end()
+                                            ? 0
+                                            : viewer->second->reassembler.stats().nacks_sent;
+            log(LogLevel::Info, describe(stream, stats.rtt_us, nacks));
+        }
     }
     observer_.on_stats(stats);
 }

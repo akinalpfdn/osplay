@@ -52,6 +52,7 @@ public:
     std::vector<std::uint32_t> pairing_codes;
     std::vector<crypto::Key> paired;
     std::vector<protocol::Monitor> monitors;
+    std::vector<std::string> info_logs;
     std::vector<protocol::StreamConfig> stream_configs;
     int keyframe_requests = 0;
     std::vector<std::uint32_t> frame_indices; // decoded from delivered access units
@@ -110,7 +111,11 @@ public:
         role_swap_answers.push_back(answer);
         role_swap_peer = key;
     }
-    void on_log(session::LogLevel /*level*/, std::string_view /*message*/) override {}
+    void on_log(session::LogLevel level, std::string_view message) override {
+        if (level == session::LogLevel::Info) {
+            info_logs.emplace_back(message);
+        }
+    }
 
     [[nodiscard]] SessionState state() const {
         return states.empty() ? SessionState::Connecting : states.back();
@@ -130,6 +135,7 @@ public:
 
     std::optional<std::uint16_t> media_port;
     bool media_source_accepted = false;
+    std::size_t datagrams_sent = 0;
     bool closed = false;
 
 private:
@@ -245,6 +251,7 @@ inline void SimulatedTransport::send_control(std::span<const std::uint8_t> frame
     network_.enqueue_control(side_, frame);
 }
 inline void SimulatedTransport::send_datagram(std::span<const std::uint8_t> datagram) {
+    ++datagrams_sent;
     network_.enqueue_datagram(side_, datagram);
 }
 inline void SimulatedTransport::close() {

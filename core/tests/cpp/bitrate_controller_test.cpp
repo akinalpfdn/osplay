@@ -27,8 +27,8 @@ std::optional<std::uint32_t> feed(BitrateController& controller, int count,
 
 TEST(BitrateController, LostFramesLowerTheBitrateDownToTheFloor) {
     BitrateController controller(kConfigured, BitrateTunables{});
-    EXPECT_EQ(controller.on_report(30, kFragments, 0), 15'000U);
-    EXPECT_EQ(controller.on_report(30, kFragments, 0), 11'250U);
+    EXPECT_EQ(controller.on_report(30, kFragments, 0), 17'000U);
+    EXPECT_EQ(controller.on_report(30, kFragments, 0), 14'450U);
     feed(controller, 20, 30);
     EXPECT_EQ(controller.target_kbps(), 5'000U) << "a quarter of the configured bitrate";
     EXPECT_FALSE(controller.on_report(30, kFragments, 0).has_value()) << "already at the floor";
@@ -36,9 +36,9 @@ TEST(BitrateController, LostFramesLowerTheBitrateDownToTheFloor) {
 
 TEST(BitrateController, ManyResentFragmentsCountAsCongestion) {
     BitrateController controller(kConfigured, BitrateTunables{});
-    EXPECT_EQ(controller.on_report(0, kFragments, kFragments / 10), 15'000U);
-    EXPECT_FALSE(controller.on_report(0, kFragments, kFragments / 100).has_value())
-        << "1% resent is a clean interval";
+    EXPECT_EQ(controller.on_report(0, kFragments, kFragments / 4), 17'000U);
+    EXPECT_FALSE(controller.on_report(0, kFragments, kFragments / 10).has_value())
+        << "10% resent is repaired in time: a clean interval";
 }
 
 TEST(BitrateController, ACleanLinkClimbsBackToTheConfiguredBitrateButNotAbove) {

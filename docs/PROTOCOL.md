@@ -392,14 +392,17 @@ arrives; Hello tells each side the other's minor version, so the request is not 
   that makes no progress for half a frame interval is NACKed once; a frame of which nothing
   arrived is NACKed as the range (0, 4096).
 - The host keeps the last 16 frames (at most 8 MiB) for retransmission.
+- The host paces large frames: a frame of more than 4 fragments goes out evenly over half its
+  stream's frame interval (divided among the streams) instead of in one burst, which Wi-Fi queues
+  drop. Smaller frames and retransmissions leave at once.
 - A loss is only visible when a later fragment arrives, so a stream whose last frame was lost
   entirely would never recover once the screen stops changing. The host therefore sends the last
   fragment of a stream's newest frame again 50 ms, 200 ms and 700 ms after that frame, unless a
   newer frame went out. A viewer that already has the frame ignores it; one that lost the frame
   learns of it and NACKs the rest. No new message is involved.
-- Time during which the viewer's own I/O thread did not run (a gap of more than 8 ms between its
-  timer ticks) is not counted towards these deadlines: after such a stall the rest of a frame may
-  still be waiting in the socket.
+- When the viewer's own I/O thread did not run (its timer ticks more than 8 ms apart), the time
+  beyond those 8 ms is not counted towards these deadlines: after such a stall the rest of a frame
+  may still be waiting in the socket. A coarse timer only slows the deadlines down.
 - A frame without progress for a frame interval plus max(RTT, 2 ms) is dropped. The viewer then
   discards frames until the next keyframe and sends KeyframeRequest (reason 2), at most every
   250 ms per stream. More than 8 frames in flight has the same effect.
@@ -409,7 +412,7 @@ arrives; Hello tells each side the other's minor version, so the request is not 
 
 The host adapts each stream's encoder bitrate from the viewer's ReceiverReports (once per second).
 An interval is congested when the viewer lost at least 1% of its frames or the host resent at least
-5% of the fragments it sent; the target then drops to 75%. After three clean intervals in a row it
+20% of the fragments it sent; the target then drops to 85%. After three clean intervals in a row it
 rises by 8%. It never exceeds the bitrate in StreamConfig and never drops below a quarter of it
 (at least 1 Mbit/s). Changes under 5% are not passed to the encoder. Nothing on the wire changes:
 StreamConfig keeps the configured bitrate.

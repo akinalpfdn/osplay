@@ -490,3 +490,16 @@ choices the plan leaves open are logged here.
 **Trade-offs:** Release moves later; the Windows multi-monitor work changes the helper protocol and needs testing on the developer's hardware.
 **Revisit if:** —
 
+## 2026-10-22 — The host paces large frames; bitrate adaptation reacts less
+**Chosen:** Frames of more than 4 fragments are spread over half the frame interval (shared among streams) instead of one burst. Bitrate adaptation now drops to 85% (was 75%) and counts resends as congestion only from 20% (was 5%).
+**Alternatives:** Only lowering the bitrate further on loss; FEC; a larger socket send buffer.
+**Why:** On Wi-Fi the user saw constant loss and grainy video while scrolling, with good fps and ping: a keyframe or scroll frame of dozens of datagrams sent at once overflows the access point's queue. Each loss then lowered the bitrate steeply, which made the picture grainy even when resends had already repaired the frames.
+**Trade-offs:** A large frame arrives up to half a frame interval later (about 8 ms at 60 Hz); a burst outage that begins mid-frame now costs that frame instead of only later ones.
+**Revisit if:** Latency tests (Q4) get worse, or loss stays high on Wi-Fi; then consider FEC.
+
+## 2026-10-22 — User decision: one NACK per frame stays
+**Chosen:** A frame is NACKed once, halfway through the frame interval, and dropped after one frame interval plus max(RTT, 2 ms) without progress, as DEVPLAN specifies.
+**Alternatives:** Up to three NACKs per frame, spaced 1.5 RTT apart, with a deadline long enough for them (tried on this branch and reverted).
+**Why:** On the user's Wi-Fi, dropped frames fell only from 0.57 to 0.41 per second, while every frame that was really lost held the picture about 100 ms instead of about 40 ms before the keyframe request; the user saw it as stutter. That repeats barely helped points to loss in bursts, where the repairs are lost too.
+**Trade-offs:** A repair that arrives later than one frame interval plus RTT is wasted, and the frame costs a keyframe.
+**Revisit if:** Loss turns out to be isolated packets rather than bursts (for example once the Mac's AWDL is ruled out), or if FEC is added.

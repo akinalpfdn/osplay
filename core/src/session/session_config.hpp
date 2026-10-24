@@ -26,6 +26,9 @@ struct SessionTunables {
     Microseconds ping_interval{1'000'000};
     Microseconds report_interval{1'000'000};
     Microseconds stats_interval{1'000'000};
+    /// A summary line per stream goes to the log this often: enough to read a session back
+    /// from a bug report without growing the log much (about 50 kB an hour per stream).
+    Microseconds stats_log_interval{10'000'000};
     Microseconds udp_hello_interval{250'000};
     /// Viewer: minimum spacing of KeyframeRequests per stream.
     Microseconds keyframe_request_interval{250'000};
@@ -46,6 +49,11 @@ struct SessionTunables {
     Microseconds role_swap_timeout{10'000'000};
     /// Host: how receiver reports move each stream's bitrate.
     BitrateTunables bitrate;
+    /// Host: a frame's fragments are spread over this share of the stream's frame interval
+    /// (divided among the streams) instead of leaving in one burst, which Wi-Fi queues drop.
+    double pacing_fraction = 0.5;
+    /// Host: frames of at most this many fragments go out at once.
+    std::size_t pacing_minimum_fragments = 4;
 };
 
 struct SessionConfig {

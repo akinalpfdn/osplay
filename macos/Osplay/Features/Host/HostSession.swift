@@ -99,7 +99,6 @@ actor HostSession {
             case .keyframeRequested(let streamID):
                 pipelines[streamID]?.requestKeyframe()
             case .bitrateTarget(let streamID, let kbps):
-                Log.host.info("Stream \(streamID) bitrate target \(kbps) kbps")
                 pipelines[streamID]?.setBitrate(kbps: kbps)
             case .streamStopped(let streamID):
                 await stopStream(streamID)
