@@ -9,6 +9,8 @@ enum ConnectionError: Error, Equatable, Sendable {
     case session(CoreError)
     /// No display to offer as a viewer.
     case noDisplay
+    /// Every display was left out in the picker.
+    case noDisplaySelected
     /// The other device speaks a different protocol version.
     case incompatible
     /// The other computer refused or did not answer a role swap.
@@ -40,6 +42,8 @@ extension ConnectionError {
             error.sessionMessage
         case .noDisplay:
             String(localized: "error.connection.noDisplay")
+        case .noDisplaySelected:
+            String(localized: "error.connection.noDisplaySelected")
         case .incompatible:
             String(localized: "error.connection.incompatible")
         case .roleSwap(let answer):

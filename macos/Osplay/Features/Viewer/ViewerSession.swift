@@ -9,6 +9,7 @@ protocol ViewerCoreSession: AnyObject, Sendable {
     func requestRoleSwap() throws(CoreError)
     func answerRoleSwap(_ answer: RoleSwapAnswer) throws(CoreError)
     func requestKeyframe(_ streamID: UInt8) throws(CoreError)
+    func stopStream(_ streamID: UInt8) throws(CoreError)
     func pauseStream(_ streamID: UInt8) throws(CoreError)
     func resumeStream(_ streamID: UInt8) throws(CoreError)
     func close()
@@ -43,7 +44,8 @@ actor ViewerSession {
     private let decoders: any VideoDecoderMaking
     private let presenters: any FramePresenterMaking
     private let power: any PowerAssertionManaging
-    private let target: @Sendable (StreamConfiguration) -> PresentationTarget
+    /// Where a stream is shown; nil for a monitor this Mac did not offer, which the host then stops.
+    private let target: @Sendable (StreamConfiguration) -> PresentationTarget?
     /// Read with every statistics update, so the setting applies at once.
     private let showsStats: @Sendable () async -> Bool
     private var overlaysShown = false
@@ -54,7 +56,7 @@ actor ViewerSession {
 
     init(
         core: any ViewerCoreSession, decoders: any VideoDecoderMaking, presenters: any FramePresenterMaking,
-        power: any PowerAssertionManaging, target: @escaping @Sendable (StreamConfiguration) -> PresentationTarget,
+        power: any PowerAssertionManaging, target: @escaping @Sendable (StreamConfiguration) -> PresentationTarget?,
         showsStats: @escaping @Sendable () async -> Bool = { false }
     ) {
         self.showsStats = showsStats
@@ -194,6 +196,19 @@ actor ViewerSession {
         }
     }
 
+    /// These offered displays went away (unplugged): their streams end here, and the host stops
+    /// only those; the other displays keep streaming.
+    func displaysRemoved(_ monitorIDs: Set<UInt8>) async {
+        let removed = streams.filter { monitorIDs.contains($0.value.pipeline.stream.monitorID) }.keys.sorted()
+        for streamID in removed {
+            guard let entry = streams.removeValue(forKey: streamID) else { continue }
+            entry.pipeline.stop()
+            await entry.presenter.close()
+            stopOnHost(streamID)
+        }
+        updatePowerAssertion()
+    }
+
     func statistics() -> [UInt8: ViewerStreamStatistics] {
         streams.mapValues(\.pipeline.currentStatistics)
     }
@@ -208,7 +223,13 @@ actor ViewerSession {
             existing.pipeline.stop()
             await existing.presenter.close()
         }
-        let presenter = await presenters.makePresenter(for: stream, target: target(stream))
+        guard let place = target(stream) else {
+            Log.viewer.error(
+                "Stream \(stream.streamID) is for monitor \(stream.monitorID), which this Mac did not offer")
+            stopOnHost(stream.streamID)
+            return
+        }
+        let presenter = await presenters.makePresenter(for: stream, target: place)
         let pipeline = ViewerStreamPipeline(
             stream: stream, decoders: decoders, sink: presenter.sink,
             needsKeyframe: { [weak self] streamID in
@@ -220,6 +241,14 @@ actor ViewerSession {
         }
         updatePowerAssertion()
         eventSink.yield(.streamAdded(stream))
+    }
+
+    private func stopOnHost(_ streamID: UInt8) {
+        do throws(CoreError) {
+            try core.stopStream(streamID)
+        } catch {
+            Log.viewer.error("Stopping stream \(streamID) failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     private func requestKeyframe(_ streamID: UInt8) {

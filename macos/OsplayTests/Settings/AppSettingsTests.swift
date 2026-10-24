@@ -33,8 +33,10 @@ struct AppSettingsTests {
         settings.showsStatsOverlay = true
         settings.setHiDPIChoice(.never, for: "abc")
         settings.hasCompletedOnboarding = true
+        settings.excludedDisplays = ["Built-in Retina Display|0|0"]
 
         let reloaded = AppSettings(defaults: defaults)
+        #expect(reloaded.excludedDisplays == ["Built-in Retina Display|0|0"])
         #expect(reloaded.qualityPreset == .ultra)
         #expect(reloaded.viewerHotkey == settings.viewerHotkey)
         #expect(reloaded.showsStatsOverlay)

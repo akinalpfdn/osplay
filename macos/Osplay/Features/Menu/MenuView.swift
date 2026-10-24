@@ -236,6 +236,7 @@ private struct ViewingSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
+            DisplayPicker(connection: connection)
             Text("menu.nearby")
                 .font(Theme.Typography.sectionTitle)
                 .foregroundStyle(Theme.Colors.secondary)
@@ -266,6 +267,116 @@ private struct ViewingSection: View {
                 SwapRow(connection: connection, hotkey: swapHotkey)
             }
         }
+    }
+}
+
+/// This Mac's displays where they sit; the selected ones are offered to hosts.
+private struct DisplayPicker: View {
+    let connection: ConnectionViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
+            Text("menu.displays")
+                .font(Theme.Typography.sectionTitle)
+                .foregroundStyle(Theme.Colors.secondary)
+            DisplayPickerLayout(displays: connection.displays) { display in
+                DisplayTile(display: display, isOffered: connection.isOffered(display)) {
+                    connection.setOffered(display, !connection.isOffered(display))
+                }
+            }
+            .disabled(connection.isSessionActive)
+            Text("menu.displays.hint")
+                .font(Theme.Typography.caption)
+                .foregroundStyle(Theme.Colors.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// Places one tile per display as the displays are arranged.
+private struct DisplayPickerLayout<Tile: View>: View {
+    let displays: [LocalDisplay]
+    @ViewBuilder let tile: (LocalDisplay) -> Tile
+
+    var body: some View {
+        GeometryReader { geometry in
+            let frames = DisplayPickerGeometry.tileFrames(
+                of: displays, in: geometry.size, gap: Theme.DisplayPicker.gap)
+            ZStack(alignment: .topLeading) {
+                ForEach(displays) { display in
+                    if let frame = frames[display.id] {
+                        tile(display)
+                            .frame(width: frame.width, height: frame.height)
+                            .offset(x: frame.minX, y: frame.minY)
+                    }
+                }
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+        }
+        .frame(height: Theme.DisplayPicker.height)
+    }
+}
+
+/// Where the picker draws each display: the arrangement scaled to fit and centered, with a gap
+/// between neighbours.
+enum DisplayPickerGeometry {
+    static func tileFrames(of displays: [LocalDisplay], in size: CGSize, gap: CGFloat) -> [UInt8: CGRect] {
+        let bounds = displays.map(\.frame).reduce(CGRect.null) { $0.union($1) }
+        guard !bounds.isEmpty else { return [:] }
+        let scale = min(size.width / bounds.width, size.height / bounds.height)
+        let origin = CGPoint(
+            x: (size.width - bounds.width * scale) / 2, y: (size.height - bounds.height * scale) / 2)
+        return Dictionary(
+            uniqueKeysWithValues: displays.map { display in
+                let frame = CGRect(
+                    x: origin.x + (display.frame.minX - bounds.minX) * scale,
+                    y: origin.y + (display.frame.minY - bounds.minY) * scale,
+                    width: display.frame.width * scale, height: display.frame.height * scale)
+                // A tile too small for the gap keeps its full size rather than vanishing.
+                let fits = frame.width > gap && frame.height > gap
+                return (display.id, fits ? frame.insetBy(dx: gap / 2, dy: gap / 2) : frame)
+            })
+    }
+}
+
+private struct DisplayTile: View {
+    let display: LocalDisplay
+    let isOffered: Bool
+    let toggle: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: toggle) {
+            name
+                .font(Theme.Typography.caption)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(Theme.DisplayPicker.minimumTextScale)
+                .foregroundStyle(isOffered ? Theme.Colors.primary : Theme.Colors.secondary)
+                .padding(Theme.Spacing.small)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    isHovered ? Theme.DisplayPicker.hoverFill : Theme.DisplayPicker.fill,
+                    in: RoundedRectangle(cornerRadius: Theme.DisplayPicker.cornerRadius)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.DisplayPicker.cornerRadius)
+                        .strokeBorder(
+                            isOffered ? Theme.DisplayPicker.selectedBorder : Theme.DisplayPicker.border,
+                            lineWidth: Theme.DisplayPicker.borderWidth)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: Theme.DisplayPicker.cornerRadius))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help(Text("menu.displays.size \(display.description.widthPixels) \(display.description.heightPixels)"))
+        .accessibilityLabel(name)
+        .accessibilityValue(Text(isOffered ? "menu.displays.offered" : "menu.displays.leftOut"))
+        .accessibilityAddTraits(isOffered ? .isSelected : [])
+    }
+
+    private var name: Text {
+        display.description.name.isEmpty
+            ? Text("menu.displays.fallback \(Int(display.id) + 1)") : Text(verbatim: display.description.name)
     }
 }
 

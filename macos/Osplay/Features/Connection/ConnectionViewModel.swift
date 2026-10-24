@@ -33,7 +33,8 @@ final class ConnectionViewModel {
     private struct ViewedHost {
         let deviceID: String
         let name: String
-        let monitor: MonitorDescription
+        /// The displays this session shows the host's monitors on.
+        let displays: [LocalDisplay]
     }
 
     /// After an accepted role swap: the role this Mac takes once the session has closed.
@@ -50,6 +51,8 @@ final class ConnectionViewModel {
     private(set) var peers: [TrustedPeer] = []
     private(set) var error: ConnectionError?
     private(set) var hotkeyUnavailable = false
+    /// This Mac's displays, for the picker of those offered to hosts.
+    private(set) var displays: [LocalDisplay] = LocalDisplays.all()
 
     private let dependencies: AppDependencies
     private let trust: PeerTrustCache
@@ -119,29 +122,33 @@ final class ConnectionViewModel {
             error = .incompatible
             return
         }
-        guard let local = LocalMonitor.offered() else {
-            error = .noDisplay
+        displays = LocalDisplays.all()
+        let offered = offeredDisplays()
+        guard !offered.isEmpty else {
+            error = displays.isEmpty ? .noDisplay : .noDisplaySelected
             return
         }
         error = nil
         let core: CoreSession
         do throws(CoreError) {
             core = try CoreSession.viewer(
-                device: sessionDevice(identity, maximumStreams: 1), monitors: [local.description], host: device.host,
-                port: device.port, trust: { [trust] key in trust.trust(key) })
+                device: sessionDevice(identity, maximumStreams: offered.count), monitors: offered.map(\.description),
+                host: device.host, port: device.port, trust: { [trust] key in trust.trust(key) })
         } catch {
             self.error = .session(error)
             return
         }
-        let displayID = local.displayID
+        // Each of the host's streams is shown on the display whose monitor it extends onto.
+        let places = Dictionary(uniqueKeysWithValues: offered.map { ($0.id, $0.displayID) })
         let session = ViewerSession(
             core: core, decoders: dependencies.decoders, presenters: dependencies.presenters,
-            power: dependencies.power, target: { _ in .fullScreen(displayID) },
+            power: dependencies.power,
+            target: { stream in places[stream.monitorID].map(PresentationTarget.fullScreen) },
             showsStats: { [settings = dependencies.settings] in await MainActor.run { settings.showsStatsOverlay } })
         viewer = session
         peerName = device.advertisement.name
         viewedHost = ViewedHost(
-            deviceID: device.advertisement.deviceID, name: displayName(of: device), monitor: local.description)
+            deviceID: device.advertisement.deviceID, name: displayName(of: device), displays: offered)
         endedByUser = false
         status = .connecting(peer: peerName)
         registerHotkey(for: session)
@@ -202,6 +209,24 @@ final class ConnectionViewModel {
     func displayName(of device: DiscoveredDevice) -> String {
         peers.first { DeviceIdentity.deviceID(publicKey: $0.publicKey) == device.advertisement.deviceID }?.name
             ?? device.advertisement.name
+    }
+
+    /// Whether this display is offered to hosts (the picker's selection, kept across launches).
+    func isOffered(_ display: LocalDisplay) -> Bool {
+        !dependencies.settings.excludedDisplays.contains(display.key)
+    }
+
+    /// Offers this display to hosts from the next connection on, or leaves it out.
+    func setOffered(_ display: LocalDisplay, _ offered: Bool) {
+        if offered {
+            dependencies.settings.excludedDisplays.remove(display.key)
+        } else {
+            dependencies.settings.excludedDisplays.insert(display.key)
+        }
+    }
+
+    private func offeredDisplays() -> [LocalDisplay] {
+        displays.filter(isOffered)
     }
 
     /// Loads the paired devices for Settings before any connection did.
@@ -486,12 +511,27 @@ final class ConnectionViewModel {
         Task { await host.stop() }
     }
 
-    /// The display this Mac shows the stream on changed (resolution, lid, unplugged): connect again
-    /// so the host makes its display match.
+    /// This Mac's displays changed. A viewed display with a new size, refresh rate or scale makes the
+    /// session start again so the host matches it; one that went away ends only its own stream,
+    /// unless it was the last, which also starts the session again with what is offered now.
     private func screensChanged() {
-        guard let viewer, let host = viewedHost, LocalMonitor.offered()?.description != host.monitor else { return }
-        resumesAfterClose = true
-        Task { await viewer.stop() }
+        displays = LocalDisplays.all()
+        guard let viewer, let host = viewedHost else { return }
+        let current = Dictionary(displays.map { ($0.displayID, $0) }, uniquingKeysWith: { first, _ in first })
+        let removed = host.displays.filter { current[$0.displayID] == nil }
+        let changed = host.displays.contains { viewed in
+            current[viewed.displayID].map { !$0.hasSameMode(as: viewed) } ?? false
+        }
+        if changed || (!removed.isEmpty && removed.count == host.displays.count) {
+            resumesAfterClose = true
+            Task { await viewer.stop() }
+            return
+        }
+        guard !removed.isEmpty else { return }
+        let removedIDs = Set(removed.map(\.id))
+        viewedHost = ViewedHost(
+            deviceID: host.deviceID, name: host.name, displays: host.displays.filter { !removedIDs.contains($0.id) })
+        Task { await viewer.displaysRemoved(removedIDs) }
     }
 
     /// Connects to this device as soon as Bonjour finds it as a host; `timeout` nil waits as long as
@@ -519,7 +559,7 @@ final class ConnectionViewModel {
     private func answerSwap(
         from key: [UInt8], becoming role: Mode, answer: @escaping (RoleSwapAnswer) -> Void
     ) {
-        let able = role == .sharing ? hasScreenRecordingAccess : LocalMonitor.offered() != nil
+        let able = role == .sharing ? hasScreenRecordingAccess : !offeredDisplays().isEmpty
         guard able, pendingSwap == nil else {
             answer(able ? .busy : .cannotHost)
             return

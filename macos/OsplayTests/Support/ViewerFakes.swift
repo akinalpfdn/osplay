@@ -11,6 +11,7 @@ final class FakeViewerCore: ViewerCoreSession, @unchecked Sendable {
     private var keyframeRequestList: [UInt8] = []
     private var pausedList: [UInt8] = []
     private var resumedList: [UInt8] = []
+    private var stoppedList: [UInt8] = []
     private var closed = false
     private var pairingAnswers: [Bool] = []
 
@@ -32,6 +33,7 @@ final class FakeViewerCore: ViewerCoreSession, @unchecked Sendable {
     func emit(_ event: SessionEvent) { continuation.yield(event) }
 
     func requestKeyframe(_ streamID: UInt8) throws(CoreError) { lock.withLock { keyframeRequestList.append(streamID) } }
+    func stopStream(_ streamID: UInt8) throws(CoreError) { lock.withLock { stoppedList.append(streamID) } }
     func pauseStream(_ streamID: UInt8) throws(CoreError) { lock.withLock { pausedList.append(streamID) } }
     func resumeStream(_ streamID: UInt8) throws(CoreError) { lock.withLock { resumedList.append(streamID) } }
 
@@ -50,6 +52,7 @@ final class FakeViewerCore: ViewerCoreSession, @unchecked Sendable {
     var keyframeRequests: [UInt8] { lock.withLock { keyframeRequestList } }
     var paused: [UInt8] { lock.withLock { pausedList } }
     var resumed: [UInt8] { lock.withLock { resumedList } }
+    var stopped: [UInt8] { lock.withLock { stoppedList } }
 }
 
 /// Decodes synchronously: data starting with 0xBA fails, anything else yields a frame.
