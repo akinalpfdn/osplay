@@ -9,10 +9,12 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace {
 
+using osplay::engine::CaptureStats;
 using osplay::engine::CursorImage;
 using osplay::engine::DisplayError;
 using osplay::engine::HostCorePort;
@@ -142,11 +144,15 @@ public:
     std::optional<MonitorRect> streaming;
     std::optional<HostFailure> failure;
     std::uint32_t detail = 0;
+    std::vector<std::pair<std::uint8_t, CaptureStats>> capture_stats;
 
     void on_streaming(const MonitorRect& monitor) override { streaming = monitor; }
     void on_host_failed(HostFailure host_failure, std::uint32_t failure_detail) override {
         failure = host_failure;
         detail = failure_detail;
+    }
+    void on_capture_stats(std::uint8_t stream_id, const CaptureStats& stats) override {
+        capture_stats.emplace_back(stream_id, stats);
     }
 };
 
@@ -376,6 +382,25 @@ TEST(HostOrchestrator, APipelineFailureRemovesTheMonitorAndClosesTheSession) {
     EXPECT_EQ(h.observer.detail, static_cast<std::uint32_t>(PipelineError::CaptureFailed));
     EXPECT_EQ(h.displays.removed, 1);
     EXPECT_TRUE(h.core.closed);
+}
+
+TEST(HostOrchestrator, CaptureStatsReachTheObserverWithTheirStream) {
+    Harness h;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    const std::vector<osplay_monitor> monitors{monitor(1), monitor(2)};
+    orchestrator.on_viewer_monitors(monitors);
+    orchestrator.wait_idle();
+    h.pipelines.sinks.at(1)->on_capture_stats({.desktop_width = 2560,
+                                               .desktop_height = 1664,
+                                               .images = 7,
+                                               .encoded = 7,
+                                               .access_lost = 3,
+                                               .reconnects = 3,
+                                               .slowest_step_ms = 2});
+    ASSERT_EQ(h.observer.capture_stats.size(), 1U);
+    EXPECT_EQ(h.observer.capture_stats.front().first, 1);
+    EXPECT_EQ(h.observer.capture_stats.front().second.images, 7U);
+    EXPECT_EQ(h.observer.capture_stats.front().second.access_lost, 3U);
 }
 
 TEST(HostOrchestrator, AnEncoderThatCannotStartEndsTheSession) {

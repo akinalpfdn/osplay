@@ -139,11 +139,12 @@ typedef struct osplay_virtual_monitor_status {
 OSPLAY_ENGINE_API osplay_engine_result
 osplay_virtual_display_open(osplay_virtual_display** out_display);
 
-/* Adds the virtual monitor and sets exactly this mode, replacing any previous configuration.
- * Blocks until the monitor has joined the desktop (a few seconds at most). If the mode cannot be
- * set, the monitor is removed again and the error is returned. */
-OSPLAY_ENGINE_API osplay_engine_result osplay_virtual_display_create_monitor(
-    osplay_virtual_display* display, const osplay_virtual_monitor_config* config);
+/* Adds `count` (1...4) virtual monitors and sets exactly these modes, replacing any previous
+ * configuration. All of them name the same GPU. Blocks until the monitors have joined the desktop
+ * (a few seconds at most). If a mode cannot be set, the monitors are removed again and the error
+ * is returned. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_virtual_display_create_monitors(
+    osplay_virtual_display* display, const osplay_virtual_monitor_config* configs, size_t count);
 
 OSPLAY_ENGINE_API osplay_engine_result
 osplay_virtual_display_remove_monitor(osplay_virtual_display* display);

@@ -71,6 +71,9 @@ struct DuplicationPipeline::Worker {
     POINT pointer_position{};
     UINT desktop_width = 0;
     UINT desktop_height = 0;
+    /// Counted since `stats_started` and reported every kCaptureStatsSeconds.
+    CaptureStats stats;
+    std::int64_t stats_started = 0;
 
     std::optional<PipelineError> initialize();
     void run();
@@ -86,6 +89,8 @@ private:
     bool capture_frame(IDXGIResource* resource);
     void update_pointer(const DXGI_OUTDUPL_FRAME_INFO& info);
     bool encode(bool keyframe, std::int64_t captured_at);
+    void note_step(std::int64_t started);
+    void report_stats_if_due();
     [[nodiscard]] std::uint64_t core_time(std::int64_t counter) const;
     void fail(PipelineError error) const { sink->on_pipeline_failed(error); }
 };
@@ -137,11 +142,14 @@ std::optional<PipelineError> DuplicationPipeline::Worker::initialize() {
     if (!reconnect()) {
         return PipelineError::CaptureFailed;
     }
+    stats = {};
+    stats_started = performance_counter();
     return std::nullopt;
 }
 
 void DuplicationPipeline::Worker::run() {
     while (!owner->stopping_ && step()) {
+        report_stats_if_due();
     }
 }
 
@@ -153,24 +161,29 @@ bool DuplicationPipeline::Worker::step() {
     DXGI_OUTDUPL_FRAME_INFO info{};
     ComPtr<IDXGIResource> resource;
     const HRESULT acquired = duplication->AcquireNextFrame(timeout, &info, &resource);
+    const std::int64_t started = performance_counter();
     if (acquired == DXGI_ERROR_DEVICE_REMOVED || acquired == DXGI_ERROR_DEVICE_RESET) {
         fail(PipelineError::CaptureFailed);
         return false;
     }
     if (FAILED(acquired) && acquired != DXGI_ERROR_WAIT_TIMEOUT) {
         // Access lost: mode change, secure desktop (UAC, lock screen) or a full-screen app.
+        ++stats.access_lost;
         duplication.Reset();
         return true;
     }
     if (SUCCEEDED(acquired)) {
         if (info.LastPresentTime.QuadPart != 0 && capture_frame(resource.Get())) {
+            ++stats.images;
             pacer.on_new_image();
             pending_captured_at = info.LastPresentTime.QuadPart;
         }
         update_pointer(info);
         static_cast<void>(duplication->ReleaseFrame()); // a lost duplication shows up next time
     }
-    return encode_if_needed() && poll_encoder();
+    const bool running = encode_if_needed() && poll_encoder();
+    note_step(started);
+    return running;
 }
 
 bool DuplicationPipeline::Worker::wait_for_duplication() {
@@ -228,8 +241,11 @@ bool DuplicationPipeline::Worker::poll_encoder() {
 
 bool DuplicationPipeline::Worker::reconnect() {
     duplication.Reset();
+    const std::int64_t started = performance_counter();
     const HRESULT duplicated = target.output->DuplicateOutput(target.device.Get(), &duplication);
+    note_step(started);
     if (SUCCEEDED(duplicated)) {
+        ++stats.reconnects;
         return true;
     }
     duplication.Reset();
@@ -333,7 +349,30 @@ bool DuplicationPipeline::Worker::encode(bool keyframe, std::int64_t captured_at
     }
     last_submit = performance_counter();
     encoder->submit(slot, static_cast<std::int64_t>(core_time(captured_at)) * 10, keyframe);
+    ++stats.encoded;
     return true;
+}
+
+void DuplicationPipeline::Worker::note_step(std::int64_t started) {
+    const auto milliseconds =
+        static_cast<std::uint32_t>((performance_counter() - started) * 1000 / counter_frequency);
+    stats.slowest_step_ms = std::max(stats.slowest_step_ms, milliseconds);
+}
+
+void DuplicationPipeline::Worker::report_stats_if_due() {
+    const std::int64_t now = performance_counter();
+    if (now - stats_started < counter_frequency * kCaptureStatsSeconds) {
+        return;
+    }
+    stats.desktop_width = desktop_width != 0
+                              ? desktop_width
+                              : static_cast<std::uint32_t>(target.rect.right - target.rect.left);
+    stats.desktop_height = desktop_height != 0
+                               ? desktop_height
+                               : static_cast<std::uint32_t>(target.rect.bottom - target.rect.top);
+    sink->on_capture_stats(stats);
+    stats = {};
+    stats_started = now;
 }
 
 std::uint64_t DuplicationPipeline::Worker::core_time(std::int64_t counter) const {

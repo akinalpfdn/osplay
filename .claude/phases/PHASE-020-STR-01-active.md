@@ -20,9 +20,9 @@ TESTING.md D4 on 2026-10-25: an M1 MacBook host extending onto a MacBook at 3420
 - [x] Tests: size fitting, bitrate, pacing rate; PROTOCOL.md, ARCHITECTURE.md and TESTING.md updated.
 
 ## Acceptance Criteria
-- [ ] D4 again (M1 host → MacBook at 3420×2214 plus a 4K monitor, over Wi-Fi) at 1080p: both displays usable near 60 fps, no keyframe storm.
+- [x] D4 again (M1 host → MacBook at 3420×2214 plus a 4K monitor, over Wi-Fi) at 1080p: both displays usable near 60 fps, no keyframe storm. (2026-10-25: host at 55–60 fps; the remaining loss was AWDL — zero with awdl0 down, halved by #27, the rest is issue #28.)
 - [ ] Native behaves as today.
-- [ ] A Windows host does the same with two large viewer monitors.
+- [x] A Windows host does the same with two large viewer monitors. (2026-10-25, D2 on the RTX 3080 PC at 1080p, after giving every virtual monitor its own driver device; two on one device stalled the whole desktop.)
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)

@@ -7,7 +7,7 @@ namespace osplay::helper {
 inline constexpr const wchar_t* kServiceName = L"OsplayHelper";
 inline constexpr const wchar_t* kServiceDisplayName = L"Osplay Helper";
 inline constexpr const wchar_t* kServiceDescription =
-    L"Adds and removes the Osplay virtual monitor while a display session is active.";
+    L"Adds and removes the Osplay virtual monitors while a display session is active.";
 
 inline constexpr const wchar_t* kVddRegistryKey = L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver";
 inline constexpr const wchar_t* kVddRegistryPathValue = L"VDDPATH";

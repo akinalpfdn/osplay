@@ -41,6 +41,17 @@ struct MonitorRect {
     std::int32_t bottom = 0;
 };
 
+/// What the capture loop saw over one reporting interval, for the log.
+struct CaptureStats {
+    std::uint32_t desktop_width = 0; ///< the virtual monitor's desktop as captured
+    std::uint32_t desktop_height = 0;
+    std::uint32_t images = 0;          ///< new desktop images Windows delivered
+    std::uint32_t encoded = 0;         ///< frames given to the encoder
+    std::uint32_t access_lost = 0;     ///< duplications Windows invalidated
+    std::uint32_t reconnects = 0;      ///< duplications created again
+    std::uint32_t slowest_step_ms = 0; ///< longest loop iteration without its wait for a frame
+};
+
 /// Receives the pipeline's output on the pipeline's own thread. Calls must return quickly.
 class PipelineSink {
 public:
@@ -54,6 +65,8 @@ public:
                                     std::int32_t y, std::uint64_t capture_time_us) = 0;
     /// The pipeline stopped for good; no output follows.
     virtual void on_pipeline_failed(PipelineError error) = 0;
+    /// Every few seconds while the pipeline runs.
+    virtual void on_capture_stats(const CaptureStats& stats) = 0;
 };
 
 class StreamPipeline {

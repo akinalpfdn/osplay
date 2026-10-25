@@ -8,6 +8,7 @@
 #include <exception>
 #include <memory>
 #include <span>
+#include <vector>
 
 struct osplay_virtual_display {
     std::unique_ptr<osplay::engine::VirtualDisplayProvider> provider;
@@ -45,19 +46,23 @@ osplay_engine_result osplay_virtual_display_open(osplay_virtual_display** out_di
 }
 
 osplay_engine_result
-osplay_virtual_display_create_monitor(osplay_virtual_display* display,
-                                      const osplay_virtual_monitor_config* config) {
+osplay_virtual_display_create_monitors(osplay_virtual_display* display,
+                                       const osplay_virtual_monitor_config* configs, size_t count) {
     return guarded([&] {
-        if (display == nullptr || config == nullptr) {
+        if (display == nullptr || configs == nullptr || count == 0) {
             return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
         }
-        const osplay::engine::VirtualMonitorConfig monitor{
-            .width = config->width,
-            .height = config->height,
-            .refresh_millihertz = config->refresh_millihertz,
-            .gpu_name = config->gpu_name_utf8 != nullptr ? config->gpu_name_utf8 : "",
-        };
-        const auto created = display->provider->create_monitors(std::span(&monitor, 1));
+        // More than the helper accepts is rejected by the provider.
+        std::vector<osplay::engine::VirtualMonitorConfig> monitors;
+        for (const osplay_virtual_monitor_config& config : std::span(configs, count)) {
+            monitors.push_back({
+                .width = config.width,
+                .height = config.height,
+                .refresh_millihertz = config.refresh_millihertz,
+                .gpu_name = config.gpu_name_utf8 != nullptr ? config.gpu_name_utf8 : "",
+            });
+        }
+        const auto created = display->provider->create_monitors(monitors);
         return created ? OSPLAY_ENGINE_OK : to_result(created.error());
     });
 }

@@ -58,13 +58,14 @@ TEST(VddSettings, FormatsFractionalRefreshRates) {
     EXPECT_NE(refresh(60'001).find("<refresh_rate>60.001</refresh_rate>"), std::string::npos);
 }
 
-TEST(VddSettings, ListsEveryMonitorAndEachDistinctModeOnce) {
+TEST(VddSettings, GivesEachDeviceOneMonitorThatOffersEveryDistinctModeOnce) {
     const osplay::win::helper::MonitorConfig large{
         .width = 2560, .height = 1440, .refresh_millihertz = 60'000, .gpu_name = ""};
     const osplay::win::helper::MonitorConfig small{
         .width = 1920, .height = 1080, .refresh_millihertz = 60'000, .gpu_name = ""};
     const std::string xml = render_vdd_settings({large, small, large});
-    EXPECT_NE(xml.find("<count>3</count>"), std::string::npos);
+    // Every monitor has its own device; two on one device stall the desktop.
+    EXPECT_NE(xml.find("<count>1</count>"), std::string::npos);
     EXPECT_EQ(count_of(xml, "<resolution>"), 2U);
     EXPECT_LT(xml.find("<width>2560</width>"), xml.find("<width>1920</width>"))
         << "the first monitor's mode is the preferred one";

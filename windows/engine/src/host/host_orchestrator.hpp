@@ -52,6 +52,8 @@ public:
     /// Called on the orchestrator's worker thread.
     virtual void on_streaming(const MonitorRect& monitor) = 0;
     virtual void on_host_failed(HostFailure failure, std::uint32_t detail) = 0;
+    /// Called on the stream's pipeline thread; must return quickly.
+    virtual void on_capture_stats(std::uint8_t stream_id, const CaptureStats& stats) = 0;
 };
 
 /// The largest stream size (DEVPLAN Phase 13c); 0 × 0 streams at the monitor's own size.
@@ -126,6 +128,7 @@ private:
     void on_cursor_position(std::uint8_t stream_id, bool visible, std::uint32_t shape_id,
                             std::int32_t x, std::int32_t y, std::uint64_t capture_time_us);
     void on_pipeline_failed(PipelineError error);
+    void on_capture_stats(std::uint8_t stream_id, const CaptureStats& stats);
 
     HostCorePort* core_;               // never null; outlives the orchestrator
     VirtualDisplayProvider* displays_; // never null

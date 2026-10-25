@@ -26,7 +26,7 @@ DEVMODEW mode_for(const VirtualMonitorConfig& config) {
 } // namespace
 
 Result GdiDisplayModeApplier::apply(std::span<const VirtualMonitorConfig> configs) {
-    // Enabling the device returns before Windows has added the monitors to the desktop, and they
+    // Enabling the devices returns before Windows has added the monitors to the desktop, and they
     // arrive one by one.
     const ULONGLONG deadline = GetTickCount64() + kMonitorArrivalTimeoutMilliseconds;
     auto names = vdd_gdi_device_names();

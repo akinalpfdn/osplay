@@ -64,15 +64,17 @@ std::vector<std::wstring> find_gdi_device_names(const std::wstring& prefix) {
 
 win::Expected<std::vector<std::wstring>, DisplayError> vdd_gdi_device_names() {
     using Result = win::Expected<std::vector<std::wstring>, DisplayError>;
-    const auto device = win::find_device(win::kVddHardwareId);
-    if (!device) {
+    const auto instances = win::device_instances(win::kVddHardwareId);
+    if (instances.empty()) {
         return Result::failure(DisplayError::VddNotInstalled);
     }
-    const auto instance = win::instance_id(*device);
-    if (!instance) {
-        return Result::failure(DisplayError::MonitorNotFound);
+    // The helper gives every monitor its own device and enables them in this order.
+    std::vector<std::wstring> names;
+    for (const std::wstring& instance : instances) {
+        auto found = find_gdi_device_names(interface_path_prefix(instance));
+        names.insert(names.end(), std::make_move_iterator(found.begin()),
+                     std::make_move_iterator(found.end()));
     }
-    auto names = find_gdi_device_names(interface_path_prefix(*instance));
     if (names.empty()) {
         return Result::failure(DisplayError::MonitorNotFound);
     }

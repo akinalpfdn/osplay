@@ -1,6 +1,9 @@
 #include <osplay/win/helper_request_handler.hpp>
 #include <osplay/win/vdd_settings.hpp>
 
+#include <algorithm>
+#include <cstddef>
+#include <optional>
 #include <string>
 
 namespace osplay::win::helper {
@@ -12,9 +15,9 @@ Response with(ResultCode result) {
 
 } // namespace
 
-RequestHandler::RequestHandler(VirtualMonitorDevice& device, SettingsStore& settings,
+RequestHandler::RequestHandler(VirtualMonitorDevices& devices, SettingsStore& settings,
                                HelperLog& log)
-    : device_(device), settings_(settings), log_(log) {}
+    : devices_(devices), settings_(settings), log_(log) {}
 
 Bytes RequestHandler::handle(std::span<const std::uint8_t> message) {
     const auto request = decode_request(message);
@@ -42,12 +45,13 @@ Response RequestHandler::handle(const Request& request) {
 
 void RequestHandler::reset() {
     monitors_.clear();
-    if (device_.is_installed() && device_.is_enabled()) {
-        if (device_.set_enabled(false)) {
-            log_.info("Virtual monitor removed (reset)");
-        } else {
-            log_.error("Could not disable the virtual display device during reset");
-        }
+    if (!devices_.is_installed()) {
+        return;
+    }
+    if (const auto removed = disable_from(0); !removed) {
+        log_.error("Could not disable the virtual display devices during reset");
+    } else if (*removed > 0) {
+        log_.info("Virtual monitors removed (reset): " + std::to_string(*removed));
     }
 }
 
@@ -70,50 +74,82 @@ Response RequestHandler::configure(const std::vector<MonitorConfig>& monitors) {
     }
     log_.info("Configured " + std::to_string(monitors.size()) + " monitor(s): " + modes);
 
-    // The driver reads its settings only when the device starts.
-    if (device_.is_installed() && device_.is_enabled() && !restart_device()) {
+    if (!devices_.is_installed()) {
+        return with(ResultCode::Ok); // Enable reports the missing driver
+    }
+    // The driver reads its settings only when a device starts: running devices start again, and
+    // the ones this configuration does not need stop.
+    const std::size_t used = std::min(devices_.count(), monitors.size());
+    for (std::size_t index = 0; index < used; ++index) {
+        if (devices_.is_enabled(index) &&
+            (!devices_.set_enabled(index, false) || !devices_.set_enabled(index, true))) {
+            log_.error("Could not restart virtual display device " + std::to_string(index));
+            return with(ResultCode::DeviceControlFailed);
+        }
+    }
+    if (!disable_from(monitors.size())) {
+        log_.error("Could not disable an unused virtual display device");
         return with(ResultCode::DeviceControlFailed);
     }
     return with(ResultCode::Ok);
 }
 
 Response RequestHandler::enable() {
-    if (!device_.is_installed()) {
+    if (!devices_.is_installed()) {
         return with(ResultCode::VddNotInstalled);
     }
     if (monitors_.empty()) {
         return with(ResultCode::NotConfigured);
     }
-    if (device_.is_enabled()) {
-        return with(ResultCode::Ok);
+    // One device per monitor; a new device starts at once with the current settings. Never more
+    // additions than monitors are missing, even if a new device does not show up.
+    for (std::size_t present = devices_.count(); present < monitors_.size(); ++present) {
+        if (!devices_.add()) {
+            log_.error("Could not add a virtual display device");
+            return with(ResultCode::DeviceControlFailed);
+        }
+        log_.info("Virtual display device added: " + std::to_string(present + 1));
     }
-    if (!device_.set_enabled(true)) {
-        log_.error("Could not enable the virtual display device");
+    if (devices_.count() < monitors_.size()) {
+        log_.error("Added virtual display devices did not appear");
         return with(ResultCode::DeviceControlFailed);
     }
-    log_.info("Virtual monitor added");
+    std::size_t added = 0;
+    for (std::size_t index = 0; index < monitors_.size(); ++index) {
+        if (devices_.is_enabled(index)) {
+            continue;
+        }
+        if (!devices_.set_enabled(index, true)) {
+            log_.error("Could not enable virtual display device " + std::to_string(index));
+            return with(ResultCode::DeviceControlFailed);
+        }
+        ++added;
+    }
+    if (added > 0) {
+        log_.info("Virtual monitors added: " + std::to_string(added));
+    }
     return with(ResultCode::Ok);
 }
 
 Response RequestHandler::disable() {
-    if (!device_.is_installed()) {
+    if (!devices_.is_installed()) {
         return with(ResultCode::VddNotInstalled);
     }
-    if (!device_.is_enabled()) {
-        return with(ResultCode::Ok);
-    }
-    if (!device_.set_enabled(false)) {
-        log_.error("Could not disable the virtual display device");
+    const auto removed = disable_from(0);
+    if (!removed) {
+        log_.error("Could not disable the virtual display devices");
         return with(ResultCode::DeviceControlFailed);
     }
-    log_.info("Virtual monitor removed");
+    if (*removed > 0) {
+        log_.info("Virtual monitors removed: " + std::to_string(*removed));
+    }
     return with(ResultCode::Ok);
 }
 
 Response RequestHandler::status() {
     Response response = with(ResultCode::Ok);
-    response.status.vdd_installed = device_.is_installed();
-    response.status.device_enabled = response.status.vdd_installed && device_.is_enabled();
+    response.status.vdd_installed = devices_.is_installed();
+    response.status.device_enabled = response.status.vdd_installed && any_enabled();
     response.status.configured = !monitors_.empty();
     response.status.monitor_count = static_cast<std::uint8_t>(monitors_.size());
     if (!monitors_.empty()) {
@@ -124,13 +160,27 @@ Response RequestHandler::status() {
     return response;
 }
 
-bool RequestHandler::restart_device() {
-    if (!device_.set_enabled(false) || !device_.set_enabled(true)) {
-        log_.error("Could not restart the virtual display device");
-        return false;
+std::optional<std::size_t> RequestHandler::disable_from(std::size_t first) {
+    std::size_t removed = 0;
+    for (std::size_t index = first; index < devices_.count(); ++index) {
+        if (!devices_.is_enabled(index)) {
+            continue;
+        }
+        if (!devices_.set_enabled(index, false)) {
+            return std::nullopt;
+        }
+        ++removed;
     }
-    log_.info("Virtual display device restarted to apply settings");
-    return true;
+    return removed;
+}
+
+bool RequestHandler::any_enabled() {
+    for (std::size_t index = 0; index < devices_.count(); ++index) {
+        if (devices_.is_enabled(index)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 std::string_view to_string(DecodeError error) {
