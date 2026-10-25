@@ -163,6 +163,12 @@ public final class CoreSession: Sendable {
         _ = handle.withPointer { osplay_session_close_for_sleep($0) }
     }
 
+    /// Host: turns the viewer away because no virtual display is left for it (the viewer's session
+    /// closes with `.peerBusy`); this session reports `.closed` later.
+    public func refuseBusy() {
+        _ = handle.withPointer { osplay_session_refuse_busy($0) }
+    }
+
     /// Sends Bye when possible and stops the I/O thread; the session reports `.closed` first.
     /// Later commands fail with `.invalidState`.
     public func close() {

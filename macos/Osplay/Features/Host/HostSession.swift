@@ -12,6 +12,7 @@ protocol HostCoreSession: AnyObject, Sendable {
     func push(_ unit: AccessUnit) throws(CoreError)
     func close()
     func closeForSleep()
+    func refuseBusy()
 }
 
 extension CoreSession: HostCoreSession {}
@@ -67,19 +68,23 @@ actor HostSession {
     private let encoders: any VideoEncoderMaking
     private let permissions: any PermissionChecking
     private let policy: @Sendable () async -> HostDisplayPolicy
+    private let budget: DisplayBudget
     private let dump: StreamDump?
     private var pipelines: [UInt8: StreamPipeline] = [:]
+    /// Taken from `budget` for this viewer; given back as its displays go.
+    private var heldDisplays = 0
     private var failure: HostSessionError?
 
     init(
         core: any HostCoreSession, policy: @escaping @Sendable () async -> HostDisplayPolicy,
-        displays: any DisplayLending,
+        displays: any DisplayLending, budget: DisplayBudget = DisplayBudget(),
         captures: any ScreenCaptureMaking, encoders: any VideoEncoderMaking, permissions: any PermissionChecking,
         dumpDirectory: URL? = nil
     ) {
         self.core = core
         self.policy = policy
         self.displays = displays
+        self.budget = budget
         self.captures = captures
         self.encoders = encoders
         self.permissions = permissions
@@ -120,7 +125,12 @@ actor HostSession {
             case .log(let level, let message):
                 log(level, message)
             case .peer(let peer):
-                eventSink.yield(.peer(peer))
+                // With every display taken the viewer is turned away before it pairs.
+                if budget.isExhausted {
+                    refuseBusy()
+                } else {
+                    eventSink.yield(.peer(peer))
+                }
             case .pairingCode(let code, let key):
                 eventSink.yield(.pairingCode(code, peerPublicKey: key))
             case .paired(let key):
@@ -181,7 +191,13 @@ actor HostSession {
     }
 
     private func startStreams(for monitors: [MonitorDescription]) async {
-        let offered = monitors.prefix(Tunables.VirtualDisplay.maximumDisplayCount).map(Self.capped)
+        let granted = budget.take(upTo: min(monitors.count, Tunables.VirtualDisplay.maximumDisplayCount))
+        guard granted > 0 else {
+            refuseBusy()
+            return
+        }
+        heldDisplays = granted
+        let offered = monitors.prefix(granted).map(Self.capped)
         let policy = await policy()
         let lent: [LentDisplay]
         do {
@@ -232,6 +248,12 @@ actor HostSession {
             })
     }
 
+    /// Other viewers use every display this Mac can lend: an orderly end for this session.
+    private func refuseBusy() {
+        Log.host.info("Turned a viewer away: no virtual display left")
+        core.refuseBusy()
+    }
+
     /// Records the first failure and closes the session; `run` finishes the teardown.
     private func end(with error: HostSessionError) {
         guard failure == nil else { return }
@@ -245,6 +267,8 @@ actor HostSession {
         guard let pipeline = pipelines.removeValue(forKey: streamID) else { return }
         await pipeline.stop()
         await displays.returnDisplay(pipeline.displayID)
+        heldDisplays -= 1
+        budget.giveBack(1)
     }
 
     private func stopStreams() async {
@@ -254,6 +278,8 @@ actor HostSession {
             await pipeline.stop()
         }
         await displays.returnAll()
+        budget.giveBack(heldDisplays)
+        heldDisplays = 0
     }
 
     /// High refresh streams come after the MVP (DEVPLAN): a 120 Hz monitor gets a 60 Hz display and

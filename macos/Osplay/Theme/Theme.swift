@@ -121,5 +121,6 @@ enum Theme {
         static let advanced = "wrench.and.screwdriver"
         static let screenRecording = "rectangle.dashed.badge.record"
         static let localNetwork = "network"
+        static let disconnect = "xmark.circle"
     }
 }

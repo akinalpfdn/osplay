@@ -205,6 +205,23 @@
         }
       }
     },
+    "connection.status.connectedMany %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected to %lld computers"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bilgisayara bağlı"
+          }
+        }
+      }
+    },
     "connection.status.connecting %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1163,13 +1180,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The other computer is already connected to another device."
+            "value" : "The other computer already uses all the displays it can extend onto."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Diğer bilgisayar zaten başka bir cihaza bağlı."
+            "value" : "Diğer bilgisayar genişleyebileceği bütün ekranları zaten kullanıyor."
           }
         }
       }
@@ -1854,19 +1871,65 @@
         }
       }
     },
-    "menu.sharing.active" : {
+    "menu.sharing.connecting" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Extended to another computer"
+            "value" : "Connecting…"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Başka bir bilgisayara genişletildi"
+            "value" : "Bağlanıyor…"
+          }
+        }
+      }
+    },
+    "menu.sharing.displays %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld display"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld displays"
+                }
+              }
+            }
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ekran"
+          }
+        }
+      }
+    },
+    "menu.sharing.full" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All four displays are in use"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dört ekranın hepsi kullanımda"
           }
         }
       }
@@ -1884,6 +1947,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bir bilgisayarın bağlanması bekleniyor"
+          }
+        }
+      }
+    },
+    "menu.sharing.waitingNext" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for another computer"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Başka bir bilgisayar bekleniyor"
           }
         }
       }

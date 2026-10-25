@@ -21,13 +21,14 @@ struct HostSessionTests {
         let lender = FakeDisplayLender()
         let captures = FakeCaptureFactory()
         let encoders = FakeEncoderFactory()
+        let budget = DisplayBudget()
 
         func session(
             permissions: FakePermissions = FakePermissions(), streamSize: StreamSizePreset = .native
         ) -> HostSession {
             HostSession(
                 core: core, policy: { HostDisplayPolicy(peerID: Data("peer".utf8), streamSize: streamSize) },
-                displays: lender,
+                displays: lender, budget: budget,
                 captures: captures, encoders: encoders,
                 permissions: permissions)
         }
@@ -276,6 +277,69 @@ struct HostSessionTests {
         #expect(harness.lender.lentMonitors.first?.count == Tunables.VirtualDisplay.maximumDisplayCount)
         await session.stop()
         _ = await run.value
+    }
+}
+
+extension HostSessionTests {
+    @Test("A viewer gets only the displays other viewers left")
+    func takesWhatIsLeft() async throws {
+        let harness = Harness()
+        _ = harness.budget.take(upTo: Tunables.VirtualDisplay.maximumTotalCount - 1)
+        let session = harness.session()
+        let run = Task { await session.run() }
+
+        harness.core.emit(.viewerMonitors(monitors))
+        try await eventually { harness.core.configuredStreams.count == 1 }
+
+        #expect(harness.lender.lentMonitors.first?.map(\.id) == [3])
+        #expect(harness.budget.isExhausted)
+        await session.stop()
+        _ = await run.value
+    }
+
+    @Test("With every display taken, a new viewer is turned away before it pairs")
+    func refusesWhenNoDisplayIsLeft() async throws {
+        let harness = Harness()
+        _ = harness.budget.take(upTo: Tunables.VirtualDisplay.maximumTotalCount)
+        let session = harness.session()
+        let run = Task { await session.run() }
+        let events = Task { () -> [String] in
+            var seen: [String] = []
+            for await event in session.events {
+                if case .peer = event { seen.append("peer") }
+            }
+            return seen
+        }
+
+        harness.core.emit(.peer(PeerInfo(platform: .windows, protocolMinor: 1, deviceName: "PC")))
+
+        #expect(await run.value == nil, "turning a viewer away is an orderly end")
+        #expect(harness.core.refusedBusy)
+        #expect(await events.value.isEmpty, "the viewer never reaches the UI")
+        #expect(harness.lender.lentMonitors.isEmpty)
+    }
+
+    @Test("Displays go back to the shared budget as streams and sessions end")
+    func returnsDisplaysToTheBudget() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        harness.core.emit(.viewerMonitors(monitors))
+        try await eventually {
+            harness.captures.captures.count == 2 && harness.captures.captures.allSatisfy(\.isRunning)
+        }
+
+        harness.core.emit(.streamStopped(streamID: 1))
+        try await eventually { harness.lender.returnedDisplays == [201] }
+        let afterOneStream = harness.budget.take(upTo: Tunables.VirtualDisplay.maximumTotalCount)
+        #expect(afterOneStream == Tunables.VirtualDisplay.maximumTotalCount - 1)
+        harness.budget.giveBack(afterOneStream)
+
+        await session.stop()
+        _ = await run.value
+        #expect(
+            harness.budget.take(upTo: Tunables.VirtualDisplay.maximumTotalCount)
+                == Tunables.VirtualDisplay.maximumTotalCount)
     }
 }
 
