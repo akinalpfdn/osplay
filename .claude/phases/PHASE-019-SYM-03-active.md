@@ -7,11 +7,11 @@ DEVPLAN reference: Phase 13b (part SYM-03). Depends on: Phase 13. Runs before PH
 A host can extend itself onto several computers at once (e.g. a laptop onto two other laptops), on macOS and Windows.
 
 ## Tasks
-- [ ] Host apps listen again as soon as a viewer is accepted, so several sessions run at once; menus list every connected display device.
-- [ ] Mac host: virtual displays owned per session; arrangement per device as today.
-- [ ] Windows host: adding or removing a viewer's monitors while others stream (each monitor has its own driver device, DECISIONS.md 2026-10-25: the other viewers' devices keep running, captures recover, modes reapplied).
-- [ ] Role swap disabled while more than one viewer is connected; per-session Disconnect.
-- [ ] TESTING.md scenarios for two viewers on each host platform.
+- [x] Host apps listen again as soon as a viewer is accepted, so several sessions run at once; menus list every connected display device.
+- [x] Mac host: virtual displays owned per session; arrangement per device as today.
+- [x] Windows host: adding or removing a viewer's monitors while others stream (each monitor has its own driver device, DECISIONS.md 2026-10-25: the other viewers' devices keep running, captures recover, modes reapplied).
+- [x] Role swap disabled while more than one viewer is connected; per-session Disconnect.
+- [x] TESTING.md scenarios for two viewers on each host platform.
 
 ## Acceptance Criteria
 - [ ] A laptop extends onto two other computers at once, on macOS and on Windows.

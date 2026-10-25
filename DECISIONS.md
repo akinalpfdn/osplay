@@ -531,3 +531,10 @@ choices the plan leaves open are logged here.
 **Why:** Four is what the Windows host can drive (helper protocol and driver devices) and about what one host's capture and encoder handle at 1080p. Rows keep every connection and its Disconnect one click away.
 **Trade-offs:** A third viewer may get fewer displays than it offers, or none.
 **Revisit if:** Hosts with more encoder capacity make more than four displays worthwhile.
+
+## 2026-10-25 — Helper protocol 3: devices named by mask, one helper connection per engine
+**Chosen:** Enable and Disable carry a mask of driver devices and Configure only writes the settings file, so one host session's monitors start and stop without restarting another's. All host sessions of the engine share one helper connection (`VirtualDisplayHub`); the helper keeps every device at the index it first got while the service runs, and the engine finds a session's new monitors as the ones that were not on the desktop before its devices started.
+**Alternatives:** Keeping protocol 2 (Configure restarts every running device, so a second viewer would interrupt the first); one helper connection per session (the helper serves one client to stay simple and safe); naming devices by instance ID on the wire (more to validate, and the engine would need the helper's device list).
+**Why:** Several viewers at once (SYM-03) need monitors that come and go independently. Instance IDs can fill gaps left by removed devices, so sorting them would move a running device to another index; a stable order avoids that.
+**Trade-offs:** A device removed by hand while the service runs shifts the indices of the ones after it until the next session.
+**Revisit if:** The helper ever serves more than one client, or a signed driver release makes one device with several monitors usable again.

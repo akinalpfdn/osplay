@@ -408,4 +408,25 @@
   <data name="StreamSizeNative" xml:space="preserve">
     <value>Native</value>
   </data>
+  <data name="ConnectionStatusConnectedMany" xml:space="preserve">
+    <value>Connected to {0} computers</value>
+  </data>
+  <data name="SharingConnecting" xml:space="preserve">
+    <value>Connecting…</value>
+  </data>
+  <data name="SharingDisplayOne" xml:space="preserve">
+    <value>1 display</value>
+  </data>
+  <data name="SharingDisplayMany" xml:space="preserve">
+    <value>{0} displays</value>
+  </data>
+  <data name="SharingWaitingFirst" xml:space="preserve">
+    <value>Waiting for a computer to connect</value>
+  </data>
+  <data name="SharingWaitingNext" xml:space="preserve">
+    <value>Waiting for another computer</value>
+  </data>
+  <data name="SharingFull" xml:space="preserve">
+    <value>All four displays are in use</value>
+  </data>
 </root>

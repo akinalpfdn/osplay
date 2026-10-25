@@ -175,7 +175,7 @@ internal unsafe struct NativeHostCallbacks
     public delegate* unmanaged[Cdecl]<nint, byte*, Trust> OnTrustQuery;
     public delegate* unmanaged[Cdecl]<nint, uint, byte*, void> OnPairingCode;
     public delegate* unmanaged[Cdecl]<nint, byte*, void> OnPaired;
-    public delegate* unmanaged[Cdecl]<nint, int, int, int, int, void> OnStreaming;
+    public delegate* unmanaged[Cdecl]<nint, uint, int, int, int, int, void> OnStreaming;
     public delegate* unmanaged[Cdecl]<nint, EngineResult, void> OnFailed;
     public nint OnStats;
     public delegate* unmanaged[Cdecl]<nint, LogLevel, byte*, void> OnLog;
