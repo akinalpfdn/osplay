@@ -17,7 +17,11 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
 </p>
 
-<p align="center"><a href="README.tr.md">Türkçe</a></p>
+<p align="center">
+  <a href="https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay.dmg"><b>Download for Mac</b></a> ·
+  <a href="https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay-Setup.exe"><b>Download for Windows</b></a> ·
+  <a href="README.tr.md">Türkçe</a>
+</p>
 
 ---
 
@@ -71,7 +75,7 @@ and the streaming protocol for both apps. Details: [`docs/ARCHITECTURE.md`](docs
 
 ## Requirements
 
-- **Mac:** macOS 14 Sonoma or later, Apple silicon.
+- **Mac:** macOS 14 Sonoma or later, Apple silicon. The app also runs on Intel Macs, untested.
 - **Windows:** Windows 10 22H2 or Windows 11, x64, a GPU with hardware H.264 encoding and decoding.
 - Both computers on the same local network. 5 GHz Wi-Fi works; a cable helps with several large
   displays.
@@ -82,16 +86,17 @@ Get the latest version from the [Releases page](https://github.com/akinalpfdn/os
 
 ### macOS
 
-1. Download `Osplay-<version>.dmg`, open it and drag Osplay to Applications.
+1. Download [`Osplay.dmg`](https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay.dmg), open it and drag Osplay to Applications.
 2. Start Osplay; it lives in the menu bar.
 3. To extend this Mac, allow **Screen Recording** when asked. Allow **Local Network** access so the
    two computers can find each other.
 
 ### Windows
 
-1. Download `Osplay-Setup-<version>.exe` and run it.
-2. The installer is not code-signed yet, so Windows SmartScreen may say "Windows protected your
-   PC": choose **More info → Run anyway**.
+1. Download [`Osplay-Setup.exe`](https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay-Setup.exe) and run it.
+2. The installer is not code-signed, so Windows SmartScreen may say "Windows protected your PC":
+   choose **More info → Run anyway**. Each release lists the installer's SHA-256
+   ([how to check it](docs/TROUBLESHOOTING.md#windows-smartscreen-warns-about-the-installer)).
 3. The installer adds the app, the Osplay helper service, the Virtual Display Driver and the
    firewall rules Osplay needs. Osplay lives in the notification area.
 

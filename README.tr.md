@@ -17,7 +17,11 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/lisans-MIT-blue" alt="MIT lisansı"></a>
 </p>
 
-<p align="center"><a href="README.md">English</a></p>
+<p align="center">
+  <a href="https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay.dmg"><b>Mac için indir</b></a> ·
+  <a href="https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay-Setup.exe"><b>Windows için indir</b></a> ·
+  <a href="README.md">English</a>
+</p>
 
 ---
 
@@ -74,7 +78,8 @@ protokolünü uygular. Ayrıntılar: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.
 
 ## Gereksinimler
 
-- **Mac:** macOS 14 Sonoma ve üzeri, Apple silicon.
+- **Mac:** macOS 14 Sonoma ve üzeri, Apple silicon. Uygulama Intel Mac'lerde de çalışır, ama test
+  edilmedi.
 - **Windows:** Windows 10 22H2 ya da Windows 11, x64, donanım H.264 kodlama ve çözme destekleyen
   bir ekran kartı.
 - İki bilgisayar aynı yerel ağda. 5 GHz Wi-Fi yeterli; birden çok büyük ekranda kablo yardımcı
@@ -86,16 +91,20 @@ En son sürümü [Sürümler sayfasından](https://github.com/akinalpfdn/osplay/
 
 ### macOS
 
-1. `Osplay-<sürüm>.dmg` dosyasını indirin, açın ve Osplay'i Uygulamalar klasörüne sürükleyin.
+1. [`Osplay.dmg`](https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay.dmg) dosyasını indirin, açın ve Osplay'i Uygulamalar klasörüne
+   sürükleyin.
 2. Osplay'i başlatın; menü çubuğunda durur.
 3. Bu Mac'i genişletmek için sorulduğunda **Ekran Kaydı**'na izin verin. İki bilgisayarın
    birbirini bulabilmesi için **Yerel Ağ** erişimine izin verin.
 
 ### Windows
 
-1. `Osplay-Setup-<sürüm>.exe` dosyasını indirip çalıştırın.
-2. Kurulum programı henüz kod imzalı olmadığı için Windows SmartScreen "Windows bilgisayarınızı
-   korudu" diyebilir: **Ek bilgi → Yine de çalıştır**'ı seçin.
+1. [`Osplay-Setup.exe`](https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay-Setup.exe) dosyasını indirip çalıştırın.
+2. Kurulum programı kod imzalı olmadığı için Windows SmartScreen "Windows bilgisayarınızı korudu"
+   diyebilir: **Ek bilgi → Yine de çalıştır**'ı seçin. Her sürüm, kurulum programının SHA-256
+   değerini de yayınlar
+   ([nasıl kontrol edilir](docs/TROUBLESHOOTING.md#windows-smartscreen-warns-about-the-installer),
+   İngilizce).
 3. Kurulum programı uygulamayı, Osplay yardımcı servisini, Virtual Display Driver'ı ve Osplay'in
    ihtiyaç duyduğu güvenlik duvarı kurallarını ekler. Osplay bildirim alanında durur.
 

@@ -9,6 +9,7 @@ clone, that is a bug — please open an issue.
 | `macos/` | macOS | Xcode 16 or later (Swift 6), XcodeGen |
 | `windows/engine`, `windows/helper` | Windows | Visual Studio 2022 or later (MSVC), CMake, Ninja |
 | `windows/app` | Windows | .NET 10 SDK |
+| `windows/installer` | Windows | Inno Setup 6 or 7 |
 
 ## macOS
 
@@ -136,6 +137,12 @@ DEVELOPMENT_TEAM = <your team ID>
 
 Then run `xcodegen generate` again.
 
+### Release build
+
+`scripts/macos/release.sh` builds the Release configuration, signs it with a Developer ID
+certificate, notarizes and staples the app and `Osplay.dmg`, and adds the DMG to a GitHub release.
+It is the maintainer's release step and needs their certificate; see [`RELEASING.md`](RELEASING.md).
+
 ### Portable Windows libraries
 
 The Windows helper protocol, request handling and provider logic do not depend on Windows headers.
@@ -215,41 +222,73 @@ lost track of an installation that is still on disk, the script falls back to th
 `dotnet build` look for a `Release|x64` configuration that the solution does not have. Close the
 running shell before rebuilding: it locks `OsplayEngine.dll` in its output folder.
 
+### Installer
+
+In a PowerShell command line at the repository root, with
+[Inno Setup](https://jrsoftware.org/isinfo.php) 6 or 7 installed (`winget install JRSoftware.InnoSetup`):
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+. .\scripts\windows\Enter-DevShell.ps1
+.\scripts\windows\Build-Installer.ps1
+```
+
+It writes `windows\build\installer\Osplay-Setup.exe` and `Osplay-Setup.exe.sha256`. On the way it
+builds the native code with the `release` preset (static MSVC runtime, so no Visual C++
+redistributable is needed) and runs its tests (`-SkipTests` skips them), publishes the shell
+self-contained for win-x64 (no .NET runtime is needed), downloads the pinned Virtual Display Driver
+release and checks its SHA-256, and stages the license texts. The version is `<Version>` in
+`windows/app/Directory.Build.props`. The Release workflow (`.github/workflows/release.yml`) runs the
+same script for version tags and for pull requests that change the packaging; see
+[`RELEASING.md`](RELEASING.md).
+
+The installer (`windows/installer/Osplay.iss`, English and Turkish) needs administrator rights and:
+
+- installs the app, `OsplayEngine.dll` and `OsplayHelper.exe` under `Program Files\Osplay`;
+- adds the Virtual Display Driver package to the driver store (`pnputil /add-driver`);
+- runs `OsplayHelper.exe --install`, which adds the first driver device and registers and starts
+  the OsplayHelper service;
+- adds the inbound firewall rule "Osplay" for `Osplay.exe` on private networks.
+
+An upgrade stops the service first (`OsplayHelper.exe --stop`) and keeps the driver devices, so
+Windows keeps the virtual monitors' arrangement. Uninstalling closes Osplay, runs
+`OsplayHelper.exe --uninstall` (the service, every driver device and the driver settings), asks
+whether to remove the driver package too (`--remove-driver`; a silent uninstall removes it), and
+deletes the firewall rule, the "Start with Windows" entry and the helper's logs. Paired devices and
+settings in `%APPDATA%` stay for a reinstall. The setup log is in `%TEMP%` (`Setup Log *.txt`).
+
 ### Virtual monitor (developer setup)
 
 The Windows host's virtual monitor needs the Virtual Display Driver and the OsplayHelper service.
-The installer will set both up from Phase 14 on; until then, once per machine:
+The installer sets both up, so the easiest start is to install a release once (or an installer
+built as above). For a development build:
 
-1. Install the Virtual Display Driver. `winget install VirtualDrivers.Virtual-Display-Driver`
-   only downloads and unpacks the package; it does **not** install the driver. Either:
-
-   - download the **Virtual Driver Control** app from the
-     [driver's releases](https://github.com/VirtualDrivers/Virtual-Display-Driver/releases), run
-     it and click **Install**; or
-   - from an **administrator** command line in the unpacked winget package, create the device with
-     the bundled `devcon` (the folder is named `x86` but holds the x64 driver):
-
-     ```powershell
-     .\devcon.exe install SignedDrivers\x86\VDD\MttVDD.inf Root\MttVDD
-     ```
-
-   Windows adds an 800×600 monitor as soon as the driver is installed; OsplayHelper disables it
-   again when it starts. Install the driver once: OsplayHelper adds a device per virtual monitor
-   itself (two monitors on one device stall the desktop), and keeps the extra ones disabled.
-
-2. Install the helper service from the same administrator command line, after building:
+1. Point the service at your build from an **administrator** command line, after building:
 
    ```powershell
    cd windows\build\debug\bin
    .\OsplayHelper.exe --install
    ```
 
-   The service points at this build folder. Run `.\OsplayHelper.exe --uninstall` before deleting
-   or moving the folder, and reinstall after rebuilding the helper (the engine refuses a helper
-   that speaks another protocol version with "helper not trusted/unavailable"). Its log is
-   `%ProgramData%\Osplay\logs\helper.log`.
+   `--install` adds the first driver device when there is none and registers the service, or
+   repoints an existing one at this executable. Without an installed Osplay the driver package must
+   be in the driver store first: unpack `VirtualDisplayDriver-x86.Driver.Only.zip` from the
+   driver's [release 25.7.23](https://github.com/VirtualDrivers/Virtual-Display-Driver/releases/tag/25.7.23)
+   (the name says x86 but it holds the x64 driver) and run
+   `pnputil /add-driver <folder>\VirtualDisplayDriver\MttVDD.inf /install`.
 
-3. Drive the monitor from a **normal** (non-administrator) command line with the developer tool:
+   Windows adds an 800×600 monitor as soon as a driver device exists; OsplayHelper disables it
+   again when it starts. OsplayHelper adds a device per virtual monitor itself (two monitors on one
+   device stall the desktop), and keeps the extra ones disabled.
+
+   Reinstall after rebuilding the helper (the engine refuses a helper that speaks another protocol
+   version with "helper not trusted/unavailable"); stop it with `sc.exe stop OsplayHelper` before
+   the build replaces its executable. Running the installed copy's `--install` again
+   (`"$env:ProgramFiles\Osplay\OsplayHelper.exe" --install`) points the service back at the
+   release. `--uninstall` removes the service, the driver devices and the driver settings. The log
+   is `%ProgramData%\Osplay\logs\helper.log`.
+
+2. Drive the monitor from a **normal** (non-administrator) command line with the developer tool:
 
    ```powershell
    cd windows\build\debug\bin
@@ -262,7 +301,7 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    modes and keeps them until you press Enter or close the tool. Closing the tool any other way
    (Ctrl+C, crash) removes the monitors too. A last extra argument names the GPU.
 
-4. To check that the helper rejects malformed requests, send it garbage from PowerShell. .NET pipe
+3. To check that the helper rejects malformed requests, send it garbage from PowerShell. .NET pipe
    clients connect anonymously by default, which the helper refuses, so request identification:
 
    ```powershell
@@ -273,7 +312,7 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    Get-Content "$env:ProgramData\Osplay\logs\helper.log" -Tail 3   # Rejected request: truncated
    ```
 
-5. Test the host pipeline (capture, encode, cursor) from a normal command line. The helper must be
+4. Test the host pipeline (capture, encode, cursor) from a normal command line. The helper must be
    running; the tool adds the virtual monitor itself:
 
    ```powershell
@@ -295,7 +334,7 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    | AMD | AMF MFT | not tested |
    | Intel | Quick Sync MFT | not tested |
 
-6. Test the viewer pipeline (decode, present, hide/show, unplug). `--list` shows the monitors the
+5. Test the viewer pipeline (decode, present, hide/show, unplug). `--list` shows the monitors the
    viewer offers; `--browse` lists the Osplay devices Bonjour finds; `--loopback` hosts a virtual
    monitor through the helper and views it on one physical monitor:
 
@@ -308,7 +347,7 @@ The installer will set both up from Phase 14 on; until then, once per machine:
 
    Every second the loopback prints, per stream, frames presented, decode errors and latency;
    Ctrl+Alt+Shift+V hides and shows the windows (the host pauses the streams while hidden).
-   Viewing a Mac goes through the tray menu (step 7); with two monitors attached the Mac hosts two
+   Viewing a Mac goes through the tray menu (step 6); with two monitors attached the Mac hosts two
    virtual displays, one per monitor, and unplugging one monitor stops only its stream.
 
    To confirm independent flip, start [PresentMon](https://github.com/GameTechDev/PresentMon) in an
@@ -328,7 +367,7 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    | NVIDIA, VZ239 1080p60 + Acer 1440p120, Mac host (M3 Air) | independent flip on both (Acer through MPO), 0 decode errors, hide/show ≈ 1 s, unplug stops only that stream; 1080p60: 57–61 fps, latency 3–13 ms. The 1440p stream ran at 120 Hz then (80–99 fps, 40–65 ms) and is now capped at 60 Hz |
    | NVIDIA, loopback to VZ239 | 0 decode errors, 40–60 fps, latency 7–25 ms, first frame after ≈ 4 s |
 
-7. Test both use cases end to end (DEVPLAN Phase 10). Run the WPF shell (`dotnet run --project
+6. Test both use cases end to end (DEVPLAN Phase 10). Run the WPF shell (`dotnet run --project
    Osplay.App -c Release`) on the PC and the Mac app on the Mac, on the same network:
 
    - **Use case 1 (the Mac gains the PC's monitors):** Mac menu → **Extend this Mac**; PC panel →
