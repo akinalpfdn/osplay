@@ -1,4 +1,4 @@
-<p align="right"><a href="README.md">🇬🇧 English</a></p>
+<p align="right"><a href="README.md">English</a></p>
 
 <p align="center">
   <img src="artwork/icons/osplay-app-icon-1024.png" width="104" alt="Osplay uygulama simgesi">
@@ -35,19 +35,19 @@
   <br><sub>Aynı anda iki MacBook'a genişleyen bir Windows bilgisayar: bir pencere bilgisayarın monitöründen bir MacBook'a geçiyor.</sub>
 </p>
 
-## Neden Osplay
+## Özellikler
 
-- 🖥️ **Pencere değil, gerçek ekran.** macOS ve Windows ek bir monitör görür: yerleştirin, pencereleri
+- **Pencere değil, gerçek ekran.** macOS ve Windows ek bir monitör görür: yerleştirin, pencereleri
   üzerine sürükleyin, çözünürlüğünü ayarlayın.
-- 🔁 **Her yön.** Mac → Windows, Windows → Mac, Mac → Mac ve Windows → Windows.
-- 🧩 **Bütün monitörleriniz.** Ekran olarak kullanılan bilgisayar bütün ekranlarını sunar (en fazla
+- **Her yön.** Mac → Windows, Windows → Mac, Mac → Mac ve Windows → Windows.
+- **Bütün monitörleriniz.** Ekran olarak kullanılan bilgisayar bütün ekranlarını sunar (en fazla
   dört) ve bir bilgisayar aynı anda birden çok bilgisayara genişleyebilir.
-- 🔒 **Yerel ve gizli.** Bulut ve hesap yok. Cihazlar 6 haneli bir kodla bir kez eşleşir, her bağlantı
+- **Yerel ve gizli.** Bulut ve hesap yok. Cihazlar 6 haneli bir kodla bir kez eşleşir, her bağlantı
   uçtan uca şifrelidir.
-- ⚡ **Donanım hızlandırmalı görüntü.** Mac'te VideoToolbox, Windows'ta Media Foundation ile H.264:
+- **Donanım hızlandırmalı görüntü.** Mac'te VideoToolbox, Windows'ta Media Foundation ile H.264:
   varsayılan 1080p, doğal çözünürlüğe kadar.
-- 🔄 **Rolleri yerinde değiştirme.** Tek bir kısayol, ekran olan bilgisayarı genişleyen yapar.
-- 🌍 **Türkçe ve İngilizce**, açık ve koyu tema.
+- **Rolleri yerinde değiştirme.** Tek bir kısayol, ekran olan bilgisayarı genişleyen yapar.
+- **Türkçe ve İngilizce**, açık ve koyu tema.
 
 ## Nasıl çalışır
 
@@ -167,14 +167,14 @@ Evet. Osplay MIT lisansıyla açık kaynaktır.
 
 ## Daha fazlası
 
-- 🔐 **Güvenlik:** cihazlar iki ekranda da 6 haneli bir kodu onaylayarak bir kez eşleşir; bağlantılar
+- **Güvenlik:** cihazlar iki ekranda da 6 haneli bir kodu onaylayarak bir kez eşleşir; bağlantılar
   Noise protokolünü (X25519, ChaCha20-Poly1305, BLAKE2b) kullanır. Bkz.
   [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md); güvenlik açığı bildirmek için
   [`SECURITY.md`](SECURITY.md) (İngilizce).
-- 🛠️ **Sorun giderme:** [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) (İngilizce). Ayarlar ›
+- **Sorun giderme:** [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) (İngilizce). Ayarlar ›
   Gelişmiş › Teşhis, hata bildirirken işe yarayan bir rapor kopyalar; cihaz adları ve adresler gizlenir.
-- 🏗️ **Kaynaktan derleme:** [`docs/BUILDING.md`](docs/BUILDING.md) (İngilizce).
-- 🤝 **Katkıda bulunma:** hata bildirimleri ve pull request'ler memnuniyetle karşılanır; bkz.
+- **Kaynaktan derleme:** [`docs/BUILDING.md`](docs/BUILDING.md) (İngilizce).
+- **Katkıda bulunma:** hata bildirimleri ve pull request'ler memnuniyetle karşılanır; bkz.
   [`CONTRIBUTING.md`](CONTRIBUTING.md) ve [Davranış Kuralları](CODE_OF_CONDUCT.md).
 
 ## Lisans ve teşekkürler

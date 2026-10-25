@@ -1,4 +1,4 @@
-<p align="right"><a href="README.tr.md">🇹🇷 Türkçe</a></p>
+<p align="right"><a href="README.tr.md">Türkçe</a></p>
 
 <p align="center">
   <img src="artwork/icons/osplay-app-icon-1024.png" width="104" alt="Osplay app icon">
@@ -35,19 +35,19 @@
   <br><sub>One Windows PC extended onto two MacBooks at once: a window moves from the PC's monitor onto a MacBook.</sub>
 </p>
 
-## Why Osplay
+## Features
 
-- 🖥️ **Real displays, not a window.** macOS and Windows see an extra monitor: arrange it, drag windows onto it,
+- **Real displays, not a window.** macOS and Windows see an extra monitor: arrange it, drag windows onto it,
   set its resolution.
-- 🔁 **Every direction.** Mac → Windows, Windows → Mac, Mac → Mac and Windows → Windows.
-- 🧩 **All your monitors.** The computer used as a display lends every screen it has (up to four), and one
+- **Every direction.** Mac → Windows, Windows → Mac, Mac → Mac and Windows → Windows.
+- **All your monitors.** The computer used as a display lends every screen it has (up to four), and one
   computer can extend onto several others at once.
-- 🔒 **Local and private.** No cloud, no account. Devices pair once with a 6-digit code, and every
+- **Local and private.** No cloud, no account. Devices pair once with a 6-digit code, and every
   connection is end-to-end encrypted.
-- ⚡ **Hardware video.** H.264 through VideoToolbox on the Mac and Media Foundation on Windows: 1080p by
+- **Hardware video.** H.264 through VideoToolbox on the Mac and Media Foundation on Windows: 1080p by
   default, up to native resolution.
-- 🔄 **Swap roles in place.** One shortcut turns the display into the computer that extends.
-- 🌍 **English and Turkish**, light and dark themes.
+- **Swap roles in place.** One shortcut turns the display into the computer that extends.
+- **English and Turkish**, light and dark themes.
 
 ## How it works
 
@@ -165,13 +165,13 @@ Yes. Osplay is open source under the MIT license.
 
 ## More
 
-- 🔐 **Security:** devices pair once by confirming a 6-digit code on both screens; connections use the
+- **Security:** devices pair once by confirming a 6-digit code on both screens; connections use the
   Noise protocol (X25519, ChaCha20-Poly1305, BLAKE2b). See [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md),
   and [`SECURITY.md`](SECURITY.md) to report a vulnerability.
-- 🛠️ **Troubleshooting:** [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md). Settings › Advanced ›
+- **Troubleshooting:** [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md). Settings › Advanced ›
   Diagnostics copies a report for bug reports, with device names and addresses hidden.
-- 🏗️ **Building from source:** [`docs/BUILDING.md`](docs/BUILDING.md).
-- 🤝 **Contributing:** issues and pull requests are welcome; see [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
+- **Building from source:** [`docs/BUILDING.md`](docs/BUILDING.md).
+- **Contributing:** issues and pull requests are welcome; see [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
   [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License and credits
