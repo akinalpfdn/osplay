@@ -100,7 +100,7 @@
     <value>The other computer runs a different Osplay version. Update both to the latest version.</value>
   </data>
   <data name="ErrorPeerBusy" xml:space="preserve">
-    <value>The other computer is already connected to another device.</value>
+    <value>The other computer already uses all the displays it can extend onto.</value>
   </data>
   <data name="ErrorUnreachable" xml:space="preserve">
     <value>The connection to the other computer was lost.</value>

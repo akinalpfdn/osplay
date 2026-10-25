@@ -488,6 +488,32 @@ TEST(SessionEngine, APeerGoingToSleepClosesWithItsOwnReason) {
     EXPECT_EQ(sim.viewer.observer.close_reason, Error::PeerSleeping);
 }
 
+TEST(SessionEngine, AHostWithNoDisplayLeftTurnsTheViewerAwayAsBusy) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+    sim.host.engine.refuse_busy(sim.network.now);
+    sim.run_for(milliseconds(50));
+
+    EXPECT_EQ(sim.host.engine.state(), SessionState::Closed);
+    EXPECT_FALSE(sim.host.observer.close_reason.has_value()) << "turning a viewer away is no error";
+    EXPECT_EQ(sim.viewer.engine.state(), SessionState::Closed);
+    EXPECT_EQ(sim.viewer.observer.close_reason, Error::PeerBusy);
+}
+
+TEST(SessionEngine, ABusyHostTurnsANewViewerAwayBeforePairing) {
+    Simulation sim(TrustDecision::Unknown, TrustDecision::Unknown);
+    sim.connect();
+    sim.run_for(milliseconds(100));
+    ASSERT_FALSE(sim.host.observer.pairing_codes.empty());
+    sim.host.engine.refuse_busy(sim.network.now);
+    sim.run_for(milliseconds(50));
+
+    EXPECT_EQ(sim.viewer.observer.close_reason, Error::PeerBusy);
+    EXPECT_TRUE(sim.host.observer.paired.empty());
+    EXPECT_TRUE(sim.viewer.observer.paired.empty());
+}
+
 TEST(SessionEngine, ByeClosesThePeerCleanly) {
     Simulation sim;
     sim.connect();

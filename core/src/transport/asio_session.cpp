@@ -561,6 +561,10 @@ void AsioSession::close_for_sleep() {
         [impl = impl_.get()] { impl->engine().close(protocol::ByeReason::Sleeping, Impl::now()); });
 }
 
+void AsioSession::refuse_busy() {
+    impl_->post([impl = impl_.get()] { impl->engine().refuse_busy(Impl::now()); });
+}
+
 void AsioSession::push_cursor_shape(const media::CursorShape& shape) {
     auto bytes = std::make_shared<std::vector<std::uint8_t>>(shape.bgra.begin(), shape.bgra.end());
     impl_->post([impl = impl_.get(), shape, bytes] {

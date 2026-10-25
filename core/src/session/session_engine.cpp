@@ -905,6 +905,15 @@ void SessionEngine::close(protocol::ByeReason reason, TimePoint now) {
     abort_session(std::nullopt);
 }
 
+void SessionEngine::refuse_busy(TimePoint now) {
+    if (state_ == SessionState::Closed || closing_) {
+        return;
+    }
+    log(LogLevel::Info, "Turned the viewer away: no virtual display left");
+    send(protocol::PeerError{.code = kPeerErrorBusy}, now);
+    abort_session(std::nullopt);
+}
+
 void SessionEngine::on_transport_closed(Error reason) {
     abort_session(reason);
 }

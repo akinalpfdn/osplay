@@ -168,6 +168,9 @@ public:
     [[nodiscard]] Status<Error> answer_role_swap(RoleSwapAnswer answer, TimePoint now);
     /// Sends Bye (when the channel is encrypted) and closes.
     void close(protocol::ByeReason reason, TimePoint now);
+    /// Host: turns the viewer away because no virtual display is left for it. The viewer's
+    /// session closes with PeerBusy; this one closes without an error. Any state before Closed.
+    void refuse_busy(TimePoint now);
 
     [[nodiscard]] SessionState state() const { return state_; }
 

@@ -100,7 +100,7 @@
     <value>Diğer bilgisayar farklı bir Osplay sürümü çalıştırıyor. İkisini de son sürüme güncelleyin.</value>
   </data>
   <data name="ErrorPeerBusy" xml:space="preserve">
-    <value>Diğer bilgisayar zaten başka bir cihaza bağlı.</value>
+    <value>Diğer bilgisayar genişleyebileceği bütün ekranları zaten kullanıyor.</value>
   </data>
   <data name="ErrorUnreachable" xml:space="preserve">
     <value>Diğer bilgisayarla bağlantı kesildi.</value>
