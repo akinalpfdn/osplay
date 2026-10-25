@@ -1,6 +1,8 @@
 // OsplayHelper: privileged Windows service that adds and removes the virtual monitors.
 //   OsplayHelper.exe --install        add the first driver device if none exists, then register
-//                                     the auto-start service and start it (admin)
+//                                     the auto-start service (or repoint an existing one) and
+//                                     start it (admin)
+//   OsplayHelper.exe --stop           stop the service so an upgrade can replace its files (admin)
 //   OsplayHelper.exe --uninstall      stop and remove the service, every driver device and the
 //                                     driver settings (admin)
 //   OsplayHelper.exe --remove-driver  remove the driver package from the driver store (admin)
@@ -24,6 +26,9 @@ int wmain(int argc, wchar_t* argv[]) {
         }
         return osplay::helper::install_service();
     }
+    if (argc == 2 && std::wcscmp(argv[1], L"--stop") == 0) {
+        return osplay::helper::stop_service();
+    }
     if (argc == 2 && std::wcscmp(argv[1], L"--uninstall") == 0) {
         const int service = osplay::helper::uninstall_service();
         const int devices = osplay::helper::remove_vdd_devices();
@@ -42,6 +47,6 @@ int wmain(int argc, wchar_t* argv[]) {
         }
         return static_cast<int>(GetLastError());
     }
-    std::cerr << "Usage: OsplayHelper.exe [--install | --uninstall | --remove-driver]\n";
+    std::cerr << "Usage: OsplayHelper.exe [--install | --stop | --uninstall | --remove-driver]\n";
     return 2;
 }
