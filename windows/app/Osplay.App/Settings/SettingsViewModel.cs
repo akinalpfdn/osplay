@@ -122,6 +122,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             UpdateChecker.CurrentVersion.ToString(3), coreVersion, System.Runtime.InteropServices.RuntimeInformation.OSDescription,
             [
                 ("Quality", Settings.Quality.ToString()),
+                ("Stream size", Settings.StreamSize.ToString()),
                 ("Stats overlay", Settings.ShowsStatsOverlay.ToString()),
                 ("Start with Windows", StartsWithWindows.ToString()),
                 ("Paired devices", Connection.Peers.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)),

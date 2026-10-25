@@ -266,7 +266,9 @@ osplay_engine_result osplay_engine_host_start(const osplay_engine_host_config* c
             host->port, *host->displays, host->pipelines, host->observer,
             make_dump(config->dump_directory_utf8),
             config->millibits_per_pixel == 0 ? osplay::engine::kBitsPerPixel
-                                             : config->millibits_per_pixel / 1000.0);
+                                             : config->millibits_per_pixel / 1000.0,
+            osplay::engine::StreamBox{.width = config->max_stream_width,
+                                      .height = config->max_stream_height});
 
         const osplay_session_config session_config{
             .platform = OSPLAY_PLATFORM_WINDOWS,

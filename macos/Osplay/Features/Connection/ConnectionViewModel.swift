@@ -333,7 +333,8 @@ final class ConnectionViewModel {
                     let deviceID = DeviceIdentity.deviceID(publicKey: key)
                     return HostDisplayPolicy(
                         peerID: Data(key), hiDPI: settings.hiDPIChoice(for: deviceID),
-                        arrangement: settings.arrangement(for: deviceID), quality: settings.qualityPreset)
+                        arrangement: settings.arrangement(for: deviceID), quality: settings.qualityPreset,
+                        streamSize: settings.streamSize)
                 }
             },
             displays: VirtualDisplayLender(provider: dependencies.virtualDisplays), captures: dependencies.captures,

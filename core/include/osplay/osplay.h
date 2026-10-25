@@ -111,6 +111,17 @@ osplay_version osplay_core_version(void);
 uint64_t osplay_clock_microseconds(void);
 
 /*
+ * The size a host streams a monitor at (DEVPLAN Phase 13c): the monitor fitted inside
+ * max_width × max_height with its aspect ratio kept, the longer side against the box's longer
+ * side (so portrait monitors fit too), never larger than the monitor or than a stream may be,
+ * both sides even. max_width = max_height = 0 means no limit (the monitor's own size).
+ * OSPLAY_ERROR_INVALID_ARGUMENT for a zero monitor side or a NULL output. Pure and thread-safe.
+ */
+osplay_result osplay_fit_stream_size(uint32_t monitor_width, uint32_t monitor_height,
+                                     uint32_t max_width, uint32_t max_height, uint32_t* out_width,
+                                     uint32_t* out_height);
+
+/*
  * Protocol diagnostics. Both functions are pure and thread-safe; `data` may be NULL only when
  * `length` is 0.
  *

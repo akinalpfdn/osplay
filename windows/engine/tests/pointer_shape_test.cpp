@@ -2,14 +2,18 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
 namespace {
 
 using osplay::engine::convert_pointer_shape;
+using osplay::engine::CursorImage;
 using osplay::engine::PointerShapeInfo;
 using osplay::engine::PointerShapeType;
+using osplay::engine::scale_cursor_image;
 
 std::vector<std::uint8_t> pixel_at(const osplay::engine::CursorImage& image, int x, int y) {
     const auto offset =
@@ -121,3 +125,29 @@ TEST(PointerShape, RejectsBuffersThatDoNotMatchTheDescription) {
 }
 
 } // namespace
+
+TEST(PointerShape, AHalfSizeStreamGetsAHalfSizeCursor) {
+    CursorImage image{.width = 4, .height = 2, .hotspot_x = 3, .hotspot_y = 1, .bgra = {}};
+    image.bgra.assign(std::size_t{4} * 2 * 4, 0);
+    for (std::size_t pixel = 0; pixel < 8; ++pixel) {
+        const std::uint8_t value = pixel % 2 == 0 ? 200 : 100; // alternating columns
+        std::fill_n(image.bgra.begin() + static_cast<std::ptrdiff_t>(pixel * 4), 4, value);
+    }
+    const CursorImage scaled = scale_cursor_image(image, 0.5);
+    EXPECT_EQ(scaled.width, 2);
+    EXPECT_EQ(scaled.height, 1);
+    EXPECT_EQ(scaled.hotspot_x, 1) << "2 rounded from 1.5, kept inside the image";
+    EXPECT_EQ(scaled.hotspot_y, 0) << "0.5 rounds to 1, kept inside the one-row image";
+    ASSERT_EQ(scaled.bgra.size(), 8U);
+    EXPECT_EQ(scaled.bgra[0], 150) << "each pixel averages the two it covers";
+    EXPECT_EQ(scaled.bgra[7], 150);
+}
+
+TEST(PointerShape, AFullSizeStreamKeepsTheCursorAsItIs) {
+    CursorImage image{.width = 3, .height = 3, .hotspot_x = 1, .hotspot_y = 1, .bgra = {}};
+    image.bgra.assign(std::size_t{3} * 3 * 4, 7);
+    const CursorImage same = scale_cursor_image(image, 1.0);
+    EXPECT_EQ(same.width, 3);
+    EXPECT_EQ(same.bgra, image.bgra);
+    EXPECT_EQ(scale_cursor_image(image, 0.0).width, 3) << "a nonsensical factor changes nothing";
+}

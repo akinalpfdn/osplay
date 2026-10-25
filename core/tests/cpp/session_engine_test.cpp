@@ -234,6 +234,58 @@ TEST(SessionEngine, ALargeFrameLeavesSpreadOverPartOfTheFrameInterval) {
     EXPECT_EQ(sim.viewer.observer.frame_indices, std::vector<std::uint32_t>{0});
 }
 
+TEST(SessionEngine, ALargeKeyframeLeavesNoFasterThanThePacingRate) {
+    Simulation sim;
+    sim.producing = false;
+    sim.connect();
+    sim.run_for(seconds(1));
+    ASSERT_EQ(sim.host.engine.state(), SessionState::Streaming);
+
+    // A big monitor's keyframe: 300 kB is about 260 fragments. At 2.5 × the 20 Mbit/s target it
+    // takes 48 ms, where the frame-interval window alone would send it in about 8 ms.
+    const std::vector<std::uint8_t> bytes(300'000, 0x42);
+    const auto before = sim.host.transport.datagrams_sent;
+    ASSERT_TRUE(sim.host.engine
+                    .push_access_unit({.stream_id = 0,
+                                       .keyframe = true,
+                                       .codec_config = true,
+                                       .capture_time_us = 0,
+                                       .data = bytes},
+                                      sim.network.now)
+                    .has_value());
+    sim.run_for(milliseconds(12));
+    const auto early = sim.host.transport.datagrams_sent - before;
+    EXPECT_GT(early, 40U);
+    EXPECT_LT(early, 100U) << "a quarter of the frame after a quarter of its time, not all of it";
+    sim.run_for(milliseconds(48));
+    EXPECT_GE(sim.host.transport.datagrams_sent - before, 260U) << "all of it once its time is up";
+}
+
+TEST(SessionEngine, ALongPacingQueueDrainsInsteadOfGrowing) {
+    Simulation sim;
+    sim.producing = false;
+    sim.connect();
+    sim.run_for(seconds(1));
+    ASSERT_EQ(sim.host.engine.state(), SessionState::Streaming);
+
+    // Five large frames at once: rate-limited they would take 5 × 48 ms. Beyond 100 ms of queue
+    // the rest goes at the frame-interval window, so all of it is out well before 240 ms.
+    const std::vector<std::uint8_t> bytes(300'000, 0x42);
+    const auto before = sim.host.transport.datagrams_sent;
+    for (int frame = 0; frame < 5; ++frame) {
+        ASSERT_TRUE(sim.host.engine
+                        .push_access_unit({.stream_id = 0,
+                                           .keyframe = frame == 0,
+                                           .codec_config = frame == 0,
+                                           .capture_time_us = static_cast<std::uint64_t>(frame),
+                                           .data = bytes},
+                                          sim.network.now)
+                        .has_value());
+    }
+    sim.run_for(milliseconds(175));
+    EXPECT_GE(sim.host.transport.datagrams_sent - before, 5U * 260U);
+}
+
 TEST(SessionEngine, ASessionLeavesALogABugReportCanUse) {
     Simulation sim;
     sim.connect();

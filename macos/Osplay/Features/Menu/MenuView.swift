@@ -25,7 +25,8 @@ struct MenuView: View {
                 EmptyView()
             case .sharing:
                 SharingSection(
-                    connection: connection, quality: $settings.qualityPreset, swapHotkey: settings.swapHotkey)
+                    connection: connection, quality: $settings.qualityPreset, streamSize: $settings.streamSize,
+                    swapHotkey: settings.swapHotkey)
             case .viewing:
                 ViewingSection(connection: connection, hotkey: settings.viewerHotkey, swapHotkey: settings.swapHotkey)
             }
@@ -192,6 +193,7 @@ private struct PermissionsBanner: View {
 private struct SharingSection: View {
     let connection: ConnectionViewModel
     @Binding var quality: QualityPreset
+    @Binding var streamSize: StreamSizePreset
     let swapHotkey: Hotkey
 
     var body: some View {
@@ -217,6 +219,12 @@ private struct SharingSection: View {
             }
             Picker("menu.quality", selection: $quality) {
                 ForEach(QualityPreset.allCases) { preset in
+                    Text(preset.title).tag(preset)
+                }
+            }
+            .pickerStyle(.menu)
+            Picker("menu.streamSize", selection: $streamSize) {
+                ForEach(StreamSizePreset.allCases) { preset in
                     Text(preset.title).tag(preset)
                 }
             }
@@ -465,6 +473,17 @@ struct Card<Content: View>: View {
             .padding(Theme.Spacing.medium)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+    }
+}
+
+extension StreamSizePreset {
+    var title: LocalizedStringKey {
+        switch self {
+        case .hd720: "streamSize.hd720"
+        case .hd1080: "streamSize.hd1080"
+        case .qhd1440: "streamSize.qhd1440"
+        case .native: "streamSize.native"
+        }
     }
 }
 

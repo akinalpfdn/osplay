@@ -38,6 +38,7 @@ app" means the installed OsplayHelper is older than the app (BUILDING.md: reinst
 | D5 | Leaving one out | In D2, click one Mac display in the menu's picker (or one monitor in the PC panel in D1), connect | Only the selected displays get a virtual display; the choice is still there after quitting and starting Osplay again |
 | D6 | Viewer display unplugged | During D2, unplug the Mac's external display | Only that stream ends: its PC virtual monitor goes away, the other keeps streaming |
 | D7 | Clean up on the PC | During D2, **Disconnect**; start D2 again and end the PC app from Task Manager | No Osplay virtual monitor is left in Windows Settings › Display either time |
+| D8 | Stream size | In D2 and D4, compare 1080p (default) with Native (**Stream size** next to Quality on the extending computer; applies from the next connection) | 1080p: both displays smooth near 60 fps, text a little softer on a large display. Native: sharpest, needs a strong host and network |
 
 ## Interruptions
 

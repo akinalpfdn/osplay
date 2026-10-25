@@ -511,3 +511,9 @@ choices the plan leaves open are logged here.
 **Trade-offs:** Whether macOS shortens AWDL's off-channel time for marked traffic is not documented; it has to be measured with AWDL on.
 **Revisit if:** The measurement shows little change (then the opt-in AWDL toggle), or Windows hosts show loss that DSCP priority would help.
 
+## 2026-10-25 — User decision: streams are capped at 1080p by default, chosen on the extending computer
+**Chosen:** A new phase (DEVPLAN 13c, STR-01) caps each stream at 720p, 1080p (default), 1440p or Native, fitted to the monitor's aspect ratio; the virtual display keeps the viewer monitor's resolution and the viewer scales the stream up. The setting sits next to quality on the extending computer. No bandwidth warning and no network test.
+**Alternatives:** Making the virtual display itself 1080p (rejected: everything on it gets bigger); a setting on the viewing computer; a bandwidth estimate with a warning, or a throughput test between the two computers (rejected by the user).
+**Why:** In the Mac → Mac test an M1 host extending onto a 3420×2214 MacBook and a 4K monitor managed 0–36 fps per stream and lost so much over Wi-Fi that both displays were unusable. A 1080p cap cuts pixels and bitrate to about a quarter; the encoder and the link both have room again.
+**Trade-offs:** Text on a large viewer display is softer than at Native; Native stays available for strong hosts and fast links.
+**Revisit if:** Typical hosts and links handle Native comfortably, or a 1440p default looks clearly better at the same cost.

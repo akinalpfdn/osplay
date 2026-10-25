@@ -45,4 +45,10 @@ inline constexpr std::uint32_t kMaxCursorSide = 256;
 [[nodiscard]] std::optional<CursorImage>
 convert_pointer_shape(const PointerShapeInfo& info, std::span<const std::uint8_t> buffer);
 
+/// The image at `factor` of its size (box filter over premultiplied pixels), for a stream smaller
+/// than the desktop (DEVPLAN Phase 13c): the viewer scales stream pixels up to its monitor, so an
+/// unscaled cursor would come out too big. The hotspot moves with the image. A factor of 1 or more,
+/// or one that is not positive, returns the image as it is.
+[[nodiscard]] CursorImage scale_cursor_image(const CursorImage& image, double factor);
+
 } // namespace osplay::engine

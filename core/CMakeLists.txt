@@ -36,6 +36,7 @@ add_library(osplay_core STATIC
     src/capi/clock_capi.cpp
     src/capi/discovery_capi.cpp
     src/capi/identity_capi.cpp
+    src/capi/media_capi.cpp
     src/capi/protocol_capi.cpp
     src/capi/session_capi.cpp
     src/capi/version.cpp
@@ -46,6 +47,7 @@ add_library(osplay_core STATIC
     src/media/packetizer.cpp
     src/media/reassembler.cpp
     src/media/retransmit_cache.cpp
+    src/media/stream_size.cpp
     src/session/bitrate_controller.cpp
     src/session/control_framer.cpp
     src/session/session_engine.cpp

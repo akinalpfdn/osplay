@@ -175,6 +175,11 @@ typedef struct osplay_engine_host_config {
      * (osplay_engine_host_control_port) so the advertisement stays right. A taken port falls back
      * to any. */
     uint16_t control_port;
+    /* Largest stream size: each viewer monitor's stream is fitted inside max_stream_width ×
+     * max_stream_height (osplay_fit_stream_size) while its virtual monitor keeps the monitor's
+     * mode. 0 × 0: streams at the monitor's own size. */
+    uint32_t max_stream_width;
+    uint32_t max_stream_height;
 } osplay_engine_host_config;
 
 /*

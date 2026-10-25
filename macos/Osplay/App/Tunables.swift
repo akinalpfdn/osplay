@@ -29,6 +29,10 @@ enum Tunables {
         /// Safety-net keyframe interval in seconds; keyframes normally come on request.
         static let maximumKeyframeInterval = 60.0
         static let profile = H264Profile.high
+        /// The boxes a stream is fitted into for each stream size setting (DEVPLAN Phase 13c).
+        static let streamBox720 = (width: 1280, height: 720)
+        static let streamBox1080 = (width: 1920, height: 1080)
+        static let streamBox1440 = (width: 2560, height: 1440)
 
     }
 

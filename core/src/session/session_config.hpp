@@ -54,6 +54,13 @@ struct SessionTunables {
     double pacing_fraction = 0.5;
     /// Host: frames of at most this many fragments go out at once.
     std::size_t pacing_minimum_fragments = 4;
+    /// Host: a frame also leaves no faster than this many times the streams' bitrate targets
+    /// together, so a large keyframe is spread over tens of milliseconds instead of a few
+    /// (libwebrtc's pacer uses 2.5 as well).
+    double pacing_rate_factor = 2.5;
+    /// Host: when this much is already queued, frames go out at the fraction window again so the
+    /// queue drains instead of adding latency without end.
+    Microseconds pacing_max_queue{100'000};
 };
 
 struct SessionConfig {

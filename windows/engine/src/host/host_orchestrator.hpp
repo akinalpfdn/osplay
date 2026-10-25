@@ -54,12 +54,18 @@ public:
     virtual void on_host_failed(HostFailure failure, std::uint32_t detail) = 0;
 };
 
+/// The largest stream size (DEVPLAN Phase 13c); 0 × 0 streams at the monitor's own size.
+struct StreamBox {
+    std::uint32_t width = 0;
+    std::uint32_t height = 0;
+};
+
 class HostOrchestrator final {
 public:
     HostOrchestrator(HostCorePort& core, VirtualDisplayProvider& displays,
                      StreamPipelineFactory& pipelines, HostObserver& observer,
                      std::unique_ptr<StreamDump> dump = nullptr,
-                     double bits_per_pixel = kBitsPerPixel);
+                     double bits_per_pixel = kBitsPerPixel, StreamBox stream_box = {});
     ~HostOrchestrator();
     HostOrchestrator(const HostOrchestrator&) = delete;
     HostOrchestrator& operator=(const HostOrchestrator&) = delete;
@@ -81,9 +87,11 @@ public:
     /// Blocks until queued work has run (tests).
     void wait_idle();
 
-    /// `bits_per_pixel` is clamped to kMinBitsPerPixel...kMaxBitsPerPixel.
+    /// The stream for a viewer monitor: fitted inside `box`, with a bitrate for the stream's own
+    /// pixels. `bits_per_pixel` is clamped to kMinBitsPerPixel...kMaxBitsPerPixel.
     static osplay_stream_config stream_for(const osplay_monitor& monitor,
-                                           double bits_per_pixel = kBitsPerPixel);
+                                           double bits_per_pixel = kBitsPerPixel,
+                                           StreamBox box = {});
 
 private:
     class StreamOutput;
@@ -91,9 +99,13 @@ private:
     /// One stream: its configuration, the sink tagging the pipeline's output with its ID, and the
     /// pipeline capturing its virtual monitor (declared last, so it stops before the sink goes).
     struct Stream {
-        Stream(const osplay_stream_config& stream_config, HostOrchestrator& owner);
+        Stream(const osplay_stream_config& stream_config, const osplay_monitor& viewer_monitor,
+               HostOrchestrator& owner);
 
         osplay_stream_config config;
+        /// The viewer's monitor: its virtual monitor keeps this mode while the stream may be
+        /// smaller.
+        osplay_monitor monitor;
         std::unique_ptr<StreamOutput> output;
         std::unique_ptr<StreamPipeline> pipeline;
     };
@@ -121,6 +133,7 @@ private:
     HostObserver* observer_;           // never null
     std::unique_ptr<StreamDump> dump_;
     double bits_per_pixel_;
+    StreamBox stream_box_;
 
     std::map<std::uint8_t, Stream> streams_; // worker thread only
     bool monitors_added_ = false;            // worker thread only

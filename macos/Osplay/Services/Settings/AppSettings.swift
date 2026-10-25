@@ -9,6 +9,11 @@ final class AppSettings {
         didSet { defaults.set(qualityPreset.rawValue, forKey: Key.qualityPreset) }
     }
 
+    /// The largest size a shared display is streamed at (1080p by default, user decision 2026-10-25).
+    var streamSize: StreamSizePreset {
+        didSet { defaults.set(streamSize.rawValue, forKey: Key.streamSize) }
+    }
+
     /// Hides and shows the viewer.
     var viewerHotkey: Hotkey {
         didSet { save(viewerHotkey, forKey: Key.viewerHotkey) }
@@ -49,6 +54,7 @@ final class AppSettings {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         qualityPreset = defaults.string(forKey: Key.qualityPreset).flatMap(QualityPreset.init) ?? .high
+        streamSize = defaults.string(forKey: Key.streamSize).flatMap(StreamSizePreset.init) ?? .hd1080
         viewerHotkey = Self.load(Hotkey.self, from: defaults, forKey: Key.viewerHotkey) ?? Tunables.Viewer.toggleHotkey
         swapHotkey = Self.load(Hotkey.self, from: defaults, forKey: Key.swapHotkey) ?? Tunables.Viewer.swapHotkey
         statsHotkey = Self.load(Hotkey.self, from: defaults, forKey: Key.statsHotkey) ?? Tunables.Viewer.statsHotkey
@@ -98,6 +104,7 @@ final class AppSettings {
 
     private enum Key {
         static let qualityPreset = "qualityPreset"
+        static let streamSize = "streamSize"
         static let viewerHotkey = "viewerHotkey"
         static let swapHotkey = "swapHotkey"
         static let statsHotkey = "statsHotkey"
