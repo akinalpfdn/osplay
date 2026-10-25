@@ -483,6 +483,16 @@ Each phase is meant to be completed in one Claude Code session. A phase is done 
 - [ ] Each of the four directions shows one display per offered monitor.
 - [ ] A laptop extends onto two other computers at once, on macOS and on Windows.
 
+### Phase 13c: Stream resolution
+**Goal**: Several large displays stay usable on a modest host and on Wi-Fi: each stream is encoded at most at a chosen size, while the virtual display keeps the viewer monitor's resolution.
+**Delivers** (phase file STR-01):
+- A setting on the extending computer, next to quality: 720p, 1080p (default), 1440p or Native. The stream fits inside it with the monitor's aspect ratio and is never larger than the monitor.
+- Mac and Windows hosts capture and encode at the stream size; viewers scale it to the display.
+- Rate-based pacing in `core`, so a large keyframe no longer leaves in one short burst.
+**Depends on**: Phase 13b part SYM-02; runs before part SYM-03 (added by user decision on 2026-10-25, after the Mac → Mac test).
+**Acceptance criteria**:
+- [ ] An M1 host extending onto a 3420×2214 MacBook and a 4K monitor over Wi-Fi keeps both displays usable at 1080p.
+
 ### Phase 14: Packaging, release and documentation
 **Goal**: Anyone can install Osplay from GitHub Releases, and contributors can build it from the docs alone.
 **Delivers**:
