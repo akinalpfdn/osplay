@@ -1,7 +1,7 @@
 # Phase 018 (SYM-02) — Mac viewer: every display, all four directions
-Status: PENDING — code merged (PR #19, #25); D1–D7 run after PHASE-020 (STR-01), user decision 2026-10-25
+Status: PENDING — code merged (PR #19, #25, #29); every test passed on 2026-10-25 except D3 (PC → PC), which needs a Windows host on the laptop (developer setup or the Phase 14 installer)
 
-DEVPLAN reference: Phase 13b (part YM-02-). Depends on: Phase 13. Runs before PHASE-015 (DEVPLAN Phase 14) — user decision 2026-10-21.
+DEVPLAN reference: Phase 13b (part SYM-02). Depends on: Phase 13. Runs before PHASE-015 (DEVPLAN Phase 14) — user decision 2026-10-21.
 
 ## Goal
 A Mac used as a display offers all its displays (with a picker like Windows'), and every direction — Mac→Mac, Mac→PC, PC→Mac, PC→PC — works with all monitors.
@@ -13,11 +13,11 @@ A Mac used as a display offers all its displays (with a picker like Windows'), a
 - [x] TESTING.md: all four directions with every monitor (D1–D7).
 
 ## Acceptance Criteria
-- [ ] Mac → Mac, Mac → PC, PC → Mac, PC → PC each show one display per offered monitor.
-- [ ] Leaving a monitor out in the picker is respected on both platforms.
+- [ ] Mac → Mac, Mac → PC, PC → Mac, PC → PC each show one display per offered monitor. (D4, D1, D2 pass 2026-10-25; D3 PC → PC open.)
+- [x] Leaving a monitor out in the picker is respected on both platforms. (D5, 2026-10-25.)
 - [x] From SYM-01: PC → Mac with an external monitor on the Mac gives one Windows virtual display per Mac display. (2026-10-25, D2: one driver device per virtual monitor.)
 - [ ] From SYM-01: PC → PC (laptop → two-monitor PC) gives two virtual displays on the laptop, one on each monitor.
-- [ ] From SYM-01: ending the session removes every Windows virtual monitor; a crash leaves none behind.
+- [x] From SYM-01: ending the session removes every Windows virtual monitor; a crash leaves none behind. (D7, 2026-10-25, with one driver device per monitor.)
 - [x] Before PC-host tests: the PC's OsplayHelper service runs the current build (Settings shows "helper refused" while it is the pre-SYM-01 version).
 
 ## Decisions Made This Phase

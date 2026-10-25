@@ -1,7 +1,7 @@
 # Phase 017 (SYM-01) — Windows host: every viewer monitor
 Status: DONE (2026-10-22) — code complete; the acceptance tests below moved to PHASE-018 (SYM-02)
 
-DEVPLAN reference: Phase 13b (part YM-01-). Depends on: Phase 13. Runs before PHASE-015 (DEVPLAN Phase 14) — user decision 2026-10-21.
+DEVPLAN reference: Phase 13b (part SYM-01). Depends on: Phase 13. Runs before PHASE-015 (DEVPLAN Phase 14) — user decision 2026-10-21.
 
 ## Goal
 A Windows host makes one virtual display per monitor the viewer offers (up to four), like the Mac host.
