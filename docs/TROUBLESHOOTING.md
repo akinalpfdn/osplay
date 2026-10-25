@@ -102,3 +102,19 @@ network (Local Network permission on the Mac, a Private network on Windows). Cho
 under Nearby computers, or another role, ends the wait. Copy diagnostics (Settings › Advanced) for a
 bug report.
 
+## A Mac on Wi-Fi drops frames on an otherwise quiet network
+
+macOS uses AWDL (Apple Wireless Direct Link) for AirDrop, Sidecar, Universal Control and AirPlay
+to a Mac. To listen for nearby devices it moves the Mac's Wi-Fi to other channels several times a
+second, and packets sent meanwhile arrive late or are lost. Osplay marks its traffic as interactive
+video, which gives it Wi-Fi priority; if the overlay still shows loss or keyframe requests with a
+Mac on Wi-Fi, turn AWDL off for the session on each Mac involved:
+
+```bash
+sudo ifconfig awdl0 down
+```
+
+AirDrop, Sidecar and Universal Control stop working until `sudo ifconfig awdl0 up` or a restart.
+Measured on 2026-10-25 (Mac → Mac over Wi-Fi, two 1080p streams): with AWDL on, frames were
+resent and dropped every few seconds; with it off, none were.
+
