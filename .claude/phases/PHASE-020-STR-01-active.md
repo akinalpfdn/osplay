@@ -20,7 +20,7 @@ TESTING.md D4 on 2026-10-25: an M1 MacBook host extending onto a MacBook at 3420
 - [x] Tests: size fitting, bitrate, pacing rate; PROTOCOL.md, ARCHITECTURE.md and TESTING.md updated.
 
 ## Acceptance Criteria
-- [ ] D4 again (M1 host → MacBook at 3420×2214 plus a 4K monitor, over Wi-Fi) at 1080p: both displays usable near 60 fps, no keyframe storm.
+- [x] D4 again (M1 host → MacBook at 3420×2214 plus a 4K monitor, over Wi-Fi) at 1080p: both displays usable near 60 fps, no keyframe storm. (2026-10-25: host at 55–60 fps; the remaining loss was AWDL — zero with awdl0 down, halved by #27, the rest is issue #28.)
 - [ ] Native behaves as today.
 - [ ] A Windows host does the same with two large viewer monitors.
 
