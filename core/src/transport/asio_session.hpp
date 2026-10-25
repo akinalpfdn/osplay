@@ -78,6 +78,8 @@ public:
     void close();
     /// As close, but tells the peer this device is going to sleep (Bye reason 3).
     void close_for_sleep();
+    /// Host: as close, but tells the viewer no virtual display is left for it (PeerError busy).
+    void refuse_busy();
 
     /// Copies the shape and queues it; returns without waiting.
     void push_cursor_shape(const media::CursorShape& shape);

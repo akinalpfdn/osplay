@@ -1,5 +1,5 @@
 # Phase 020 (STR-01) — Stream resolution
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 13c. Runs after PHASE-018 (SYM-02) and before PHASE-019 (SYM-03) — user decision 2026-10-25.
 
@@ -21,7 +21,7 @@ TESTING.md D4 on 2026-10-25: an M1 MacBook host extending onto a MacBook at 3420
 
 ## Acceptance Criteria
 - [x] D4 again (M1 host → MacBook at 3420×2214 plus a 4K monitor, over Wi-Fi) at 1080p: both displays usable near 60 fps, no keyframe storm. (2026-10-25: host at 55–60 fps; the remaining loss was AWDL — zero with awdl0 down, halved by #27, the rest is issue #28.)
-- [ ] Native behaves as today.
+- [x] Native behaves as today. (2026-10-25, D8 on the PC host.)
 - [x] A Windows host does the same with two large viewer monitors. (2026-10-25, D2 on the RTX 3080 PC at 1080p, after giving every virtual monitor its own driver device; two on one device stalled the whole desktop.)
 
 ## Decisions Made This Phase

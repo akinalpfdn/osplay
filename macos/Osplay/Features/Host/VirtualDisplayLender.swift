@@ -23,10 +23,13 @@ protocol DisplayLending: AnyObject, Sendable {
     func returnAll()
 }
 
+/// One per host session: it returns only the displays it lent, since every session of this Mac
+/// shares the provider (DEVPLAN Phase 13b part SYM-03).
 @MainActor
 final class VirtualDisplayLender: DisplayLending {
     private let provider: any VirtualDisplayProviding
     private let isHiDPI: Bool
+    private var handles: [any VirtualDisplayHandle] = []
 
     typealias Arrange = @MainActor ([(id: CGDirectDisplayID, origin: CGPoint)]) throws(VirtualDisplayError) -> Void
     private let arrange: Arrange
@@ -47,7 +50,9 @@ final class VirtualDisplayLender: DisplayLending {
         do throws(VirtualDisplayError) {
             var lent: [(MonitorDescription, any VirtualDisplayHandle)] = []
             for (index, monitor) in monitors.enumerated() {
-                lent.append((monitor, try provider.createDisplay(configuration(monitor, index: index, peerID: peerID))))
+                let handle = try provider.createDisplay(configuration(monitor, index: index, peerID: peerID))
+                handles.append(handle)
+                lent.append((monitor, handle))
             }
             var sizes: [(id: UInt8, name: String, size: CGSize)] = []
             for (monitor, handle) in lent {
@@ -74,11 +79,16 @@ final class VirtualDisplayLender: DisplayLending {
     }
 
     func returnDisplay(_ displayID: CGDirectDisplayID) {
-        provider.displays.first { $0.displayID == displayID }?.destroy()
+        guard let index = handles.firstIndex(where: { $0.displayID == displayID }) else { return }
+        handles.remove(at: index).destroy()
     }
 
     func returnAll() {
-        provider.destroyAll()
+        let lent = handles
+        handles = []
+        for handle in lent {
+            handle.destroy()
+        }
     }
 
     /// The initial resolution, or the native one when the window server does not offer it: a

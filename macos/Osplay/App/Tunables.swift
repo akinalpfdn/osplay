@@ -5,8 +5,10 @@ import Foundation
 /// Every tunable value of the macOS app. Protocol constants live in `core`, not here.
 enum Tunables {
     enum VirtualDisplay {
-        /// Mac host: up to two displays (DEVPLAN, MVP scope).
+        /// Mac host: up to two displays per viewer (DEVPLAN, MVP scope).
         static let maximumDisplayCount = 2
+        /// Mac host: virtual displays across all viewers at once (DECISIONS.md, 2026-10-25).
+        static let maximumTotalCount = 4
         static let pixelWidthRange = 640...7680
         static let pixelHeightRange = 480...4320
         static let refreshRateRange = 24.0...240.0

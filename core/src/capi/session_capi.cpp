@@ -487,6 +487,16 @@ osplay_result osplay_session_close_for_sleep(osplay_session* session) {
     });
 }
 
+osplay_result osplay_session_refuse_busy(osplay_session* session) {
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        session->session->refuse_busy();
+        return OSPLAY_OK;
+    });
+}
+
 void osplay_session_destroy(osplay_session* session) {
     // NOLINTNEXTLINE(cppcoreguidelines-owning-memory): the C API hands out the raw pointer
     delete session;

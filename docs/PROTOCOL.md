@@ -238,7 +238,7 @@ Empty body.
 | 1 | incompatible protocol version |
 | 2 | pairing rejected by the user |
 | 3 | peer is not trusted |
-| 4 | device is busy with another session |
+| 4 | device is busy: a host with no virtual display left for this viewer (its other viewers use them all) sends it, also before pairing |
 | 5 | malformed or unexpected message |
 | 6 | stream configuration not supported |
 | 7 | internal error |

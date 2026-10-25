@@ -40,6 +40,19 @@ app" means the installed OsplayHelper is older than the app (BUILDING.md: reinst
 | D7 | Clean up on the PC | During D2, **Disconnect**; start D2 again and end the PC app from Task Manager | No Osplay virtual monitor is left in Windows Settings › Display either time |
 | D8 | Stream size | In D2 and D4, compare 1080p (default) with Native (**Stream size** next to Quality on the extending computer; applies from the next connection) | 1080p: both displays smooth near 60 fps, text a little softer on a large display. Native: sharpest, needs a strong host and network |
 
+## Several viewers at once
+
+A host extends onto several computers at once; all its viewers share four virtual displays (a Mac
+gives one viewer at most two). The PC needs the current OsplayHelper (helper protocol 3).
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| M1 | Mac host, two viewers | This Mac **Extend this Mac**; the PC and a second Mac each **Use as display** and connect to it | Both stream; the menu shows one row per computer (name, displays) with its own Disconnect icon and a row waiting for the next |
+| M2 | PC host, two viewers | The PC **Extend this PC**; two Macs each **Use as display** and connect to it | Both stream; the panel shows one row per computer; the PC's own monitors do not stutter |
+| M3 | One leaves | In M1 and M2, click the Disconnect icon of one row | Only that computer's displays go; the other keeps streaming without a pause |
+| M4 | No display left | Connect viewers until four displays are in use, then connect one more | The last one is turned away before any pairing code ("uses all the displays it can extend onto"); the waiting row says all four are in use |
+| M5 | Swap needs one viewer | In M1, try the swap shortcut, and the swap from a viewer | Not offered on the host while two are connected; a viewer's request is answered busy; with one left it works again |
+
 ## Interruptions
 
 | # | Scenario | Steps | Expected |
@@ -71,3 +84,4 @@ app" means the installed OsplayHelper is older than the app (BUILDING.md: reinst
 |------|-------|---------|-----------|--------|-------|
 | 2026-10-20 | `3fe19bd` | Wi-Fi | I1–I4 (sleep/wake both ways), S3 (Disconnect then Connect) | Pass | Found and fixed on the way: no connect timeout, frozen frame under Modern Standby, stale port after a session |
 | 2026-10-20 | `3fe19bd` | Wi-Fi | I5–I9, Q1, Q2, Q3, Q5 (one hour) | Pass | |
+| 2026-10-25 | `d0645b7` | Wi-Fi | D1, D2, D4–D8 (every direction but PC → PC), M1–M3 (several viewers on both hosts) | Pass | Found and fixed on the way: two monitors on one Windows driver device stall the desktop, pooled driver devices shared a stale mode list (issue #30 left open), a Mac host's second viewer took the first one's displays |

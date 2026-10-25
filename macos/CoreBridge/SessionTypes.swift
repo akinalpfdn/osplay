@@ -62,6 +62,12 @@ public struct PeerInfo: Sendable, Equatable {
     public let platform: PeerPlatform
     public let protocolMinor: UInt8
     public let deviceName: String
+
+    public init(platform: PeerPlatform, protocolMinor: UInt8, deviceName: String) {
+        self.platform = platform
+        self.protocolMinor = protocolMinor
+        self.deviceName = deviceName
+    }
 }
 
 /// A monitor the viewer lends to the host (ViewerMonitors).

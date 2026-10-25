@@ -35,6 +35,9 @@ internal abstract class EngineSession : IAsyncDisposable
 
     public string PeerName => _peerName;
 
+    /// <summary>The other computer introduced itself (before any pairing code).</summary>
+    public event Action<Platform, string>? PeerArrived;
+
     public event Action<SessionState>? StateChanged;
     public event Action<uint>? PairingCode;
     public event Action? Paired;
@@ -149,7 +152,11 @@ internal abstract class EngineSession : IAsyncDisposable
     {
         var self = From(context);
         string text = Utf8.Read(name);
-        self.Post(() => self._peerName = text);
+        self.Post(() =>
+        {
+            self._peerName = text;
+            self.PeerArrived?.Invoke(platform, text);
+        });
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
@@ -187,6 +194,9 @@ internal sealed unsafe class EngineHost : EngineSession
     /// <summary>The TCP port to advertise.</summary>
     public ushort ControlPort { get; private set; }
 
+    /// <summary>The virtual monitors stream; the argument is how many this viewer got.</summary>
+    public event Action<uint>? Streaming;
+
     public static Task<(EngineResult Result, EngineHost? Host)> StartAsync(
         Dispatcher dispatcher, string deviceName, uint millibitsPerPixel, ushort controlPort,
         (uint Width, uint Height) streamBox)
@@ -214,7 +224,7 @@ internal sealed unsafe class EngineHost : EngineSession
                     OnTrustQuery = null, // the stored identity: the engine answers trust
                     OnPairingCode = &OnPairingCode,
                     OnPaired = &OnPaired,
-                    OnStreaming = null,
+                    OnStreaming = &OnStreaming,
                     OnFailed = &OnFailed,
                     OnStats = 0,
                     OnLog = &OnLog,
@@ -258,6 +268,13 @@ internal sealed unsafe class EngineHost : EngineSession
     });
 
     protected override void Destroy(nint handle) => NativeMethods.HostDestroy(handle);
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnStreaming(nint context, uint displayCount, int left, int top, int right, int bottom)
+    {
+        var self = (EngineHost)From(context);
+        self.Post(() => self.Streaming?.Invoke(displayCount));
+    }
 
     protected override EngineResult RequestRoleSwap(nint handle) => NativeMethods.HostRequestRoleSwap(handle);
 

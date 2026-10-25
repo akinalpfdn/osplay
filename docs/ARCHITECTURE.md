@@ -7,7 +7,10 @@
 
 Every installation can act as a **host** (owns virtual displays, captures, encodes, sends) or a
 **viewer** (receives, decodes, presents full screen). One session connects one host to one viewer
-and carries one video stream per virtual display.
+and carries one video stream per virtual display. A host runs a session per viewer, so it can
+extend onto several computers at once; all its viewers share four virtual displays (a Mac gives one
+viewer at most two), a new viewer gets the ones left and is turned away as busy before pairing when
+none is (DECISIONS.md, 2026-10-25).
 
 ```
 HOST                                                         VIEWER
@@ -81,7 +84,10 @@ Behavior measured on a MacBook Air M3, macOS 26.6, lid open (Phase 1):
 
 `HostSession` (`macos/Osplay/Features/Host/`) is an actor that owns one host session: the core
 session (`CoreSession` from CoreBridge), the virtual displays standing in for the viewer's
-monitors, and one `StreamPipeline` per display.
+monitors, and one `StreamPipeline` per display. `ConnectionViewModel` runs one per viewer and one
+more that listens for the next; they draw their displays from one `DisplayBudget`, each through its
+own `VirtualDisplayLender`, and every session notes its peer's key (`SessionPeer`) from its trust
+query. Pairing codes are shown one at a time.
 
 ```
 ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─► core
@@ -90,8 +96,9 @@ ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─�
 ```
 
 - **Displays.** `VirtualDisplayLender` creates one virtual display per offered monitor (at most
-  two), waits until it is ready and activates the crisp HiDPI resolution, so the capture backing
-  equals the remote monitor's pixels. All displays are returned when the session ends.
+  two, and only as many as the budget has left), waits until it is ready and activates the crisp
+  HiDPI resolution, so the capture backing equals the remote monitor's pixels. A session returns its
+  own displays when it ends; the other viewers keep theirs.
 - **Stream size.** Each stream is fitted inside the user's stream size setting (720p, 1080p by
   default, 1440p or Native) with `osplay_fit_stream_size`, so a large monitor is captured from its
   full-size virtual display and encoded smaller; the bitrate follows the stream's pixels.
@@ -182,7 +189,8 @@ A host advertises `_osplay._tcp` with its core's ephemeral control port and the 
 `core` (`osplay_advertisement_to_txt`: protocol version, name, device ID, roles, platform); the
 instance name is the device ID, so a rename never looks like a new device. Viewers browse, resolve
 and connect to the advertised host name and port. A core host session takes one viewer, so the host
-listens and advertises again after every session.
+starts the next session, on the same port, as soon as a viewer introduces itself; the advertisement
+stays as long as sharing is on and changes only when the port does.
 
 - **macOS** (`Services/Discovery`, `Services/KeyStore`): the system DNS-SD API (`DNSServiceRegister`,
   `DNSServiceBrowse`, `DNSServiceResolve`) on one serial queue; the identity's secret and the paired
@@ -215,6 +223,7 @@ Findings from reading the driver source (VirtualDrivers/Virtual-Display-Driver, 
 | Preferred mode | The first resolution in the file (`PreferredMonitorModeIdx = 0`). |
 | Monitor count | `count = 0` is coerced to 1. A monitor cannot be removed by count. Two or more monitors on one device make the whole Windows desktop stutter (upstream issues #140, #319, #449; fixed by PR #482, which no signed release contains yet). |
 | Several devices | Every `Root\MttVDD` device runs the same driver and reads the same settings file. |
+| Driver host processes | UMDF pools a driver's devices into one WUDFHost process by default, so they share the driver's globals. This driver appends each monitor's modes to a global list it never clears (`s_KnownMonitorModes2`) and reports its first entries: a device started after another offers the earlier device's modes, and a new monitor cannot take a mode only it needs. Osplay gives every device a process of its own: `Device Parameters\WUDF\HostProcessSharingEnabled` = 0 (what `UmdfHostProcessSharing = ProcessSharingDisabled` writes) and a `DeviceGroupId` of its own, `Osplay.` plus the instance ID, because the INF puts every device in `MttVDDGroup` and devices of one group share a process regardless. Both are read when the device starts, so devices the helper adds in one request share a process until they next start (issue #30). |
 | Named pipe | `\\.\pipe\MTTVirtualDisplayPipe`, plain-text commands (`RELOAD_DRIVER`, `SETDISPLAYCOUNT n`, `SETGPU "name"`, `PING`, `GETSETTINGS`, logging and colour toggles). Its ACL is `D:(A;;GA;;;WD)` — any local user. |
 | `RELOAD_DRIVER` / `SETDISPLAYCOUNT` | Call `InitAdapter()` without re-reading settings; new counts or modes in the file are not applied until the device restarts. |
 
@@ -242,16 +251,19 @@ rights and accepts four commands from the engine:
 
 | Command | Effect |
 |---------|--------|
-| Configure (1–4 monitors: width, height, refresh; one GPU name) | Validates the values, writes `vdd_settings.xml`; restarts the enabled devices it still needs and disables the others, so the change applies at once. |
-| Enable | Adds devices until there is one per monitor, then enables that many: the monitors appear. Requires a prior Configure. |
-| Disable | Disables every device: every monitor disappears. Persistent across reboots. |
-| Status | Reports whether the driver is installed, whether any device is enabled, how many monitors are configured and the first one's mode. |
+| Configure (1–4 monitors: width, height, refresh; one GPU name) | Validates the values and writes `vdd_settings.xml` (every mode in use). Running monitors keep theirs: no device restarts. |
+| Enable (device mask) | Adds the named devices that do not exist yet, then enables them: their monitors appear. The other devices are untouched. Requires a prior Configure. |
+| Disable (device mask) | Disables the named devices: their monitors disappear. Persistent across reboots. |
+| Status | Reports whether the driver is installed, which devices are enabled, how many monitors are configured and the first one's mode. |
+
+A device keeps its index while the service runs: known devices keep their places and new ones
+are added at the end, even when a new device's instance ID fills a gap left by a removed one.
 
 Safety rules:
 
 - **One client at a time.** A second engine that connects while a session is active waits up to
   2 s and then gets `OSPLAY_ENGINE_ERROR_HELPER_BUSY`.
-- **The monitor exists only while the client is connected.** The pipe accepts one client; when it
+- **The monitors exist only while the client is connected.** The pipe accepts one client; when it
   disconnects for any reason (session end, engine crash), the console user logs off or switches,
   or the service stops, the helper disables the devices. On service start it disables them as
   well, so a monitor left behind by a crash or by the driver's installer goes away.
@@ -271,19 +283,22 @@ All integers little-endian; one request and one response per pipe message; 512 b
 Implemented once in `windows/shared/src/helper_protocol.cpp`.
 
 ```
-Request:  magic u32 = "OSPH" | version u16 = 2 | command u16 | payload_length u32 | payload
-Response: magic u32 = "OSPH" | version u16 = 2 | result u16  | payload_length u32 | payload
+Request:  magic u32 = "OSPH" | version u16 = 3 | command u16 | payload_length u32 | payload
+Response: magic u32 = "OSPH" | version u16 = 3 | result u16  | payload_length u32 | payload
 
 Configure (command 1) payload:
   count u8 (1–4) | reserved u8 | gpu_name_length u16 | gpu_name (UTF-8) |
   count × (width u32 | height u32 | refresh_millihertz u32)
-Enable (2), Disable (3), Status (4): no payload
+Enable (2), Disable (3) payload:
+  devices u8   (bit i: driver device i; 1–15)
+Status (4): no payload
 
 Response payload (always 16 bytes):
-  vdd_installed u8 | device_enabled u8 (any device) | configured u8 | monitor_count u8 |
+  vdd_installed u8 | enabled_devices u8 (bit i: device i) | configured u8 | monitor_count u8 |
   width u32 | height u32 | refresh_millihertz u32   (the first monitor's mode)
 
-Version 1 (one monitor) is refused with UnsupportedVersion: the engine and the helper ship together.
+Versions 1 (one monitor) and 2 (one device for every monitor) are refused with UnsupportedVersion:
+the engine and the helper ship together.
 
 Result codes: 0 Ok, 1 MalformedRequest, 2 UnsupportedVersion, 3 UnknownCommand,
   4 ValueOutOfRange, 5 VddNotInstalled, 6 DeviceControlFailed, 7 ConfigWriteFailed, 8 NotConfigured
@@ -293,21 +308,25 @@ Result codes: 0 Ok, 1 MalformedRequest, 2 UnsupportedVersion, 3 UnknownCommand,
 
 `windows/engine/include/osplay/engine.h` exposes the virtual display as an opaque handle:
 `osplay_virtual_display_open` (connects to the helper), `_create_monitors`, `_remove_monitor`,
-`_status`, `_close`. Inside the engine, `VirtualDisplayProvider` is the interface;
-`HelperVirtualDisplayProvider` implements it over a `HelperChannel` (the named pipe in production,
-a fake in tests).
+`_status`, `_close`. Inside the engine, `VirtualDisplayProvider` is one host session's view of the
+monitors. The helper serves one client, so every host session of the process shares one
+`VirtualDisplayHub` over one `HelperChannel` (the named pipe in production, a fake in tests); it
+closes when the last session goes. The hub gives each session (`HubVirtualDisplays`) free driver
+devices, and a session's monitors come and go without restarting another session's.
 
-Creating the monitors is three steps: the helper writes the settings (Configure) and enables the
-device (Enable); then the engine sets each monitor's mode. Windows gives a new monitor its own default mode
+Creating a session's monitors is three steps: the helper writes the settings with every mode in use
+(Configure) and enables the session's devices (Enable with their mask); then the engine sets the mode
+of each monitor that was not on the desktop before. Windows gives a new monitor its own default mode
 (800×600 for this driver, measured on the developer PC) even when the driver offers only the
 requested one, and display settings belong to the user's session, which a session-0 service cannot
 change. `GdiDisplayModeApplier` therefore finds the monitors — the active CCD paths whose adapter
-interface path starts with the driver device's instance ID (`ROOT\DISPLAY\0000` →
-`\\?\ROOT#DISPLAY#0000#`), ordered by target id — waits up to 5 s for all of them to join the
-desktop, stores each mode with `ChangeDisplaySettingsExW` (`CDS_NORESET`), applies them together
-and reads every one back. If that fails, the monitors are removed again. The host then captures
-each monitor by its GDI name with its own Desktop Duplication and encoder pipeline (one stream per
-viewer monitor); when the viewer stops one stream, the device starts again with the others.
+interface path starts with a driver device's instance ID (`ROOT\DISPLAY\0000` →
+`\\?\ROOT#DISPLAY#0000#`) — waits up to 5 s for the new ones to join the desktop, stores each mode
+with `ChangeDisplaySettingsExW` (`CDS_NORESET`), applies them together and reads every one back. If
+that fails, the new monitors are removed again. The host then captures each monitor by its GDI name
+with its own Desktop Duplication and encoder pipeline (one stream per viewer monitor); when the
+viewer stops one stream, that session's other monitors are made again. A viewer that arrives when
+no device is free is turned away as busy (`osplay_session_refuse_busy`) before it pairs.
 
 ## Host media pipeline on Windows
 

@@ -101,6 +101,7 @@ private struct MenuHeader: View {
         case .waitingForViewer: "connection.status.waiting"
         case .connecting(let peer): "connection.status.connecting \(peer)"
         case .connected(let peer): "connection.status.connected \(peer)"
+        case .connectedMany(let count): "connection.status.connectedMany \(count)"
         case .swapping(let peer): "connection.status.swapping \(peer)"
         case .reconnecting(let peer): "connection.status.reconnecting \(peer)"
         }
@@ -198,23 +199,11 @@ private struct SharingSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
-            Card {
-                HStack(spacing: Theme.Spacing.medium) {
-                    Image(systemName: Theme.Symbol.sharing)
-                        .font(Theme.Typography.symbol)
-                        .foregroundStyle(connection.isSessionActive ? Theme.Colors.accent : Theme.Colors.secondary)
-                        .frame(width: Theme.Size.symbolColumn)
-                        .accessibilityHidden(true)
-                    Text(connection.isSessionActive ? "menu.sharing.active" : "menu.sharing.waiting")
-                        .font(Theme.Typography.rowTitle)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer()
-                    if connection.isSessionActive {
-                        Button("connection.disconnect") { connection.disconnect() }
-                    }
-                }
+            ForEach(connection.viewers) { viewer in
+                ViewerRow(viewer: viewer) { connection.disconnect(viewer) }
             }
-            if connection.isSessionActive {
+            WaitingRow(isFirst: connection.viewers.isEmpty, hasDisplaysLeft: connection.hasDisplaysLeft)
+            if connection.canSwapRoles {
                 SwapRow(connection: connection, hotkey: swapHotkey)
             }
             Picker("menu.quality", selection: $quality) {
@@ -234,6 +223,73 @@ private struct SharingSection: View {
                 .foregroundStyle(Theme.Colors.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+}
+
+/// A computer this Mac extends onto, with its own Disconnect (DECISIONS.md, 2026-10-25).
+private struct ViewerRow: View {
+    let viewer: ConnectionViewModel.ConnectedViewer
+    let disconnect: () -> Void
+
+    var body: some View {
+        Card {
+            HStack(alignment: .top, spacing: Theme.Spacing.medium) {
+                Image(systemName: viewer.platform == .windows ? Theme.Symbol.windows : Theme.Symbol.mac)
+                    .font(Theme.Typography.symbol)
+                    .foregroundStyle(Theme.Colors.accent)
+                    .frame(width: Theme.Size.symbolColumn)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: Theme.Spacing.small) {
+                    Text(verbatim: viewer.name)
+                        .font(Theme.Typography.rowTitle)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(
+                        viewer.displayCount == 0
+                            ? "menu.sharing.connecting" : "menu.sharing.displays \(viewer.displayCount)"
+                    )
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Colors.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Button(action: disconnect) {
+                    Label("connection.disconnect", systemImage: Theme.Symbol.disconnect)
+                }
+                .labelStyle(.iconOnly)
+                .font(Theme.Typography.symbol)
+                .buttonStyle(.borderless)
+                .help(Text("connection.disconnect"))
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+}
+
+/// The host keeps listening: the next computer can connect while others stream.
+private struct WaitingRow: View {
+    let isFirst: Bool
+    let hasDisplaysLeft: Bool
+
+    var body: some View {
+        Card {
+            HStack(alignment: .top, spacing: Theme.Spacing.medium) {
+                Image(systemName: Theme.Symbol.sharing)
+                    .font(Theme.Typography.symbol)
+                    .foregroundStyle(Theme.Colors.secondary)
+                    .frame(width: Theme.Size.symbolColumn)
+                    .accessibilityHidden(true)
+                Text(text)
+                    .font(isFirst ? Theme.Typography.rowTitle : Theme.Typography.caption)
+                    .foregroundStyle(isFirst ? Theme.Colors.primary : Theme.Colors.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var text: LocalizedStringKey {
+        if !hasDisplaysLeft { return "menu.sharing.full" }
+        return isFirst ? "menu.sharing.waiting" : "menu.sharing.waitingNext"
     }
 }
 

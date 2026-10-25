@@ -1,6 +1,6 @@
 #include "../display/gdi_display_mode_applier.hpp"
-#include "../display/helper_virtual_display_provider.hpp"
 #include "../display/pipe_helper_channel.hpp"
+#include "../display/virtual_display_hub.hpp"
 #include "engine_results.hpp"
 
 #include <osplay/engine.h>
@@ -10,6 +10,8 @@
 #include <span>
 #include <vector>
 
+/// Its own helper connection: the developer tool and the shell's health check run apart from any
+/// host session.
 struct osplay_virtual_display {
     std::unique_ptr<osplay::engine::VirtualDisplayProvider> provider;
 };
@@ -38,8 +40,10 @@ osplay_engine_result osplay_virtual_display_open(osplay_virtual_display** out_di
             return to_result(channel.error());
         }
         auto display = std::make_unique<osplay_virtual_display>();
-        display->provider = std::make_unique<osplay::engine::HelperVirtualDisplayProvider>(
-            std::move(channel.value()), std::make_unique<osplay::engine::GdiDisplayModeApplier>());
+        display->provider = std::make_unique<osplay::engine::HubVirtualDisplays>(
+            std::make_shared<osplay::engine::VirtualDisplayHub>(
+                std::move(channel.value()),
+                std::make_unique<osplay::engine::GdiDisplayModeApplier>()));
         *out_display = display.release(); // ownership passes to the caller until _close
         return OSPLAY_ENGINE_OK;
     });
@@ -89,7 +93,7 @@ osplay_engine_result osplay_virtual_display_status(osplay_virtual_display* displ
         }
         *out_status = osplay_virtual_monitor_status{
             .driver_installed = status.value().vdd_installed ? uint8_t{1} : uint8_t{0},
-            .monitor_present = status.value().device_enabled ? uint8_t{1} : uint8_t{0},
+            .monitor_present = status.value().enabled_devices != 0 ? uint8_t{1} : uint8_t{0},
             .configured = status.value().configured ? uint8_t{1} : uint8_t{0},
             .width = status.value().width,
             .height = status.value().height,

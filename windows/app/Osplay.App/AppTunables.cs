@@ -6,6 +6,9 @@ internal static class AppTunables
     /// <summary>A host session takes one viewer; the next listener starts after this pause.</summary>
     public static readonly TimeSpan RelistenDelay = TimeSpan.FromSeconds(1);
 
+    /// <summary>Virtual monitors across every viewer of this PC (the engine's limit, DECISIONS.md 2026-10-25).</summary>
+    public const int MaxVirtualMonitors = 4;
+
     /// <summary>
     /// Pause before a dropped viewer tries its host again (an old advertisement can refuse at once;
     /// this keeps that from becoming a tight loop).

@@ -74,6 +74,16 @@
     <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
   </Style>
 
+  <!-- A card that is not a button: a computer this PC extends onto. -->
+  <Style x:Key="Osplay.Border.Card" TargetType="Border">
+    <Setter Property="Margin" Value="{StaticResource Osplay.Thickness.ItemGap}" />
+    <Setter Property="Padding" Value="{StaticResource Osplay.Thickness.CardPadding}" />
+    <Setter Property="CornerRadius" Value="{StaticResource Osplay.CornerRadius.Card}" />
+    <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+    <Setter Property="BorderThickness" Value="{StaticResource Osplay.Thickness.CardBorder}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+  </Style>
+
   <!-- A monitor in the picker: selected ones are drawn in the accent color. -->
   <Style x:Key="Osplay.Toggle.Monitor" TargetType="ToggleButton">
     <Setter Property="Cursor" Value="Hand" />

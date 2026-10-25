@@ -18,6 +18,16 @@ inline constexpr std::uint64_t kMaxLogFileBytes = 1024ULL * 1024ULL;
 inline constexpr std::uint32_t kNoConsoleUserRetryMilliseconds = 2000;
 inline constexpr std::uint32_t kServiceRestartDelayMilliseconds = 5000;
 inline constexpr std::uint32_t kServiceStopTimeoutMilliseconds = 10000;
+/// A device's UMDF host settings, under its Device Parameters key (WDF's WUDF_SUB_KEY).
+inline constexpr const wchar_t* kWudfSubKey = L"WUDF";
+/// Written by the INF directive UmdfHostProcessSharing; read when the device starts.
+inline constexpr const wchar_t* kHostProcessSharingValue = L"HostProcessSharingEnabled";
+/// WdfProcessSharingDisabled: the device gets a driver host process of its own.
+inline constexpr std::uint32_t kHostProcessSharingDisabled = 0;
+/// Written by the INF's DeviceGroupId directive. Devices with the same group share a host process
+/// even with process sharing disabled, so each device gets this prefix and its instance ID.
+inline constexpr const wchar_t* kDeviceGroupIdValue = L"DeviceGroupId";
+inline constexpr const wchar_t* kDeviceGroupIdPrefix = L"Osplay.";
 /// Right after the driver is installed, SetupAPI property changes can fail transiently.
 inline constexpr int kDeviceChangeAttempts = 3;
 inline constexpr std::uint32_t kDeviceChangeRetryDelayMilliseconds = 500;

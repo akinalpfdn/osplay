@@ -22,10 +22,41 @@ final class ConnectionViewModel {
         case waitingForViewer
         case connecting(peer: String)
         case connected(peer: String)
+        /// Sharing with several computers at once (DEVPLAN Phase 13b part SYM-03).
+        case connectedMany(count: Int)
         /// The roles are being reversed with this computer.
         case swapping(peer: String)
         /// The connection dropped (sleep, network); it comes back when this computer reappears.
         case reconnecting(peer: String)
+    }
+
+    /// A computer this Mac extends onto: one row in the menu.
+    struct ConnectedViewer: Identifiable, Equatable, Sendable {
+        let id: UUID
+        let name: String
+        let platform: PeerPlatform
+        /// The virtual displays it uses; 0 until its streams run.
+        var displayCount = 0
+    }
+
+    /// One host session: the one listening for the next viewer, or one serving a viewer.
+    @MainActor
+    private final class HostConnection {
+        let id = UUID()
+        let session: HostSession
+        let peer: SessionPeer
+        /// nil while it listens for a viewer.
+        var viewer: ConnectedViewer?
+        var isStreaming = false
+        /// The displays standing in for the viewer's monitors, by monitor ID.
+        var liveDisplays: [UInt8: CGDirectDisplayID] = [:]
+        var deviceID: String?
+        var tasks: [Task<Void, Never>] = []
+
+        init(session: HostSession, peer: SessionPeer) {
+            self.session = session
+            self.peer = peer
+        }
     }
 
     /// The host being viewed, so the session can come back after sleep, a network change or a
@@ -44,6 +75,14 @@ final class ConnectionViewModel {
         let peerName: String
     }
 
+    /// A pairing code waiting for the user; one is shown at a time.
+    private struct PairingRequest {
+        let owner: UUID
+        let code: UInt32
+        let peerName: String
+        let answer: (Bool) -> Void
+    }
+
     private(set) var mode: Mode = .off
     private(set) var status: Status = .idle
     /// Hosts to connect to, by name.
@@ -53,19 +92,26 @@ final class ConnectionViewModel {
     private(set) var hotkeyUnavailable = false
     /// This Mac's displays, for the picker of those offered to hosts.
     private(set) var displays: [LocalDisplay] = LocalDisplays.all()
+    /// While sharing: the computers this Mac extends onto, in the order they connected.
+    private(set) var viewers: [ConnectedViewer] = []
 
     private let dependencies: AppDependencies
     private let trust: PeerTrustCache
     private let deviceName: String
     private var identity: DeviceIdentity?
     private var modeTask: Task<Void, Never>?
-    private var host: HostSession?
+    /// The virtual displays every viewer of this Mac shares.
+    private let displayBudget = DisplayBudget()
+    private var hostConnections: [HostConnection] = []
+    private var advertising: (any Advertising)?
+    private var advertisedPort: UInt16?
+    private var relistenTask: Task<Void, Never>?
     private var viewer: ViewerSession?
+    private var viewerPeer = SessionPeer()
+    private var viewerPairingOwner = UUID()
     private var viewerTasks: [Task<Void, Never>] = []
     private var peerName = ""
-    /// While extending: the displays standing in for the viewer's monitors, by monitor ID.
-    private var liveDisplays: [UInt8: CGDirectDisplayID] = [:]
-    private var liveDeviceID: String?
+    private var pairingQueue: [PairingRequest] = []
     private var hotkey: HotkeyRegistration?
     private var swapHotkey: HotkeyRegistration?
     private(set) var swapHotkeyUnavailable = false
@@ -96,8 +142,26 @@ final class ConnectionViewModel {
 
     var isSessionActive: Bool {
         switch status {
-        case .connecting, .connected: true
+        case .connecting, .connected, .connectedMany: true
         case .idle, .waitingForViewer, .swapping, .reconnecting: false
+        }
+    }
+
+    /// Whether another computer can still get a virtual display from this Mac.
+    var hasDisplaysLeft: Bool { !displayBudget.isExhausted }
+
+    /// Roles can be reversed with exactly one connected computer.
+    var canSwapRoles: Bool {
+        guard pendingSwap == nil else { return false }
+        switch mode {
+        case .sharing:
+            let serving = hostConnections.filter { $0.viewer != nil }
+            return serving.count == 1 && serving[0].isStreaming
+        case .viewing:
+            if case .connected = status { return true }
+            return false
+        case .off:
+            return false
         }
     }
 
@@ -129,11 +193,12 @@ final class ConnectionViewModel {
             return
         }
         error = nil
+        let peer = SessionPeer()
         let core: CoreSession
         do throws(CoreError) {
             core = try CoreSession.viewer(
                 device: sessionDevice(identity, maximumStreams: offered.count), monitors: offered.map(\.description),
-                host: device.host, port: device.port, trust: { [trust] key in trust.trust(key) })
+                host: device.host, port: device.port, trust: { [trust, peer] key in peer.trust(key, in: trust) })
         } catch {
             self.error = .session(error)
             return
@@ -146,6 +211,8 @@ final class ConnectionViewModel {
             target: { stream in places[stream.monitorID].map(PresentationTarget.fullScreen) },
             showsStats: { [settings = dependencies.settings] in await MainActor.run { settings.showsStatsOverlay } })
         viewer = session
+        viewerPeer = peer
+        viewerPairingOwner = UUID()
         peerName = device.advertisement.name
         viewedHost = ViewedHost(
             deviceID: device.advertisement.deviceID, name: displayName(of: device), displays: offered)
@@ -165,20 +232,30 @@ final class ConnectionViewModel {
         ]
     }
 
-    /// Ends the current session; sharing goes back to waiting for a viewer.
+    /// Ends every session; sharing keeps waiting for the next viewer.
     func disconnect() {
         endedByUser = true
-        Task { [host, viewer] in
-            await host?.stop()
+        let sessions = hostConnections.filter { $0.viewer != nil }.map(\.session)
+        Task { [viewer] in
+            for session in sessions {
+                await session.stop()
+            }
             await viewer?.stop()
         }
+    }
+
+    /// Ends the session with this computer only; the others go on.
+    func disconnect(_ connected: ConnectedViewer) {
+        guard let connection = hostConnections.first(where: { $0.viewer?.id == connected.id }) else { return }
+        Task { [session = connection.session] in await session.stop() }
     }
 
     /// Reverses the roles with the connected computer: this Mac hosts if it was the display, and
     /// becomes the display if it was hosting. The other computer must agree (it answers at once).
     func swapRoles() {
-        guard case .connected = status, pendingSwap == nil else { return }
-        Task { [weak self, host, viewer] in
+        guard canSwapRoles else { return }
+        let host = hostConnections.first { $0.viewer != nil }?.session
+        Task { [weak self, viewer] in
             do throws(CoreError) {
                 if let host {
                     try await host.requestRoleSwap()
@@ -237,18 +314,23 @@ final class ConnectionViewModel {
     /// Refused from now on; a session with it ends at once.
     func revoke(_ peer: TrustedPeer) {
         update { () throws(KeyStoreError) in try trust.revoke(peer.publicKey) }
-        endSession(with: peer.publicKey)
+        endSessions(with: peer.publicKey)
     }
 
     /// Forgotten: its next connection pairs again. A session with it ends at once.
     func remove(_ peer: TrustedPeer) {
         update { () throws(KeyStoreError) in try trust.remove(peer.publicKey) }
-        endSession(with: peer.publicKey)
+        endSessions(with: peer.publicKey)
     }
 
-    private func endSession(with publicKey: [UInt8]) {
-        guard isSessionActive, trust.currentPeer == publicKey else { return }
-        disconnect()
+    private func endSessions(with publicKey: [UInt8]) {
+        for connection in hostConnections where connection.peer.key == publicKey {
+            Task { [session = connection.session] in await session.stop() }
+        }
+        if let viewer, viewerPeer.key == publicKey {
+            endedByUser = true
+            Task { await viewer.stop() }
+        }
     }
 
     func openScreenRecordingSettings() {
@@ -271,64 +353,46 @@ final class ConnectionViewModel {
             mode = .off
             return
         }
-        status = .waitingForViewer
-        modeTask = Task { [weak self] in
-            await self?.shareLoop(identity)
-        }
+        listen(identity)
+        updateSharingStatus()
     }
 
-    /// A core host session accepts one viewer, so a new one listens after each session.
-    private func shareLoop(_ identity: DeviceIdentity) async {
-        while mode == .sharing, !Task.isCancelled {
-            let failure = await shareOnce(identity)
-            if pendingSwap != nil {
-                // Outside this task: switching modes cancels it.
-                Task { [weak self] in self?.performSwap() }
-                return
-            }
-            if let failure {
-                error = failure
-                if case .host(.screenRecordingPermissionMissing) = failure {
-                    mode = .off
-                    status = .idle
-                    return
-                }
-                if case .discovery = failure {
-                    mode = .off
-                    status = .idle
-                    return
-                }
-            }
-            // Cancellation ends the loop through the condition above.
-            try? await Task.sleep(for: Tunables.Connection.relistenDelay)
+    /// A core host session takes one viewer, so a new one listens as soon as a viewer arrives: several
+    /// computers can use this Mac at once (DEVPLAN Phase 13b part SYM-03).
+    private func listen(_ identity: DeviceIdentity) {
+        guard mode == .sharing, pendingSwap == nil, !hostConnections.contains(where: { $0.viewer == nil }) else {
+            return
         }
-    }
-
-    private func shareOnce(_ identity: DeviceIdentity) async -> ConnectionError? {
+        let peer = SessionPeer()
         let core: CoreSession
         do throws(CoreError) {
             // The previous session's port keeps the advertisement viewers already resolved right.
             core = try CoreSession.host(
                 device: sessionDevice(identity, maximumStreams: Tunables.VirtualDisplay.maximumDisplayCount),
-                controlPort: sharePort, trust: { [trust] key in trust.trust(key) })
+                controlPort: sharePort, trust: { [trust, peer] key in peer.trust(key, in: trust) })
         } catch {
-            return .session(error)
+            Log.connection.error("Could not listen for a viewer: \(String(describing: error), privacy: .public)")
+            self.error = .session(error)
+            listenAgainLater(identity)
+            return
         }
+        Log.connection.info("Listening for a viewer on port \(core.controlPort)")
         sharePort = core.controlPort
-        let advertising: any Advertising
         do throws(DiscoveryError) {
-            advertising = try dependencies.discovery.advertise(
-                Advertisement(identity: identity, name: deviceName, roles: .host), port: core.controlPort)
+            try advertise(identity, port: core.controlPort)
         } catch {
             core.close()
-            return .discovery(error)
+            self.error = .discovery(error)
+            stopSharing()
+            mode = .off
+            status = .idle
+            return
         }
-        defer { advertising.cancel() }
         let settings = dependencies.settings
         let session = HostSession(
             core: core,
-            policy: { [trust] in
-                let key = trust.currentPeer ?? []
+            policy: { [peer, settings] in
+                let key = peer.key ?? []
                 return await MainActor.run {
                     let deviceID = DeviceIdentity.deviceID(publicKey: key)
                     return HostDisplayPolicy(
@@ -337,48 +401,156 @@ final class ConnectionViewModel {
                         streamSize: settings.streamSize)
                 }
             },
-            displays: VirtualDisplayLender(provider: dependencies.virtualDisplays), captures: dependencies.captures,
-            encoders: dependencies.encoders, permissions: dependencies.permissions)
-        host = session
-        status = .waitingForViewer
-        let events = Task { [weak self] in
-            for await event in session.events {
-                self?.handle(event, from: session)
-            }
-        }
-        let failure = await session.run()
-        events.cancel()
-        unregisterSwapHotkey()
-        host = nil
-        liveDisplays = [:]
-        liveDeviceID = nil
-        dependencies.pairingPrompt.dismiss()
-        if mode == .sharing { status = .waitingForViewer }
-        return failure.map(ConnectionError.host)
+            displays: VirtualDisplayLender(provider: dependencies.virtualDisplays), budget: displayBudget,
+            captures: dependencies.captures, encoders: dependencies.encoders, permissions: dependencies.permissions)
+        let connection = HostConnection(session: session, peer: peer)
+        hostConnections.append(connection)
+        connection.tasks = [
+            Task { [weak self] in
+                for await event in session.events {
+                    self?.handle(event, from: connection)
+                }
+            },
+            Task { [weak self] in
+                let failure = await session.run()
+                self?.hostEnded(connection, failure: failure)
+            },
+        ]
     }
 
-    private func handle(_ event: HostSession.Event, from session: HostSession) {
+    /// One advertisement for as long as sharing is on; a new one only when the port changed.
+    private func advertise(_ identity: DeviceIdentity, port: UInt16) throws(DiscoveryError) {
+        guard advertising == nil || advertisedPort != port else { return }
+        advertising?.cancel()
+        advertising = nil
+        advertising = try dependencies.discovery.advertise(
+            Advertisement(identity: identity, name: deviceName, roles: .host), port: port)
+        advertisedPort = port
+        Log.connection.info("Advertising on port \(port)")
+    }
+
+    private func listenAgainLater(_ identity: DeviceIdentity) {
+        relistenTask?.cancel()
+        relistenTask = Task { [weak self] in
+            // Cancelled when sharing stops; listen() checks the mode anyway.
+            try? await Task.sleep(for: Tunables.Connection.relistenDelay)
+            guard !Task.isCancelled else { return }
+            self?.listen(identity)
+        }
+    }
+
+    private func hostEnded(_ connection: HostConnection, failure: HostSessionError?) {
+        // Gone already when sharing stopped on purpose.
+        guard hostConnections.contains(where: { $0 === connection }) else { return }
+        hostConnections.removeAll { $0 === connection }
+        dropPairing(owner: connection.id)
+        publishViewers()
+        if pendingSwap != nil, connection.viewer != nil {
+            performSwap()
+            return
+        }
+        if let failure {
+            error = .host(failure)
+            if case .screenRecordingPermissionMissing = failure {
+                stopSharing()
+                mode = .off
+                status = .idle
+                return
+            }
+        }
+        updateSharingStatus()
+        updateSwapHotkey()
+        // The listener ended (a viewer turned away, a failure, wake): another one takes its place.
+        if connection.viewer == nil, let identity {
+            listenAgainLater(identity)
+        }
+    }
+
+    private func handle(_ event: HostSession.Event, from connection: HostConnection) {
+        let session = connection.session
         switch event {
         case .peer(let peer):
-            peerName = peer.deviceName
-            status = .connecting(peer: peer.deviceName)
+            connection.viewer = ConnectedViewer(id: connection.id, name: peer.deviceName, platform: peer.platform)
+            publishViewers()
+            updateSharingStatus()
+            updateSwapHotkey()
+            // The next computer can connect while this one pairs and streams.
+            if let identity { listen(identity) }
         case .pairingCode(let code, _):
-            dependencies.pairingPrompt.show(code: code, peerName: peerName) { accepted in
+            requestPairing(owner: connection.id, code: code, peerName: connection.viewer?.name ?? "") { accepted in
                 Task { await session.confirmPairing(accepted) }
             }
         case .paired(let key):
-            storePairing(key)
+            storePairing(key, name: connection.viewer?.name ?? "")
         case .state(let state):
-            if state == .streaming { connected() }
+            if state == .streaming { hostConnected(connection) }
         case .streaming(let displays):
-            rememberArrangement(displays)
+            rememberArrangement(displays, for: connection)
+            connection.viewer?.displayCount = displays.count
+            publishViewers()
         case .statistics:
             break
         case .roleSwapRequested(let key):
-            answerSwap(from: key, becoming: .viewing) { answer in Task { await session.answerRoleSwap(answer) } }
+            let name = connection.viewer?.name ?? ""
+            // With several computers connected the roles cannot be reversed.
+            guard hostConnections.filter({ $0.viewer != nil }).count == 1 else {
+                Task { await session.answerRoleSwap(.busy) }
+                return
+            }
+            answerSwap(from: key, becoming: .viewing, peerName: name) { answer in
+                Task { await session.answerRoleSwap(answer) }
+            }
         case .roleSwapAnswered(let answer, let key):
-            swapAnswered(answer, peer: key, becoming: .viewing)
+            swapAnswered(answer, peer: key, becoming: .viewing, peerName: connection.viewer?.name ?? "")
         }
+    }
+
+    private func hostConnected(_ connection: HostConnection) {
+        connection.isStreaming = true
+        if let key = connection.peer.key {
+            update { () throws(KeyStoreError) in try trust.seen(key) }
+        }
+        updateSharingStatus()
+        updateSwapHotkey()
+    }
+
+    private func publishViewers() {
+        viewers = hostConnections.compactMap(\.viewer)
+    }
+
+    private func updateSharingStatus() {
+        guard mode == .sharing else { return }
+        if let swap = pendingSwap {
+            status = .swapping(peer: swap.peerName)
+            return
+        }
+        let serving = hostConnections.filter { $0.viewer != nil }
+        switch serving.count {
+        case 0:
+            status = .waitingForViewer
+        case 1:
+            let name = serving[0].viewer?.name ?? ""
+            status = serving[0].isStreaming ? .connected(peer: name) : .connecting(peer: name)
+        default:
+            status = .connectedMany(count: serving.count)
+        }
+    }
+
+    /// Ends every host session and the advertisement.
+    private func stopSharing() {
+        relistenTask?.cancel()
+        relistenTask = nil
+        let connections = hostConnections
+        hostConnections = []
+        for connection in connections {
+            dropPairing(owner: connection.id)
+            Task { [session = connection.session] in await session.stop() }
+        }
+        advertising?.cancel()
+        advertising = nil
+        advertisedPort = nil
+        publishViewers()
+        unregisterSwapHotkey()
     }
 
     // MARK: - Viewing
@@ -423,19 +595,21 @@ final class ConnectionViewModel {
         case .peer(let peer):
             peerName = peer.deviceName
         case .pairingCode(let code, _):
-            dependencies.pairingPrompt.show(code: code, peerName: peerName) { accepted in
+            requestPairing(owner: viewerPairingOwner, code: code, peerName: peerName) { accepted in
                 Task { await session.confirmPairing(accepted) }
             }
         case .paired(let key):
-            storePairing(key)
+            storePairing(key, name: peerName)
         case .state(let state):
-            if state == .streaming { connected() }
+            if state == .streaming { viewerConnected() }
         case .streamAdded, .visibility, .statistics:
             break
         case .roleSwapRequested(let key):
-            answerSwap(from: key, becoming: .sharing) { answer in Task { await session.answerRoleSwap(answer) } }
+            answerSwap(from: key, becoming: .sharing, peerName: peerName) { answer in
+                Task { await session.answerRoleSwap(answer) }
+            }
         case .roleSwapAnswered(let answer, let key):
-            swapAnswered(answer, peer: key, becoming: .sharing)
+            swapAnswered(answer, peer: key, becoming: .sharing, peerName: peerName)
         }
     }
 
@@ -449,7 +623,7 @@ final class ConnectionViewModel {
         viewerTasks.forEach { $0.cancel() }
         viewerTasks = []
         viewer = nil
-        dependencies.pairingPrompt.dismiss()
+        dropPairing(owner: viewerPairingOwner)
         status = .idle
         let host = viewedHost
         viewedHost = nil
@@ -474,6 +648,14 @@ final class ConnectionViewModel {
         if let failure { error = .session(failure) }
     }
 
+    private func viewerConnected() {
+        status = .connected(peer: peerName)
+        updateSwapHotkey()
+        if let key = viewerPeer.key {
+            update { () throws(KeyStoreError) in try trust.seen(key) }
+        }
+    }
+
     // MARK: - Interruptions
 
     private func observeSystem() {
@@ -493,23 +675,30 @@ final class ConnectionViewModel {
         ]
     }
 
-    /// Tells the other computer this Mac is going away for a while; a viewer comes back after wake.
+    /// Tells the other computers this Mac is going away for a while; a viewer comes back after wake.
     private func willSleep() {
         if let viewer {
             resumesAfterClose = true
             Task { await viewer.stopForSleep() }
         }
-        if let host {
-            Task { await host.stopForSleep() }
+        for connection in hostConnections {
+            Task { [session = connection.session] in await session.stopForSleep() }
         }
     }
 
-    /// Sockets and the Bonjour registration from before sleep may be stale: sharing without a
-    /// viewer listens and advertises anew.
+    /// Sockets and the Bonjour registration from before sleep may be stale: sharing listens and
+    /// advertises anew.
     private func didWake() {
-        guard mode == .sharing, !isSessionActive, let host else { return }
-        // The share loop listens again right after this session ends.
-        Task { await host.stop() }
+        guard mode == .sharing else { return }
+        advertising?.cancel()
+        advertising = nil
+        advertisedPort = nil
+        if let listener = hostConnections.first(where: { $0.viewer == nil }) {
+            // Its end starts the next listener, which advertises again.
+            Task { [session = listener.session] in await session.stop() }
+        } else if let identity {
+            listen(identity)
+        }
     }
 
     /// This Mac's displays changed. A viewed display with a new size, refresh rate or scale makes the
@@ -554,11 +743,39 @@ final class ConnectionViewModel {
         }
     }
 
+    // MARK: - Pairing
+
+    /// Shows the code at once, or after the codes before it were answered.
+    private func requestPairing(owner: UUID, code: UInt32, peerName: String, answer: @escaping (Bool) -> Void) {
+        pairingQueue.append(PairingRequest(owner: owner, code: code, peerName: peerName, answer: answer))
+        if pairingQueue.count == 1 { showNextPairing() }
+    }
+
+    private func showNextPairing() {
+        guard let request = pairingQueue.first else { return }
+        dependencies.pairingPrompt.show(code: request.code, peerName: request.peerName) {
+            [weak self, request] accepted in
+            guard let self, pairingQueue.first?.owner == request.owner else { return }
+            pairingQueue.removeFirst()
+            request.answer(accepted)
+            showNextPairing()
+        }
+    }
+
+    /// The session asking ended: its code goes away, unanswered.
+    private func dropPairing(owner: UUID) {
+        guard let index = pairingQueue.firstIndex(where: { $0.owner == owner }) else { return }
+        pairingQueue.remove(at: index)
+        guard index == 0 else { return }
+        dependencies.pairingPrompt.dismiss()
+        showNextPairing()
+    }
+
     // MARK: - Role swap
 
     /// The other computer asks to reverse the roles: agree when this Mac can take its new role.
     private func answerSwap(
-        from key: [UInt8], becoming role: Mode, answer: @escaping (RoleSwapAnswer) -> Void
+        from key: [UInt8], becoming role: Mode, peerName: String, answer: @escaping (RoleSwapAnswer) -> Void
     ) {
         let able = role == .sharing ? hasScreenRecordingAccess : !offeredDisplays().isEmpty
         guard able, pendingSwap == nil else {
@@ -568,10 +785,11 @@ final class ConnectionViewModel {
         pendingSwap = PendingSwap(
             role: role, peerDeviceID: DeviceIdentity.deviceID(publicKey: key), peerName: peerName)
         status = .swapping(peer: peerName)
+        unregisterSwapHotkey()
         answer(.accepted)
     }
 
-    private func swapAnswered(_ answer: RoleSwapAnswer, peer key: [UInt8], becoming role: Mode) {
+    private func swapAnswered(_ answer: RoleSwapAnswer, peer key: [UInt8], becoming role: Mode, peerName: String) {
         guard answer == .accepted else {
             error = .roleSwap(answer)
             return
@@ -579,6 +797,7 @@ final class ConnectionViewModel {
         pendingSwap = PendingSwap(
             role: role, peerDeviceID: DeviceIdentity.deviceID(publicKey: key), peerName: peerName)
         status = .swapping(peer: peerName)
+        unregisterSwapHotkey()
     }
 
     /// The session closed after an agreed swap: take the new role. Viewing connects to the same
@@ -592,6 +811,15 @@ final class ConnectionViewModel {
         awaitHost(swap.peerDeviceID, timeout: Tunables.Connection.swapReconnectTimeout) { [weak self] in
             self?.error = .roleSwapPeerNotFound
             self?.status = .idle
+        }
+    }
+
+    /// The swap shortcut works only while the roles can be reversed.
+    private func updateSwapHotkey() {
+        if canSwapRoles {
+            registerSwapHotkey()
+        } else {
+            unregisterSwapHotkey()
         }
     }
 
@@ -658,19 +886,21 @@ final class ConnectionViewModel {
     }
 
     /// Keeps where the viewer's displays sit, so Settings shows them and the next connection reuses it.
-    private func rememberArrangement(_ displays: [LentDisplay]) {
-        guard let key = trust.currentPeer else { return }
+    private func rememberArrangement(_ displays: [LentDisplay], for connection: HostConnection) {
+        guard let key = connection.peer.key else { return }
         let deviceID = DeviceIdentity.deviceID(publicKey: key)
         dependencies.settings.setArrangement(displays.compactMap(\.arrangement), for: deviceID)
-        liveDisplays = Dictionary(uniqueKeysWithValues: displays.map { ($0.monitor.id, $0.displayID) })
-        liveDeviceID = deviceID
+        connection.liveDisplays = Dictionary(uniqueKeysWithValues: displays.map { ($0.monitor.id, $0.displayID) })
+        connection.deviceID = deviceID
     }
 
     /// Moves the displays of a running session at once; a saved arrangement alone waits for the
     /// next connection.
     func applyArrangement(_ arrangement: [ArrangedMonitor], for deviceID: String) {
-        guard deviceID == liveDeviceID else { return }
-        let origins = arrangement.compactMap { monitor in liveDisplays[monitor.id].map { ($0, monitor.origin) } }
+        guard let connection = hostConnections.first(where: { $0.deviceID == deviceID }) else { return }
+        let origins = arrangement.compactMap { monitor in
+            connection.liveDisplays[monitor.id].map { ($0, monitor.origin) }
+        }
         do throws(VirtualDisplayError) {
             try DisplayArranger.apply(origins)
         } catch {
@@ -678,16 +908,7 @@ final class ConnectionViewModel {
         }
     }
 
-    private func connected() {
-        status = .connected(peer: peerName)
-        registerSwapHotkey()
-        if let key = trust.currentPeer {
-            update { () throws(KeyStoreError) in try trust.seen(key) }
-        }
-    }
-
-    private func storePairing(_ key: [UInt8]) {
-        let name = peerName
+    private func storePairing(_ key: [UInt8], name: String) {
         update { () throws(KeyStoreError) in try trust.paired(key, name: name) }
     }
 
@@ -708,8 +929,10 @@ final class ConnectionViewModel {
         autoConnectDeviceID = nil
         autoConnectTimeout?.cancel()
         autoConnectTimeout = nil
+        stopSharing()
         disconnect()
         devices = []
+        pairingQueue = []
         dependencies.pairingPrompt.dismiss()
     }
 }

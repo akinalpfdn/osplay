@@ -26,6 +26,21 @@ public sealed class DeviceItem(string name, string detail, bool isCompatible, IR
     public IRelayCommand ConnectCommand { get; } = connect;
 }
 
+/// <summary>A computer this PC extends onto: one row in the panel (DECISIONS.md, 2026-10-25).</summary>
+public sealed partial class ViewerItem(string name, bool isMac, IRelayCommand disconnect) : ObservableObject
+{
+    public string Name { get; } = name;
+
+    /// <summary>Its icon: a laptop for a Mac, a desktop for a PC.</summary>
+    public bool IsMac { get; } = isMac;
+
+    public IRelayCommand DisconnectCommand { get; } = disconnect;
+
+    /// <summary>"2 displays", or "Connecting…" until its streams run.</summary>
+    [ObservableProperty]
+    private string _detail = Localization.Strings.SharingConnecting;
+}
+
 /// <summary>A paired device in Settings.</summary>
 public sealed class PeerItem(string name, string detail, bool isRevoked, IRelayCommand revoke, IRelayCommand remove)
 {

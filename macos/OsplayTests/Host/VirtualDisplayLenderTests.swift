@@ -13,6 +13,28 @@ struct VirtualDisplayLenderTests {
             physicalHeightMillimeters: 336, scalePercent: scalePercent, name: "Monitor \(id)")
     }
 
+    @Test("Each session returns only the displays it lent; other viewers keep theirs")
+    func lendersShareTheProvider() async throws {
+        let provider = FakeVirtualDisplayProvider()
+        let first = VirtualDisplayLender(provider: provider, arrange: { _ in })
+        let second = VirtualDisplayLender(provider: provider, arrange: { _ in })
+
+        let firstDisplays = try await first.lend(
+            [monitor(id: 0, scalePercent: 100), monitor(id: 1, scalePercent: 100)], peerID: Data("pc".utf8),
+            hiDPI: .automatic, arrangement: [])
+        let secondDisplays = try await second.lend(
+            [monitor(id: 0, scalePercent: 100)], peerID: Data("mac".utf8), hiDPI: .automatic, arrangement: [])
+        #expect(provider.handles.count == 3, "a new viewer leaves the others' displays alone")
+
+        second.returnAll()
+        #expect(provider.handles.map(\.displayID) == firstDisplays.map(\.displayID))
+        second.returnDisplay(firstDisplays[0].displayID)
+        #expect(provider.handles.count == 2, "a display lent by another session is not this one's to return")
+        first.returnDisplay(firstDisplays[1].displayID)
+        #expect(provider.handles.map(\.displayID) == [firstDisplays[0].displayID])
+        #expect(!secondDisplays.isEmpty)
+    }
+
     @Test("A monitor at 100% starts at full size, a high-density one in crisp HiDPI")
     func initialResolutionFollowsTheViewersScaling() async throws {
         let provider = FakeVirtualDisplayProvider()

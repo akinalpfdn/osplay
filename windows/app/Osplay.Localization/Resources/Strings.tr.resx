@@ -100,7 +100,7 @@
     <value>Diğer bilgisayar farklı bir Osplay sürümü çalıştırıyor. İkisini de son sürüme güncelleyin.</value>
   </data>
   <data name="ErrorPeerBusy" xml:space="preserve">
-    <value>Diğer bilgisayar zaten başka bir cihaza bağlı.</value>
+    <value>Diğer bilgisayar genişleyebileceği bütün ekranları zaten kullanıyor.</value>
   </data>
   <data name="ErrorUnreachable" xml:space="preserve">
     <value>Diğer bilgisayarla bağlantı kesildi.</value>
@@ -407,5 +407,26 @@
   </data>
   <data name="StreamSizeNative" xml:space="preserve">
     <value>Doğal</value>
+  </data>
+  <data name="ConnectionStatusConnectedMany" xml:space="preserve">
+    <value>{0} bilgisayara bağlı</value>
+  </data>
+  <data name="SharingConnecting" xml:space="preserve">
+    <value>Bağlanıyor…</value>
+  </data>
+  <data name="SharingDisplayOne" xml:space="preserve">
+    <value>1 ekran</value>
+  </data>
+  <data name="SharingDisplayMany" xml:space="preserve">
+    <value>{0} ekran</value>
+  </data>
+  <data name="SharingWaitingFirst" xml:space="preserve">
+    <value>Bir bilgisayarın bağlanması bekleniyor</value>
+  </data>
+  <data name="SharingWaitingNext" xml:space="preserve">
+    <value>Başka bir bilgisayar bekleniyor</value>
+  </data>
+  <data name="SharingFull" xml:space="preserve">
+    <value>Dört ekranın hepsi kullanımda</value>
   </data>
 </root>

@@ -9,7 +9,7 @@ extension VirtualDisplayError {
         case .duplicateIdentity:
             String(localized: "error.virtualDisplay.duplicateIdentity")
         case .tooManyDisplays:
-            String(localized: "error.virtualDisplay.tooManyDisplays \(Tunables.VirtualDisplay.maximumDisplayCount)")
+            String(localized: "error.virtualDisplay.tooManyDisplays \(Tunables.VirtualDisplay.maximumTotalCount)")
         case .creationFailed:
             String(localized: "error.virtualDisplay.creationFailed")
         case .settingsRejected:

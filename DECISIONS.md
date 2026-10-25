@@ -524,3 +524,31 @@ choices the plan leaves open are logged here.
 **Why:** Two monitors on one device make the whole Windows desktop stutter, even with no capture running (measured on the RTX 3080 PC with OsplayVdTool, at 2 × 1080p as well as at 3420×2214 + 4K); one monitor does not. Upstream issues #140, #319 and #449 report the same. PR #482 fixes it (one swapchain worker for all monitors), but the latest signed release, 25.7.23, predates it. Separate devices avoid the shared worker and keep the signed driver. Issue #140 reports this workaround removing the lag on a similar Windows 11 + NVIDIA setup.
 **Trade-offs:** The machine gets up to four root devices instead of one, and uninstall has to remove all of them. Every device reads the same settings file, so every monitor offers every session mode (the engine sets each one's own mode, as before).
 **Revisit if:** A signed upstream release includes PR #482 and one device with several monitors runs smoothly.
+
+## 2026-10-25 — User decision: several viewers share four virtual displays, one row per viewer
+**Chosen:** A host extends onto several computers at once with at most four virtual displays in total; a Mac host still gives one viewer at most two. A new viewer gets the displays that are left, as many as it offers, and is refused as busy when none are. The Mac menu and the Windows panel show one row per connected computer (its name, how many displays it uses, its own Disconnect icon) and a row for the next computer the host waits for.
+**Alternatives:** A limit per viewer only (rejected: the Windows driver cannot go past four devices' worth anyway, and a Mac host's encoder would run out); one summary card with a "disconnect all" button and the computers in a disclosure list.
+**Why:** Four is what the Windows host can drive (helper protocol and driver devices) and about what one host's capture and encoder handle at 1080p. Rows keep every connection and its Disconnect one click away.
+**Trade-offs:** A third viewer may get fewer displays than it offers, or none.
+**Revisit if:** Hosts with more encoder capacity make more than four displays worthwhile.
+
+## 2026-10-25 — Helper protocol 3: devices named by mask, one helper connection per engine
+**Chosen:** Enable and Disable carry a mask of driver devices and Configure only writes the settings file, so one host session's monitors start and stop without restarting another's. All host sessions of the engine share one helper connection (`VirtualDisplayHub`); the helper keeps every device at the index it first got while the service runs, and the engine finds a session's new monitors as the ones that were not on the desktop before its devices started.
+**Alternatives:** Keeping protocol 2 (Configure restarts every running device, so a second viewer would interrupt the first); one helper connection per session (the helper serves one client to stay simple and safe); naming devices by instance ID on the wire (more to validate, and the engine would need the helper's device list).
+**Why:** Several viewers at once (SYM-03) need monitors that come and go independently. Instance IDs can fill gaps left by removed devices, so sorting them would move a running device to another index; a stable order avoids that.
+**Trade-offs:** A device removed by hand while the service runs shifts the indices of the ones after it until the next session.
+**Revisit if:** The helper ever serves more than one client, or a signed driver release makes one device with several monitors usable again.
+
+## 2026-10-25 — Every driver device in its own host process
+**Chosen:** OsplayHelper sets `HostProcessSharingEnabled` = 0 under each `Root\MttVDD` device's `Device Parameters\WUDF` key (the value the INF directive `UmdfHostProcessSharing = ProcessSharingDisabled` writes) before the device starts, so every device runs in a WUDFHost process of its own.
+**Alternatives:** Listing a fixed set of common modes in every settings file (a viewer with another mode still fails); restarting every device when a viewer joins (interrupts the viewers already streaming); keeping one shared process.
+**Why:** In the PC → two Macs test the second Mac's monitor could not take its 3360×2100 mode. UMDF pools a driver's devices into one host process, and the driver (25.7.23) appends each monitor's modes to a global list it never clears and reports the first entries, so a device started after another offers only the earlier device's modes. Upstream PR #482 clears that list, but no signed release has it.
+**Trade-offs:** Up to four WUDFHost processes instead of one, a few megabytes each. The value is undocumented outside the INF directive; Windows reads it when the device starts.
+**Revisit if:** A signed driver release clears its mode list per monitor.
+
+## 2026-10-25 — Every driver device also gets a device group of its own
+**Chosen:** Besides `HostProcessSharingEnabled` = 0, OsplayHelper writes `DeviceGroupId` = `Osplay.` plus the device's instance ID under `Device Parameters\WUDF`. A device it adds gets both values after `DiInstallDevice`, which applies them from the device's next start.
+**Alternatives:** Restarting a new device after writing its values (stalled about 60 s, then UMDF reported the device offline after a driver crash); installing it disabled with `CONFIGFLAG_DISABLED` (the install started it anyway); writing the values before the install (the INF overwrites the group).
+**Why:** The PC → two Macs test still failed with sharing disabled: the INF puts every device in `MttVDDGroup`, and devices of one group share a WUDFHost process, so the second monitor offered only 3420×2214. With a group per device, four devices ran in four processes and each monitor offered its own mode; two MacBooks then streamed at once.
+**Trade-offs:** Devices added in one Enable request start together in the INF's group and share a process until their next start (issue #30).
+**Revisit if:** A signed driver release clears its mode list per monitor, or issue #30 needs devices created before any session.

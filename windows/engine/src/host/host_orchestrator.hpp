@@ -37,6 +37,8 @@ public:
     virtual osplay_result push_cursor_position(const osplay_cursor_position& position) = 0;
     /// Ends the session with Bye; the core reports the close later.
     virtual void close() = 0;
+    /// Turns the viewer away: no virtual monitor is left for it (the viewer sees PEER_BUSY).
+    virtual void refuse_busy() = 0;
 };
 
 /// Why the orchestrator ended a session.
@@ -49,8 +51,9 @@ enum class HostFailure : std::uint8_t {
 class HostObserver {
 public:
     virtual ~HostObserver() = default;
-    /// Called on the orchestrator's worker thread.
-    virtual void on_streaming(const MonitorRect& monitor) = 0;
+    /// Called on the orchestrator's worker thread: `display_count` virtual monitors stream, the
+    /// first of them at `first_monitor`.
+    virtual void on_streaming(const MonitorRect& first_monitor, std::size_t display_count) = 0;
     virtual void on_host_failed(HostFailure failure, std::uint32_t detail) = 0;
     /// Called on the stream's pipeline thread; must return quickly.
     virtual void on_capture_stats(std::uint8_t stream_id, const CaptureStats& stats) = 0;
@@ -74,6 +77,9 @@ public:
     HostOrchestrator(HostOrchestrator&&) = delete;
     HostOrchestrator& operator=(HostOrchestrator&&) = delete;
 
+    /// The viewer introduced itself, before any pairing: false when no virtual monitor is left
+    /// for it, and the viewer has been turned away (other sessions use them all). Never blocks.
+    bool on_peer();
     // Core events, from the core's I/O thread; handled on the orchestrator's worker thread so the
     // I/O thread never waits for the monitor or the encoder.
     void on_viewer_monitors(std::span<const osplay_monitor> monitors);

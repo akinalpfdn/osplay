@@ -441,6 +441,11 @@ osplay_result osplay_session_close(osplay_session* session);
  * closes with OSPLAY_ERROR_PEER_SLEEPING, so it can wait for this device to come back). */
 osplay_result osplay_session_close_for_sleep(osplay_session* session);
 
+/* Host: like osplay_session_close, but tells the viewer this host has no virtual display left for
+ * it (the viewer's session closes with OSPLAY_ERROR_PEER_BUSY; this one closes without an error).
+ * Works in any state, also before pairing. */
+osplay_result osplay_session_refuse_busy(osplay_session* session);
+
 /* Sends Bye when possible, closes the sockets and joins the I/O thread. NULL is ignored. */
 void osplay_session_destroy(osplay_session* session);
 

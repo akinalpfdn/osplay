@@ -48,6 +48,13 @@ final class FakeHostCore: HostCoreSession, @unchecked Sendable {
 
     func closeForSleep() { close() }
 
+    private var refused = false
+    var refusedBusy: Bool { lock.withLock { refused } }
+    func refuseBusy() {
+        lock.withLock { refused = true }
+        close()
+    }
+
     func close() {
         let first = lock.withLock {
             defer { closed = true }

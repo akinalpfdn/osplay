@@ -42,6 +42,9 @@ inline osplay_engine_result to_result(DisplayError error) {
         return OSPLAY_ENGINE_ERROR_MONITOR_NOT_FOUND;
     case DisplayError::ModeChangeFailed:
         return OSPLAY_ENGINE_ERROR_MODE_CHANGE_FAILED;
+    case DisplayError::NoMonitorLeft:
+        // Host sessions turn the viewer away instead; only the developer tool can see this.
+        return OSPLAY_ENGINE_ERROR_HELPER_BUSY;
     }
     return OSPLAY_ENGINE_ERROR_INTERNAL;
 }

@@ -8,7 +8,6 @@ final class PeerTrustCache: @unchecked Sendable {
     private let store: any KeyStoring
     private let lock = NSLock()
     private var book = PeerBook()
-    private var lastQueried: [UInt8]?
 
     init(store: any KeyStoring) {
         self.store = store
@@ -22,16 +21,10 @@ final class PeerTrustCache: @unchecked Sendable {
 
     var peers: [TrustedPeer] { lock.withLock { book.peers } }
 
-    /// For the core's `trust` closure. Remembers the key so the host can tell viewers apart.
+    /// For the core's `trust` closure (through `SessionPeer`, which notes whose key it was).
     func trust(_ publicKey: [UInt8]) -> TrustDecision {
-        lock.withLock {
-            lastQueried = publicKey
-            return book.trust(publicKey)
-        }
+        lock.withLock { book.trust(publicKey) }
     }
-
-    /// The key of the most recent trust query: the current session's peer.
-    var currentPeer: [UInt8]? { lock.withLock { lastQueried } }
 
     func paired(_ publicKey: [UInt8], name: String) throws(KeyStoreError) {
         try change { $0.trust(publicKey, name: name, at: Date()) }

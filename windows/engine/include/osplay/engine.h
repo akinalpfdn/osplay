@@ -158,9 +158,11 @@ OSPLAY_ENGINE_API void osplay_virtual_display_close(osplay_virtual_display* disp
 /* --- Host session (Windows shares its screen) ------------------------------------------------ */
 
 /*
- * A host session: listens for one viewer, adds the virtual monitor in the mode of the viewer's
- * first monitor, captures it with Desktop Duplication, encodes it with the hardware H.264 encoder
- * and sends the pointer as cursor packets. It needs the OsplayHelper service.
+ * A host session: listens for one viewer, adds a virtual monitor in the mode of each viewer
+ * monitor, captures them with Desktop Duplication, encodes them with the hardware H.264 encoder
+ * and sends the pointer as cursor packets. It needs the OsplayHelper service. Several host
+ * sessions of one process share four virtual monitors; a viewer gets the ones left and is turned
+ * away (it sees OSPLAY_ERROR_PEER_BUSY) when none is.
  */
 typedef struct osplay_engine_host osplay_engine_host; /* opaque */
 
@@ -195,13 +197,16 @@ typedef struct osplay_engine_host_callbacks {
     osplay_trust (*on_trust_query)(void* context, const uint8_t* peer_public_key);
     void (*on_pairing_code)(void* context, uint32_t code, const uint8_t* peer_public_key);
     void (*on_paired)(void* context, const uint8_t* peer_public_key);
-    /* The virtual monitor is streaming; its place on the desktop in desktop coordinates. */
-    void (*on_streaming)(void* context, int32_t left, int32_t top, int32_t right, int32_t bottom);
+    /* `display_count` virtual monitors are streaming; the first one's place on the desktop in
+     * desktop coordinates. */
+    void (*on_streaming)(void* context, uint32_t display_count, int32_t left, int32_t top,
+                         int32_t right, int32_t bottom);
     /* The engine ended the session; a closed state follows. */
     void (*on_failed)(void* context, osplay_engine_result reason);
     void (*on_stats)(void* context, const osplay_session_stats* stats);
     void (*on_log)(void* context, osplay_log_level level, const char* message);
-    /* The other device introduced itself (before any pairing code). */
+    /* The other device introduced itself (before any pairing code). Not called for a viewer the
+     * engine turns away because no virtual monitor is left for it. */
     void (*on_peer)(void* context, osplay_platform platform, const char* device_name_utf8);
     /* The other computer asks to reverse the roles: answer with
      * osplay_engine_host_answer_role_swap, not from this callback. `peer_device_id`
@@ -213,7 +218,8 @@ typedef struct osplay_engine_host_callbacks {
                                 const uint8_t* peer_device_id);
 } osplay_engine_host_callbacks;
 
-/* Connects to the helper service and starts listening on an ephemeral TCP port. */
+/* Connects to the helper service (once for every host session of this process) and starts
+ * listening on an ephemeral TCP port. */
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_start(
     const osplay_engine_host_config* config, const osplay_engine_host_callbacks* callbacks,
     osplay_engine_host** out_host);

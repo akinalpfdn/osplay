@@ -35,8 +35,9 @@ struct PeerBookTests {
         let store = InMemoryKeyStore()
         let cache = PeerTrustCache(store: store)
         try cache.load()
-        #expect(cache.trust(pc) == .unknown)
-        #expect(cache.currentPeer == pc)
+        let peer = SessionPeer()
+        #expect(peer.trust(pc, in: cache) == .unknown)
+        #expect(peer.key == pc, "the session knows whose key it asked about")
 
         try cache.paired(pc, name: "PC")
         #expect(cache.trust(pc) == .trusted)

@@ -3,6 +3,7 @@
 #include <osplay/win/helper_protocol.hpp>
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <string>
@@ -56,12 +57,15 @@ public:
 
 private:
     Response configure(const std::vector<MonitorConfig>& monitors);
-    Response enable();
-    Response disable();
+    /// Adds the named devices that do not exist yet and enables them; the others are untouched.
+    Response enable(std::uint8_t devices);
+    /// Disables the named devices; the others are untouched.
+    Response disable(std::uint8_t devices);
     Response status();
     /// Disables every enabled device from `first` on: how many, or nothing if one failed.
     std::optional<std::size_t> disable_from(std::size_t first);
-    [[nodiscard]] bool any_enabled();
+    /// Bit i: device i is enabled (the first kMaxMonitors devices).
+    [[nodiscard]] std::uint8_t enabled_devices();
 
     VirtualMonitorDevices& devices_;
     SettingsStore& settings_;

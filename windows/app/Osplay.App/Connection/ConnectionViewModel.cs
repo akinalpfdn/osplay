@@ -28,8 +28,13 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly HashSet<string> _pairedNames = new(StringComparer.CurrentCultureIgnoreCase);
     private EngineBrowser? _browser;
-    private EngineHost? _host;
+    /// <summary>Host sessions: the one listening for the next viewer, and one per viewer.</summary>
+    private readonly List<HostEntry> _hosts = [];
     private EngineAdvertiser? _advertiser;
+    private ushort _advertisedPort;
+    private bool _startingListener;
+    /// <summary>Pairing codes waiting for the user; the first one is shown.</summary>
+    private readonly List<PairingRequest> _pairingQueue = [];
     private EngineViewer? _viewer;
     private string _peerName = string.Empty;
     private IReadOnlyList<StreamFigures> _figures = [];
@@ -51,6 +56,21 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
 
     /// <summary>After an accepted role swap: the role this PC takes once the session has closed.</summary>
     private sealed record PendingSwap(ConnectionMode Role, string PeerDeviceId, string PeerName);
+
+    /// <summary>One host session (DEVPLAN Phase 13b part SYM-03).</summary>
+    private sealed class HostEntry(EngineHost host)
+    {
+        public EngineHost Host { get; } = host;
+
+        /// <summary>Its row in the panel; null while it listens for a viewer.</summary>
+        public ViewerItem? Viewer { get; set; }
+
+        public bool IsStreaming { get; set; }
+
+        public uint DisplayCount { get; set; }
+    }
+
+    private sealed record PairingRequest(EngineSession Session, uint Code, string PeerName);
 
     internal ConnectionViewModel(Dispatcher dispatcher, IPairingPrompt pairing, AppSettings settings)
     {
@@ -85,10 +105,18 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isBusy;
 
-    /// <summary>Frames flow: the roles can be swapped.</summary>
+    /// <summary>Frames flow in the viewer session.</summary>
+    [ObservableProperty]
+    private bool _isStreaming;
+
+    /// <summary>Exactly one computer is connected and streaming: the roles can be swapped.</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SwapRolesCommand))]
-    private bool _isStreaming;
+    private bool _canSwapRoles;
+
+    /// <summary>Sharing: the row under the connected computers.</summary>
+    [ObservableProperty]
+    private string _waitingText = Localization.Strings.SharingWaitingFirst;
 
     /// <summary>The swap shortcut is owned by another program; the button still works.</summary>
     [ObservableProperty]
@@ -167,11 +195,27 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
 
     partial void OnIsSwapHotkeyTakenChanged(bool value) => OnPropertyChanged(nameof(SwapHint));
 
+    /// <summary>The swap shortcut works only while the roles can be reversed.</summary>
+    partial void OnCanSwapRolesChanged(bool value)
+    {
+        if (value)
+        {
+            RegisterSwapHotkey();
+        }
+        else
+        {
+            UnregisterSwapHotkey();
+        }
+    }
+
     /// <summary>The viewer hotkey, for hints ("Ctrl+Alt+Shift+V hides and shows the display").</summary>
     public string HotkeyHint => LocalizedText.Format(Localization.Strings.ViewerHotkeyHint, _settings.ViewerHotkey.DisplayText);
 
     /// <summary>Hosts to connect to.</summary>
     public ObservableCollection<DeviceItem> Devices { get; } = [];
+
+    /// <summary>Sharing: the computers this PC extends onto, in the order they connected.</summary>
+    public ObservableCollection<ViewerItem> Viewers { get; } = [];
 
     public ObservableCollection<PeerItem> Peers { get; } = [];
 
@@ -222,7 +266,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task CheckHealthAsync()
     {
-        if (!IsEngineAvailable || _host is not null)
+        if (!IsEngineAvailable || _hosts.Count > 0)
         {
             return;
         }
@@ -270,10 +314,10 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     /// Reverses the roles with the connected computer: this PC hosts if it was the display, and
     /// becomes the display if it was hosting. The other computer answers at once.
     /// </summary>
-    [RelayCommand(CanExecute = nameof(IsStreaming))]
+    [RelayCommand(CanExecute = nameof(CanSwapRoles))]
     private async Task SwapRolesAsync()
     {
-        EngineSession? session = (EngineSession?)_host ?? _viewer;
+        EngineSession? session = (EngineSession?)ServingHosts().FirstOrDefault()?.Host ?? _viewer;
         if (session is null || _pendingSwap is not null)
         {
             return;
@@ -285,13 +329,14 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Ends every session; sharing keeps waiting for the next viewer.</summary>
     [RelayCommand]
     private async Task DisconnectAsync()
     {
         _endedByUser = true;
-        if (_host is not null)
+        foreach (HostEntry entry in ServingHosts())
         {
-            await _host.StopAsync().ConfigureAwait(true);
+            await entry.Host.StopAsync().ConfigureAwait(true);
         }
         if (_viewer is not null)
         {
@@ -315,31 +360,129 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
 
     private async Task StartSharingAsync()
     {
-        (EngineResult started, EngineHost? host) = await EngineHost
-            .StartAsync(_dispatcher, _deviceName, _settings.Quality.MillibitsPerPixel(), _sharePort, _settings.StreamSize.Box())
-            .ConfigureAwait(true);
-        if (host is null)
-        {
-            HostProblem = EngineHealth.FromFailure(started) ?? HostProblem;
-            Fail(ErrorMessages.For(started));
-            return;
-        }
-        HostProblem = null;
-        // The next session listens here again, so the advertisement viewers resolved stays right.
-        _sharePort = host.ControlPort;
-        (EngineResult advertised, EngineAdvertiser? advertiser) = await EngineAdvertiser
-            .StartAsync(_deviceName, Roles.Host, host.ControlPort)
-            .ConfigureAwait(true);
-        if (advertiser is null)
-        {
-            await host.DisposeAsync().ConfigureAwait(true);
-            Fail(ErrorMessages.For(advertised));
-            return;
-        }
-        _host = host;
-        _advertiser = advertiser;
-        Attach(host);
         Status = Localization.Strings.ConnectionStatusWaiting;
+        await ListenAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// A core host session takes one viewer, so a new one listens as soon as a viewer arrives:
+    /// several computers can use this PC at once (DEVPLAN Phase 13b part SYM-03).
+    /// </summary>
+    private async Task ListenAsync()
+    {
+        if (Mode != ConnectionMode.Sharing || _pendingSwap is not null || _startingListener ||
+            _hosts.Exists(h => h.Viewer is null))
+        {
+            return;
+        }
+        _startingListener = true;
+        try
+        {
+            (EngineResult started, EngineHost? host) = await EngineHost
+                .StartAsync(_dispatcher, _deviceName, _settings.Quality.MillibitsPerPixel(), _sharePort, _settings.StreamSize.Box())
+                .ConfigureAwait(true);
+            if (host is null)
+            {
+                HostProblem = EngineHealth.FromFailure(started) ?? HostProblem;
+                if (ServingHosts().Any())
+                {
+                    ErrorMessage = ErrorMessages.For(started); // the connected computers keep going
+                }
+                else
+                {
+                    Fail(ErrorMessages.For(started));
+                }
+                return;
+            }
+            if (Mode != ConnectionMode.Sharing)
+            {
+                await host.DisposeAsync().ConfigureAwait(true); // switched off meanwhile
+                return;
+            }
+            HostProblem = null;
+            // The next session listens here again, so the advertisement viewers resolved stays right.
+            _sharePort = host.ControlPort;
+            if (_advertiser is null || _advertisedPort != host.ControlPort)
+            {
+                if (_advertiser is not null)
+                {
+                    await _advertiser.DisposeAsync().ConfigureAwait(true);
+                    _advertiser = null;
+                }
+                (EngineResult advertised, EngineAdvertiser? advertiser) = await EngineAdvertiser
+                    .StartAsync(_deviceName, Roles.Host, host.ControlPort)
+                    .ConfigureAwait(true);
+                if (advertiser is null)
+                {
+                    await host.DisposeAsync().ConfigureAwait(true);
+                    Fail(ErrorMessages.For(advertised));
+                    return;
+                }
+                _advertiser = advertiser;
+                _advertisedPort = host.ControlPort;
+            }
+            var entry = new HostEntry(host);
+            _hosts.Add(entry);
+            Attach(host);
+            host.PeerArrived += (platform, name) => OnViewerArrived(entry, platform, name);
+            host.Streaming += count => OnHostStreaming(entry, count);
+            UpdateSharingStatus();
+        }
+        finally
+        {
+            _startingListener = false;
+        }
+    }
+
+    private void OnViewerArrived(HostEntry entry, Platform platform, string name)
+    {
+        entry.Viewer = new ViewerItem(name, platform == Platform.MacOS, new AsyncRelayCommand(entry.Host.StopAsync));
+        Viewers.Add(entry.Viewer);
+        UpdateSharingStatus();
+        _ = ListenAsync(); // the next computer can connect while this one pairs and streams
+    }
+
+    private void OnHostStreaming(HostEntry entry, uint displayCount)
+    {
+        entry.DisplayCount = displayCount;
+        if (entry.Viewer is not null)
+        {
+            entry.Viewer.Detail = displayCount == 1
+                ? Localization.Strings.SharingDisplayOne
+                : LocalizedText.Format(Localization.Strings.SharingDisplayMany, displayCount);
+        }
+        UpdateSharingStatus();
+    }
+
+    private IEnumerable<HostEntry> ServingHosts() => _hosts.Where(h => h.Viewer is not null);
+
+    private HostEntry? EntryOf(EngineSession session) => _hosts.Find(h => ReferenceEquals(h.Host, session));
+
+    private void UpdateSharingStatus()
+    {
+        if (Mode != ConnectionMode.Sharing)
+        {
+            return;
+        }
+        List<HostEntry> serving = [.. ServingHosts()];
+        IsSessionActive = serving.Count > 0;
+        CanSwapRoles = _pendingSwap is null && serving.Count == 1 && serving[0].IsStreaming;
+        long displays = serving.Sum(h => (long)h.DisplayCount);
+        WaitingText = displays >= AppTunables.MaxVirtualMonitors
+            ? Localization.Strings.SharingFull
+            : serving.Count == 0 ? Localization.Strings.SharingWaitingFirst : Localization.Strings.SharingWaitingNext;
+        if (_pendingSwap is not null)
+        {
+            return; // "swapping with …" stays
+        }
+        Status = serving.Count switch
+        {
+            0 => Localization.Strings.ConnectionStatusWaiting,
+            1 => Format(
+                serving[0].IsStreaming ? Localization.Strings.ConnectionStatusConnected : Localization.Strings.ConnectionStatusConnecting,
+                serving[0].Viewer!.Name),
+            _ => LocalizedText.Format(Localization.Strings.ConnectionStatusConnectedMany, serving.Count),
+        };
     }
 
     // --- Viewing ------------------------------------------------------------------------------
@@ -491,7 +634,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private void Attach(EngineSession session)
     {
         session.StateChanged += state => OnState(session, state);
-        session.PairingCode += code => _pairing.Show(code, PeerName(session), accepted => _ = session.ConfirmPairingAsync(accepted));
+        session.PairingCode += code => RequestPairing(session, code);
         session.Paired += () => _ = RefreshPeersAsync();
         session.Failed += reason =>
         {
@@ -508,11 +651,17 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
 
     /// <summary>The role this PC takes after swapping away from the given session.</summary>
     private ConnectionMode RoleAfterSwap(EngineSession session) =>
-        ReferenceEquals(session, _host) ? ConnectionMode.Viewing : ConnectionMode.Sharing;
+        EntryOf(session) is not null ? ConnectionMode.Viewing : ConnectionMode.Sharing;
 
     /// <summary>The other computer asks to reverse the roles: agree when this PC can take its new role.</summary>
     private async Task AnswerSwapAsync(EngineSession session, string peerDeviceId)
     {
+        if (EntryOf(session) is not null && ServingHosts().Count() > 1)
+        {
+            // With several computers connected the roles cannot be reversed.
+            await session.AnswerRoleSwapAsync(RoleSwapAnswer.Busy).ConfigureAwait(true);
+            return;
+        }
         ConnectionMode role = RoleAfterSwap(session);
         bool able = role == ConnectionMode.Sharing
             ? await EngineHealth.CheckAsync().ConfigureAwait(true) == HostHealth.Ready
@@ -523,6 +672,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             return;
         }
         _pendingSwap = new PendingSwap(role, peerDeviceId, PeerName(session));
+        CanSwapRoles = false;
         Status = Format(Localization.Strings.ConnectionStatusSwapping, PeerName(session));
         await session.AnswerRoleSwapAsync(RoleSwapAnswer.Accepted).ConfigureAwait(true);
     }
@@ -540,6 +690,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             return;
         }
         _pendingSwap = new PendingSwap(RoleAfterSwap(session), peerDeviceId, PeerName(session));
+        CanSwapRoles = false;
         Status = Format(Localization.Strings.ConnectionStatusSwapping, PeerName(session));
     }
 
@@ -627,9 +778,9 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             _resumesAfterClose = true;
             await _viewer.SuspendAsync().ConfigureAwait(true);
         }
-        if (_host is not null)
+        foreach (HostEntry entry in _hosts.ToList())
         {
-            await _host.SuspendAsync().ConfigureAwait(true);
+            await entry.Host.SuspendAsync().ConfigureAwait(true);
         }
     }
 
@@ -639,9 +790,23 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     /// </summary>
     private async Task RefreshAfterWakeAsync()
     {
-        if (Mode == ConnectionMode.Sharing && _host is not null && !IsSessionActive)
+        if (Mode == ConnectionMode.Sharing)
         {
-            await _host.StopAsync().ConfigureAwait(true); // OnClosedAsync listens again
+            // A new advertisement with the next listener; the connected computers go on.
+            if (_advertiser is not null)
+            {
+                await _advertiser.DisposeAsync().ConfigureAwait(true);
+                _advertiser = null;
+            }
+            HostEntry? listener = _hosts.Find(h => h.Viewer is null);
+            if (listener is not null)
+            {
+                await listener.Host.StopAsync().ConfigureAwait(true); // OnClosedAsync listens again
+            }
+            else
+            {
+                await ListenAsync().ConfigureAwait(true);
+            }
         }
         else if (Mode == ConnectionMode.Viewing && _viewer is null && _browser is not null)
         {
@@ -697,6 +862,16 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
 
     private void OnState(EngineSession session, SessionState state)
     {
+        if (EntryOf(session) is { } entry)
+        {
+            if (state == SessionState.Streaming)
+            {
+                entry.IsStreaming = true;
+                _ = RefreshPeersAsync();
+            }
+            UpdateSharingStatus();
+            return;
+        }
         switch (state)
         {
             case SessionState.Handshaking:
@@ -708,11 +883,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             case SessionState.Streaming:
                 Status = Format(Localization.Strings.ConnectionStatusConnected, PeerName(session));
                 IsStreaming = true;
-                RegisterSwapHotkey();
-                if (ReferenceEquals(session, _viewer))
-                {
-                    RegisterStatsHotkey();
-                }
+                CanSwapRoles = _pendingSwap is null;
+                RegisterStatsHotkey();
                 _ = RefreshPeersAsync();
                 break;
             default:
@@ -722,9 +894,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
 
     private async Task OnClosedAsync(EngineSession session, CoreResult reason)
     {
-        _pairing.Close();
-        IsStreaming = false;
-        UnregisterSwapHotkey();
+        DropPairing(session);
         bool viewerComesBack = ReferenceEquals(session, _viewer) && ComesBack(reason);
         // A peer leaving or going to sleep is not an error; neither is a drop that heals by itself.
         if (reason is not (CoreResult.Ok or CoreResult.ConnectionClosed or CoreResult.PeerSleeping) && !viewerComesBack)
@@ -739,6 +909,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             _resumesAfterClose = false;
             _figures = [];
             IsSessionActive = false;
+            IsStreaming = false;
+            CanSwapRoles = false;
             UnregisterStatsHotkey();
             await session.DisposeAsync().ConfigureAwait(true);
             if (_pendingSwap is not null)
@@ -759,44 +931,73 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
                 Status = Localization.Strings.ConnectionStatusSearching;
             }
         }
-        else if (ReferenceEquals(session, _host))
+        else if (EntryOf(session) is { } entry)
         {
-            _host = null;
-            IsSessionActive = false;
-            EngineAdvertiser? advertiser = _advertiser;
-            _advertiser = null;
-            await session.DisposeAsync().ConfigureAwait(true);
-            if (advertiser is not null)
+            _ = _hosts.Remove(entry);
+            if (entry.Viewer is not null)
             {
-                await advertiser.DisposeAsync().ConfigureAwait(true);
+                _ = Viewers.Remove(entry.Viewer);
             }
-            if (_pendingSwap is not null)
+            await session.DisposeAsync().ConfigureAwait(true);
+            if (_pendingSwap is not null && entry.Viewer is not null)
             {
                 await PerformSwapAsync().ConfigureAwait(true);
+                return;
             }
-            else if (Mode == ConnectionMode.Sharing)
+            UpdateSharingStatus();
+            if (entry.Viewer is null && Mode == ConnectionMode.Sharing)
             {
-                // A core host session takes one viewer; listen again for the next one.
-                Status = Localization.Strings.ConnectionStatusWaiting;
+                // The listener ended (a viewer turned away, a failure, wake): another one takes its place.
                 await Task.Delay(AppTunables.RelistenDelay).ConfigureAwait(true);
-                await RelistenAsync().ConfigureAwait(true);
+                await ListenAsync().ConfigureAwait(true);
             }
         }
     }
 
-    private async Task RelistenAsync()
+    // --- Pairing ------------------------------------------------------------------------------
+
+    /// <summary>Shows the code at once, or after the codes before it were answered.</summary>
+    private void RequestPairing(EngineSession session, uint code)
     {
-        await _gate.WaitAsync().ConfigureAwait(true);
-        try
+        _pairingQueue.Add(new PairingRequest(session, code, PeerName(session)));
+        if (_pairingQueue.Count == 1)
         {
-            if (Mode == ConnectionMode.Sharing && _host is null)
-            {
-                await StartSharingAsync().ConfigureAwait(true);
-            }
+            ShowNextPairing();
         }
-        finally
+    }
+
+    private void ShowNextPairing()
+    {
+        if (_pairingQueue.Count == 0)
         {
-            _ = _gate.Release();
+            return;
+        }
+        PairingRequest request = _pairingQueue[0];
+        _pairing.Show(request.Code, request.PeerName, accepted =>
+        {
+            if (_pairingQueue.Count == 0 || !ReferenceEquals(_pairingQueue[0], request))
+            {
+                return;
+            }
+            _pairingQueue.RemoveAt(0);
+            _ = request.Session.ConfirmPairingAsync(accepted);
+            ShowNextPairing();
+        });
+    }
+
+    /// <summary>The session asking ended: its code goes away, unanswered.</summary>
+    private void DropPairing(EngineSession session)
+    {
+        int index = _pairingQueue.FindIndex(r => ReferenceEquals(r.Session, session));
+        if (index < 0)
+        {
+            return;
+        }
+        _pairingQueue.RemoveAt(index);
+        if (index == 0)
+        {
+            _pairing.Close();
+            ShowNextPairing();
         }
     }
 
@@ -896,23 +1097,26 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
 
     private async Task StopAllAsync()
     {
+        _pairingQueue.Clear();
         _pairing.Close();
         _autoConnectDeviceId = null;
         _autoConnectTimeout?.Cancel();
         _endedByUser = true;
         _viewedHost = null;
         IsStreaming = false;
+        CanSwapRoles = false;
         UnregisterSwapHotkey();
         UnregisterStatsHotkey();
         _found.Clear();
         Devices.Clear();
         EngineBrowser? browser = _browser;
         EngineAdvertiser? advertiser = _advertiser;
-        EngineHost? host = _host;
+        List<HostEntry> hosts = [.. _hosts];
         EngineViewer? viewer = _viewer;
         _browser = null;
         _advertiser = null;
-        _host = null;
+        _hosts.Clear();
+        Viewers.Clear();
         _viewer = null;
         _figures = [];
         IsSessionActive = false;
@@ -924,9 +1128,9 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         {
             await advertiser.DisposeAsync().ConfigureAwait(true);
         }
-        if (host is not null)
+        foreach (HostEntry entry in hosts)
         {
-            await host.DisposeAsync().ConfigureAwait(true);
+            await entry.Host.DisposeAsync().ConfigureAwait(true);
         }
         if (viewer is not null)
         {

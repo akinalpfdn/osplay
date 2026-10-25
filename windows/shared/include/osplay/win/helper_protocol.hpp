@@ -16,8 +16,10 @@
 namespace osplay::win::helper {
 
 inline constexpr std::uint32_t kMagic = 0x4850'534F; // "OSPH" as little-endian bytes
-/// Version 2: Configure carries one mode per virtual monitor (several monitors).
-inline constexpr std::uint16_t kVersion = 2;
+/// Version 3: Enable and Disable name the driver devices they change, one device per virtual
+/// monitor, so several host sessions share the helper (version 2: Configure carries one mode per
+/// monitor).
+inline constexpr std::uint16_t kVersion = 3;
 inline constexpr std::size_t kHeaderSize = 12;
 inline constexpr std::size_t kMaxMessageSize = 512;
 inline constexpr const wchar_t* kPipeName = L"\\\\.\\pipe\\OsplayHelper";
@@ -30,8 +32,10 @@ inline constexpr std::uint32_t kMaxHeight = 4320;
 inline constexpr std::uint32_t kMinRefreshMillihertz = 24'000;
 inline constexpr std::uint32_t kMaxRefreshMillihertz = 240'000;
 inline constexpr std::size_t kMaxGpuNameBytes = 128;
-/// Virtual monitors at once: one per viewer monitor (OSPLAY_MAX_MONITORS).
+/// Virtual monitors at once, across all viewers (DECISIONS.md, 2026-10-25); one driver device each.
 inline constexpr std::size_t kMaxMonitors = 4;
+/// Enable and Disable: bit i names driver device i.
+inline constexpr std::uint8_t kAllDevices = (1U << kMaxMonitors) - 1U;
 
 enum class Command : std::uint16_t {
     Configure = 1,
@@ -77,13 +81,14 @@ struct MonitorConfig {
 struct Request {
     Command command = Command::Status;
     std::vector<MonitorConfig> monitors; // Command::Configure only: 1...kMaxMonitors, in order
+    std::uint8_t devices = 0;            // Command::Enable and Disable only: within kAllDevices
 
     bool operator==(const Request&) const = default;
 };
 
 struct MonitorStatus {
     bool vdd_installed = false;
-    bool device_enabled = false;
+    std::uint8_t enabled_devices = 0; // bit i: driver device i is enabled
     bool configured = false;
     std::uint8_t monitor_count = 0; // configured monitors; the mode below is the first one's
     std::uint32_t width = 0;
