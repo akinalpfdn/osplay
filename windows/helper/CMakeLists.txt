@@ -6,7 +6,8 @@ add_executable(osplay_helper
     src/service_host.cpp
     src/service_installer.cpp
     src/vdd_device.cpp
-    src/vdd_settings_file.cpp)
+    src/vdd_settings_file.cpp
+    src/vdd_setup.cpp)
 
 target_compile_features(osplay_helper PRIVATE cxx_std_20)
 target_compile_definitions(osplay_helper PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)

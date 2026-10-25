@@ -82,6 +82,10 @@ int uninstall_service() {
     }
     const ServiceHandle service(
         OpenServiceW(manager.get(), kServiceName, SERVICE_STOP | SERVICE_QUERY_STATUS | DELETE));
+    if (!service && GetLastError() == ERROR_SERVICE_DOES_NOT_EXIST) {
+        std::cout << "OsplayHelper is not installed.\n";
+        return 0; // an uninstaller may run after a manual --uninstall
+    }
     if (!service) {
         return fail("OpenServiceW");
     }

@@ -11,6 +11,8 @@ public:
     explicit VddSettingsFile(win::helper::HelperLog& log) : log_(log) {}
 
     bool write(const std::string& contents) override;
+    /// Deletes the file, and its directory when nothing else is in it (uninstall).
+    bool remove();
 
 private:
     win::helper::HelperLog& log_;

@@ -18,6 +18,13 @@ namespace osplay::win {
 /// Hardware ID the driver's root-enumerated devices are installed with (MttVDD.inf).
 inline constexpr const wchar_t* kVddHardwareId = L"Root\\MttVDD";
 
+/// The display adapter device class (GUID_DEVCLASS_DISPLAY in devguid.h).
+inline constexpr GUID kDisplayDeviceClass{
+    .Data1 = 0x4d36e968,
+    .Data2 = 0xe325,
+    .Data3 = 0x11ce,
+    .Data4 = {0xbf, 0xc1, 0x08, 0x00, 0x2b, 0xe1, 0x03, 0x18}};
+
 struct DeviceInfoSetDeleter {
     void operator()(HDEVINFO set) const noexcept { SetupDiDestroyDeviceInfoList(set); }
 };

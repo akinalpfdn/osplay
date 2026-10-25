@@ -66,12 +66,6 @@ std::optional<std::wstring> instance_id(HDEVINFO set, SP_DEVINFO_DATA& data) {
     return id;
 }
 
-/// The display adapter device class (GUID_DEVCLASS_DISPLAY in devguid.h).
-constexpr GUID kDisplayClass{.Data1 = 0x4d36e968,
-                             .Data2 = 0xe325,
-                             .Data3 = 0x11ce,
-                             .Data4 = {0xbf, 0xc1, 0x08, 0x00, 0x2b, 0xe1, 0x03, 0x18}};
-
 } // namespace
 
 const std::vector<std::wstring>& VddDevices::instances() {
@@ -104,7 +98,7 @@ std::size_t VddDevices::count() {
 }
 
 bool VddDevices::add() {
-    HDEVINFO raw_set = SetupDiCreateDeviceInfoList(&kDisplayClass, nullptr);
+    HDEVINFO raw_set = SetupDiCreateDeviceInfoList(&win::kDisplayDeviceClass, nullptr);
     if (raw_set == INVALID_HANDLE_VALUE) {
         log_.error("SetupAPI device list failed, error " + std::to_string(GetLastError()));
         return false;
@@ -113,8 +107,8 @@ bool VddDevices::add() {
     SP_DEVINFO_DATA data{};
     data.cbSize = sizeof(data);
     // A root device like the driver's installer makes: ROOT\DISPLAY\nnnn with the driver's ID.
-    if (!SetupDiCreateDeviceInfoW(set.get(), L"DISPLAY", &kDisplayClass, nullptr, nullptr,
-                                  DICD_GENERATE_ID, &data)) {
+    if (!SetupDiCreateDeviceInfoW(set.get(), L"DISPLAY", &win::kDisplayDeviceClass, nullptr,
+                                  nullptr, DICD_GENERATE_ID, &data)) {
         log_.error("SetupAPI device creation failed, error " + std::to_string(GetLastError()));
         return false;
     }

@@ -1,9 +1,13 @@
-// OsplayHelper: privileged Windows service that adds and removes the virtual monitor.
-//   OsplayHelper.exe --install     register as an auto-start service and start it (admin)
-//   OsplayHelper.exe --uninstall   stop and remove the service (admin)
-//   OsplayHelper.exe               entry point used by the Service Control Manager
+// OsplayHelper: privileged Windows service that adds and removes the virtual monitors.
+//   OsplayHelper.exe --install        add the first driver device if none exists, then register
+//                                     the auto-start service and start it (admin)
+//   OsplayHelper.exe --uninstall      stop and remove the service, every driver device and the
+//                                     driver settings (admin)
+//   OsplayHelper.exe --remove-driver  remove the driver package from the driver store (admin)
+//   OsplayHelper.exe                  entry point used by the Service Control Manager
 #include "service_host.hpp"
 #include "service_installer.hpp"
+#include "vdd_setup.hpp"
 
 #include <windows.h>
 
@@ -14,10 +18,19 @@
 // NOLINTNEXTLINE(misc-use-internal-linkage,*-avoid-c-arrays)
 int wmain(int argc, wchar_t* argv[]) {
     if (argc == 2 && std::wcscmp(argv[1], L"--install") == 0) {
+        // The service disables the new device when it starts, so no stray monitor stays.
+        if (const int device = osplay::helper::ensure_vdd_device(); device != 0) {
+            return device;
+        }
         return osplay::helper::install_service();
     }
     if (argc == 2 && std::wcscmp(argv[1], L"--uninstall") == 0) {
-        return osplay::helper::uninstall_service();
+        const int service = osplay::helper::uninstall_service();
+        const int devices = osplay::helper::remove_vdd_devices();
+        return service != 0 ? service : devices;
+    }
+    if (argc == 2 && std::wcscmp(argv[1], L"--remove-driver") == 0) {
+        return osplay::helper::remove_vdd_driver_package();
     }
     if (argc == 1) {
         if (osplay::helper::run_as_service()) {
@@ -29,6 +42,6 @@ int wmain(int argc, wchar_t* argv[]) {
         }
         return static_cast<int>(GetLastError());
     }
-    std::cerr << "Usage: OsplayHelper.exe [--install | --uninstall]\n";
+    std::cerr << "Usage: OsplayHelper.exe [--install | --uninstall | --remove-driver]\n";
     return 2;
 }
