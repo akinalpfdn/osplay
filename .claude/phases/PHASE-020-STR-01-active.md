@@ -1,5 +1,5 @@
 # Phase 020 (STR-01) — Stream resolution
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 13c. Runs after PHASE-018 (SYM-02) and before PHASE-019 (SYM-03) — user decision 2026-10-25.
 
