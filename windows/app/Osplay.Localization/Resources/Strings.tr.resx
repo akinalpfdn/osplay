@@ -139,7 +139,7 @@
     <value>Kalite</value>
   </data>
   <data name="QualityHint" xml:space="preserve">
-    <value>Bir sonraki bağlantıda geçerli olur. Yüksek kalite daha hızlı bir ağ ister.</value>
+    <value>Bir sonraki bağlantıda geçerli olur. Daha küçük yayın boyutu ve düşük kalite, bilgisayardan ve ağdan daha az ister; ekranlar çözünürlüklerini korur.</value>
   </data>
   <data name="QualityBalanced" xml:space="preserve">
     <value>Dengeli</value>
@@ -392,5 +392,20 @@
   </data>
   <data name="DiagnosticsFailed" xml:space="preserve">
     <value>Pano başka bir program tarafından kullanılıyor. Yeniden deneyin.</value>
+  </data>
+  <data name="StreamSizeTitle" xml:space="preserve">
+    <value>Yayın boyutu</value>
+  </data>
+  <data name="StreamSize720" xml:space="preserve">
+    <value>720p</value>
+  </data>
+  <data name="StreamSize1080" xml:space="preserve">
+    <value>1080p</value>
+  </data>
+  <data name="StreamSize1440" xml:space="preserve">
+    <value>1440p</value>
+  </data>
+  <data name="StreamSizeNative" xml:space="preserve">
+    <value>Doğal</value>
   </data>
 </root>

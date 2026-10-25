@@ -19,6 +19,10 @@ public sealed partial class AppSettings : ObservableObject
     [ObservableProperty]
     private QualityPreset _quality = QualityPreset.High;
 
+    /// <summary>The largest size a shared monitor is streamed at (1080p by default, user decision 2026-10-25).</summary>
+    [ObservableProperty]
+    private StreamSizePreset _streamSize = StreamSizePreset.Hd1080;
+
     [ObservableProperty]
     private HotkeyGesture _viewerHotkey = HotkeyGesture.Default;
 
@@ -87,6 +91,7 @@ public sealed partial class AppSettings : ObservableObject
         try
         {
             Quality = Enum.IsDefined(stored.Quality) ? stored.Quality : QualityPreset.High;
+            StreamSize = Enum.IsDefined(stored.StreamSize) ? stored.StreamSize : StreamSizePreset.Hd1080;
             ViewerHotkey = stored.HotkeyKey == 0
                 ? HotkeyGesture.Default
                 : new HotkeyGesture(stored.HotkeyModifiers, stored.HotkeyKey);
@@ -113,7 +118,7 @@ public sealed partial class AppSettings : ObservableObject
         var stored = new Stored(
             Quality, ViewerHotkey.Modifiers, ViewerHotkey.VirtualKey, ShowsStatsOverlay, ChecksForUpdates, LastUpdateCheck,
             [.. ExcludedMonitors], HidesNetworkWarning, SwapHotkey.Modifiers, SwapHotkey.VirtualKey,
-            StatsHotkey.Modifiers, StatsHotkey.VirtualKey);
+            StatsHotkey.Modifiers, StatsHotkey.VirtualKey, StreamSize);
         try
         {
             _ = Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
@@ -128,5 +133,6 @@ public sealed partial class AppSettings : ObservableObject
     private sealed record Stored(
         QualityPreset Quality, uint HotkeyModifiers, uint HotkeyKey, bool ShowsStatsOverlay, bool ChecksForUpdates,
         DateTimeOffset? LastUpdateCheck, List<string>? ExcludedMonitors, bool HidesNetworkWarning = false,
-        uint SwapModifiers = 0, uint SwapKey = 0, uint StatsModifiers = 0, uint StatsKey = 0);
+        uint SwapModifiers = 0, uint SwapKey = 0, uint StatsModifiers = 0, uint StatsKey = 0,
+        StreamSizePreset StreamSize = StreamSizePreset.Hd1080);
 }

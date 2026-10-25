@@ -18,6 +18,13 @@ internal static class AppTunables
     /// <summary>The log file is rolled over at this size; one older file is kept.</summary>
     public const long LogFileLimitBytes = 5 * 1024 * 1024;
 
+    /// <summary>The boxes a stream is fitted into for each stream size setting (DEVPLAN Phase 13c).</summary>
+    public static readonly (uint Width, uint Height) StreamBox720 = (1280, 720);
+
+    public static readonly (uint Width, uint Height) StreamBox1080 = (1920, 1080);
+
+    public static readonly (uint Width, uint Height) StreamBox1440 = (2560, 1440);
+
     /// <summary>GitHub's latest release of the repository (no Osplay server exists).</summary>
     public static readonly Uri LatestReleaseUri = new("https://api.github.com/repos/akinalpfdn/osplay/releases/latest");
 

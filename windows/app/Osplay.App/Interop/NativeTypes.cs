@@ -162,6 +162,8 @@ internal struct NativeHostConfig
     public nint DumpDirectory;
     public uint MillibitsPerPixel;
     public ushort ControlPort;
+    public uint MaxStreamWidth;
+    public uint MaxStreamHeight;
 }
 
 /// <summary>osplay_engine_host_callbacks.</summary>

@@ -294,7 +294,13 @@ void DuplicationPipeline::Worker::update_pointer(const DXGI_OUTDUPL_FRAME_INFO& 
             if (image) {
                 ++shape_id;
                 hotspot = POINT{.x = image->hotspot_x, .y = image->hotspot_y};
-                sink->on_cursor_shape(shape_id, *image);
+                // The stream may be smaller than the desktop (DEVPLAN Phase 13c); the cursor
+                // shrinks with it, or the viewer would draw it too big.
+                const auto monitor_width = static_cast<double>(
+                    desktop_width != 0 ? desktop_width : target.rect.right - target.rect.left);
+                const double factor =
+                    monitor_width > 0 ? static_cast<double>(settings.width) / monitor_width : 1.0;
+                sink->on_cursor_shape(shape_id, scale_cursor_image(*image, factor));
                 changed = true;
             }
         }

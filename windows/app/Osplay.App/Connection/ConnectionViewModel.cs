@@ -316,7 +316,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private async Task StartSharingAsync()
     {
         (EngineResult started, EngineHost? host) = await EngineHost
-            .StartAsync(_dispatcher, _deviceName, _settings.Quality.MillibitsPerPixel(), _sharePort)
+            .StartAsync(_dispatcher, _deviceName, _settings.Quality.MillibitsPerPixel(), _sharePort, _settings.StreamSize.Box())
             .ConfigureAwait(true);
         if (host is null)
         {

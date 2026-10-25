@@ -119,6 +119,12 @@
                 DisplayMemberPath="Name" SelectedValuePath="Preset"
                 SelectedValue="{Binding Settings.Quality}"
                 AutomationProperties.Name="{x:Static res:Strings.QualityTitle}" />
+      <TextBlock Margin="{StaticResource Osplay.Thickness.SectionGap}" Text="{x:Static res:Strings.StreamSizeTitle}"
+                 Style="{StaticResource Osplay.Text.Section}" />
+      <ComboBox Margin="{StaticResource Osplay.Thickness.ItemGap}" ItemsSource="{Binding StreamSizeOptions}"
+                DisplayMemberPath="Name" SelectedValuePath="Preset"
+                SelectedValue="{Binding Settings.StreamSize}"
+                AutomationProperties.Name="{x:Static res:Strings.StreamSizeTitle}" />
       <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{x:Static res:Strings.QualityHint}"
                  Style="{StaticResource Osplay.Text.Caption}" />
       <WrapPanel Margin="{StaticResource Osplay.Thickness.SectionGap}"
