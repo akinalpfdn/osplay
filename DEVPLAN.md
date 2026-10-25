@@ -37,7 +37,7 @@ The project is open source, distributed as a notarized macOS app and a Windows i
 - Architecture: MVVM with `@Observable` view models. Sessions are actors. Platform services sit behind protocols and are injected.
 - Project generation: XcodeGen (`project.yml`) so `.xcodeproj` is never hand-edited or merged.
 - Key dependencies:
-  - Sparkle 2: auto-updates with EdDSA-signed appcast.
+  - No updater framework: the app checks the latest GitHub release once a day and offers the download, like the Windows shell (user decision 2026-10-25, replacing Sparkle).
   - `core` as a local SwiftPM package (C++ target with C++20, public C header only).
 - System frameworks: `CoreGraphics` (private `CGVirtualDisplay` API), ScreenCaptureKit, VideoToolbox, AVFoundation (`AVSampleBufferDisplayLayer`), Network.framework (Bonjour), CryptoKit is **not** used (crypto lives in `core`), Security (Keychain).
 
@@ -237,7 +237,7 @@ Phase 3 writes the authoritative `docs/PROTOCOL.md` and binary fixtures in `prot
 - Quality presets and stats overlay (fps, bitrate, RTT, loss, end-to-end latency estimate).
 - Reconnect after brief network loss; clean handling of sleep/wake and display reconfiguration.
 - English and Turkish UI, light and dark themes.
-- Notarized macOS DMG with Sparkle updates; Windows installer that installs the app, helper service, VDD and firewall rules.
+- Notarized macOS DMG; Windows installer that installs the app, helper service, VDD and firewall rules; both apps point to a newer GitHub release when one exists.
 - Complete open-source repository hygiene: README, docs, license, contributing guide, security policy, CI.
 
 ### Post-MVP
@@ -496,10 +496,11 @@ Each phase is meant to be completed in one Claude Code session. A phase is done 
 ### Phase 14: Packaging, release and documentation
 **Goal**: Anyone can install Osplay from GitHub Releases, and contributors can build it from the docs alone.
 **Delivers**:
-- macOS: Developer ID signing, Hardened Runtime, notarization and stapling in CI using repository secrets; DMG; Sparkle appcast published with releases.
-- Windows: Inno Setup installer that installs the shell, engine, helper service, VDD (per the Phase 0 decision) and firewall rules; clean uninstall that removes the service, disables and optionally removes VDD (every `Root\MttVDD` device, including the ones OsplayHelper added — one per virtual monitor, DECISIONS.md 2026-10-25), and deletes firewall rules.
+- macOS: Developer ID signing, Hardened Runtime, notarization (keychain profile `mac-notary`) and stapling on the maintainer's Mac with one release script that uploads the DMG to the tag's release; a daily check against the latest GitHub release (user decision 2026-10-25).
+- Windows: Inno Setup installer, built by the release workflow and unsigned (user decision 2026-10-25), that installs the shell, engine, helper service, VDD (per the Phase 0 decision) and firewall rules; clean uninstall that removes the service, disables and optionally removes VDD (every `Root\MttVDD` device, including the ones OsplayHelper added — one per virtual monitor, DECISIONS.md 2026-10-25), and deletes firewall rules.
 - Release workflow triggered by a version tag, producing both artifacts and release notes.
-- Final `README.md`: what it is and is not, how it works (diagram), screenshots/GIF, requirements, installation per platform, first-run walkthrough, security model summary, performance expectations, troubleshooting links, building from source, contributing, license, credits (VDD, Monocypher, Asio, Sparkle, WPF-UI, H.NotifyIcon).
+- Final `README.md` and a Turkish `README.tr.md`: what it is and is not, how it works (diagram), screenshots/GIF, requirements, installation per platform, first-run walkthrough, security model summary, performance expectations, troubleshooting links, building from source, contributing, license, credits (VDD, Monocypher, Asio, WPF-UI, H.NotifyIcon).
+- The repository is easy to find: description, topics and README written for search (user request 2026-10-25).
 - Final `docs/` set brought up to date.
 **Depends on**: Phase 13
 **Acceptance criteria**:
@@ -545,4 +546,4 @@ These apply to ALL phases. Claude Code must follow them throughout development.
 - **Desktop Duplication edge cases:** hybrid GPU systems, HDR-enabled desktops and exclusive full-screen apps on the virtual monitor can break duplication. Document known limitations.
 - **DRM content** (streaming services) appears black on both platforms. This cannot be solved; document it.
 - **Windows code signing:** without a certificate, SmartScreen will warn. Apply to SignPath Foundation early.
-- **Sparkle and notarization secrets in CI:** store signing identity, notarization credentials and the Sparkle EdDSA private key as repository secrets; never commit them. Document rotation.
+- **Signing secrets:** none in CI. The Developer ID identity and the notarization profile stay in the maintainer's Keychain (user decision 2026-10-25).

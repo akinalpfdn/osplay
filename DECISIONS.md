@@ -552,3 +552,10 @@ choices the plan leaves open are logged here.
 **Why:** The PC → two Macs test still failed with sharing disabled: the INF puts every device in `MttVDDGroup`, and devices of one group share a WUDFHost process, so the second monitor offered only 3420×2214. With a group per device, four devices ran in four processes and each monitor offered its own mode; two MacBooks then streamed at once.
 **Trade-offs:** Devices added in one Enable request start together in the INF's group and share a process until their next start (issue #30).
 **Revisit if:** A signed driver release clears its mode list per monitor, or issue #30 needs devices created before any session.
+
+## 2026-10-25 — User decision: how releases are built and how users learn about updates
+**Chosen:** Pushing a version tag makes CI build the Windows installer, unsigned, and attach it to a GitHub release. The macOS DMG is built, Developer ID signed, notarized (keychain profile `mac-notary`) and stapled on the maintainer's Mac by one script, which uploads it to the same release. Both apps check the latest GitHub release once a day and offer the download; no Sparkle. The README comes in English and Turkish and the repository gets a description and topics written for search.
+**Alternatives:** Signing and notarizing the Mac app in CI with repository secrets and publishing a Sparkle appcast (the original Phase 14 plan); a Windows code-signing certificate (SignPath Foundation or paid); Sparkle for automatic installs on the Mac.
+**Why:** The maintainer releases from a Mac, and the Windows build needs no Windows machine when CI makes it. No signing secret has to live in CI. A plain release check behaves the same on both platforms and needs no signing key or appcast.
+**Trade-offs:** Windows shows SmartScreen once ("More info → Run anyway"); Mac users install updates by hand; every release needs the maintainer's Mac for the DMG.
+**Revisit if:** A code-signing certificate becomes available, or users miss automatic updates.
