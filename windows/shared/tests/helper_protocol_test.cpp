@@ -32,15 +32,33 @@ DecodeError request_error(const Bytes& bytes) {
 }
 
 TEST(HelperProtocol, StatusRequestHasPinnedByteLayout) {
-    const Bytes expected{'O', 'S', 'P', 'H', 0x02, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00};
+    const Bytes expected{'O', 'S', 'P', 'H', 0x03, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00};
     EXPECT_EQ(helper::encode(Request{.command = Command::Status, .monitors = {}}), expected);
+}
+
+TEST(HelperProtocol, EnableRequestNamesItsDevices) {
+    // Header with a one-byte payload: devices 0 and 2.
+    const Bytes expected{'O', 'S', 'P', 'H', 0x03, 0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x05};
+    EXPECT_EQ(helper::encode(Request{.command = Command::Enable, .monitors = {}, .devices = 0x05}),
+              expected);
+}
+
+TEST(HelperProtocol, EnableAndDisableNeedOneToAllDevices) {
+    for (const Command command : {Command::Enable, Command::Disable}) {
+        Bytes none = helper::encode(Request{.command = command, .monitors = {}, .devices = 1});
+        none[12] = 0;
+        EXPECT_EQ(request_error(none), DecodeError::ValueOutOfRange);
+        Bytes beyond = helper::encode(Request{.command = command, .monitors = {}, .devices = 1});
+        beyond[12] = helper::kAllDevices + 1;
+        EXPECT_EQ(request_error(beyond), DecodeError::ValueOutOfRange);
+    }
 }
 
 TEST(HelperProtocol, ConfigureRequestHasPinnedByteLayout) {
     MonitorConfig config = valid_config();
     config.gpu_name = "GPU";
     // Header, then count 1, reserved, GPU name length 3, "GPU", then width, height, refresh.
-    const Bytes expected{'O',  'S',  'P',  'H',  0x02, 0x00, 0x01, 0x00, 0x13, 0x00, 0x00,
+    const Bytes expected{'O',  'S',  'P',  'H',  0x03, 0x00, 0x01, 0x00, 0x13, 0x00, 0x00,
                          0x00, 0x01, 0x00, 0x03, 0x00, 'G',  'P',  'U',  0x00, 0x0A, 0x00,
                          0x00, 0x80, 0x06, 0x00, 0x00, 0x60, 0xEA, 0x00, 0x00};
     EXPECT_EQ(helper::encode(configure(config)), expected);
@@ -79,8 +97,8 @@ TEST(HelperProtocol, EveryRequestRoundTrips) {
     const std::vector<Request> requests{
         configure(valid_config()),
         configure(named),
-        Request{.command = Command::Enable, .monitors = {}},
-        Request{.command = Command::Disable, .monitors = {}},
+        Request{.command = Command::Enable, .monitors = {}, .devices = 0x01},
+        Request{.command = Command::Disable, .monitors = {}, .devices = helper::kAllDevices},
         Request{.command = Command::Status, .monitors = {}},
     };
     for (const Request& request : requests) {
@@ -94,7 +112,7 @@ TEST(HelperProtocol, ResponseRoundTrips) {
     const Response response{
         .result = ResultCode::Ok,
         .status = {.vdd_installed = true,
-                   .device_enabled = true,
+                   .enabled_devices = 0x05,
                    .configured = true,
                    .monitor_count = 2,
                    .width = 2560,
@@ -121,7 +139,7 @@ TEST(HelperProtocol, RejectsBadMagic) {
 
 TEST(HelperProtocol, RejectsOtherVersions) {
     Bytes bytes = helper::encode(Request{.command = Command::Status, .monitors = {}});
-    bytes[4] = 1; // a helper or engine from before several monitors
+    bytes[4] = 2; // a helper or engine from before devices were named one by one
     EXPECT_EQ(request_error(bytes), DecodeError::UnsupportedVersion);
 }
 
@@ -138,10 +156,16 @@ TEST(HelperProtocol, RejectsPayloadLengthMismatch) {
     bytes.push_back(0);
     EXPECT_EQ(request_error(bytes), DecodeError::LengthMismatch);
 
-    Bytes payload_on_enable = helper::encode(Request{.command = Command::Enable, .monitors = {}});
-    payload_on_enable[8] = 1;
-    payload_on_enable.push_back(0);
-    EXPECT_EQ(request_error(payload_on_enable), DecodeError::LengthMismatch);
+    Bytes long_enable =
+        helper::encode(Request{.command = Command::Enable, .monitors = {}, .devices = 1});
+    long_enable[8] = 2;
+    long_enable.push_back(0);
+    EXPECT_EQ(request_error(long_enable), DecodeError::LengthMismatch);
+    Bytes empty_disable =
+        helper::encode(Request{.command = Command::Disable, .monitors = {}, .devices = 1});
+    empty_disable[8] = 0;
+    empty_disable.pop_back();
+    EXPECT_EQ(request_error(empty_disable), DecodeError::LengthMismatch);
 
     Bytes configure_bytes = helper::encode(configure(valid_config()));
     configure_bytes[14] = 5; // GPU name length larger than what follows

@@ -64,6 +64,14 @@ HostOrchestrator::~HostOrchestrator() {
     }
 }
 
+bool HostOrchestrator::on_peer() {
+    if (displays_->available_monitors() > 0) {
+        return true;
+    }
+    core_->refuse_busy();
+    return false;
+}
+
 void HostOrchestrator::on_viewer_monitors(std::span<const osplay_monitor> monitors) {
     if (monitors.empty()) {
         return;
@@ -167,8 +175,14 @@ void HostOrchestrator::start(const std::vector<osplay_monitor>& monitors) {
     if (!streams_.empty() || failed_) {
         return; // the viewer's monitors arrive once per session
     }
+    // Other sessions may use some of the virtual monitors: this viewer gets what is left.
+    const std::size_t granted = std::min(monitors.size(), displays_->available_monitors());
+    if (granted == 0) {
+        core_->refuse_busy();
+        return;
+    }
     std::vector<osplay_stream_config> configs;
-    for (std::size_t index = 0; index < monitors.size(); ++index) {
+    for (std::size_t index = 0; index < granted; ++index) {
         osplay_stream_config config = stream_for(monitors[index], bits_per_pixel_, stream_box_);
         config.stream_id = static_cast<std::uint8_t>(index);
         configs.push_back(config);
@@ -183,7 +197,7 @@ void HostOrchestrator::start(const std::vector<osplay_monitor>& monitors) {
         return;
     }
     observer_->on_streaming(
-        streams_.begin()->second.pipeline->monitor_rect().value_or(MonitorRect{}));
+        streams_.begin()->second.pipeline->monitor_rect().value_or(MonitorRect{}), streams_.size());
 }
 
 bool HostOrchestrator::open_streams() {
@@ -197,6 +211,12 @@ bool HostOrchestrator::open_streams() {
                             .gpu_name = {}});
     }
     const auto created = displays_->create_monitors(monitors);
+    if (!created && created.error() == DisplayError::NoMonitorLeft) {
+        // Another session took the last monitors meanwhile: as busy as before pairing.
+        streams_.clear();
+        core_->refuse_busy();
+        return false;
+    }
     if (!created) {
         fail(HostFailure::Display, static_cast<std::uint32_t>(created.error()));
         return false;

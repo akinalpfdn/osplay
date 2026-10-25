@@ -1,7 +1,7 @@
 #include "../capture/duplication_pipeline.hpp"
 #include "../display/gdi_display_mode_applier.hpp"
-#include "../display/helper_virtual_display_provider.hpp"
 #include "../display/pipe_helper_channel.hpp"
+#include "../display/virtual_display_hub.hpp"
 #include "../engine_tunables.hpp"
 #include "../host/host_orchestrator.hpp"
 #include "engine_results.hpp"
@@ -73,6 +73,12 @@ public:
             static_cast<void>(osplay_session_close_for_sleep(session_)); // fails only when closing
         }
     }
+    void refuse_busy() override {
+        const std::scoped_lock lock(mutex_);
+        if (session_ != nullptr) {
+            static_cast<void>(osplay_session_refuse_busy(session_)); // fails only when closing
+        }
+    }
     [[nodiscard]] osplay_result request_role_swap() {
         const std::scoped_lock lock(mutex_);
         return session_ == nullptr ? OSPLAY_ERROR_INVALID_STATE
@@ -89,15 +95,38 @@ private:
     osplay_session* session_ = nullptr;
 };
 
+/// The helper serves one client, so every host session of this process shares one connection; it
+/// closes, and the helper removes every monitor, when the last session goes.
+std::shared_ptr<osplay::engine::VirtualDisplayHub>
+shared_hub(osplay::engine::DisplayError& failure) {
+    static std::mutex mutex;
+    static std::weak_ptr<osplay::engine::VirtualDisplayHub> current;
+    const std::scoped_lock lock(mutex);
+    if (auto hub = current.lock()) {
+        return hub;
+    }
+    auto channel = osplay::engine::PipeHelperChannel::connect();
+    if (!channel) {
+        failure = channel.error();
+        return nullptr;
+    }
+    auto hub = std::make_shared<osplay::engine::VirtualDisplayHub>(
+        std::move(channel.value()), std::make_unique<osplay::engine::GdiDisplayModeApplier>());
+    current = hub;
+    return hub;
+}
+
 /// Forwards orchestrator events to the shell's callbacks.
 class ShellObserver final : public osplay::engine::HostObserver {
 public:
     explicit ShellObserver(const osplay_engine_host_callbacks& callbacks) : callbacks_(callbacks) {}
 
-    void on_streaming(const osplay::engine::MonitorRect& monitor) override {
+    void on_streaming(const osplay::engine::MonitorRect& first_monitor,
+                      std::size_t display_count) override {
         if (callbacks_.on_streaming != nullptr) {
-            callbacks_.on_streaming(callbacks_.context, monitor.left, monitor.top, monitor.right,
-                                    monitor.bottom);
+            callbacks_.on_streaming(callbacks_.context, static_cast<uint32_t>(display_count),
+                                    first_monitor.left, first_monitor.top, first_monitor.right,
+                                    first_monitor.bottom);
         }
     }
 
@@ -149,7 +178,7 @@ struct osplay_engine_host {
         : callbacks(shell_callbacks), observer(shell_callbacks) {}
 
     osplay_engine_host_callbacks callbacks;
-    std::unique_ptr<osplay::engine::VirtualDisplayProvider> displays;
+    std::unique_ptr<osplay::engine::HubVirtualDisplays> displays;
     osplay::engine::DuplicationPipelineFactory pipelines;
     CapiCorePort port;
     ShellObserver observer;
@@ -176,6 +205,9 @@ osplay_session_callbacks core_callbacks(osplay_engine_host* host) {
     };
     callbacks.on_peer = [](void* context, const osplay_peer_info* peer) {
         auto* self = host_of(context);
+        if (!self->orchestrator->on_peer()) {
+            return; // turned away: other sessions use every virtual monitor
+        }
         self->trust.introduced(peer->device_name);
         if (self->callbacks.on_peer != nullptr) {
             self->callbacks.on_peer(self->callbacks.context, peer->platform, peer->device_name);
@@ -261,9 +293,10 @@ osplay_engine_result osplay_engine_host_start(const osplay_engine_host_config* c
             (config->secret_key != nullptr && callbacks->on_trust_query == nullptr)) {
             return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
         }
-        auto channel = osplay::engine::PipeHelperChannel::connect();
-        if (!channel) {
-            return to_result(channel.error());
+        osplay::engine::DisplayError hub_failure{};
+        auto hub = shared_hub(hub_failure);
+        if (!hub) {
+            return to_result(hub_failure);
         }
         auto host = std::make_unique<osplay_engine_host>(*callbacks);
         osplay::engine::KeyStoreError store_failure{};
@@ -273,8 +306,7 @@ osplay_engine_result osplay_engine_host_start(const osplay_engine_host_config* c
         }
         // Revoking or removing the peer ends the session (non-blocking Bye).
         host->trust.set_end_session([self = host.get()] { self->port.close(); });
-        host->displays = std::make_unique<osplay::engine::HelperVirtualDisplayProvider>(
-            std::move(channel.value()), std::make_unique<osplay::engine::GdiDisplayModeApplier>());
+        host->displays = std::make_unique<osplay::engine::HubVirtualDisplays>(std::move(hub));
         host->orchestrator = std::make_unique<osplay::engine::HostOrchestrator>(
             host->port, *host->displays, host->pipelines, host->observer,
             make_dump(config->dump_directory_utf8),

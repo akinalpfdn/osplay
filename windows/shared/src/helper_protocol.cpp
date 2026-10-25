@@ -9,6 +9,7 @@ namespace {
 constexpr std::size_t kConfigureFixedSize = 4; // count, reserved, gpu name length
 constexpr std::size_t kModeSize = 12;          // width, height, refresh
 constexpr std::size_t kStatusPayloadSize = 16;
+constexpr std::size_t kDevicesPayloadSize = 1; // Enable, Disable: the device mask
 
 class Writer {
 public:
@@ -192,6 +193,8 @@ Bytes encode(const Request& request) {
                 out.u32(monitor.height);
                 out.u32(monitor.refresh_millihertz);
             }
+        } else if (request.command == Command::Enable || request.command == Command::Disable) {
+            out.u8(request.devices);
         }
     });
 }
@@ -200,7 +203,7 @@ Bytes encode(const Response& response) {
     return Writer::message(static_cast<std::uint16_t>(response.result), [&](Writer& out) {
         const MonitorStatus& status = response.status;
         out.u8(status.vdd_installed ? 1 : 0);
-        out.u8(status.device_enabled ? 1 : 0);
+        out.u8(status.enabled_devices);
         out.u8(status.configured ? 1 : 0);
         out.u8(status.monitor_count);
         out.u32(status.width);
@@ -271,12 +274,26 @@ Expected<Request, DecodeError> decode_request(std::span<const std::uint8_t> mess
     Request request;
     switch (static_cast<Command>(header.value().code)) {
     case Command::Enable:
-    case Command::Disable:
+    case Command::Disable: {
+        if (header.value().payload_length != kDevicesPayloadSize) {
+            return Result::failure(DecodeError::LengthMismatch);
+        }
+        const auto devices = reader.u8();
+        if (!devices) {
+            return Result::failure(DecodeError::Truncated);
+        }
+        if (*devices == 0 || (*devices & ~kAllDevices) != 0) {
+            return Result::failure(DecodeError::ValueOutOfRange);
+        }
+        request.command = static_cast<Command>(header.value().code);
+        request.devices = *devices;
+        return request;
+    }
     case Command::Status:
         if (header.value().payload_length != 0) {
             return Result::failure(DecodeError::LengthMismatch);
         }
-        request.command = static_cast<Command>(header.value().code);
+        request.command = Command::Status;
         return request;
     case Command::Configure:
         return decode_configure(reader, header.value().payload_length);
@@ -311,7 +328,7 @@ Expected<Response, DecodeError> decode_response(std::span<const std::uint8_t> me
     return Response{
         .result = static_cast<ResultCode>(header.value().code),
         .status = {.vdd_installed = *installed != 0,
-                   .device_enabled = *enabled != 0,
+                   .enabled_devices = *enabled,
                    .configured = *configured != 0,
                    .monitor_count = *count,
                    .width = *width,

@@ -42,6 +42,7 @@ public:
     std::vector<std::uint32_t> shapes;
     std::vector<osplay_cursor_position> positions;
     bool closed = false;
+    bool refused_busy = false;
     osplay_result configure_result = OSPLAY_OK;
 
     osplay_result configure_streams(std::span<const osplay_stream_config> streams) override {
@@ -68,6 +69,10 @@ public:
         const std::scoped_lock lock(mutex);
         closed = true;
     }
+    void refuse_busy() override {
+        const std::scoped_lock lock(mutex);
+        refused_busy = true;
+    }
     std::mutex mutex;
 };
 
@@ -77,6 +82,7 @@ public:
     std::vector<std::size_t> batches;          // monitors per call
     int removed = 0;
     std::optional<DisplayError> create_error;
+    std::size_t available = 4; // what other sessions left
 
     win::Expected<std::vector<std::wstring>, DisplayError>
     create_monitors(std::span<const VirtualMonitorConfig> configs) override {
@@ -98,6 +104,7 @@ public:
     win::Expected<VirtualMonitorStatus, DisplayError> status() override {
         return VirtualMonitorStatus{};
     }
+    [[nodiscard]] std::size_t available_monitors() const override { return available; }
 };
 
 class FakePipeline final : public StreamPipeline {
@@ -142,11 +149,15 @@ public:
 class RecordingObserver final : public HostObserver {
 public:
     std::optional<MonitorRect> streaming;
+    std::size_t streaming_displays = 0;
     std::optional<HostFailure> failure;
     std::uint32_t detail = 0;
     std::vector<std::pair<std::uint8_t, CaptureStats>> capture_stats;
 
-    void on_streaming(const MonitorRect& monitor) override { streaming = monitor; }
+    void on_streaming(const MonitorRect& first_monitor, std::size_t display_count) override {
+        streaming = first_monitor;
+        streaming_displays = display_count;
+    }
     void on_host_failed(HostFailure host_failure, std::uint32_t failure_detail) override {
         failure = host_failure;
         detail = failure_detail;
@@ -192,6 +203,53 @@ TEST(HostOrchestrator, TheViewerMonitorBecomesTheVirtualMonitorAndTheStream) {
     EXPECT_EQ(h.core.configured[0].cursor_mode, OSPLAY_CURSOR_SEPARATE);
     ASSERT_TRUE(h.observer.streaming.has_value());
     EXPECT_EQ(h.observer.streaming->left, 1920);
+    EXPECT_EQ(h.observer.streaming_displays, 1U);
+}
+
+TEST(HostOrchestrator, AViewerGetsOnlyTheMonitorsOtherSessionsLeft) {
+    Harness h;
+    h.displays.available = 1;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    const std::vector<osplay_monitor> monitors{monitor(1), monitor(2)};
+    orchestrator.on_viewer_monitors(monitors);
+    orchestrator.wait_idle();
+
+    EXPECT_EQ(h.displays.created.size(), 1U);
+    ASSERT_EQ(h.core.configured.size(), 1U);
+    EXPECT_EQ(h.core.configured[0].monitor_id, 1);
+    EXPECT_EQ(h.observer.streaming_displays, 1U);
+    EXPECT_FALSE(h.core.refused_busy);
+}
+
+TEST(HostOrchestrator, WithEveryMonitorTakenTheViewerIsTurnedAwayBeforePairing) {
+    Harness h;
+    h.displays.available = 0;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+
+    EXPECT_FALSE(orchestrator.on_peer());
+    EXPECT_TRUE(h.core.refused_busy);
+    EXPECT_FALSE(h.observer.failure.has_value()) << "a busy host is no failure";
+}
+
+TEST(HostOrchestrator, AViewerArrivingWithMonitorsLeftIsWelcome) {
+    Harness h;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    EXPECT_TRUE(orchestrator.on_peer());
+    EXPECT_FALSE(h.core.refused_busy);
+}
+
+TEST(HostOrchestrator, MonitorsTakenMeanwhileTurnTheViewerAwayToo) {
+    Harness h;
+    h.displays.create_error = DisplayError::NoMonitorLeft;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    const std::vector<osplay_monitor> monitors{monitor()};
+    orchestrator.on_viewer_monitors(monitors);
+    orchestrator.wait_idle();
+
+    EXPECT_TRUE(h.core.refused_busy);
+    EXPECT_FALSE(h.observer.failure.has_value());
+    EXPECT_TRUE(h.pipelines.started.empty());
+    EXPECT_TRUE(h.core.configured.empty());
 }
 
 TEST(HostOrchestrator, TheStreamIsFittedToTheBoxWhileTheVirtualMonitorKeepsItsMode) {

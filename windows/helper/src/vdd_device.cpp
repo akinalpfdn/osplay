@@ -9,16 +9,13 @@
 #include <cfgmgr32.h>
 #include <newdev.h>
 
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <vector>
 
 namespace osplay::helper {
 namespace {
-
-std::vector<std::wstring> vdd_instances() {
-    return win::device_instances(win::kVddHardwareId);
-}
 
 /// The display adapter device class (GUID_DEVCLASS_DISPLAY in devguid.h).
 constexpr GUID kDisplayClass{.Data1 = 0x4d36e968,
@@ -28,12 +25,25 @@ constexpr GUID kDisplayClass{.Data1 = 0x4d36e968,
 
 } // namespace
 
+const std::vector<std::wstring>& VddDevices::instances() {
+    const std::vector<std::wstring> present = win::device_instances(win::kVddHardwareId);
+    std::erase_if(order_, [&](const std::wstring& known) {
+        return std::ranges::find(present, known) == present.end();
+    });
+    for (const std::wstring& instance : present) {
+        if (std::ranges::find(order_, instance) == order_.end()) {
+            order_.push_back(instance);
+        }
+    }
+    return order_;
+}
+
 bool VddDevices::is_installed() {
-    return !vdd_instances().empty();
+    return !instances().empty();
 }
 
 std::size_t VddDevices::count() {
-    return vdd_instances().size();
+    return instances().size();
 }
 
 bool VddDevices::add() {
@@ -76,11 +86,11 @@ bool VddDevices::add() {
 }
 
 bool VddDevices::is_enabled(std::size_t index) {
-    const auto instances = vdd_instances();
-    if (index >= instances.size()) {
+    const auto& known = instances();
+    if (index >= known.size()) {
         return false;
     }
-    const auto device = win::open_device(instances[index]);
+    const auto device = win::open_device(known[index]);
     if (!device) {
         return false;
     }
@@ -94,13 +104,14 @@ bool VddDevices::is_enabled(std::size_t index) {
 }
 
 bool VddDevices::set_enabled(std::size_t index, bool enabled) {
-    const auto instances = vdd_instances();
-    if (index >= instances.size()) {
+    const auto& known = instances();
+    if (index >= known.size()) {
         log_.error("Virtual Display Driver device " + std::to_string(index) + " not found");
         return false;
     }
+    const std::wstring instance = known[index];
     for (int attempt = 1; attempt <= kDeviceChangeAttempts; ++attempt) {
-        if (try_set_enabled(instances[index], enabled)) {
+        if (try_set_enabled(instance, enabled)) {
             return true;
         }
         if (attempt < kDeviceChangeAttempts) {

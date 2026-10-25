@@ -1,6 +1,6 @@
 #pragma once
 
-#include "helper_virtual_display_provider.hpp"
+#include "virtual_display_hub.hpp"
 
 #include <windows.h>
 

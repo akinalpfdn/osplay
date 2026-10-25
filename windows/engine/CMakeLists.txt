@@ -1,7 +1,7 @@
 # Platform-independent engine logic, linked into the DLL and its tests.
 add_library(osplay_engine_logic STATIC
     src/discovery/txt_mapping.cpp
-    src/display/helper_virtual_display_provider.cpp
+    src/display/virtual_display_hub.cpp
     src/host/host_orchestrator.cpp
     src/host/stream_dump.cpp
     src/keystore/peer_list.cpp
@@ -55,7 +55,7 @@ if(OSPLAY_CORE_BUILD_TESTS)
     add_executable(osplay_engine_tests
         tests/frame_pacer_test.cpp
         tests/h264_stream_test.cpp
-        tests/helper_virtual_display_provider_test.cpp
+        tests/virtual_display_hub_test.cpp
         tests/host_orchestrator_test.cpp
         tests/monitor_layout_test.cpp
         tests/peer_list_test.cpp

@@ -85,6 +85,12 @@ protected:
         };
     }
     static Request simple(Command command) { return Request{.command = command, .monitors = {}}; }
+    static Request enable(std::uint8_t devices) {
+        return Request{.command = Command::Enable, .monitors = {}, .devices = devices};
+    }
+    static Request disable(std::uint8_t devices) {
+        return Request{.command = Command::Disable, .monitors = {}, .devices = devices};
+    }
 };
 
 TEST_F(RequestHandlerTest, ConfigureWritesSettingsAndEnableAddsMonitor) {
@@ -92,111 +98,100 @@ TEST_F(RequestHandlerTest, ConfigureWritesSettingsAndEnableAddsMonitor) {
     ASSERT_EQ(settings.written.size(), 1U);
     EXPECT_NE(settings.written[0].find("<width>2560</width>"), std::string::npos);
 
-    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
+    EXPECT_EQ(handler.handle(enable(0b1)).result, ResultCode::Ok);
     EXPECT_EQ(devices.enabled, (std::vector<bool>{true}));
 }
 
 TEST_F(RequestHandlerTest, EnableWithoutConfigurationIsRefused) {
-    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::NotConfigured);
+    EXPECT_EQ(handler.handle(enable(0b1)).result, ResultCode::NotConfigured);
     EXPECT_EQ(devices.enabled, (std::vector<bool>{false}));
 }
 
 TEST_F(RequestHandlerTest, MissingDriverIsReported) {
     devices.enabled.clear();
     EXPECT_EQ(handler.handle(configure_request()).result, ResultCode::Ok);
-    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::VddNotInstalled);
-    EXPECT_EQ(handler.handle(simple(Command::Disable)).result, ResultCode::VddNotInstalled);
+    EXPECT_EQ(handler.handle(enable(0b1)).result, ResultCode::VddNotInstalled);
+    EXPECT_EQ(handler.handle(disable(0b1)).result, ResultCode::VddNotInstalled);
     EXPECT_FALSE(handler.handle(simple(Command::Status)).status.vdd_installed);
 }
 
-TEST_F(RequestHandlerTest, ReconfiguringAnActiveMonitorRestartsTheDevice) {
+TEST_F(RequestHandlerTest, ConfiguringLeavesRunningMonitorsAlone) {
     ASSERT_EQ(handler.handle(configure_request()).result, ResultCode::Ok);
-    ASSERT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
+    ASSERT_EQ(handler.handle(enable(0b1)).result, ResultCode::Ok);
     devices.changes.clear();
 
-    EXPECT_EQ(handler.handle(configure_request()).result, ResultCode::Ok);
-    EXPECT_EQ(devices.changes, (std::vector<std::pair<std::size_t, bool>>{{0, false}, {0, true}}));
+    EXPECT_EQ(handler.handle(configure_request(2)).result, ResultCode::Ok);
+    EXPECT_TRUE(devices.changes.empty()) << "another session's monitor keeps streaming";
+    EXPECT_EQ(settings.written.size(), 2U);
+}
+
+TEST_F(RequestHandlerTest, EnableAddsTheNamedDevicesThatAreMissing) {
+    ASSERT_EQ(handler.handle(configure_request(3)).result, ResultCode::Ok);
+    EXPECT_EQ(handler.handle(enable(0b111)).result, ResultCode::Ok);
+    EXPECT_EQ(devices.added, 2);
+    EXPECT_EQ(devices.enabled, (std::vector<bool>{true, true, true}));
+    EXPECT_EQ(handler.handle(simple(Command::Status)).status.enabled_devices, 0b111);
+}
+
+TEST_F(RequestHandlerTest, EnableTouchesOnlyTheNamedDevices) {
+    devices.enabled = {true, false, false};
+    ASSERT_EQ(handler.handle(configure_request(2)).result, ResultCode::Ok);
+    EXPECT_EQ(handler.handle(enable(0b100)).result, ResultCode::Ok);
+    EXPECT_EQ(devices.added, 0);
+    EXPECT_EQ(devices.enabled, (std::vector<bool>{true, false, true}));
+    EXPECT_EQ(devices.changes, (std::vector<std::pair<std::size_t, bool>>{{2, true}}));
+}
+
+TEST_F(RequestHandlerTest, DisableTouchesOnlyTheNamedDevices) {
+    devices.enabled = {true, true, true};
+    EXPECT_EQ(handler.handle(disable(0b101)).result, ResultCode::Ok);
+    EXPECT_EQ(devices.enabled, (std::vector<bool>{false, true, false}));
 }
 
 TEST_F(RequestHandlerTest, DisableRemovesMonitor) {
     ASSERT_EQ(handler.handle(configure_request()).result, ResultCode::Ok);
-    ASSERT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
+    ASSERT_EQ(handler.handle(enable(0b1)).result, ResultCode::Ok);
 
-    EXPECT_EQ(handler.handle(simple(Command::Disable)).result, ResultCode::Ok);
+    EXPECT_EQ(handler.handle(disable(0b1)).result, ResultCode::Ok);
     EXPECT_EQ(devices.enabled, (std::vector<bool>{false}));
+    EXPECT_EQ(handler.handle(simple(Command::Status)).status.enabled_devices, 0);
 }
 
 TEST_F(RequestHandlerTest, DisableWithoutMonitorChangesNothingAndLogsNothing) {
-    EXPECT_EQ(handler.handle(simple(Command::Disable)).result, ResultCode::Ok);
+    EXPECT_EQ(handler.handle(disable(kAllDevices)).result, ResultCode::Ok);
     EXPECT_TRUE(devices.changes.empty());
     EXPECT_TRUE(log.infos.empty());
 }
 
 TEST_F(RequestHandlerTest, ResetRemovesMonitorAndForgetsConfiguration) {
     ASSERT_EQ(handler.handle(configure_request()).result, ResultCode::Ok);
-    ASSERT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
+    ASSERT_EQ(handler.handle(enable(0b1)).result, ResultCode::Ok);
 
     handler.reset();
 
     EXPECT_EQ(devices.enabled, (std::vector<bool>{false}));
     EXPECT_FALSE(handler.handle(simple(Command::Status)).status.configured);
-    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::NotConfigured);
+    EXPECT_EQ(handler.handle(enable(0b1)).result, ResultCode::NotConfigured);
 }
 
 TEST_F(RequestHandlerTest, ResetDisablesMonitorsLeftEnabledBeforeTheServiceStarted) {
-    devices.enabled = {true, false, true};
+    devices.enabled = {true, false, true, false, true};
     handler.reset();
-    EXPECT_EQ(devices.enabled, (std::vector<bool>{false, false, false}));
-}
-
-TEST_F(RequestHandlerTest, EnableGivesEveryMonitorItsOwnDevice) {
-    ASSERT_EQ(handler.handle(configure_request(3)).result, ResultCode::Ok);
-    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
-    EXPECT_EQ(devices.added, 2);
-    EXPECT_EQ(devices.enabled, (std::vector<bool>{true, true, true}));
-    EXPECT_TRUE(handler.handle(simple(Command::Status)).status.device_enabled);
-}
-
-TEST_F(RequestHandlerTest, EnableReusesDevicesAndLeavesTheSpareOnesOff) {
-    devices.enabled = {false, false, false};
-    ASSERT_EQ(handler.handle(configure_request(2)).result, ResultCode::Ok);
-    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
-    EXPECT_EQ(devices.added, 0);
-    EXPECT_EQ(devices.enabled, (std::vector<bool>{true, true, false}));
-}
-
-TEST_F(RequestHandlerTest, FewerMonitorsTurnTheDevicesNoLongerNeededOff) {
-    ASSERT_EQ(handler.handle(configure_request(2)).result, ResultCode::Ok);
-    ASSERT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
-    devices.changes.clear();
-
-    EXPECT_EQ(handler.handle(configure_request(1)).result, ResultCode::Ok);
-    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
-    EXPECT_EQ(devices.enabled, (std::vector<bool>{true, false}));
-    EXPECT_EQ(devices.changes,
-              (std::vector<std::pair<std::size_t, bool>>{{0, false}, {0, true}, {1, false}}))
-        << "the device in use restarts to read the new settings";
-}
-
-TEST_F(RequestHandlerTest, DisableRemovesEveryMonitor) {
-    ASSERT_EQ(handler.handle(configure_request(2)).result, ResultCode::Ok);
-    ASSERT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
-    EXPECT_EQ(handler.handle(simple(Command::Disable)).result, ResultCode::Ok);
-    EXPECT_EQ(devices.enabled, (std::vector<bool>{false, false}));
-    EXPECT_FALSE(handler.handle(simple(Command::Status)).status.device_enabled);
+    EXPECT_EQ(devices.enabled, (std::vector<bool>{false, false, false, false, false}))
+        << "also devices beyond the four Osplay uses";
 }
 
 TEST_F(RequestHandlerTest, AddedDevicesThatDoNotAppearAreNotAddedAgain) {
     devices.added_devices_appear = false;
     ASSERT_EQ(handler.handle(configure_request(3)).result, ResultCode::Ok);
-    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::DeviceControlFailed);
+    EXPECT_EQ(handler.handle(enable(0b111)).result, ResultCode::DeviceControlFailed);
     EXPECT_EQ(devices.added, 2);
 }
 
 TEST_F(RequestHandlerTest, ADeviceThatCannotBeAddedIsReported) {
     devices.fail_add = true;
     ASSERT_EQ(handler.handle(configure_request(2)).result, ResultCode::Ok);
-    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::DeviceControlFailed);
+    EXPECT_EQ(handler.handle(enable(0b11)).result, ResultCode::DeviceControlFailed);
     EXPECT_EQ(log.errors.size(), 1U);
 }
 
@@ -205,7 +200,7 @@ TEST_F(RequestHandlerTest, StatusReportsConfiguration) {
     const Response response = handler.handle(simple(Command::Status));
 
     EXPECT_TRUE(response.status.vdd_installed);
-    EXPECT_FALSE(response.status.device_enabled);
+    EXPECT_EQ(response.status.enabled_devices, 0);
     EXPECT_TRUE(response.status.configured);
     EXPECT_EQ(response.status.width, 2560U);
     EXPECT_EQ(response.status.height, 1664U);
@@ -219,8 +214,15 @@ TEST_F(RequestHandlerTest, FailuresAreReportedAndLogged) {
     settings.fail = false;
     ASSERT_EQ(handler.handle(configure_request()).result, ResultCode::Ok);
     devices.fail_changes = true;
-    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::DeviceControlFailed);
+    EXPECT_EQ(handler.handle(enable(0b1)).result, ResultCode::DeviceControlFailed);
     EXPECT_EQ(log.errors.size(), 2U);
+}
+
+TEST_F(RequestHandlerTest, DeviceMasksOutOfRangeAreRejected) {
+    ASSERT_EQ(handler.handle(configure_request()).result, ResultCode::Ok);
+    EXPECT_EQ(handler.handle(enable(0)).result, ResultCode::ValueOutOfRange);
+    EXPECT_EQ(handler.handle(disable(kAllDevices + 1)).result, ResultCode::ValueOutOfRange);
+    EXPECT_TRUE(devices.changes.empty());
 }
 
 TEST_F(RequestHandlerTest, MalformedMessagesAreRejectedAndLogged) {

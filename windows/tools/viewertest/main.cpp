@@ -178,8 +178,8 @@ osplay_engine_host_callbacks host_callbacks(Events& events) {
     callbacks.on_trust_query = [](void* /*context*/, const uint8_t* /*key*/) {
         return OSPLAY_TRUST_TRUSTED;
     };
-    callbacks.on_streaming = [](void* context, int32_t left, int32_t top, int32_t right,
-                                int32_t bottom) {
+    callbacks.on_streaming = [](void* context, uint32_t /*display_count*/, int32_t left,
+                                int32_t top, int32_t right, int32_t bottom) {
         static_cast<Events*>(context)->say(std::format(
             "virtual monitor at x {}..{}, y {}..{}: drag a window there to see it on the viewer",
             left, right, top, bottom));

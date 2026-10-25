@@ -5,8 +5,11 @@
 
 #include <windows.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <string>
+#include <vector>
 
 namespace osplay::engine {
 namespace {
@@ -25,16 +28,32 @@ DEVMODEW mode_for(const VirtualMonitorConfig& config) {
 
 } // namespace
 
-Result GdiDisplayModeApplier::apply(std::span<const VirtualMonitorConfig> configs) {
-    // Enabling the devices returns before Windows has added the monitors to the desktop, and they
-    // arrive one by one.
-    const ULONGLONG deadline = GetTickCount64() + kMonitorArrivalTimeoutMilliseconds;
+Result GdiDisplayModeApplier::current_monitors() {
     auto names = vdd_gdi_device_names();
-    while ((!names ? names.error() == DisplayError::MonitorNotFound
-                   : names.value().size() < configs.size()) &&
-           GetTickCount64() < deadline) {
+    if (!names && names.error() == DisplayError::MonitorNotFound) {
+        return std::vector<std::wstring>{};
+    }
+    return names;
+}
+
+Result GdiDisplayModeApplier::apply(std::span<const VirtualMonitorConfig> configs,
+                                    std::span<const std::wstring> existing) {
+    // Enabling the devices returns before Windows has added the monitors to the desktop, and they
+    // arrive one by one; the new ones are those that were not there before.
+    const auto arrived = [&]() -> Result {
+        auto names = current_monitors();
+        if (names) {
+            std::erase_if(names.value(), [&](const std::wstring& name) {
+                return std::ranges::find(existing, name) != existing.end();
+            });
+        }
+        return names;
+    };
+    const ULONGLONG deadline = GetTickCount64() + kMonitorArrivalTimeoutMilliseconds;
+    auto names = arrived();
+    while (names && names.value().size() < configs.size() && GetTickCount64() < deadline) {
         Sleep(kMonitorArrivalPollMilliseconds);
-        names = vdd_gdi_device_names();
+        names = arrived();
     }
     if (!names) {
         return Result::failure(names.error());
