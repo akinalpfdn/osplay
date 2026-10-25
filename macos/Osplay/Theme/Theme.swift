@@ -122,5 +122,6 @@ enum Theme {
         static let screenRecording = "rectangle.dashed.badge.record"
         static let localNetwork = "network"
         static let disconnect = "xmark.circle"
+        static let update = "arrow.down.circle"
     }
 }

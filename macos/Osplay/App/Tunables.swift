@@ -74,6 +74,14 @@ enum Tunables {
         static let exportWindow: TimeInterval = 24 * 60 * 60
     }
 
+    enum Updates {
+        static let latestReleaseURL = URL(string: "https://api.github.com/repos/akinalpfdn/osplay/releases/latest")
+        static let releasesPage = URL(string: "https://github.com/akinalpfdn/osplay/releases")
+        /// The automatic check runs at most this often.
+        static let interval: TimeInterval = 24 * 60 * 60
+        static let timeout: TimeInterval = 15
+    }
+
     enum Connection {
         /// Pause before sharing listens again after a session ended.
         static let relistenDelay: Duration = .seconds(1)

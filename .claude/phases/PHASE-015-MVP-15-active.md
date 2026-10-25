@@ -8,11 +8,11 @@ Anyone can install Osplay from GitHub Releases, and contributors can build it fr
 
 ## Tasks
 - [ ] macOS: Developer ID signing, Hardened Runtime, notarization (keychain profile `mac-notary`) and stapling on the maintainer's Mac with one release script that uploads the DMG to the tag's release.
-- [ ] macOS: a daily check against the latest GitHub release with a download link, like the Windows shell (no Sparkle).
+- [x] macOS: a daily check against the latest GitHub release with a download link, like the Windows shell (no Sparkle).
 - [ ] Windows: Inno Setup installer, built by the release workflow and unsigned, that installs the shell, engine, helper service, VDD (per the Phase 0 decision) and firewall rules; clean uninstall that removes the service, disables and optionally removes VDD (every `Root\MttVDD` device, including the ones OsplayHelper added — one per virtual monitor, DECISIONS.md 2026-10-25), and deletes firewall rules.
 - [ ] Release workflow triggered by a version tag, producing both artifacts and release notes.
 - [ ] Final `README.md` and Turkish `README.tr.md`: what it is and is not, how it works (diagram), screenshots/GIF, requirements, installation per platform, first-run walkthrough, security model summary, performance expectations, troubleshooting links, building from source, contributing, license, credits (VDD, Monocypher, Asio, WPF-UI, H.NotifyIcon).
-- [ ] Repository description and topics written for search.
+- [x] Repository description and topics written for search.
 - [ ] Final `docs/` set brought up to date.
 
 ## Acceptance Criteria

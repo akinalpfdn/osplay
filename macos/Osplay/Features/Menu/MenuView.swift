@@ -7,6 +7,7 @@ import SwiftUI
 struct MenuView: View {
     let connection: ConnectionViewModel
     @Bindable var settings: AppSettings
+    let updates: UpdatesViewModel
     let openOnboarding: () -> Void
     #if DEBUG
         let developer: DeveloperTools
@@ -15,6 +16,9 @@ struct MenuView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.large) {
             MenuHeader(status: connection.status)
+            if let update = updates.available {
+                UpdateBanner(version: update.version, download: updates.openDownload)
+            }
             if needsPermissions {
                 PermissionsBanner(open: openOnboarding)
             }
@@ -168,6 +172,29 @@ private struct RoleCard: View {
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityHint(Text(selected ? "menu.role.hint.selected" : "menu.role.hint"))
+    }
+}
+
+/// A newer release exists: its version and the way to its download page.
+private struct UpdateBanner: View {
+    let version: ReleaseVersion
+    let download: () -> Void
+
+    var body: some View {
+        Card {
+            HStack(alignment: .top, spacing: Theme.Spacing.medium) {
+                Image(systemName: Theme.Symbol.update)
+                    .font(Theme.Typography.symbol)
+                    .foregroundStyle(Theme.Colors.accent)
+                    .frame(width: Theme.Size.symbolColumn)
+                    .accessibilityHidden(true)
+                Text("updates.available \(version.description)")
+                    .font(Theme.Typography.rowTitle)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                Button("updates.download", action: download)
+            }
+        }
     }
 }
 
