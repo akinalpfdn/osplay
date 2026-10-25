@@ -39,9 +39,6 @@ internal static class AppTunables
 
     public static readonly TimeSpan UpdateCheckTimeout = TimeSpan.FromSeconds(15);
 
-    /// <summary>Windows network settings, where a network is made private.</summary>
-    public static readonly Uri NetworkSettingsUri = new("ms-settings:network-status");
-
     /// <summary>A tray click right after the panel lost focus to it closes the panel instead of reopening it.</summary>
     public static readonly TimeSpan PanelReopenGuard = TimeSpan.FromMilliseconds(300);
 

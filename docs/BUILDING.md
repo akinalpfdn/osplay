@@ -248,7 +248,7 @@ The installer (`windows/installer/Osplay.iss`, English and Turkish) needs admini
 - adds the Virtual Display Driver package to the driver store (`pnputil /add-driver`);
 - runs `OsplayHelper.exe --install`, which adds the first driver device and registers and starts
   the OsplayHelper service;
-- adds the inbound firewall rule "Osplay" for `Osplay.exe` on private networks.
+- adds the inbound firewall rule "Osplay" for `Osplay.exe` on every network profile.
 
 An upgrade stops the service first (`OsplayHelper.exe --stop`) and keeps the driver devices, so
 Windows keeps the virtual monitors' arrangement. Uninstalling closes Osplay, runs

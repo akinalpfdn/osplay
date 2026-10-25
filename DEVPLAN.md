@@ -105,7 +105,7 @@ The project is open source, distributed as a notarized macOS app and a Windows i
 - **Decoder and presentation:** hardware H.264 decoder MFT with D3D11 awareness and low-latency mode. Render decoded NV12 textures to a flip-model swap chain (`FLIP_DISCARD`, frame latency waitable object, max frame latency 1) in a borderless window that exactly covers the target monitor, so DWM can use independent flip. Present as soon as a frame is decoded.
 - **Global hotkey:** `RegisterHotKey` for viewer toggle.
 - **Power:** `SetThreadExecutionState` with display-required while viewer windows are visible.
-- **Firewall:** the installer adds inbound rules for the engine executable on the Private profile only. If the active network profile is Public, the UI explains the problem and links to network settings instead of silently failing.
+- **Firewall:** the installer adds one inbound rule for `Osplay.exe` on every network profile (user decision 2026-10-26, replacing "Private profile only"): Windows 11 marks new networks Public, and a private-only rule silently dropped every connection there. Pairing and encryption, not the network profile, decide who may connect.
 - **Code signing:** the user has no Windows certificate. Unsigned builds trigger SmartScreen. Plan to apply to SignPath Foundation (free signing for open-source projects; VDD uses the same route). Until then, document SmartScreen behavior in the README.
 
 ### Network

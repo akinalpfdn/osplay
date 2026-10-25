@@ -140,16 +140,6 @@
             <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{x:Static res:Strings.HealthCheckWhileSharing}"
                        Style="{StaticResource Osplay.Text.Caption}" />
 
-            <TextBlock Text="{x:Static res:Strings.NetworkTitle}" Style="{StaticResource Osplay.Text.Section}" />
-            <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{x:Static res:Strings.NetworkPrivate}"
-                       Style="{StaticResource Osplay.Text.Body}"
-                       Visibility="{Binding Connection.IsNetworkPublic, Converter={StaticResource Osplay.Converter.InverseBooleanToVisibility}}" />
-            <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{x:Static res:Strings.NetworkPublicMessage}"
-                       Style="{StaticResource Osplay.Text.Body}"
-                       Visibility="{Binding Connection.IsNetworkPublic, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
-            <ui:Button Margin="{StaticResource Osplay.Thickness.ItemGap}" Content="{x:Static res:Strings.NetworkOpenSettings}"
-                       Command="{Binding OpenNetworkSettingsCommand}" />
-
             <TextBlock Text="{x:Static res:Strings.SettingsLogs}" Style="{StaticResource Osplay.Text.Section}" />
             <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{Binding LogsFolder}"
                        Style="{StaticResource Osplay.Text.Caption}" />

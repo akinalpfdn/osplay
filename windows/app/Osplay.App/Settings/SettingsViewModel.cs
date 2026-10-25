@@ -142,9 +142,4 @@ public sealed partial class SettingsViewModel : ObservableObject
             DiagnosticsResult = Localization.Strings.DiagnosticsFailed; // another program holds the clipboard
         }
     }
-
-    [RelayCommand]
-    private void OpenNetworkSettings() => Shell.Open(NetworkSettings);
-
-    private Uri NetworkSettings { get; } = AppTunables.NetworkSettingsUri;
 }

@@ -207,21 +207,6 @@
   <data name="HealthCheckWhileSharing" xml:space="preserve">
     <value>While this PC is shared, the check waits until sharing is turned off.</value>
   </data>
-  <data name="NetworkTitle" xml:space="preserve">
-    <value>Network</value>
-  </data>
-  <data name="NetworkPrivate" xml:space="preserve">
-    <value>Your network is private, so Windows lets other computers find and reach this PC.</value>
-  </data>
-  <data name="NetworkPublicTitle" xml:space="preserve">
-    <value>This network is set to Public</value>
-  </data>
-  <data name="NetworkPublicMessage" xml:space="preserve">
-    <value>If the other computer cannot find or reach this PC, set this network to Private in Windows Settings.</value>
-  </data>
-  <data name="NetworkOpenSettings" xml:space="preserve">
-    <value>Open network settings</value>
-  </data>
   <data name="UpdatesTitle" xml:space="preserve">
     <value>Updates</value>
   </data>

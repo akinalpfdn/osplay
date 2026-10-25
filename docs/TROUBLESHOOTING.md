@@ -78,10 +78,13 @@ connections for Osplay.
 Both computers must be on the same network and subnet (guest Wi-Fi networks often isolate devices).
 On the Mac, Osplay needs Local Network access (System Settings › Privacy & Security › Local
 Network); without it the list stays empty, or the menu says Bonjour is not allowed. On Windows the
-network profile should be **Private** (on a Public network Osplay suggests this once; a Public
-network can still work when the firewall allows Osplay). The installer allows Osplay through Windows
-Defender Firewall on private networks; for a development build Windows asks once instead: allow it
-for private networks. `OsplayViewerTest.exe --browse` shows what the PC sees.
+installer allows Osplay through Windows Defender Firewall on every network profile, Public included.
+A development build runs from another folder, so Windows asks once instead: allow it for the network
+type you are on. `OsplayViewerTest.exe --browse` shows what the PC sees.
+
+If the PC appears but the other computer cannot connect to it ("timed out"), the firewall drops the
+connection: check that Windows Defender Firewall › Inbound Rules has an enabled "Osplay" rule, and
+run the installer again to restore it.
 
 ## A paired computer is refused
 
@@ -95,7 +98,7 @@ from Paired devices; the next connection asks for a pairing code again.
   a Mac, the OsplayHelper service and the Virtual Display Driver on Windows (Settings › Advanced
   there says which).
 - "did not appear after the swap": the new host could not advertise (Local Network permission on the
-  Mac, a Public network on Windows). Pick it under Nearby computers once it shows up.
+  Mac). Pick it under Nearby computers once it shows up.
 - The shortcut is ignored: another program owns it; the menu says so. Use the "Swap roles" button or
   record another shortcut in Settings.
 
