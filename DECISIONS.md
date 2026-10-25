@@ -545,3 +545,10 @@ choices the plan leaves open are logged here.
 **Why:** In the PC → two Macs test the second Mac's monitor could not take its 3360×2100 mode. UMDF pools a driver's devices into one host process, and the driver (25.7.23) appends each monitor's modes to a global list it never clears and reports the first entries, so a device started after another offers only the earlier device's modes. Upstream PR #482 clears that list, but no signed release has it.
 **Trade-offs:** Up to four WUDFHost processes instead of one, a few megabytes each. The value is undocumented outside the INF directive; Windows reads it when the device starts.
 **Revisit if:** A signed driver release clears its mode list per monitor.
+
+## 2026-10-25 — Every driver device also gets a device group of its own
+**Chosen:** Besides `HostProcessSharingEnabled` = 0, OsplayHelper writes `DeviceGroupId` = `Osplay.` plus the device's instance ID under `Device Parameters\WUDF`. A device it adds gets both values after `DiInstallDevice`, which applies them from the device's next start.
+**Alternatives:** Restarting a new device after writing its values (stalled about 60 s, then UMDF reported the device offline after a driver crash); installing it disabled with `CONFIGFLAG_DISABLED` (the install started it anyway); writing the values before the install (the INF overwrites the group).
+**Why:** The PC → two Macs test still failed with sharing disabled: the INF puts every device in `MttVDDGroup`, and devices of one group share a WUDFHost process, so the second monitor offered only 3420×2214. With a group per device, four devices ran in four processes and each monitor offered its own mode; two MacBooks then streamed at once.
+**Trade-offs:** Devices added in one Enable request start together in the INF's group and share a process until their next start (issue #30).
+**Revisit if:** A signed driver release clears its mode list per monitor, or issue #30 needs devices created before any session.

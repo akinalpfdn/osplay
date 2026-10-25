@@ -25,8 +25,9 @@ struct KeyCloser {
 using Key = std::unique_ptr<std::remove_pointer_t<HKEY>, KeyCloser>;
 
 /// From its next start the device runs in a driver host process of its own: the value the INF
-/// directive UmdfHostProcessSharing = ProcessSharingDisabled writes.
-bool isolate_host_process(HDEVINFO set, SP_DEVINFO_DATA& data) {
+/// directive UmdfHostProcessSharing = ProcessSharingDisabled writes, and a device group of its own
+/// (the INF puts every device in "MttVDDGroup", which keeps them in one process regardless).
+bool isolate_host_process(HDEVINFO set, SP_DEVINFO_DATA& data, const std::wstring& instance) {
     HKEY raw_parameters =
         SetupDiCreateDevRegKeyW(set, &data, DICS_FLAG_GLOBAL, 0, DIREG_DEV, nullptr, nullptr);
     if (raw_parameters == INVALID_HANDLE_VALUE) {
@@ -40,9 +41,29 @@ bool isolate_host_process(HDEVINFO set, SP_DEVINFO_DATA& data) {
     }
     const Key wudf(raw_wudf);
     const DWORD disabled = kHostProcessSharingDisabled;
-    return RegSetValueExW(wudf.get(), kHostProcessSharingValue, 0, REG_DWORD,
-                          reinterpret_cast<const BYTE*>(&disabled),
-                          sizeof(disabled)) == ERROR_SUCCESS;
+    if (RegSetValueExW(wudf.get(), kHostProcessSharingValue, 0, REG_DWORD,
+                       reinterpret_cast<const BYTE*>(&disabled),
+                       sizeof(disabled)) != ERROR_SUCCESS) {
+        return false;
+    }
+    std::wstring group = kDeviceGroupIdPrefix + instance;
+    std::ranges::replace(group, L'\\', L'.');
+    const auto group_bytes = static_cast<DWORD>((group.size() + 1) * sizeof(wchar_t));
+    return RegSetValueExW(wudf.get(), kDeviceGroupIdValue, 0, REG_SZ,
+                          reinterpret_cast<const BYTE*>(group.c_str()),
+                          group_bytes) == ERROR_SUCCESS;
+}
+
+std::optional<std::wstring> instance_id(HDEVINFO set, SP_DEVINFO_DATA& data) {
+    std::wstring id(MAX_DEVICE_ID_LEN, L'\0');
+    DWORD length = 0;
+    if (!SetupDiGetDeviceInstanceIdW(set, &data, id.data(), static_cast<DWORD>(id.size()),
+                                     &length) ||
+        length == 0) {
+        return std::nullopt;
+    }
+    id.resize(length - 1); // the reported length includes the terminator
+    return id;
 }
 
 /// The display adapter device class (GUID_DEVCLASS_DISPLAY in devguid.h).
@@ -69,7 +90,7 @@ const std::vector<std::wstring>& VddDevices::instances() {
 
 void VddDevices::isolate(const std::wstring& instance) {
     auto device = win::open_device(instance);
-    if (!device || !isolate_host_process(device->set.get(), device->data)) {
+    if (!device || !isolate_host_process(device->set.get(), device->data, instance)) {
         log_.warning("Could not give a virtual display device its own driver process");
     }
 }
@@ -107,10 +128,6 @@ bool VddDevices::add() {
         log_.error("SetupAPI device registration failed, error " + std::to_string(GetLastError()));
         return false;
     }
-    // Before it starts, so it never joins another device's driver process.
-    if (!isolate_host_process(set.get(), data)) {
-        log_.warning("Could not give the new virtual display device its own driver process");
-    }
     BOOL reboot = FALSE;
     if (!DiInstallDevice(nullptr, set.get(), &data, nullptr, DIIDFLAG_NOFINISHINSTALLUI, &reboot)) {
         const DWORD error = GetLastError();
@@ -121,6 +138,13 @@ bool VddDevices::add() {
     }
     if (reboot != FALSE) {
         log_.warning("Windows asks for a reboot to finish adding a virtual display device");
+    }
+    // Installing wrote the INF's shared device group and started the device with it; its own group
+    // applies from its next start. Restarting it now stalls for a minute, so devices added in one
+    // request share a process until then (issue #30).
+    const auto instance = instance_id(set.get(), data);
+    if (!instance || !isolate_host_process(set.get(), data, *instance)) {
+        log_.warning("Could not give the new virtual display device its own driver process");
     }
     return true;
 }
