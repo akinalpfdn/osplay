@@ -57,12 +57,24 @@ struct VirtualDisplayConfigurationTests {
             ])
     }
 
-    @Test("Scaled modes keep even dimensions")
-    func evenDimensions() throws {
-        for mode in try make(pixelSize: DisplaySize(width: 1366, height: 768)).modes {
-            #expect(mode.width.isMultiple(of: 2))
-            #expect(mode.height.isMultiple(of: 2))
-        }
+    @Test("The ¾ mode keeps even dimensions; the half mode is exact, so its 2× backing is the monitor")
+    func scaledDimensions() throws {
+        #expect(
+            try make(pixelSize: DisplaySize(width: 1366, height: 768)).modes == [
+                DisplaySize(width: 1366, height: 768),
+                DisplaySize(width: 1024, height: 576),
+                DisplaySize(width: 683, height: 384),
+            ])
+    }
+
+    @Test("A MacBook panel at More Space (3420×2214) gets a crisp mode that looks like 1710×1107")
+    func oddHalfSize() throws {
+        let configuration = try make(pixelSize: DisplaySize(width: 3420, height: 2214))
+        let crisp = try #require(configuration.crispHiDPIResolution)
+        #expect(crisp.points == DisplaySize(width: 1710, height: 1107))
+        #expect(crisp.pixels == DisplaySize(width: 3420, height: 2214))
+        #expect(configuration.modes.contains(crisp.points), "the window server gets the mode it has to back")
+        #expect(try make(pixelSize: DisplaySize(width: 1365, height: 768)).crispHiDPIResolution == nil)
     }
 
     @Test("The crisp HiDPI resolution has a backing equal to the remote monitor")

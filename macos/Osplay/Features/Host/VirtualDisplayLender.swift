@@ -52,9 +52,7 @@ final class VirtualDisplayLender: DisplayLending {
             var sizes: [(id: UInt8, name: String, size: CGSize)] = []
             for (monitor, handle) in lent {
                 try await handle.waitUntilReady()
-                let resolution = Self.initialResolution(
-                    for: monitor, choice: hiDPI, configuration: handle.configuration)
-                try handle.activate(resolution)
+                let resolution = try Self.activateInitialResolution(on: handle, for: monitor, choice: hiDPI)
                 let points = CGSize(width: resolution.points.width, height: resolution.points.height)
                 sizes.append((monitor.id, handle.configuration.name, points))
             }
@@ -81,6 +79,24 @@ final class VirtualDisplayLender: DisplayLending {
 
     func returnAll() {
         provider.destroyAll()
+    }
+
+    /// The initial resolution, or the native one when the window server does not offer it: a
+    /// missing default must not end the session, and the native mode is always there.
+    private static func activateInitialResolution(
+        on handle: any VirtualDisplayHandle, for monitor: MonitorDescription, choice: HiDPIChoice
+    ) throws(VirtualDisplayError) -> DisplayResolution {
+        let preferred = initialResolution(for: monitor, choice: choice, configuration: handle.configuration)
+        let native = handle.configuration.nativeResolution
+        do throws(VirtualDisplayError) {
+            try handle.activate(preferred)
+            return preferred
+        } catch .resolutionUnavailable where preferred != native {
+            Log.virtualDisplay.error(
+                "Display \(handle.displayID) has no \(preferred.points) at \(preferred.pixels); using the native mode")
+            try handle.activate(native)
+            return native
+        }
     }
 
     /// The user's choice for this viewer, or by default the viewer's own scaling: a monitor run
