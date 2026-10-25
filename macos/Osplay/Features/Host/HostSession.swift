@@ -26,6 +26,8 @@ struct HostDisplayPolicy: Sendable {
     /// The last arrangement of this viewer's monitors (empty: a row to the right).
     var arrangement: [ArrangedMonitor] = []
     var quality: QualityPreset = .high
+    /// The developer tools stream at the monitor's size; the app passes the user's setting.
+    var streamSize: StreamSizePreset = .native
 }
 
 /// Why a host session ended other than by an orderly close.
@@ -190,7 +192,8 @@ actor HostSession {
             return
         }
         let streams = lent.enumerated().map { index, display in
-            Self.streamConfiguration(id: UInt8(index), for: display.monitor, quality: policy.quality)
+            Self.streamConfiguration(
+                id: UInt8(index), for: display.monitor, quality: policy.quality, streamSize: policy.streamSize)
         }
         for (stream, display) in zip(streams, lent) {
             dump?.prepare(stream)
@@ -264,16 +267,18 @@ actor HostSession {
             name: monitor.name)
     }
 
+    /// The virtual display keeps the monitor's size; the stream is fitted to the size setting, and
+    /// the bitrate follows the stream's pixels.
     static func streamConfiguration(
-        id: UInt8, for monitor: MonitorDescription, quality: QualityPreset
+        id: UInt8, for monitor: MonitorDescription, quality: QualityPreset, streamSize: StreamSizePreset
     )
         -> StreamConfiguration
     {
-        StreamConfiguration(
-            streamID: id, monitorID: monitor.id, width: monitor.widthPixels, height: monitor.heightPixels,
+        let size = streamSize.streamSize(width: monitor.widthPixels, height: monitor.heightPixels)
+        return StreamConfiguration(
+            streamID: id, monitorID: monitor.id, width: size.width, height: size.height,
             refreshMillihertz: monitor.refreshMillihertz, profile: Tunables.Encoding.profile, cursorMode: .inVideo,
-            bitrateKbps: quality.bitrateKbps(
-                width: monitor.widthPixels, height: monitor.heightPixels, frameRate: monitor.refreshRate))
+            bitrateKbps: quality.bitrateKbps(width: size.width, height: size.height, frameRate: monitor.refreshRate))
     }
 
     private func log(_ level: SessionLogLevel, _ message: String) {

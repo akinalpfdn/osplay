@@ -1,6 +1,8 @@
 #include "media/pointer_shape.hpp"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstddef>
 #include <utility>
 
@@ -176,6 +178,51 @@ std::optional<CursorImage> convert_pointer_shape(const PointerShapeInfo& info,
     }
     resolve_inversion(*canvas);
     return crop(*canvas, info.hotspot_x, info.hotspot_y);
+}
+
+CursorImage scale_cursor_image(const CursorImage& image, double factor) {
+    if (!(factor > 0.0) || factor >= 1.0 || image.width == 0 || image.height == 0) {
+        return image;
+    }
+    const auto scaled_side = [factor](std::uint16_t side) {
+        return static_cast<std::uint16_t>(
+            std::max(1L, std::lround(static_cast<double>(side) * factor)));
+    };
+    CursorImage scaled{.width = scaled_side(image.width),
+                       .height = scaled_side(image.height),
+                       .hotspot_x = 0,
+                       .hotspot_y = 0,
+                       .bgra = {}};
+    scaled.hotspot_x = static_cast<std::uint16_t>(
+        std::min<long>(std::lround(image.hotspot_x * factor), scaled.width - 1));
+    scaled.hotspot_y = static_cast<std::uint16_t>(
+        std::min<long>(std::lround(image.hotspot_y * factor), scaled.height - 1));
+    scaled.bgra.resize(std::size_t{scaled.width} * scaled.height * 4);
+    // Each target pixel averages the source pixels it covers; premultiplied channels average right.
+    for (std::uint32_t y = 0; y < scaled.height; ++y) {
+        const std::uint32_t y0 = y * image.height / scaled.height;
+        const std::uint32_t y1 = std::max(y0 + 1, (y + 1) * image.height / scaled.height);
+        for (std::uint32_t x = 0; x < scaled.width; ++x) {
+            const std::uint32_t x0 = x * image.width / scaled.width;
+            const std::uint32_t x1 = std::max(x0 + 1, (x + 1) * image.width / scaled.width);
+            std::array<std::uint32_t, 4> sum{};
+            for (std::uint32_t sy = y0; sy < y1; ++sy) {
+                for (std::uint32_t sx = x0; sx < x1; ++sx) {
+                    const std::size_t at = ((std::size_t{sy} * image.width) + sx) * 4;
+                    for (std::size_t channel = 0; channel < 4; ++channel) {
+                        sum.at(channel) += image.bgra.at(at + channel);
+                    }
+                }
+            }
+            const std::uint32_t count = (y1 - y0) * (x1 - x0);
+            const std::size_t out = ((std::size_t{y} * scaled.width) + x) * 4;
+            for (std::size_t channel = 0; channel < 4; ++channel) {
+                scaled.bgra.at(out + channel) =
+                    static_cast<std::uint8_t>((sum.at(channel) + (count / 2)) / count);
+            }
+        }
+    }
+    return scaled;
 }
 
 } // namespace osplay::engine

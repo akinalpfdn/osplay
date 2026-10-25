@@ -139,7 +139,7 @@
     <value>Quality</value>
   </data>
   <data name="QualityHint" xml:space="preserve">
-    <value>Applies to the next connection. Higher quality needs a faster network.</value>
+    <value>Applies to the next connection. A smaller stream size and lower quality need less from the computer and the network; the displays keep their resolution.</value>
   </data>
   <data name="QualityBalanced" xml:space="preserve">
     <value>Balanced</value>
@@ -392,5 +392,20 @@
   </data>
   <data name="DiagnosticsFailed" xml:space="preserve">
     <value>Another program is using the clipboard. Try again.</value>
+  </data>
+  <data name="StreamSizeTitle" xml:space="preserve">
+    <value>Stream size</value>
+  </data>
+  <data name="StreamSize720" xml:space="preserve">
+    <value>720p</value>
+  </data>
+  <data name="StreamSize1080" xml:space="preserve">
+    <value>1080p</value>
+  </data>
+  <data name="StreamSize1440" xml:space="preserve">
+    <value>1440p</value>
+  </data>
+  <data name="StreamSizeNative" xml:space="preserve">
+    <value>Native</value>
   </data>
 </root>

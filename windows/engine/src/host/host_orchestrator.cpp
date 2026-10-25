@@ -32,15 +32,18 @@ private:
     std::uint8_t stream_id_;
 };
 
-HostOrchestrator::Stream::Stream(const osplay_stream_config& stream_config, HostOrchestrator& owner)
-    : config(stream_config),
+HostOrchestrator::Stream::Stream(const osplay_stream_config& stream_config,
+                                 const osplay_monitor& viewer_monitor, HostOrchestrator& owner)
+    : config(stream_config), monitor(viewer_monitor),
       output(std::make_unique<StreamOutput>(owner, stream_config.stream_id)) {}
 
 HostOrchestrator::HostOrchestrator(HostCorePort& core, VirtualDisplayProvider& displays,
                                    StreamPipelineFactory& pipelines, HostObserver& observer,
-                                   std::unique_ptr<StreamDump> dump, double bits_per_pixel)
+                                   std::unique_ptr<StreamDump> dump, double bits_per_pixel,
+                                   StreamBox stream_box)
     : core_(&core), displays_(&displays), pipelines_(&pipelines), observer_(&observer),
-      dump_(std::move(dump)), bits_per_pixel_(bits_per_pixel), worker_([this] { run(); }) {}
+      dump_(std::move(dump)), bits_per_pixel_(bits_per_pixel), stream_box_(stream_box),
+      worker_([this] { run(); }) {}
 
 HostOrchestrator::~HostOrchestrator() {
     try {
@@ -104,16 +107,21 @@ void HostOrchestrator::wait_idle() {
 }
 
 osplay_stream_config HostOrchestrator::stream_for(const osplay_monitor& monitor,
-                                                  double bits_per_pixel) {
-    const double pixels_per_second = static_cast<double>(monitor.width_px) * monitor.height_px *
-                                     monitor.refresh_millihertz / 1000.0;
+                                                  double bits_per_pixel, StreamBox box) {
+    std::uint32_t width = monitor.width_px;
+    std::uint32_t height = monitor.height_px;
+    // Cannot fail for a monitor the core accepted (its sides are at least 320 × 240).
+    static_cast<void>(osplay_fit_stream_size(monitor.width_px, monitor.height_px, box.width,
+                                             box.height, &width, &height));
+    const double pixels_per_second =
+        static_cast<double>(width) * height * monitor.refresh_millihertz / 1000.0;
     const double bits = std::clamp(bits_per_pixel, kMinBitsPerPixel, kMaxBitsPerPixel);
     const auto kbps = static_cast<std::uint32_t>(pixels_per_second * bits / 1000.0);
     return osplay_stream_config{
         .stream_id = 0,
         .monitor_id = monitor.monitor_id,
-        .width = monitor.width_px,
-        .height = monitor.height_px,
+        .width = static_cast<std::uint16_t>(width),
+        .height = static_cast<std::uint16_t>(height),
         .refresh_millihertz = monitor.refresh_millihertz,
         .profile = OSPLAY_H264_HIGH,
         // Desktop Duplication delivers the pointer apart from the image (DEVPLAN).
@@ -158,10 +166,10 @@ void HostOrchestrator::start(const std::vector<osplay_monitor>& monitors) {
     }
     std::vector<osplay_stream_config> configs;
     for (std::size_t index = 0; index < monitors.size(); ++index) {
-        osplay_stream_config config = stream_for(monitors[index], bits_per_pixel_);
+        osplay_stream_config config = stream_for(monitors[index], bits_per_pixel_, stream_box_);
         config.stream_id = static_cast<std::uint8_t>(index);
         configs.push_back(config);
-        streams_.try_emplace(config.stream_id, config, *this);
+        streams_.try_emplace(config.stream_id, config, monitors[index], *this);
     }
     if (!open_streams()) {
         return;
@@ -179,8 +187,9 @@ bool HostOrchestrator::open_streams() {
     std::vector<VirtualMonitorConfig> monitors;
     for (auto& [stream_id, stream] : streams_) {
         stream.pipeline.reset(); // its monitor is about to be made again
-        monitors.push_back({.width = stream.config.width,
-                            .height = stream.config.height,
+        // The virtual monitor in the viewer monitor's mode; the pipeline scales it to the stream.
+        monitors.push_back({.width = stream.monitor.width_px,
+                            .height = stream.monitor.height_px,
                             .refresh_millihertz = stream.config.refresh_millihertz,
                             .gpu_name = {}});
     }

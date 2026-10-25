@@ -19,9 +19,11 @@ using osplay::engine::HostCorePort;
 using osplay::engine::HostFailure;
 using osplay::engine::HostObserver;
 using osplay::engine::HostOrchestrator;
+using osplay::engine::kBitsPerPixel;
 using osplay::engine::MonitorRect;
 using osplay::engine::PipelineError;
 using osplay::engine::PipelineSink;
+using osplay::engine::StreamBox;
 using osplay::engine::StreamDump;
 using osplay::engine::StreamPipeline;
 using osplay::engine::StreamPipelineFactory;
@@ -184,6 +186,27 @@ TEST(HostOrchestrator, TheViewerMonitorBecomesTheVirtualMonitorAndTheStream) {
     EXPECT_EQ(h.core.configured[0].cursor_mode, OSPLAY_CURSOR_SEPARATE);
     ASSERT_TRUE(h.observer.streaming.has_value());
     EXPECT_EQ(h.observer.streaming->left, 1920);
+}
+
+TEST(HostOrchestrator, TheStreamIsFittedToTheBoxWhileTheVirtualMonitorKeepsItsMode) {
+    Harness h;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer, nullptr,
+                                  kBitsPerPixel, StreamBox{.width = 1920, .height = 1080});
+    const std::vector<osplay_monitor> monitors{monitor(4)}; // 2560 × 1664
+    orchestrator.on_viewer_monitors(monitors);
+    orchestrator.wait_idle();
+
+    ASSERT_EQ(h.displays.created.size(), 1U);
+    EXPECT_EQ(h.displays.created[0].width, 2560U) << "the virtual monitor in the viewer's mode";
+    EXPECT_EQ(h.displays.created[0].height, 1664U);
+    ASSERT_EQ(h.core.configured.size(), 1U);
+    EXPECT_EQ(h.core.configured[0].width, 1660U) << "1080 high, the monitor's aspect ratio";
+    EXPECT_EQ(h.core.configured[0].height, 1080U);
+    ASSERT_EQ(h.pipelines.started.size(), 1U);
+    EXPECT_EQ(h.pipelines.started[0].width, 1660U) << "captured at monitor size, encoded at this";
+    EXPECT_EQ(h.pipelines.started[0].bitrate_kbps,
+              HostOrchestrator::stream_for(monitor(4), kBitsPerPixel, {1920, 1080}).bitrate_kbps);
+    EXPECT_LT(h.pipelines.started[0].bitrate_kbps, 25'559U) << "less than at the monitor's size";
 }
 
 TEST(HostOrchestrator, EveryViewerMonitorGetsItsOwnVirtualMonitorAndStream) {

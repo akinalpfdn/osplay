@@ -159,6 +159,7 @@ final class SettingsViewModel {
                 model: DiagnosticsReport.hardwareModel,
                 facts: [
                     ("Quality", settings.qualityPreset.rawValue),
+                    ("Stream size", settings.streamSize.rawValue),
                     ("Stats overlay", String(settings.showsStatsOverlay)),
                     ("Launch at login", String(launchesAtLogin)),
                     ("Paired devices", String(connection.peers.count)),

@@ -503,3 +503,10 @@ choices the plan leaves open are logged here.
 **Why:** On the user's Wi-Fi, dropped frames fell only from 0.57 to 0.41 per second, while every frame that was really lost held the picture about 100 ms instead of about 40 ms before the keyframe request; the user saw it as stutter. That repeats barely helped points to loss in bursts, where the repairs are lost too.
 **Trade-offs:** A repair that arrives later than one frame interval plus RTT is wasted, and the frame costs a keyframe.
 **Revisit if:** Loss turns out to be isolated packets rather than bursts (for example once the Mac's AWDL is ruled out), or if FEC is added.
+
+## 2026-10-25 — User decision: streams are capped at 1080p by default, chosen on the extending computer
+**Chosen:** A new phase (DEVPLAN 13c, STR-01) caps each stream at 720p, 1080p (default), 1440p or Native, fitted to the monitor's aspect ratio; the virtual display keeps the viewer monitor's resolution and the viewer scales the stream up. The setting sits next to quality on the extending computer. No bandwidth warning and no network test.
+**Alternatives:** Making the virtual display itself 1080p (rejected: everything on it gets bigger); a setting on the viewing computer; a bandwidth estimate with a warning, or a throughput test between the two computers (rejected by the user).
+**Why:** In the Mac → Mac test an M1 host extending onto a 3420×2214 MacBook and a 4K monitor managed 0–36 fps per stream and lost so much over Wi-Fi that both displays were unusable. A 1080p cap cuts pixels and bitrate to about a quarter; the encoder and the link both have room again.
+**Trade-offs:** Text on a large viewer display is softer than at Native; Native stays available for strong hosts and fast links.
+**Revisit if:** Typical hosts and links handle Native comfortably, or a 1440p default looks clearly better at the same cost.

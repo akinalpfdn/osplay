@@ -1,5 +1,5 @@
 # Phase 018 (SYM-02) — Mac viewer: every display, all four directions
-Status: ACTIVE
+Status: PENDING — code merged (PR #19, #25); D1–D7 run after PHASE-020 (STR-01), user decision 2026-10-25
 
 DEVPLAN reference: Phase 13b (part YM-02-). Depends on: Phase 13. Runs before PHASE-015 (DEVPLAN Phase 14) — user decision 2026-10-21.
 

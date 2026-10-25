@@ -1741,13 +1741,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Applies to the next connection. Higher quality needs a faster network."
+            "value" : "Applies to the next connection. A smaller stream size and lower quality need less from the computer and the network; the displays keep their resolution."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bir sonraki bağlantıda geçerli olur. Yüksek kalite daha hızlı bir ağ ister."
+            "value" : "Bir sonraki bağlantıda geçerli olur. Daha küçük yayın boyutu ve düşük kalite, bilgisayardan ve ağdan daha az ister; ekranlar çözünürlüklerini korur."
           }
         }
       }
@@ -1901,6 +1901,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Paylaşılmıyor, görüntülenmiyor"
+          }
+        }
+      }
+    },
+    "menu.streamSize" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stream size"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yayın boyutu"
           }
         }
       }
@@ -3091,6 +3108,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$lld fps · %2$@ Mbit/sn · RTT %3$@ ms · kayıp %%%4$@ · gecikme %5$@ ms"
+          }
+        }
+      }
+    },
+    "streamSize.hd1080" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1080p"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1080p"
+          }
+        }
+      }
+    },
+    "streamSize.hd720" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "720p"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "720p"
+          }
+        }
+      }
+    },
+    "streamSize.native" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Native"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doğal"
+          }
+        }
+      }
+    },
+    "streamSize.qhd1440" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1440p"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1440p"
           }
         }
       }
