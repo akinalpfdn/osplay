@@ -14,7 +14,8 @@ final class CGVirtualDisplayProvider: VirtualDisplayProviding {
     ) throws(VirtualDisplayError)
         -> any VirtualDisplayHandle
     {
-        guard handles.count < Tunables.VirtualDisplay.maximumDisplayCount else { throw .tooManyDisplays }
+        // Every viewer's displays come from here: the limit is the total, not one viewer's share.
+        guard handles.count < Tunables.VirtualDisplay.maximumTotalCount else { throw .tooManyDisplays }
         guard !handles.contains(where: { $0.configuration.identity == configuration.identity }) else {
             throw .duplicateIdentity
         }
