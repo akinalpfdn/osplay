@@ -22,9 +22,12 @@ struct HostSessionTests {
         let captures = FakeCaptureFactory()
         let encoders = FakeEncoderFactory()
 
-        func session(permissions: FakePermissions = FakePermissions()) -> HostSession {
+        func session(
+            permissions: FakePermissions = FakePermissions(), streamSize: StreamSizePreset = .native
+        ) -> HostSession {
             HostSession(
-                core: core, policy: { HostDisplayPolicy(peerID: Data("peer".utf8)) }, displays: lender,
+                core: core, policy: { HostDisplayPolicy(peerID: Data("peer".utf8), streamSize: streamSize) },
+                displays: lender,
                 captures: captures, encoders: encoders,
                 permissions: permissions)
         }
@@ -54,6 +57,25 @@ struct HostSessionTests {
 
         await session.stop()
         #expect(await run.value == nil)
+    }
+
+    @Test("The stream is fitted to the size setting; the virtual display keeps the monitor's size")
+    func fitsStreamsToTheSizeSetting() async throws {
+        let harness = Harness()
+        let session = harness.session(streamSize: .hd720)
+        let run = Task { await session.run() }
+
+        harness.core.emit(.viewerMonitors(monitors))
+        try await eventually { harness.captures.captures.count == 2 }
+
+        let streams = try #require(harness.core.configuredStreams.first)
+        #expect(streams.map(\.width) == [1280, 1280])
+        #expect(streams.map(\.height) == [720, 720])
+        #expect(streams[0].bitrateKbps == QualityPreset.high.bitrateKbps(width: 1280, height: 720, frameRate: 60))
+        #expect(harness.lender.lentMonitors.first?.map(\.widthPixels) == [2560, 1920], "displays at full size")
+        #expect(harness.captures.captures.map(\.configuration.width) == [1280, 1280])
+        await session.stop()
+        _ = await run.value
     }
 
     @Test("Pairing reaches the UI and the user's answer reaches the core")
