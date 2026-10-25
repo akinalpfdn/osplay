@@ -1,5 +1,5 @@
 # Phase 019 (SYM-03) — Several displays at once
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 13b (part SYM-03). Depends on: Phase 13. Runs before PHASE-015 (DEVPLAN Phase 14) — user decision 2026-10-21.
 
@@ -14,8 +14,8 @@ A host can extend itself onto several computers at once (e.g. a laptop onto two 
 - [x] TESTING.md scenarios for two viewers on each host platform.
 
 ## Acceptance Criteria
-- [ ] A laptop extends onto two other computers at once, on macOS and on Windows.
-- [ ] One viewer leaving does not interrupt the other.
+- [x] A laptop extends onto two other computers at once, on macOS and on Windows. (2026-10-25: Mac host → PC + second Mac; PC host → two MacBooks.)
+- [x] One viewer leaving does not interrupt the other. (2026-10-25, M3 on both hosts.)
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
