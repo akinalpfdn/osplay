@@ -9,12 +9,21 @@
     When vswhere lists no installation although Visual Studio is on disk (the installer's
     instance records under %ProgramData%\Microsoft\VisualStudio\Packages\_Instances are missing),
     it falls back to the newest vcvars64.bat under the standard install folders.
+
+    Running it again in a session that already has the environment changes nothing: every run of
+    vcvars64.bat lengthens PATH, and past cmd.exe's line limit vcvars64.bat fails.
 #>
 
 # The script is dot-sourced, so the work runs in a child scope: a 'Stop' preference left in the
 # caller's session would turn harmless stderr output of later native commands into errors.
 & {
     $ErrorActionPreference = 'Stop'
+
+    if ($env:VSCMD_VER -and (Get-Command cl.exe -ErrorAction SilentlyContinue)) {
+        Remove-Item Env:Platform -ErrorAction SilentlyContinue
+        Write-Host "Visual Studio developer environment already set up ($env:VSCMD_VER)"
+        return
+    }
 
     function Enter-ThroughVsWhere {
         $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
@@ -53,10 +62,13 @@
             return $false
         }
 
-        # vcvars64.bat calls vswhere itself and prints its failure; only the resulting variables matter.
-        $environment = & cmd.exe /c "call `"$($chosen.VcVars)`" >nul 2>nul && set"
+        # vcvars64.bat calls vswhere itself and prints its failure; only the resulting variables
+        # matter, and its own output is shown only when it fails.
+        $output = Join-Path $env:TEMP 'osplay-vcvars.log'
+        $environment = & cmd.exe /c "call `"$($chosen.VcVars)`" >`"$output`" 2>&1 && set"
         if ($LASTEXITCODE -ne 0) {
-            throw "vcvars64.bat failed: $($chosen.VcVars)"
+            $reason = (Get-Content $output -ErrorAction SilentlyContinue | Select-Object -Last 5) -join "`n"
+            throw "vcvars64.bat failed: $($chosen.VcVars)`n$reason`nOpen a new PowerShell window and run this script again."
         }
         foreach ($line in $environment) {
             if ($line -match '^([^=]+)=(.*)$') {
