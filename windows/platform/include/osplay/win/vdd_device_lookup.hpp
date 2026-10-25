@@ -1,7 +1,7 @@
 #pragma once
 
-// Windows-only: locates the Virtual Display Driver's device. Used by the helper (to enable and
-// disable it) and by the engine (to find the display it creates).
+// Windows-only: locates the Virtual Display Driver's devices. Used by the helper (to add, enable
+// and disable them) and by the engine (to find the displays they create).
 
 #include <windows.h>
 
@@ -11,10 +11,11 @@
 #include <optional>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 namespace osplay::win {
 
-/// Hardware ID the driver's root-enumerated device is installed with (MttVDD.inf).
+/// Hardware ID the driver's root-enumerated devices are installed with (MttVDD.inf).
 inline constexpr const wchar_t* kVddHardwareId = L"Root\\MttVDD";
 
 struct DeviceInfoSetDeleter {
@@ -27,10 +28,11 @@ struct FoundDevice {
     SP_DEVINFO_DATA data{};
 };
 
-/// The present (enabled or disabled) device with the given hardware ID, if any.
-[[nodiscard]] std::optional<FoundDevice> find_device(const wchar_t* hardware_id);
+/// Instance IDs (e.g. ROOT\DISPLAY\0000) of the present (enabled or disabled) devices with the
+/// given hardware ID, sorted, so the order stays the same while devices are only added.
+[[nodiscard]] std::vector<std::wstring> device_instances(const wchar_t* hardware_id);
 
-/// Device instance ID, e.g. ROOT\DISPLAY\0000.
-[[nodiscard]] std::optional<std::wstring> instance_id(const FoundDevice& device);
+/// The present device with this instance ID, if any.
+[[nodiscard]] std::optional<FoundDevice> open_device(const std::wstring& instance_id);
 
 } // namespace osplay::win

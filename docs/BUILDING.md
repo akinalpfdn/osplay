@@ -234,7 +234,8 @@ The installer will set both up from Phase 14 on; until then, once per machine:
      ```
 
    Windows adds an 800×600 monitor as soon as the driver is installed; OsplayHelper disables it
-   again when it starts.
+   again when it starts. Install the driver once: OsplayHelper adds a device per virtual monitor
+   itself (two monitors on one device stall the desktop), and keeps the extra ones disabled.
 
 2. Install the helper service from the same administrator command line, after building:
 

@@ -2,6 +2,7 @@
 
 #include <osplay/win/helper_protocol.hpp>
 
+#include <cstddef>
 #include <optional>
 #include <span>
 #include <string>
@@ -9,14 +10,19 @@
 
 namespace osplay::win::helper {
 
-/// The Virtual Display Driver device: present or not, enabled or disabled.
-class VirtualMonitorDevice {
+/// The Virtual Display Driver's devices, in a stable order. Each one drives one virtual monitor:
+/// two monitors on one device make the whole desktop stutter (DECISIONS.md, 2026-10-25).
+class VirtualMonitorDevices {
 public:
-    virtual ~VirtualMonitorDevice() = default;
+    virtual ~VirtualMonitorDevices() = default;
+    /// False while no device exists: the driver was never installed.
     [[nodiscard]] virtual bool is_installed() = 0;
-    [[nodiscard]] virtual bool is_enabled() = 0;
+    [[nodiscard]] virtual std::size_t count() = 0;
+    /// Adds a device after the existing ones; it starts enabled. False when that failed.
+    [[nodiscard]] virtual bool add() = 0;
+    [[nodiscard]] virtual bool is_enabled(std::size_t index) = 0;
     /// Persistent across reboots. Returns false when the device could not be changed.
-    [[nodiscard]] virtual bool set_enabled(bool enabled) = 0;
+    [[nodiscard]] virtual bool set_enabled(std::size_t index, bool enabled) = 0;
 };
 
 /// Where the driver reads its settings from.
@@ -35,17 +41,17 @@ public:
 };
 
 /// Executes helper commands. One instance serves one connected client at a time; the virtual
-/// monitor exists only while that client's session is active.
+/// monitors exist only while that client's session is active.
 class RequestHandler {
 public:
-    RequestHandler(VirtualMonitorDevice& device, SettingsStore& settings, HelperLog& log);
+    RequestHandler(VirtualMonitorDevices& devices, SettingsStore& settings, HelperLog& log);
 
     /// Decodes, validates and executes one request message; always returns an encoded response.
     [[nodiscard]] Bytes handle(std::span<const std::uint8_t> message);
     [[nodiscard]] Response handle(const Request& request);
 
-    /// Removes the virtual monitor and forgets the configuration. Called when the service starts
-    /// (to clear a monitor left behind by a crash) and whenever the client disconnects.
+    /// Removes the virtual monitors and forgets the configuration. Called when the service starts
+    /// (to clear monitors left behind by a crash) and whenever the client disconnects.
     void reset();
 
 private:
@@ -53,9 +59,11 @@ private:
     Response enable();
     Response disable();
     Response status();
-    bool restart_device();
+    /// Disables every enabled device from `first` on: how many, or nothing if one failed.
+    std::optional<std::size_t> disable_from(std::size_t first);
+    [[nodiscard]] bool any_enabled();
 
-    VirtualMonitorDevice& device_;
+    VirtualMonitorDevices& devices_;
     SettingsStore& settings_;
     HelperLog& log_;
     std::vector<MonitorConfig> monitors_; // empty until configured

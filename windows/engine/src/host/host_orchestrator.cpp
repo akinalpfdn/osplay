@@ -227,8 +227,8 @@ void HostOrchestrator::stop_stream(std::uint8_t stream_id) {
         stop_streaming();
         return;
     }
-    // The driver cannot drop one monitor: the device starts again with the others, whose captures
-    // start over on their monitors (each begins with a keyframe).
+    // The remaining monitors are made again (their devices restart to read the new settings), and
+    // their captures start over on them (each begins with a keyframe).
     static_cast<void>(open_streams());
 }
 

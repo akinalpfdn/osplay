@@ -2,28 +2,44 @@
 
 #include <gtest/gtest.h>
 
+#include <cstddef>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
 
 using namespace osplay::win::helper; // NOLINT(google-build-using-namespace)
 
-class FakeDevice final : public VirtualMonitorDevice {
+/// The driver's devices; one disabled device, as the driver's installer leaves it.
+class FakeDevices final : public VirtualMonitorDevices {
 public:
-    bool installed = true;
-    bool enabled = false;
+    std::vector<bool> enabled{false};
     bool fail_changes = false;
-    std::vector<bool> changes;
+    bool fail_add = false;
+    bool added_devices_appear = true;
+    int added = 0;
+    std::vector<std::pair<std::size_t, bool>> changes;
 
-    bool is_installed() override { return installed; }
-    bool is_enabled() override { return enabled; }
-    bool set_enabled(bool value) override {
+    bool is_installed() override { return !enabled.empty(); }
+    std::size_t count() override { return enabled.size(); }
+    bool add() override {
+        if (fail_add) {
+            return false;
+        }
+        if (added_devices_appear) {
+            enabled.push_back(true);
+        }
+        ++added;
+        return true;
+    }
+    bool is_enabled(std::size_t index) override { return enabled.at(index); }
+    bool set_enabled(std::size_t index, bool value) override {
         if (fail_changes) {
             return false;
         }
-        changes.push_back(value);
-        enabled = value;
+        changes.emplace_back(index, value);
+        enabled.at(index) = value;
         return true;
     }
 };
@@ -55,16 +71,17 @@ public:
 
 class RequestHandlerTest : public ::testing::Test {
 protected:
-    FakeDevice device;
+    FakeDevices devices;
     FakeSettings settings;
     FakeLog log;
-    RequestHandler handler{device, settings, log};
+    RequestHandler handler{devices, settings, log};
 
-    static Request configure_request() {
+    static Request configure_request(std::size_t monitors = 1) {
         return Request{
             .command = Command::Configure,
-            .monitors =
-                {{.width = 2560, .height = 1664, .refresh_millihertz = 60'000, .gpu_name = ""}},
+            .monitors = std::vector<MonitorConfig>(
+                monitors,
+                {.width = 2560, .height = 1664, .refresh_millihertz = 60'000, .gpu_name = ""}),
         };
     }
     static Request simple(Command command) { return Request{.command = command, .monitors = {}}; }
@@ -76,16 +93,16 @@ TEST_F(RequestHandlerTest, ConfigureWritesSettingsAndEnableAddsMonitor) {
     EXPECT_NE(settings.written[0].find("<width>2560</width>"), std::string::npos);
 
     EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
-    EXPECT_TRUE(device.enabled);
+    EXPECT_EQ(devices.enabled, (std::vector<bool>{true}));
 }
 
 TEST_F(RequestHandlerTest, EnableWithoutConfigurationIsRefused) {
     EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::NotConfigured);
-    EXPECT_FALSE(device.enabled);
+    EXPECT_EQ(devices.enabled, (std::vector<bool>{false}));
 }
 
 TEST_F(RequestHandlerTest, MissingDriverIsReported) {
-    device.installed = false;
+    devices.enabled.clear();
     EXPECT_EQ(handler.handle(configure_request()).result, ResultCode::Ok);
     EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::VddNotInstalled);
     EXPECT_EQ(handler.handle(simple(Command::Disable)).result, ResultCode::VddNotInstalled);
@@ -95,10 +112,10 @@ TEST_F(RequestHandlerTest, MissingDriverIsReported) {
 TEST_F(RequestHandlerTest, ReconfiguringAnActiveMonitorRestartsTheDevice) {
     ASSERT_EQ(handler.handle(configure_request()).result, ResultCode::Ok);
     ASSERT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
-    device.changes.clear();
+    devices.changes.clear();
 
     EXPECT_EQ(handler.handle(configure_request()).result, ResultCode::Ok);
-    EXPECT_EQ(device.changes, (std::vector<bool>{false, true}));
+    EXPECT_EQ(devices.changes, (std::vector<std::pair<std::size_t, bool>>{{0, false}, {0, true}}));
 }
 
 TEST_F(RequestHandlerTest, DisableRemovesMonitor) {
@@ -106,12 +123,12 @@ TEST_F(RequestHandlerTest, DisableRemovesMonitor) {
     ASSERT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
 
     EXPECT_EQ(handler.handle(simple(Command::Disable)).result, ResultCode::Ok);
-    EXPECT_FALSE(device.enabled);
+    EXPECT_EQ(devices.enabled, (std::vector<bool>{false}));
 }
 
 TEST_F(RequestHandlerTest, DisableWithoutMonitorChangesNothingAndLogsNothing) {
     EXPECT_EQ(handler.handle(simple(Command::Disable)).result, ResultCode::Ok);
-    EXPECT_TRUE(device.changes.empty());
+    EXPECT_TRUE(devices.changes.empty());
     EXPECT_TRUE(log.infos.empty());
 }
 
@@ -121,15 +138,66 @@ TEST_F(RequestHandlerTest, ResetRemovesMonitorAndForgetsConfiguration) {
 
     handler.reset();
 
-    EXPECT_FALSE(device.enabled);
+    EXPECT_EQ(devices.enabled, (std::vector<bool>{false}));
     EXPECT_FALSE(handler.handle(simple(Command::Status)).status.configured);
     EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::NotConfigured);
 }
 
-TEST_F(RequestHandlerTest, ResetDisablesAMonitorLeftEnabledBeforeTheServiceStarted) {
-    device.enabled = true;
+TEST_F(RequestHandlerTest, ResetDisablesMonitorsLeftEnabledBeforeTheServiceStarted) {
+    devices.enabled = {true, false, true};
     handler.reset();
-    EXPECT_FALSE(device.enabled);
+    EXPECT_EQ(devices.enabled, (std::vector<bool>{false, false, false}));
+}
+
+TEST_F(RequestHandlerTest, EnableGivesEveryMonitorItsOwnDevice) {
+    ASSERT_EQ(handler.handle(configure_request(3)).result, ResultCode::Ok);
+    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
+    EXPECT_EQ(devices.added, 2);
+    EXPECT_EQ(devices.enabled, (std::vector<bool>{true, true, true}));
+    EXPECT_TRUE(handler.handle(simple(Command::Status)).status.device_enabled);
+}
+
+TEST_F(RequestHandlerTest, EnableReusesDevicesAndLeavesTheSpareOnesOff) {
+    devices.enabled = {false, false, false};
+    ASSERT_EQ(handler.handle(configure_request(2)).result, ResultCode::Ok);
+    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
+    EXPECT_EQ(devices.added, 0);
+    EXPECT_EQ(devices.enabled, (std::vector<bool>{true, true, false}));
+}
+
+TEST_F(RequestHandlerTest, FewerMonitorsTurnTheDevicesNoLongerNeededOff) {
+    ASSERT_EQ(handler.handle(configure_request(2)).result, ResultCode::Ok);
+    ASSERT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
+    devices.changes.clear();
+
+    EXPECT_EQ(handler.handle(configure_request(1)).result, ResultCode::Ok);
+    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
+    EXPECT_EQ(devices.enabled, (std::vector<bool>{true, false}));
+    EXPECT_EQ(devices.changes,
+              (std::vector<std::pair<std::size_t, bool>>{{0, false}, {0, true}, {1, false}}))
+        << "the device in use restarts to read the new settings";
+}
+
+TEST_F(RequestHandlerTest, DisableRemovesEveryMonitor) {
+    ASSERT_EQ(handler.handle(configure_request(2)).result, ResultCode::Ok);
+    ASSERT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::Ok);
+    EXPECT_EQ(handler.handle(simple(Command::Disable)).result, ResultCode::Ok);
+    EXPECT_EQ(devices.enabled, (std::vector<bool>{false, false}));
+    EXPECT_FALSE(handler.handle(simple(Command::Status)).status.device_enabled);
+}
+
+TEST_F(RequestHandlerTest, AddedDevicesThatDoNotAppearAreNotAddedAgain) {
+    devices.added_devices_appear = false;
+    ASSERT_EQ(handler.handle(configure_request(3)).result, ResultCode::Ok);
+    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::DeviceControlFailed);
+    EXPECT_EQ(devices.added, 2);
+}
+
+TEST_F(RequestHandlerTest, ADeviceThatCannotBeAddedIsReported) {
+    devices.fail_add = true;
+    ASSERT_EQ(handler.handle(configure_request(2)).result, ResultCode::Ok);
+    EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::DeviceControlFailed);
+    EXPECT_EQ(log.errors.size(), 1U);
 }
 
 TEST_F(RequestHandlerTest, StatusReportsConfiguration) {
@@ -150,7 +218,7 @@ TEST_F(RequestHandlerTest, FailuresAreReportedAndLogged) {
 
     settings.fail = false;
     ASSERT_EQ(handler.handle(configure_request()).result, ResultCode::Ok);
-    device.fail_changes = true;
+    devices.fail_changes = true;
     EXPECT_EQ(handler.handle(simple(Command::Enable)).result, ResultCode::DeviceControlFailed);
     EXPECT_EQ(log.errors.size(), 2U);
 }

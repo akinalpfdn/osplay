@@ -213,23 +213,27 @@ Findings from reading the driver source (VirtualDrivers/Virtual-Display-Driver, 
 | Settings file | `vdd_settings.xml` in the directory named by `HKLM\SOFTWARE\MikeTheTech\VirtualDisplayDriver\VDDPATH`, default `C:\VirtualDisplayDriver`. Elements used: `monitors/count`, `gpu/friendlyname` (DXGI adapter description or `default`), `resolutions/resolution/{width,height,refresh_rate}`, `global/g_refresh_rate` (multiplies every resolution). |
 | When settings are read | Only in `EvtDriverDeviceAdd` (`loadSettings()`), i.e. when the device starts. |
 | Preferred mode | The first resolution in the file (`PreferredMonitorModeIdx = 0`). |
-| Monitor count | `count = 0` is coerced to 1. A monitor cannot be removed by count. |
+| Monitor count | `count = 0` is coerced to 1. A monitor cannot be removed by count. Two or more monitors on one device make the whole Windows desktop stutter (upstream issues #140, #319, #449; fixed by PR #482, which no signed release contains yet). |
+| Several devices | Every `Root\MttVDD` device runs the same driver and reads the same settings file. |
 | Named pipe | `\\.\pipe\MTTVirtualDisplayPipe`, plain-text commands (`RELOAD_DRIVER`, `SETDISPLAYCOUNT n`, `SETGPU "name"`, `PING`, `GETSETTINGS`, logging and colour toggles). Its ACL is `D:(A;;GA;;;WD)` — any local user. |
 | `RELOAD_DRIVER` / `SETDISPLAYCOUNT` | Call `InitAdapter()` without re-reading settings; new counts or modes in the file are not applied until the device restarts. |
 
 Consequences for Osplay:
 
-- Every configuration change is **write the file, then (re)start the device**; ending a session is
-  **disable the device**, which removes the monitor. Both need administrator rights, hence the
-  helper service.
+- **One device per monitor** (DECISIONS.md, 2026-10-25). The helper adds devices from the
+  installed driver package when a session needs more than exist and keeps the spare ones disabled.
+- Every configuration change is **write the file, then (re)start the devices in use**; ending a
+  session is **disable the devices**, which removes the monitors. Both need administrator rights,
+  hence the helper service.
 - Osplay never uses the driver's pipe: it cannot change modes, and it is open to every user.
 - Osplay owns `vdd_settings.xml` and rewrites it before every session: one monitor per viewer
   monitor (up to four), every distinct mode they need (the first monitor's first, which is the mode
-  every monitor starts in), no global refresh rates, hardware cursor on (the pointer stays out of
-  captured frames and is sent separately). The driver creates its monitors with connector indexes
-  0…n-1; each monitor offers every listed mode, and the engine sets each one's own mode.
+  every monitor starts in), `count` 1, no global refresh rates, hardware cursor on (the pointer
+  stays out of captured frames and is sent separately). Each device's monitor offers every listed
+  mode; the engine finds the monitors device by device in instance ID order and sets each one's own
+  mode.
 - Osplay takes over the driver: other software using the same VDD installation will see its
-  monitor disabled outside Osplay sessions.
+  monitors disabled outside Osplay sessions.
 
 ## OsplayHelper service (Windows)
 
@@ -238,10 +242,10 @@ rights and accepts four commands from the engine:
 
 | Command | Effect |
 |---------|--------|
-| Configure (1–4 monitors: width, height, refresh; one GPU name) | Validates the values, writes `vdd_settings.xml`; restarts the device if it is enabled, so a new monitor count applies at once. |
-| Enable | Enables the device: the monitors appear. Requires a prior Configure. |
-| Disable | Disables the device: every monitor disappears. Persistent across reboots. |
-| Status | Reports whether the driver is installed, the device enabled, how many monitors are configured and the first one's mode. |
+| Configure (1–4 monitors: width, height, refresh; one GPU name) | Validates the values, writes `vdd_settings.xml`; restarts the enabled devices it still needs and disables the others, so the change applies at once. |
+| Enable | Adds devices until there is one per monitor, then enables that many: the monitors appear. Requires a prior Configure. |
+| Disable | Disables every device: every monitor disappears. Persistent across reboots. |
+| Status | Reports whether the driver is installed, whether any device is enabled, how many monitors are configured and the first one's mode. |
 
 Safety rules:
 
@@ -249,7 +253,7 @@ Safety rules:
   2 s and then gets `OSPLAY_ENGINE_ERROR_HELPER_BUSY`.
 - **The monitor exists only while the client is connected.** The pipe accepts one client; when it
   disconnects for any reason (session end, engine crash), the console user logs off or switches,
-  or the service stops, the helper disables the device. On service start it disables the device as
+  or the service stops, the helper disables the devices. On service start it disables them as
   well, so a monitor left behind by a crash or by the driver's installer goes away.
 - **Only the console user can connect.** The pipe is created with `FILE_FLAG_FIRST_PIPE_INSTANCE`
   (no squatting), `PIPE_REJECT_REMOTE_CLIENTS` and the DACL `D:P(A;;GA;;;SY)(A;;GRGW;;;<console
@@ -276,7 +280,7 @@ Configure (command 1) payload:
 Enable (2), Disable (3), Status (4): no payload
 
 Response payload (always 16 bytes):
-  vdd_installed u8 | device_enabled u8 | configured u8 | monitor_count u8 |
+  vdd_installed u8 | device_enabled u8 (any device) | configured u8 | monitor_count u8 |
   width u32 | height u32 | refresh_millihertz u32   (the first monitor's mode)
 
 Version 1 (one monitor) is refused with UnsupportedVersion: the engine and the helper ship together.

@@ -84,12 +84,12 @@ void WINAPI service_main(DWORD /*argc*/, LPWSTR* /*argv*/) {
     }
 
     FileLog log;
-    VddDevice device(log);
+    VddDevices devices(log);
     VddSettingsFile settings(log);
-    win::helper::RequestHandler handler(device, settings, log);
+    win::helper::RequestHandler handler(devices, settings, log);
 
     log.info("Service starting");
-    handler.reset(); // a monitor left enabled by a crash or by the driver's installer goes away now
+    handler.reset(); // monitors left enabled by a crash or by the driver's installer go away now
     report(SERVICE_RUNNING);
 
     PipeServer server(handler, log, g_state.stop_event.get(), g_state.session_changed_event.get());

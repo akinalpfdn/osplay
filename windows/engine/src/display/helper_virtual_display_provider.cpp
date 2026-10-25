@@ -17,7 +17,8 @@ HelperVirtualDisplayProvider::create_monitors(std::span<const VirtualMonitorConf
     if (!helper::is_valid(monitors)) {
         return Result::failure(DisplayError::InvalidArgument);
     }
-    // Configure restarts an enabled device, so the count changes take effect at once.
+    // Configure restarts the devices in use and stops the others, so the change takes effect at
+    // once; Enable adds a device per monitor if there are too few.
     if (const auto configured = send_expecting_ok(
             {.command = helper::Command::Configure, .monitors = std::move(monitors)});
         !configured) {

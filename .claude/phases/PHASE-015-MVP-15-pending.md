@@ -8,7 +8,7 @@ Anyone can install Osplay from GitHub Releases, and contributors can build it fr
 
 ## Tasks
 - [ ] macOS: Developer ID signing, Hardened Runtime, notarization and stapling in CI using repository secrets; DMG; Sparkle appcast published with releases.
-- [ ] Windows: Inno Setup installer that installs the shell, engine, helper service, VDD (per the Phase 0 decision) and firewall rules; clean uninstall that removes the service, disables and optionally removes VDD, and deletes firewall rules.
+- [ ] Windows: Inno Setup installer that installs the shell, engine, helper service, VDD (per the Phase 0 decision) and firewall rules; clean uninstall that removes the service, disables and optionally removes VDD (every `Root\MttVDD` device, including the ones OsplayHelper added — one per virtual monitor, DECISIONS.md 2026-10-25), and deletes firewall rules.
 - [ ] Release workflow triggered by a version tag, producing both artifacts and release notes.
 - [ ] Final `README.md`: what it is and is not, how it works (diagram), screenshots/GIF, requirements, installation per platform, first-run walkthrough, security model summary, performance expectations, troubleshooting links, building from source, contributing, license, credits (VDD, Monocypher, Asio, Sparkle, WPF-UI, H.NotifyIcon).
 - [ ] Final `docs/` set brought up to date.
