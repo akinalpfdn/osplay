@@ -208,6 +208,8 @@ private:
     void send_fragments(const std::vector<protocol::VideoFragment>& fragments);
     /// Sends the queued fragments whose time has come (host pacing).
     void send_paced(TimePoint now);
+    /// How long `bytes` take at the pacing rate: `pacing_rate_factor` × the streams' targets.
+    [[nodiscard]] Microseconds rate_limited_window(std::size_t bytes) const;
     void send_udp_hello();
     void repeat_tails(TimePoint now);
     [[nodiscard]] bool seal_and_send(const protocol::MediaPacket& packet);

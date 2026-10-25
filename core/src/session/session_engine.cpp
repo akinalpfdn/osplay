@@ -927,6 +927,20 @@ bool SessionEngine::seal_and_send(const protocol::MediaPacket& packet) {
     return true;
 }
 
+Microseconds SessionEngine::rate_limited_window(std::size_t bytes) const {
+    std::uint64_t total_kbps = 0;
+    for (const auto& [id, stream] : host_streams_) {
+        total_kbps += stream->bitrate.target_kbps();
+    }
+    const double bits_per_second =
+        static_cast<double>(total_kbps) * 1000.0 * config_.tunables.pacing_rate_factor;
+    if (bits_per_second <= 0) {
+        return Microseconds{0};
+    }
+    return Microseconds{static_cast<std::int64_t>(static_cast<double>(bytes) * 8.0 * 1'000'000.0 /
+                                                  bits_per_second)};
+}
+
 void SessionEngine::send_paced(TimePoint now) {
     while (!paced_.empty()) {
         PacedFrame& frame = paced_.front();
@@ -1086,10 +1100,15 @@ Status<Error> SessionEngine::push_access_unit(const media::AccessUnit& unit, Tim
             kMillihertzMicros / std::max<std::uint32_t>(stream.config.refresh_millihertz, 1))};
         // Streams share the queue, so each gets its part of the window; otherwise two streams at
         // half an interval each would fill it and the queue would only grow.
-        const auto window = std::chrono::duration_cast<Microseconds>(
+        auto window = std::chrono::duration_cast<Microseconds>(
             interval * config_.tunables.pacing_fraction /
             static_cast<double>(std::max<std::size_t>(host_streams_.size(), 1)));
         const TimePoint start = std::max(now, paced_until_);
+        // A large frame (a keyframe of a big monitor) at the window above would leave at hundreds
+        // of Mbit/s; rate-limited it takes longer, unless the queue is already long.
+        if (start - now < config_.tunables.pacing_max_queue) {
+            window = std::max(window, rate_limited_window(unit.data.size()));
+        }
         paced_.push_back({.stream_id = unit.stream_id,
                           .frame_id = frame_id.value(),
                           .next = 0,

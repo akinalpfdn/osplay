@@ -3,6 +3,9 @@
 #include "media/rate_limiter.hpp"
 #include "media/reassembler.hpp"
 #include "media/retransmit_cache.hpp"
+#include "media/stream_size.hpp"
+
+#include <osplay/osplay.h>
 
 #include <gtest/gtest.h>
 
@@ -366,3 +369,41 @@ TEST(CursorShape, RejectsInvalidImages) {
 }
 
 } // namespace
+
+TEST(StreamSize, FitsInsideTheBoxKeepingTheAspectRatio) {
+    using osplay::media::fit_stream_size;
+    using osplay::media::StreamSize;
+    // A MacBook panel at "More Space" into 1080p: the height limits it.
+    EXPECT_EQ(fit_stream_size(3420, 2214, 1920, 1080), (StreamSize{1668, 1080}));
+    EXPECT_EQ(fit_stream_size(3840, 2160, 1920, 1080), (StreamSize{1920, 1080}));
+    // An ultrawide: the width limits it.
+    EXPECT_EQ(fit_stream_size(3440, 1440, 1920, 1080), (StreamSize{1920, 802}));
+    EXPECT_EQ(fit_stream_size(2560, 1600, 1280, 720), (StreamSize{1152, 720}));
+}
+
+TEST(StreamSize, PortraitMonitorsFitTheBoxTurned) {
+    EXPECT_EQ(osplay::media::fit_stream_size(1440, 2560, 1920, 1080),
+              (osplay::media::StreamSize{1080, 1920}));
+}
+
+TEST(StreamSize, NeverLargerThanTheMonitorAndAlwaysEven) {
+    using osplay::media::fit_stream_size;
+    using osplay::media::StreamSize;
+    EXPECT_EQ(fit_stream_size(1366, 768, 1920, 1080), (StreamSize{1366, 768}));
+    EXPECT_EQ(fit_stream_size(1365, 767, 1920, 1080), (StreamSize{1364, 766}));
+    EXPECT_EQ(fit_stream_size(3420, 2214, 0, 0), (StreamSize{3420, 2214})) << "0 × 0: native";
+    EXPECT_EQ(fit_stream_size(10240, 4320, 0, 0), (StreamSize{8192, 3456}))
+        << "the protocol's limit";
+}
+
+TEST(StreamSize, TheCApiRejectsWhatItCannotFit) {
+    std::uint32_t width = 0;
+    std::uint32_t height = 0;
+    EXPECT_EQ(osplay_fit_stream_size(0, 1080, 1920, 1080, &width, &height),
+              OSPLAY_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(osplay_fit_stream_size(1920, 1080, 1280, 720, nullptr, &height),
+              OSPLAY_ERROR_INVALID_ARGUMENT);
+    ASSERT_EQ(osplay_fit_stream_size(1920, 1080, 1280, 720, &width, &height), OSPLAY_OK);
+    EXPECT_EQ(width, 1280U);
+    EXPECT_EQ(height, 720U);
+}
