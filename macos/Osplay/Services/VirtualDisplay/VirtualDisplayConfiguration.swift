@@ -102,23 +102,32 @@ struct VirtualDisplayConfiguration: Hashable, Sendable {
 
     /// Modes handed to the window server. Each one becomes a 1× resolution and, when HiDPI is on and
     /// the backing fits `maximumPixelSize`, a 2× "looks like" resolution of the same point size.
+    /// The half-size mode is exact whenever it can be, so its 2× backing equals the monitor.
     var modes: [DisplaySize] {
         var seen = Set<DisplaySize>()
         return Tunables.VirtualDisplay.looksLikeScaleFactors
-            .map { pixelSize.scaled(by: $0) }
+            .map { factor in factor == 0.5 ? exactHalf ?? pixelSize.scaled(by: factor) : pixelSize.scaled(by: factor) }
             .filter { seen.insert($0).inserted }
     }
 
-    /// The HiDPI resolution whose backing equals the remote monitor exactly: sharpest text and no
-    /// scaling during capture. The window server's own default is the largest 2× mode, which
-    /// renders four times as many pixels as the stream carries.
     /// One point per pixel at the remote monitor's size: what a monitor at 100% scaling shows.
     var nativeResolution: DisplayResolution {
         DisplayResolution(points: pixelSize, pixels: pixelSize, refreshRate: refreshRate)
     }
 
+    /// The HiDPI resolution whose backing equals the remote monitor exactly: sharpest text and no
+    /// scaling during capture. The window server's own default is the largest 2× mode, which
+    /// renders four times as many pixels as the stream carries.
     var crispHiDPIResolution: DisplayResolution? {
-        guard isHiDPI else { return nil }
-        return DisplayResolution(points: pixelSize.scaled(by: 0.5), pixels: pixelSize, refreshRate: refreshRate)
+        guard isHiDPI, let half = exactHalf else { return nil }
+        return DisplayResolution(points: half, pixels: pixelSize, refreshRate: refreshRate)
+    }
+
+    /// Half the monitor in whole points, which may be odd: a MacBook panel at "More Space" is
+    /// 3420×2214 pixels, so its crisp mode looks like 1710×1107. Rounding that to an even 1108 gave a
+    /// 3420×2216 backing that matched nothing. Nil when the monitor itself has an odd side.
+    private var exactHalf: DisplaySize? {
+        guard pixelSize.width.isMultiple(of: 2), pixelSize.height.isMultiple(of: 2) else { return nil }
+        return DisplaySize(width: pixelSize.width / 2, height: pixelSize.height / 2)
     }
 }

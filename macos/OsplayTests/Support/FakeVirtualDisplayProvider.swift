@@ -8,6 +8,8 @@ final class FakeVirtualDisplayProvider: VirtualDisplayProviding {
     /// Fails creation of the display with this index (0-based), to test partial failures.
     var failingCreationIndex: Int?
     var readinessError: VirtualDisplayError?
+    /// Offers no 2× modes, like a window server that refused them.
+    var hidesHiDPIModes = false
     private(set) var handles: [FakeVirtualDisplayHandle] = []
     private(set) var createdConfigurations: [VirtualDisplayConfiguration] = []
     private var nextDisplayID: CGDirectDisplayID = 100
@@ -25,7 +27,8 @@ final class FakeVirtualDisplayProvider: VirtualDisplayProviding {
         let handle = FakeVirtualDisplayHandle(
             displayID: nextDisplayID,
             configuration: configuration,
-            readinessError: readinessError
+            readinessError: readinessError,
+            hidesHiDPIModes: hidesHiDPIModes
         ) {
             [weak self] handle in
             self?.handles.removeAll { $0 === handle }
@@ -50,17 +53,20 @@ final class FakeVirtualDisplayHandle: VirtualDisplayHandle {
     private(set) var activated: [DisplayResolution] = []
     private(set) var waitedUntilReady = false
     private let readinessError: VirtualDisplayError?
+    private let hidesHiDPIModes: Bool
     private let onDestroy: (FakeVirtualDisplayHandle) -> Void
 
     init(
         displayID: CGDirectDisplayID,
         configuration: VirtualDisplayConfiguration,
         readinessError: VirtualDisplayError?,
+        hidesHiDPIModes: Bool = false,
         onDestroy: @escaping (FakeVirtualDisplayHandle) -> Void
     ) {
         self.displayID = displayID
         self.configuration = configuration
         self.readinessError = readinessError
+        self.hidesHiDPIModes = hidesHiDPIModes
         self.onDestroy = onDestroy
     }
 
@@ -69,10 +75,19 @@ final class FakeVirtualDisplayHandle: VirtualDisplayHandle {
         waitedUntilReady = true
     }
 
+    /// Like the window server: every mode at 1×, and at 2× when that backing fits the maximum.
     func availableResolutions() -> [DisplayResolution] {
-        configuration.modes.map {
-            DisplayResolution(points: $0, pixels: $0, refreshRate: configuration.refreshRate)
-        } + [configuration.crispHiDPIResolution].compactMap { $0 }
+        let rate = configuration.refreshRate
+        let maximum = configuration.maximumPixelSize
+        let single = configuration.modes.map { DisplayResolution(points: $0, pixels: $0, refreshRate: rate) }
+        let double = configuration.modes.compactMap { mode -> DisplayResolution? in
+            let backing = DisplaySize(width: mode.width * 2, height: mode.height * 2)
+            guard configuration.isHiDPI, !hidesHiDPIModes, backing.width <= maximum.width,
+                backing.height <= maximum.height
+            else { return nil }
+            return DisplayResolution(points: mode, pixels: backing, refreshRate: rate)
+        }
+        return single + double
     }
 
     func currentResolution() -> DisplayResolution? { activated.last }

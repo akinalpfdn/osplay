@@ -39,4 +39,33 @@ struct VirtualDisplayLenderTests {
 
         #expect(provider.handles[0].activated.map(\.points) == [DisplaySize(width: 1280, height: 720)])
     }
+
+    @Test("A MacBook panel at More Space starts in its crisp mode (3420×2214 looks like 1710×1107)")
+    func oddHalfSizeStartsCrisp() async throws {
+        let provider = FakeVirtualDisplayProvider()
+        let lender = VirtualDisplayLender(provider: provider, arrange: { _ in })
+        let panel = MonitorDescription(
+            id: 0, widthPixels: 3420, heightPixels: 2214, refreshMillihertz: 60_000, physicalWidthMillimeters: 331,
+            physicalHeightMillimeters: 214, scalePercent: 200, name: "Built-in Retina Display")
+
+        _ = try await lender.lend([panel], peerID: Data("peer".utf8), hiDPI: .automatic, arrangement: [])
+
+        #expect(provider.handles[0].activated.map(\.points) == [DisplaySize(width: 1710, height: 1107)])
+        #expect(provider.handles[0].activated.map(\.pixels) == [DisplaySize(width: 3420, height: 2214)])
+    }
+
+    @Test("Without its preferred resolution a display starts at the native one instead of failing")
+    func fallsBackToNative() async throws {
+        let provider = FakeVirtualDisplayProvider()
+        provider.hidesHiDPIModes = true
+        let lender = VirtualDisplayLender(provider: provider, arrange: { _ in })
+
+        let lent = try await lender.lend(
+            [monitor(id: 0, scalePercent: 200)], peerID: Data("peer".utf8), hiDPI: .automatic, arrangement: [])
+
+        let full = DisplaySize(width: 2560, height: 1440)
+        #expect(lent.count == 1)
+        #expect(provider.handles[0].activated.map(\.points) == [full])
+        #expect(provider.handles[0].activated.map(\.pixels) == [full])
+    }
 }
