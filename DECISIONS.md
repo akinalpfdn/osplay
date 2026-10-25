@@ -524,3 +524,10 @@ choices the plan leaves open are logged here.
 **Why:** Two monitors on one device make the whole Windows desktop stutter, even with no capture running (measured on the RTX 3080 PC with OsplayVdTool, at 2 × 1080p as well as at 3420×2214 + 4K); one monitor does not. Upstream issues #140, #319 and #449 report the same. PR #482 fixes it (one swapchain worker for all monitors), but the latest signed release, 25.7.23, predates it. Separate devices avoid the shared worker and keep the signed driver. Issue #140 reports this workaround removing the lag on a similar Windows 11 + NVIDIA setup.
 **Trade-offs:** The machine gets up to four root devices instead of one, and uninstall has to remove all of them. Every device reads the same settings file, so every monitor offers every session mode (the engine sets each one's own mode, as before).
 **Revisit if:** A signed upstream release includes PR #482 and one device with several monitors runs smoothly.
+
+## 2026-10-25 — User decision: several viewers share four virtual displays, one row per viewer
+**Chosen:** A host extends onto several computers at once with at most four virtual displays in total; a Mac host still gives one viewer at most two. A new viewer gets the displays that are left, as many as it offers, and is refused as busy when none are. The Mac menu and the Windows panel show one row per connected computer (its name, how many displays it uses, its own Disconnect icon) and a row for the next computer the host waits for.
+**Alternatives:** A limit per viewer only (rejected: the Windows driver cannot go past four devices' worth anyway, and a Mac host's encoder would run out); one summary card with a "disconnect all" button and the computers in a disclosure list.
+**Why:** Four is what the Windows host can drive (helper protocol and driver devices) and about what one host's capture and encoder handle at 1080p. Rows keep every connection and its Disconnect one click away.
+**Trade-offs:** A third viewer may get fewer displays than it offers, or none.
+**Revisit if:** Hosts with more encoder capacity make more than four displays worthwhile.
