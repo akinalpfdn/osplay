@@ -52,6 +52,7 @@ add_library(osplay_core STATIC
     src/session/control_framer.cpp
     src/session/session_engine.cpp
     src/transport/asio_session.cpp
+    src/transport/traffic_class.cpp
     src/protocol/advertisement.cpp
     src/protocol/control_codec.cpp
     src/protocol/media_codec.cpp

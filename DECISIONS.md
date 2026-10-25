@@ -504,6 +504,13 @@ choices the plan leaves open are logged here.
 **Trade-offs:** A repair that arrives later than one frame interval plus RTT is wasted, and the frame costs a keyframe.
 **Revisit if:** Loss turns out to be isolated packets rather than bursts (for example once the Mac's AWDL is ruled out), or if FEC is added.
 
+## 2026-10-25 — Session sockets are marked as real-time traffic on macOS
+**Chosen:** On macOS the media socket gets the network service type "interactive video" and the control socket "signaling" (`SO_NET_SERVICE_TYPE`). Other platforms are unchanged for now.
+**Alternatives:** An opt-in setting that turns AWDL off during sessions through a privileged helper; documenting `sudo ifconfig awdl0 down` only; DSCP marking on Windows through qWAVE.
+**Why:** The remaining Wi-Fi loss was AWDL: in the Mac → Mac test drops went to zero with `awdl0` down on both Macs. Apple documents the service type as what selects the Wi-Fi access category and tells the stack a latency-sensitive flow is running; it costs a few lines, needs no privileges and is correct for this traffic. User decision: mark first and measure, and only then consider the helper.
+**Trade-offs:** Whether macOS shortens AWDL's off-channel time for marked traffic is not documented; it has to be measured with AWDL on.
+**Revisit if:** The measurement shows little change (then the opt-in AWDL toggle), or Windows hosts show loss that DSCP priority would help.
+
 ## 2026-10-25 — User decision: streams are capped at 1080p by default, chosen on the extending computer
 **Chosen:** A new phase (DEVPLAN 13c, STR-01) caps each stream at 720p, 1080p (default), 1440p or Native, fitted to the monitor's aspect ratio; the virtual display keeps the viewer monitor's resolution and the viewer scales the stream up. The setting sits next to quality on the extending computer. No bandwidth warning and no network test.
 **Alternatives:** Making the virtual display itself 1080p (rejected: everything on it gets bigger); a setting on the viewing computer; a bandwidth estimate with a warning, or a throughput test between the two computers (rejected by the user).

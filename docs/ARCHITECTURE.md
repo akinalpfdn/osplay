@@ -50,7 +50,9 @@ Virtual display ─► Capture ─► Encoder ─► core: packetize ──UDP�
   simulated lossy network and clock. Every tunable is in `session_config.hpp`.
 - `core/src/transport/` runs one `SessionEngine` over Asio sockets (`AsioSession`): one I/O thread
   per session owns the TCP control connection, the UDP media socket and a 2 ms timer. Callbacks run
-  on that thread; commands from other threads are posted to it.
+  on that thread; commands from other threads are posted to it. On macOS the media socket is
+  marked as interactive video and the control socket as signaling (`traffic_class.cpp`), so Wi-Fi
+  treats both as latency sensitive.
 - `core/src/capi/` is the flat C API. `osplay_session` wraps an `AsioSession` and forwards its
   callbacks to C function pointers.
 - `windows/CMakeLists.txt` adds `core` as a subdirectory and links it into the engine DLL.

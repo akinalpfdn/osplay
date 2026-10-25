@@ -1,6 +1,7 @@
 #include "transport/asio_session.hpp"
 
 #include "protocol/constants.hpp"
+#include "transport/traffic_class.hpp"
 
 // CMake includes Asio as a system header; SwiftPM cannot, so its warnings are silenced here.
 #ifdef __clang__
@@ -295,6 +296,7 @@ private:
         media_.non_blocking(true, ignored);
         media_.set_option(asio::socket_base::send_buffer_size(kSocketBufferBytes), ignored);
         media_.set_option(asio::socket_base::receive_buffer_size(kSocketBufferBytes), ignored);
+        mark_as_interactive_video(media_); // best effort: an unmarked socket still works
         return true;
     }
 
@@ -310,6 +312,7 @@ private:
     void on_control_connected() {
         asio::error_code ignored;
         control_.set_option(tcp::no_delay(true), ignored);
+        mark_as_signaling(control_); // best effort: an unmarked socket still works
         read_control();
         receive_datagram();
         engine_.on_connected(now());

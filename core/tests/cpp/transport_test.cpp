@@ -4,6 +4,7 @@
 #include "protocol/control_messages.hpp"
 #include "session_simulation.hpp"
 #include "transport/asio_session.hpp"
+#include "transport/traffic_class.hpp"
 
 #include <asio/executor_work_guard.hpp>
 #include <asio/io_context.hpp>
@@ -12,6 +13,10 @@
 #include <asio/post.hpp>
 #include <asio/write.hpp>
 #include <gtest/gtest.h>
+
+#ifdef __APPLE__
+#include <sys/socket.h>
+#endif
 
 #include <algorithm>
 #include <array>
@@ -553,3 +558,30 @@ TEST_F(RealSessions, SurvivesAThreeSecondNetworkInterruption) {
 }
 
 } // namespace
+
+TEST(TrafficClass, MediaIsInteractiveVideoAndControlIsSignaling) {
+    asio::io_context io;
+    asio::ip::udp::socket media(io, asio::ip::udp::v6());
+    asio::ip::tcp::socket control(io, asio::ip::tcp::v6());
+#ifdef __APPLE__
+    ASSERT_TRUE(osplay::transport::mark_as_interactive_video(media));
+    ASSERT_TRUE(osplay::transport::mark_as_signaling(control));
+    int type = -1;
+    socklen_t length = sizeof(type);
+    ASSERT_EQ(getsockopt(media.native_handle(), SOL_SOCKET, SO_NET_SERVICE_TYPE, &type, &length),
+              0);
+    EXPECT_EQ(type, NET_SERVICE_TYPE_VI);
+    ASSERT_EQ(getsockopt(control.native_handle(), SOL_SOCKET, SO_NET_SERVICE_TYPE, &type, &length),
+              0);
+    EXPECT_EQ(type, NET_SERVICE_TYPE_SIG);
+#else
+    EXPECT_FALSE(osplay::transport::mark_as_interactive_video(media)) << "no such option here";
+    EXPECT_FALSE(osplay::transport::mark_as_signaling(control));
+#endif
+}
+
+TEST(TrafficClass, AClosedSocketIsLeftAlone) {
+    asio::io_context io;
+    asio::ip::udp::socket closed(io);
+    EXPECT_FALSE(osplay::transport::mark_as_interactive_video(closed));
+}
