@@ -10,12 +10,40 @@
 #include <newdev.h>
 
 #include <algorithm>
+#include <memory>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace osplay::helper {
 namespace {
+
+struct KeyCloser {
+    void operator()(HKEY key) const noexcept { RegCloseKey(key); }
+};
+using Key = std::unique_ptr<std::remove_pointer_t<HKEY>, KeyCloser>;
+
+/// From its next start the device runs in a driver host process of its own: the value the INF
+/// directive UmdfHostProcessSharing = ProcessSharingDisabled writes.
+bool isolate_host_process(HDEVINFO set, SP_DEVINFO_DATA& data) {
+    HKEY raw_parameters =
+        SetupDiCreateDevRegKeyW(set, &data, DICS_FLAG_GLOBAL, 0, DIREG_DEV, nullptr, nullptr);
+    if (raw_parameters == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+    const Key parameters(raw_parameters);
+    HKEY raw_wudf = nullptr;
+    if (RegCreateKeyExW(parameters.get(), kWudfSubKey, 0, nullptr, 0, KEY_SET_VALUE, nullptr,
+                        &raw_wudf, nullptr) != ERROR_SUCCESS) {
+        return false;
+    }
+    const Key wudf(raw_wudf);
+    const DWORD disabled = kHostProcessSharingDisabled;
+    return RegSetValueExW(wudf.get(), kHostProcessSharingValue, 0, REG_DWORD,
+                          reinterpret_cast<const BYTE*>(&disabled),
+                          sizeof(disabled)) == ERROR_SUCCESS;
+}
 
 /// The display adapter device class (GUID_DEVCLASS_DISPLAY in devguid.h).
 constexpr GUID kDisplayClass{.Data1 = 0x4d36e968,
@@ -33,9 +61,17 @@ const std::vector<std::wstring>& VddDevices::instances() {
     for (const std::wstring& instance : present) {
         if (std::ranges::find(order_, instance) == order_.end()) {
             order_.push_back(instance);
+            isolate(instance);
         }
     }
     return order_;
+}
+
+void VddDevices::isolate(const std::wstring& instance) {
+    auto device = win::open_device(instance);
+    if (!device || !isolate_host_process(device->set.get(), device->data)) {
+        log_.warning("Could not give a virtual display device its own driver process");
+    }
 }
 
 bool VddDevices::is_installed() {
@@ -70,6 +106,10 @@ bool VddDevices::add() {
         !SetupDiCallClassInstaller(DIF_REGISTERDEVICE, set.get(), &data)) {
         log_.error("SetupAPI device registration failed, error " + std::to_string(GetLastError()));
         return false;
+    }
+    // Before it starts, so it never joins another device's driver process.
+    if (!isolate_host_process(set.get(), data)) {
+        log_.warning("Could not give the new virtual display device its own driver process");
     }
     BOOL reboot = FALSE;
     if (!DiInstallDevice(nullptr, set.get(), &data, nullptr, DIIDFLAG_NOFINISHINSTALLUI, &reboot)) {

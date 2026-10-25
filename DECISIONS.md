@@ -538,3 +538,10 @@ choices the plan leaves open are logged here.
 **Why:** Several viewers at once (SYM-03) need monitors that come and go independently. Instance IDs can fill gaps left by removed devices, so sorting them would move a running device to another index; a stable order avoids that.
 **Trade-offs:** A device removed by hand while the service runs shifts the indices of the ones after it until the next session.
 **Revisit if:** The helper ever serves more than one client, or a signed driver release makes one device with several monitors usable again.
+
+## 2026-10-25 — Every driver device in its own host process
+**Chosen:** OsplayHelper sets `HostProcessSharingEnabled` = 0 under each `Root\MttVDD` device's `Device Parameters\WUDF` key (the value the INF directive `UmdfHostProcessSharing = ProcessSharingDisabled` writes) before the device starts, so every device runs in a WUDFHost process of its own.
+**Alternatives:** Listing a fixed set of common modes in every settings file (a viewer with another mode still fails); restarting every device when a viewer joins (interrupts the viewers already streaming); keeping one shared process.
+**Why:** In the PC → two Macs test the second Mac's monitor could not take its 3360×2100 mode. UMDF pools a driver's devices into one host process, and the driver (25.7.23) appends each monitor's modes to a global list it never clears and reports the first entries, so a device started after another offers only the earlier device's modes. Upstream PR #482 clears that list, but no signed release has it.
+**Trade-offs:** Up to four WUDFHost processes instead of one, a few megabytes each. The value is undocumented outside the INF directive; Windows reads it when the device starts.
+**Revisit if:** A signed driver release clears its mode list per monitor.
