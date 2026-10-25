@@ -7,6 +7,7 @@
 *.props    text eol=crlf
 *.targets  text eol=crlf
 *.iss      text eol=crlf
+*.isl      text eol=crlf
 *.bat      text eol=crlf
 *.cmd      text eol=crlf
 
