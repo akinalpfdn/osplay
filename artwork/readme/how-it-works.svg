@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420" role="img" aria-label="A window dragged from a PC's screen onto the MacBook next to it, which serves as the PC's extra display over an encrypted local connection">
+  <title>A MacBook used as a PC's extra display</title>
+  <defs>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1747b5"/>
+      <stop offset="1" stop-color="#081d5a"/>
+    </linearGradient>
+    <radialGradient id="wallpaper" cx="0.35" cy="0.85" r="1.1">
+      <stop offset="0" stop-color="#7cc4ff"/>
+      <stop offset="0.45" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1e3a8a"/>
+    </radialGradient>
+    <linearGradient id="base" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e2e8f0"/>
+      <stop offset="1" stop-color="#94a3b8"/>
+    </linearGradient>
+    <clipPath id="pc"><rect x="96" y="64" width="440" height="262" rx="4"/></clipPath>
+    <clipPath id="mac"><rect x="612" y="132" width="284" height="180" rx="4"/></clipPath>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#020617" flood-opacity="0.45"/>
+    </filter>
+    <g id="window">
+    <rect x="386" y="150" width="342" height="136" rx="8" fill="#f8fafc"/>
+    <path d="M386 158 a8 8 0 0 1 8 -8 h326 a8 8 0 0 1 8 8 v14 h-342 z" fill="#e2e8f0"/>
+    <rect x="678" y="160" width="9" height="2" rx="1" fill="#64748b"/>
+    <rect x="694" y="156.5" width="8" height="8" rx="1.5" fill="none" stroke="#64748b" stroke-width="1.6"/>
+    <path d="M710 156.5 l8 8 m0 -8 l-8 8" stroke="#64748b" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="400" y="184" width="144" height="8" rx="4" fill="#cbd5e1"/>
+    <rect x="400" y="200" width="103" height="8" rx="4" fill="#e2e8f0"/>
+    <rect x="400" y="220" width="314" height="52" rx="6" fill="#dbeafe"/>
+    <path d="M414 262 l41 -18 l41 10 l48 -24 l55 14 l48 -20 l41 8"
+          fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g>
+  </defs>
+
+  <rect width="960" height="420" rx="24" fill="url(#panel)"/>
+  <circle cx="840" cy="60" r="160" fill="#ffffff" fill-opacity="0.04"/>
+  <circle cx="90" cy="390" r="120" fill="#ffffff" fill-opacity="0.03"/>
+
+  <g filter="url(#shadow)">
+    <rect x="84" y="52" width="464" height="286" rx="14" fill="#0f172a" stroke="#ffffff" stroke-opacity="0.12"/>
+    <path d="M290.0 338 h52 l10 42 h-72 z" fill="#1e293b"/>
+    <rect x="242.0" y="378" width="148" height="10" rx="5" fill="#334155"/>
+  </g>
+  <g clip-path="url(#pc)">
+    <rect x="96" y="64" width="440" height="262" fill="url(#wallpaper)"/>
+    <use href="#window"/>
+    <rect x="96" y="300" width="440" height="26" fill="#0f172a" fill-opacity="0.55"/>
+    <g fill="#e2e8f0" fill-opacity="0.9">
+      <rect x="264.0" y="307" width="12" height="12" rx="3" fill="#60a5fa"/>
+      <rect x="284.0" y="307" width="12" height="12" rx="3"/>
+      <rect x="304.0" y="307" width="12" height="12" rx="3"/>
+      <rect x="324.0" y="307" width="12" height="12" rx="3"/>
+      <rect x="344.0" y="307" width="12" height="12" rx="3"/>
+    </g>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="602" y="122" width="304" height="200" rx="12" fill="#0f172a" stroke="#ffffff" stroke-opacity="0.12"/>
+    <path d="M578 322 h352 l-10 14 a6 6 0 0 1 -5 3 h-322 a6 6 0 0 1 -5 -3 z" fill="url(#base)"/>
+    <rect x="728.0" y="322" width="52" height="5" rx="2.5" fill="#64748b"/>
+  </g>
+  <g clip-path="url(#mac)">
+    <rect x="612" y="132" width="284" height="180" fill="url(#wallpaper)"/>
+    <g transform="translate(76 0)">
+      <use href="#window"/>
+      <path transform="translate(594 159)" d="M0 0 v17 l4.2 -4 3.2 7.2 3 -1.3 -3.2 -7 5.8 -.3 z" fill="#0f172a" stroke="#ffffff" stroke-width="1.4" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <rect x="736.0" y="122" width="36" height="8" rx="4" fill="#0f172a"/>
+
+  <path d="M316.0 410 C 376.0 402, 694.0 402, 754.0 352"
+        fill="none" stroke="#bfdbfe" stroke-opacity="0.7" stroke-width="2.5" stroke-dasharray="2 9" stroke-linecap="round"/>
+  <g transform="translate(543.0 380)">
+    <circle r="19" fill="#ffffff"/>
+    <path d="M-5 -1 v-3 a5 5 0 0 1 10 0 v3" fill="none" stroke="#1d4ed8" stroke-width="2.2"/>
+    <rect x="-7.5" y="-1.5" width="15" height="11" rx="2.5" fill="#1d4ed8"/>
+  </g>
+</svg>
