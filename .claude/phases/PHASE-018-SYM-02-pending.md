@@ -15,10 +15,10 @@ A Mac used as a display offers all its displays (with a picker like Windows'), a
 ## Acceptance Criteria
 - [ ] Mac → Mac, Mac → PC, PC → Mac, PC → PC each show one display per offered monitor.
 - [ ] Leaving a monitor out in the picker is respected on both platforms.
-- [ ] From SYM-01: PC → Mac with an external monitor on the Mac gives one Windows virtual display per Mac display.
+- [x] From SYM-01: PC → Mac with an external monitor on the Mac gives one Windows virtual display per Mac display. (2026-10-25, D2: one driver device per virtual monitor.)
 - [ ] From SYM-01: PC → PC (laptop → two-monitor PC) gives two virtual displays on the laptop, one on each monitor.
 - [ ] From SYM-01: ending the session removes every Windows virtual monitor; a crash leaves none behind.
-- [ ] Before PC-host tests: the PC's OsplayHelper service runs the current build (Settings shows "helper refused" while it is the pre-SYM-01 version).
+- [x] Before PC-host tests: the PC's OsplayHelper service runs the current build (Settings shows "helper refused" while it is the pre-SYM-01 version).
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
