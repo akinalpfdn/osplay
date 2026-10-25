@@ -288,7 +288,7 @@ Result codes: 0 Ok, 1 MalformedRequest, 2 UnsupportedVersion, 3 UnknownCommand,
 ### Engine API
 
 `windows/engine/include/osplay/engine.h` exposes the virtual display as an opaque handle:
-`osplay_virtual_display_open` (connects to the helper), `_create_monitor`, `_remove_monitor`,
+`osplay_virtual_display_open` (connects to the helper), `_create_monitors`, `_remove_monitor`,
 `_status`, `_close`. Inside the engine, `VirtualDisplayProvider` is the interface;
 `HelperVirtualDisplayProvider` implements it over a `HelperChannel` (the named pipe in production,
 a fake in tests).

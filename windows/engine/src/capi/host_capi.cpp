@@ -114,6 +114,19 @@ public:
         callbacks_.on_failed(callbacks_.context, result);
     }
 
+    void on_capture_stats(std::uint8_t stream_id,
+                          const osplay::engine::CaptureStats& stats) override {
+        if (callbacks_.on_log == nullptr) {
+            return;
+        }
+        const std::string message = std::format(
+            "Capture {}: desktop {}x{}, {} images, {} encoded, access lost {}, reconnects {}, "
+            "slowest step {} ms",
+            stream_id, stats.desktop_width, stats.desktop_height, stats.images, stats.encoded,
+            stats.access_lost, stats.reconnects, stats.slowest_step_ms);
+        callbacks_.on_log(callbacks_.context, OSPLAY_LOG_INFO, message.c_str());
+    }
+
 private:
     osplay_engine_host_callbacks callbacks_;
 };

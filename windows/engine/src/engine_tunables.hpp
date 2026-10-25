@@ -32,6 +32,8 @@ inline constexpr std::int64_t kEncoderBusyMilliseconds = 40;
 /// While duplication is unavailable (secure desktop, mode change): retry spacing and idle sleep.
 inline constexpr unsigned long long kDuplicationRetryMilliseconds = 100;
 inline constexpr unsigned kDuplicationIdleMilliseconds = 10;
+/// How often each capture loop reports what it saw (matches the core's stats summary).
+inline constexpr std::int64_t kCaptureStatsSeconds = 10;
 
 /// Viewer hide/show hotkey unless the shell sets one. User decision: Ctrl+Alt+Shift+V (Ctrl+Alt
 /// alone is AltGr on Turkish layouts). Values of MOD_ALT | MOD_CONTROL | MOD_SHIFT and the virtual

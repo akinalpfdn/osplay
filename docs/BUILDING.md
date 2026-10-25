@@ -254,10 +254,12 @@ The installer will set both up from Phase 14 on; until then, once per machine:
    cd windows\build\debug\bin
    .\OsplayVdTool.exe status
    .\OsplayVdTool.exe create 2560 1664 60
+   .\OsplayVdTool.exe create 3420 2214 60 3840 2160 60
    ```
 
-   `create` adds a monitor, sets exactly that mode and keeps it until you press Enter or close the
-   tool. Closing the tool any other way (Ctrl+C, crash) removes the monitor too.
+   `create` adds one monitor per width, height and refresh rate (up to four), sets exactly those
+   modes and keeps them until you press Enter or close the tool. Closing the tool any other way
+   (Ctrl+C, crash) removes the monitors too. A last extra argument names the GPU.
 
 4. To check that the helper rejects malformed requests, send it garbage from PowerShell. .NET pipe
    clients connect anonymously by default, which the helper refuses, so request identification:

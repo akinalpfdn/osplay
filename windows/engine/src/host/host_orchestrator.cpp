@@ -26,6 +26,9 @@ public:
         owner_->on_cursor_position(stream_id_, visible, shape_id, x, y, capture_time_us);
     }
     void on_pipeline_failed(PipelineError error) override { owner_->on_pipeline_failed(error); }
+    void on_capture_stats(const CaptureStats& stats) override {
+        owner_->on_capture_stats(stream_id_, stats);
+    }
 
 private:
     HostOrchestrator* owner_; // never null; owns this output
@@ -291,6 +294,10 @@ void HostOrchestrator::on_cursor_position(std::uint8_t stream_id, bool visible,
 
 void HostOrchestrator::on_pipeline_failed(PipelineError error) {
     post([this, error] { fail(HostFailure::Pipeline, static_cast<std::uint32_t>(error)); });
+}
+
+void HostOrchestrator::on_capture_stats(std::uint8_t stream_id, const CaptureStats& stats) {
+    observer_->on_capture_stats(stream_id, stats);
 }
 
 } // namespace osplay::engine

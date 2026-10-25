@@ -1,7 +1,7 @@
 // OsplayVdTool: temporary developer tool that drives the virtual monitor through the engine's
 // C API (DEVPLAN Phase 2). Not shipped.
 //   OsplayVdTool status
-//   OsplayVdTool create <width> <height> <refresh-hz> [gpu name]
+//   OsplayVdTool create <width> <height> <refresh-hz> [<width> <height> <refresh-hz>...] [gpu]
 #include <osplay/engine.h>
 
 #include <array>
@@ -15,6 +15,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace {
 
@@ -67,7 +68,8 @@ void print_status(osplay_virtual_display* display) {
 
 int usage() {
     std::cerr << "Usage:\n  OsplayVdTool status\n"
-                 "  OsplayVdTool create <width> <height> <refresh-hz> [gpu name]\n";
+                 "  OsplayVdTool create <width> <height> <refresh-hz> "
+                 "[<width> <height> <refresh-hz>...] [gpu name]\n";
     return 2;
 }
 
@@ -77,7 +79,15 @@ int run(std::span<char*> args) {
     }
     const std::string_view command(args[1]);
     const bool create = command == "create";
-    if ((command != "status" && !create) || (create && args.size() != 5 && args.size() != 6)) {
+    // One to four monitors of three numbers each, then an optional GPU name.
+    constexpr std::size_t kValuesPerMonitor = 3;
+    constexpr std::size_t kMaxMonitors = 4;
+    const std::size_t values = create ? args.size() - 2 : 0;
+    const std::size_t monitor_count = values / kValuesPerMonitor;
+    const bool has_gpu = values % kValuesPerMonitor == 1;
+    if ((command != "status" && !create) ||
+        (create && (monitor_count == 0 || monitor_count > kMaxMonitors ||
+                    (values % kValuesPerMonitor != 0 && !has_gpu)))) {
         return usage();
     }
 
@@ -90,18 +100,24 @@ int run(std::span<char*> args) {
     if (!create) {
         print_status(display);
     } else {
-        const osplay_virtual_monitor_config config{
-            .width = static_cast<std::uint32_t>(std::strtoul(args[2], nullptr, 10)),
-            .height = static_cast<std::uint32_t>(std::strtoul(args[3], nullptr, 10)),
-            .refresh_millihertz =
-                static_cast<std::uint32_t>(std::lround(std::strtod(args[4], nullptr) * 1000.0)),
-            .gpu_name_utf8 = args.size() == 6 ? args[5] : nullptr,
-        };
-        ok = report("create", osplay_virtual_display_create_monitor(display, &config));
+        const char* gpu = has_gpu ? args.back() : nullptr;
+        std::vector<osplay_virtual_monitor_config> configs;
+        for (std::size_t i = 0; i < monitor_count; ++i) {
+            const std::size_t first = 2 + (i * kValuesPerMonitor);
+            configs.push_back({
+                .width = static_cast<std::uint32_t>(std::strtoul(args[first], nullptr, 10)),
+                .height = static_cast<std::uint32_t>(std::strtoul(args[first + 1], nullptr, 10)),
+                .refresh_millihertz = static_cast<std::uint32_t>(
+                    std::lround(std::strtod(args[first + 2], nullptr) * 1000.0)),
+                .gpu_name_utf8 = gpu,
+            });
+        }
+        ok = report("create", osplay_virtual_display_create_monitors(display, configs.data(),
+                                                                     configs.size()));
         print_status(display);
         if (ok) {
-            std::cout
-                << "The virtual monitor stays while this tool runs. Press Enter to remove it...\n";
+            std::cout << "The virtual monitors stay while this tool runs. Press Enter to remove "
+                         "them...\n";
             std::string ignored;
             std::getline(std::cin, ignored);
             ok = report("remove", osplay_virtual_display_remove_monitor(display));
