@@ -371,10 +371,12 @@ final class ConnectionViewModel {
                 device: sessionDevice(identity, maximumStreams: Tunables.VirtualDisplay.maximumDisplayCount),
                 controlPort: sharePort, trust: { [trust, peer] key in peer.trust(key, in: trust) })
         } catch {
+            Log.connection.error("Could not listen for a viewer: \(String(describing: error), privacy: .public)")
             self.error = .session(error)
             listenAgainLater(identity)
             return
         }
+        Log.connection.info("Listening for a viewer on port \(core.controlPort)")
         sharePort = core.controlPort
         do throws(DiscoveryError) {
             try advertise(identity, port: core.controlPort)
@@ -424,6 +426,7 @@ final class ConnectionViewModel {
         advertising = try dependencies.discovery.advertise(
             Advertisement(identity: identity, name: deviceName, roles: .host), port: port)
         advertisedPort = port
+        Log.connection.info("Advertising on port \(port)")
     }
 
     private func listenAgainLater(_ identity: DeviceIdentity) {
