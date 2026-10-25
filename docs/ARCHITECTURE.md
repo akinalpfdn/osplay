@@ -90,6 +90,9 @@ ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─�
 - **Displays.** `VirtualDisplayLender` creates one virtual display per offered monitor (at most
   two), waits until it is ready and activates the crisp HiDPI resolution, so the capture backing
   equals the remote monitor's pixels. All displays are returned when the session ends.
+- **Stream size.** Each stream is fitted inside the user's stream size setting (720p, 1080p by
+  default, 1440p or Native) with `osplay_fit_stream_size`, so a large monitor is captured from its
+  full-size virtual display and encoded smaller; the bitrate follows the stream's pixels.
 - **Capture** (`Services/ScreenCapture/`). One `SCStream` per display at the stream's pixel size
   and refresh rate, 420v pixel format, BT.709, cursor composited. Only samples with status
   complete or started are frames; an unchanged screen produces nothing and the viewer keeps its
@@ -324,15 +327,18 @@ VDD monitor ─► Desktop Duplication ─► BGRA copy ─► video processor (
   recreates the duplication every 100 ms until it succeeds; a vanished output is looked up again on
   the same adapter. Device removal ends the session.
 - **Convert and encode** (`src/encode/`). The D3D11 video processor converts BGRA to NV12 at the
-  stream size (scaling if the monitor's mode was changed by hand), BT.709 studio range. The first
+  stream size, BT.709 studio range. The virtual monitor keeps the viewer monitor's mode while the
+  stream is fitted inside the shell's stream size setting (`max_stream_width/height` in the host
+  config, `osplay_fit_stream_size`), so the processor scales it down. The first
   hardware H.264 MFT from `MFTEnumEx` runs in async mode with a DXGI device manager, low-latency
   mode, CBR, no B-frames and an endless GOP; `CODECAPI_AVEncVideoForceKeyFrame` answers keyframe
   requests. Output keyframes get SPS/PPS put in front when the encoder omits them
   (`media/h264_stream.cpp`).
 - **Cursor.** Desktop Duplication reports the pointer apart from the image. Shapes (monochrome,
   colour, masked colour) become premultiplied BGRA (`media/pointer_shape.cpp`; screen-inverting
-  pixels become black with a white outline, larger than 256 px are cropped around the hotspot) and
-  positions are sent as the hotspot in stream pixels.
+  pixels become black with a white outline, larger than 256 px are cropped around the hotspot),
+  scaled down with the stream when it is smaller than the monitor, and positions are sent as the
+  hotspot in stream pixels.
 - **Clocks.** Capture times come from `LastPresentTime` (QPC) and are converted to the core's clock
   by their age.
 - **Debug tool.** `OsplayHostTest.exe` runs a host session with an in-process core viewer, a moving

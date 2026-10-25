@@ -166,6 +166,11 @@ Monitor:
 | reserved | u8 | 0 |
 | bitrate_kbps | u32 | 100–1000000 |
 
+The stream may be smaller than its monitor: hosts fit it inside the user's stream size setting
+(`osplay_fit_stream_size`: aspect ratio kept, even sides, never larger than the monitor) while the
+virtual display keeps the monitor's mode. Viewers scale the stream to the whole monitor; cursor
+positions and shapes are in stream pixels like the image.
+
 ### 0x07 StreamStart, 0x08 StreamPause, 0x09 StreamResume, 0x0A StreamStop
 
 | Field | Type | Values |
@@ -394,7 +399,10 @@ arrives; Hello tells each side the other's minor version, so the request is not 
 - The host keeps the last 16 frames (at most 8 MiB) for retransmission.
 - The host paces large frames: a frame of more than 4 fragments goes out evenly over half its
   stream's frame interval (divided among the streams) instead of in one burst, which Wi-Fi queues
-  drop. Smaller frames and retransmissions leave at once.
+  drop, and never faster than 2.5 × the bitrate targets of all streams together, so a large
+  keyframe is spread over tens of milliseconds. Once 100 ms are queued, frames go at the
+  frame-interval window again so the queue drains. Smaller frames and retransmissions leave at
+  once.
 - A loss is only visible when a later fragment arrives, so a stream whose last frame was lost
   entirely would never recover once the screen stops changing. The host therefore sends the last
   fragment of a stream's newest frame again 50 ms, 200 ms and 700 ms after that frame, unless a
