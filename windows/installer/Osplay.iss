@@ -132,6 +132,8 @@ begin
     ReportFailure('HelperSetupFailed', Code);
 end;
 
+{ Every profile: Windows marks new networks Public, and pairing, not the network, decides who may
+  connect. }
 procedure AddFirewallRule;
 var
   Code: Integer;
@@ -139,7 +141,7 @@ begin
   { Deleting first keeps a single rule across upgrades; it fails harmlessly when there is none. }
   RunHidden(NetshPath, 'advfirewall firewall delete rule name="' + FirewallRuleName + '"');
   Code := RunHidden(NetshPath, 'advfirewall firewall add rule name="' + FirewallRuleName +
-    '" dir=in action=allow enable=yes profile=private program="' +
+    '" dir=in action=allow enable=yes profile=any program="' +
     ExpandConstant('{app}\Osplay.exe') + '"');
   if Code <> 0 then
     ReportFailure('FirewallSetupFailed', Code);

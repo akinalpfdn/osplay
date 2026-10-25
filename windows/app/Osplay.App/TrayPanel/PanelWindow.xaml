@@ -68,13 +68,6 @@
                 Title="{x:Static res:Strings.HealthTitle}"
                 Message="{Binding Connection.HostProblemMessage}"
                 IsOpen="{Binding Connection.HasHostProblem, Mode=OneWay}" />
-    <StackPanel Visibility="{Binding Connection.ShowsNetworkWarning, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">
-      <ui:InfoBar Margin="{StaticResource Osplay.Thickness.SectionGap}" Severity="Informational" IsClosable="True"
-                  Title="{x:Static res:Strings.NetworkPublicTitle}" Message="{x:Static res:Strings.NetworkPublicMessage}"
-                  IsOpen="{Binding Connection.ShowsNetworkWarning}" />
-      <ui:Button Margin="{StaticResource Osplay.Thickness.ItemGap}" Content="{x:Static res:Strings.NetworkOpenSettings}"
-                 Command="{Binding OpenNetworkSettingsCommand}" />
-    </StackPanel>
     <StackPanel Visibility="{Binding Updates.IsUpdateAvailable, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">
       <ui:InfoBar Margin="{StaticResource Osplay.Thickness.SectionGap}" Severity="Informational" IsClosable="False"
                   Message="{Binding Updates.AvailableVersionMessage}" IsOpen="True" />

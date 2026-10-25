@@ -417,7 +417,7 @@ with `DynamicResource`), every string from `Osplay.Localization` (English and Tu
 - **Tray icon** (`Tray/`). A click opens the panel; the menu has status, the two roles, hide/show,
   Disconnect, Settings and Quit. The icon follows the taskbar's light or dark theme.
 - **Panel** (`TrayPanel/`). A borderless Fluent window above the taskbar that closes when it loses
-  focus: problems first (errors, helper or driver missing, public network, update available), the
+  focus: problems first (errors, helper or driver missing, update available), the
   role cards "Extend this PC" and "Use as display", the quality preset while sharing, and while
   viewing a picture of this PC's monitors (click one to leave it out) and the nearby computers.
 - **Settings** (`Settings/`). General (start with Windows through the Run key, stats overlay,

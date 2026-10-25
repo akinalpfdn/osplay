@@ -33,9 +33,4 @@ public sealed partial class PanelViewModel(
 
     [RelayCommand]
     private Task QuitAsync() => quit();
-
-    private Uri NetworkSettings { get; } = AppTunables.NetworkSettingsUri;
-
-    [RelayCommand]
-    private void OpenNetworkSettings() => Shell.Open(NetworkSettings);
 }

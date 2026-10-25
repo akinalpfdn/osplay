@@ -25,3 +25,4 @@ Anyone can install Osplay from GitHub Releases, and contributors can build it fr
 (append as you go; full entries go to DECISIONS.md)
 - 2026-10-25 — User decision: the Windows installer comes from CI on a version tag, unsigned; the macOS DMG is signed and notarized on the maintainer's Mac and uploaded by one script; both apps check the latest GitHub release (no Sparkle). README in English and Turkish, written for search.
 - 2026-10-25 — The installer adds the driver with pnputil and lets OsplayHelper add and remove the devices (`--install`, `--stop`, `--uninstall`, `--remove-driver`); upgrades keep the devices; downloads have fixed names (`Osplay-Setup.exe`, `Osplay.dmg`) and SHA-256 files. Release steps: `docs/RELEASING.md`.
+- 2026-10-26 — User decision: the installer's firewall rule covers every network profile and the Public-network hint is gone (a private-only rule dropped every connection on the user's Public network during the 0.1.0 draft test).

@@ -5,8 +5,8 @@ using Osplay.App.Interop;
 namespace Osplay.App.Services;
 
 /// <summary>
-/// Whether a connected network is marked Public: Windows Firewall then blocks Bonjour and incoming
-/// connections, so other computers cannot find or reach this PC.
+/// Whether a connected network is marked Public, for diagnostics. It does not stop Osplay: the
+/// installer's firewall rule covers every network profile.
 /// </summary>
 internal static class NetworkProfile
 {
