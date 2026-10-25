@@ -6,6 +6,7 @@ struct OsplayApp: App {
     private let dependencies: AppDependencies
     @State private var connection: ConnectionViewModel
     @State private var settings: SettingsViewModel
+    @State private var updates: UpdatesViewModel
     private let onboarding: OnboardingWindow
     #if DEBUG
         @State private var developerDisplays: DeveloperDisplaysViewModel
@@ -27,8 +28,11 @@ struct OsplayApp: App {
             initialValue: SettingsViewModel(
                 settings: dependencies.settings, connection: connection, launchAtLogin: SystemLaunchAtLogin(),
                 hotkeys: dependencies.hotkeys, logs: UnifiedLogExporter(), showPermissions: onboarding.show))
+        let updates = UpdatesViewModel(settings: dependencies.settings, checker: GitHubUpdateChecker())
+        _updates = State(initialValue: updates)
         AppDelegate.onLaunch = {
             if onboardingModel.needsAttention { onboarding.show() }
+            Task { await updates.checkIfDue() }
         }
         #if DEBUG
             _developerDisplays = State(initialValue: DeveloperDisplaysViewModel(provider: dependencies.virtualDisplays))
@@ -44,10 +48,12 @@ struct OsplayApp: App {
         MenuBarExtra {
             #if DEBUG
                 MenuView(
-                    connection: connection, settings: dependencies.settings, openOnboarding: onboarding.show,
-                    developer: DeveloperTools(view: AnyView(developerSections)))
+                    connection: connection, settings: dependencies.settings, updates: updates,
+                    openOnboarding: onboarding.show, developer: DeveloperTools(view: AnyView(developerSections)))
             #else
-                MenuView(connection: connection, settings: dependencies.settings, openOnboarding: onboarding.show)
+                MenuView(
+                    connection: connection, settings: dependencies.settings, updates: updates,
+                    openOnboarding: onboarding.show)
             #endif
         } label: {
             Label("app.name", image: Theme.Artwork.menuBar)
@@ -55,7 +61,7 @@ struct OsplayApp: App {
         .menuBarExtraStyle(.window)
 
         Settings {
-            SettingsView(viewModel: settings)
+            SettingsView(viewModel: settings, updates: updates)
         }
     }
 

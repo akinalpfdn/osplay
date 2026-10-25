@@ -4,9 +4,14 @@
 
 ## Windows: SmartScreen warns about the installer
 
-Osplay's Windows builds are not code-signed yet, so SmartScreen shows "Windows protected your PC".
+Osplay's Windows installer is not code-signed, so SmartScreen shows "Windows protected your PC".
 Choose **More info → Run anyway** only if you downloaded the installer from the official GitHub
-Releases page. Signing through SignPath Foundation is planned.
+Releases page. To check the download, compare its hash with `Osplay-Setup.exe.sha256` on the same
+release:
+
+```powershell
+(Get-FileHash .\Osplay-Setup.exe -Algorithm SHA256).Hash.ToLower()
+```
 
 ## Content from streaming services appears black
 
@@ -74,9 +79,9 @@ Both computers must be on the same network and subnet (guest Wi-Fi networks ofte
 On the Mac, Osplay needs Local Network access (System Settings › Privacy & Security › Local
 Network); without it the list stays empty, or the menu says Bonjour is not allowed. On Windows the
 network profile should be **Private** (on a Public network Osplay suggests this once; a Public
-network can still work when the firewall allows Osplay), and Windows Defender Firewall asks once whether Osplay may
-accept connections: allow it for private networks. `OsplayViewerTest.exe --browse` shows what the
-PC sees.
+network can still work when the firewall allows Osplay). The installer allows Osplay through Windows
+Defender Firewall on private networks; for a development build Windows asks once instead: allow it
+for private networks. `OsplayViewerTest.exe --browse` shows what the PC sees.
 
 ## A paired computer is refused
 

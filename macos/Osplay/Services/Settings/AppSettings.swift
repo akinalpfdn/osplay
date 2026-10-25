@@ -34,6 +34,16 @@ final class AppSettings {
         didSet { defaults.set(showsStatsOverlay, forKey: Key.statsOverlay) }
     }
 
+    /// Looks for a newer release once a day (on by default, like the Windows shell).
+    var checksForUpdates: Bool {
+        didSet { defaults.set(checksForUpdates, forKey: Key.checksForUpdates) }
+    }
+
+    /// When the last update check got an answer.
+    var lastUpdateCheck: Date? {
+        didSet { defaults.set(lastUpdateCheck, forKey: Key.lastUpdateCheck) }
+    }
+
     /// The permissions window was finished once; afterwards it opens only when one is missing.
     var hasCompletedOnboarding: Bool {
         didSet { defaults.set(hasCompletedOnboarding, forKey: Key.onboarding) }
@@ -59,6 +69,8 @@ final class AppSettings {
         swapHotkey = Self.load(Hotkey.self, from: defaults, forKey: Key.swapHotkey) ?? Tunables.Viewer.swapHotkey
         statsHotkey = Self.load(Hotkey.self, from: defaults, forKey: Key.statsHotkey) ?? Tunables.Viewer.statsHotkey
         showsStatsOverlay = defaults.bool(forKey: Key.statsOverlay)
+        checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
+        lastUpdateCheck = defaults.object(forKey: Key.lastUpdateCheck) as? Date
         hasCompletedOnboarding = defaults.bool(forKey: Key.onboarding)
         excludedDisplays = Self.load(Set<String>.self, from: defaults, forKey: Key.excludedDisplays) ?? []
         hiDPIChoices = Self.load([String: HiDPIChoice].self, from: defaults, forKey: Key.hiDPIChoices) ?? [:]
@@ -113,5 +125,7 @@ final class AppSettings {
         static let onboarding = "hasCompletedOnboarding"
         static let arrangements = "displayArrangements"
         static let excludedDisplays = "excludedViewerDisplays"
+        static let checksForUpdates = "checksForUpdates"
+        static let lastUpdateCheck = "lastUpdateCheck"
     }
 }

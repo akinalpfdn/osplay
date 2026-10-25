@@ -4,10 +4,11 @@ import SwiftUI
 /// The Settings window: one tab per DEVPLAN group.
 struct SettingsView: View {
     let viewModel: SettingsViewModel
+    let updates: UpdatesViewModel
 
     var body: some View {
         TabView {
-            GeneralSettings(viewModel: viewModel)
+            GeneralSettings(viewModel: viewModel, updates: updates)
                 .tabItem { Label("settings.general", systemImage: Theme.Symbol.general) }
             DisplaySettings(viewModel: viewModel)
                 .tabItem { Label("settings.displays", systemImage: Theme.Symbol.displays) }
@@ -24,6 +25,7 @@ struct SettingsView: View {
 
 private struct GeneralSettings: View {
     let viewModel: SettingsViewModel
+    let updates: UpdatesViewModel
 
     var body: some View {
         Form {
@@ -67,8 +69,49 @@ private struct GeneralSettings: View {
                     .foregroundStyle(Theme.Colors.error)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            UpdateSettings(settings: viewModel.settings, updates: updates)
         }
         .formStyle(.grouped)
+    }
+}
+
+/// The daily check for a newer release, as in the Windows shell.
+private struct UpdateSettings: View {
+    let settings: AppSettings
+    let updates: UpdatesViewModel
+
+    var body: some View {
+        Section("updates.title") {
+            Toggle(
+                "updates.automatic",
+                isOn: Binding(get: { settings.checksForUpdates }, set: { settings.checksForUpdates = $0 }))
+            HStack {
+                Button("updates.checkNow") { Task { await updates.checkNow() } }
+                    .disabled(updates.isChecking)
+                if updates.available != nil {
+                    Button("updates.download", action: updates.openDownload)
+                }
+            }
+            if let result {
+                Text(result)
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Colors.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("updates.version \(updates.currentVersion.description)")
+                .font(Theme.Typography.caption)
+                .foregroundStyle(Theme.Colors.secondary)
+        }
+    }
+
+    private var result: LocalizedStringKey? {
+        switch updates.result {
+        case .checking: "updates.checking"
+        case .upToDate: "updates.upToDate"
+        case .available(let version): "updates.available \(version.description)"
+        case .failed: "updates.failed"
+        case nil: nil
+        }
     }
 }
 

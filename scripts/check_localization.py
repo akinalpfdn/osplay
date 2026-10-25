@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Fails when any user-facing string lacks a complete English or Turkish translation.
 
-Checks every String Catalog (*.xcstrings) under macos/ and every neutral .resx under windows/
-against its Turkish satellite (<name>.tr.resx), and that every key the Mac app's Swift code uses
-exists in its catalog.
+Checks every String Catalog (*.xcstrings) under macos/, every neutral .resx under windows/
+against its Turkish satellite (<name>.tr.resx), the installer's message files (<name>.en.isl
+against <name>.tr.isl), and that every key the Mac app's Swift code uses exists in its catalog.
 """
 
 from __future__ import annotations
@@ -75,6 +75,41 @@ def check_resx(neutral: Path) -> list[str]:
     return problems
 
 
+def isl_messages(path: Path) -> dict[str, str]:
+    """The [CustomMessages] of an Inno Setup message file, which must be UTF-8 with a BOM."""
+    messages: dict[str, str] = {}
+    in_section = False
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("["):
+            in_section = stripped.lower() == "[custommessages]"
+        elif in_section and stripped and not stripped.startswith(";") and "=" in stripped:
+            key, value = stripped.split("=", 1)
+            messages[key.strip()] = value.strip()
+    return messages
+
+
+def check_isl(english: Path) -> list[str]:
+    turkish = english.with_name(english.name.replace(".en.isl", ".tr.isl"))
+    if not turkish.exists():
+        return [f"{english.relative_to(ROOT)}: missing Turkish file {turkish.name}"]
+    problems = [
+        f"{path.relative_to(ROOT)}: not UTF-8 with a BOM, so Inno Setup misreads it"
+        for path in (english, turkish)
+        if not path.read_bytes().startswith(b"\xef\xbb\xbf")
+    ]
+    source, target = isl_messages(english), isl_messages(turkish)
+    for key in sorted(source.keys() - target.keys()):
+        problems.append(f"{turkish.relative_to(ROOT)}: missing '{key}'")
+    for key in sorted(target.keys() - source.keys()):
+        problems.append(f"{turkish.relative_to(ROOT)}: '{key}' does not exist in {english.name}")
+    for path, entries in ((english, source), (turkish, target)):
+        for key, value in entries.items():
+            if not value:
+                problems.append(f"{path.relative_to(ROOT)}: '{key}' is empty")
+    return problems
+
+
 def placeholder_count(key: str) -> int:
     return len(PLACEHOLDER.findall(key))
 
@@ -118,11 +153,17 @@ def main() -> int:
     problems += check_swift_keys(app_catalog, sorted((ROOT / "macos/Osplay").rglob("*.swift")))
     for resource in resources:
         problems += check_resx(resource)
+    installer_messages = sorted((ROOT / "windows/installer").glob("*.en.isl"))
+    for messages in installer_messages:
+        problems += check_isl(messages)
 
     if problems:
         print("\n".join(problems), file=sys.stderr)
         return 1
-    print(f"Localization complete: {len(catalogs)} string catalog(s), {len(resources)} resx file(s).")
+    print(
+        f"Localization complete: {len(catalogs)} string catalog(s), {len(resources)} resx file(s), "
+        f"{len(installer_messages)} installer message file(s)."
+    )
     return 0
 
 

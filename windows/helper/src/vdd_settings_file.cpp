@@ -28,6 +28,20 @@ struct HandleCloser {
 
 } // namespace
 
+bool VddSettingsFile::remove() {
+    const std::filesystem::path directory = settings_directory();
+    std::error_code file_error;
+    std::filesystem::remove(directory / kVddSettingsFileName, file_error);
+    if (file_error) {
+        log_.error("Cannot delete the driver settings file: " + file_error.message());
+        return false;
+    }
+    // Fails while other files are there; the directory then stays.
+    std::error_code directory_error;
+    std::filesystem::remove(directory, directory_error);
+    return true;
+}
+
 bool VddSettingsFile::write(const std::string& contents) {
     const std::filesystem::path directory = settings_directory();
     std::error_code directory_error;

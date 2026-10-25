@@ -25,6 +25,19 @@ int fail(const char* what) {
     return static_cast<int>(error == 0 ? 1 : error);
 }
 
+/// Asks a running service to stop and waits until it has, so its executable can be replaced.
+void stop_and_wait(SC_HANDLE service) {
+    SERVICE_STATUS status{};
+    if (!ControlService(service, SERVICE_CONTROL_STOP, &status)) {
+        return; // not running
+    }
+    const ULONGLONG deadline = GetTickCount64() + kServiceStopTimeoutMilliseconds;
+    while (QueryServiceStatus(service, &status) && status.dwCurrentState != SERVICE_STOPPED &&
+           GetTickCount64() < deadline) {
+        Sleep(250);
+    }
+}
+
 } // namespace
 
 int install_service() {
@@ -41,15 +54,24 @@ int install_service() {
     if (!manager) {
         return fail("OpenSCManagerW");
     }
-    const ServiceHandle service(
-        CreateServiceW(manager.get(), kServiceName, kServiceDisplayName, SERVICE_ALL_ACCESS,
-                       SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL,
-                       command.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr));
-    if (!service) {
-        if (GetLastError() == ERROR_SERVICE_EXISTS) {
-            std::cerr << "The service is already installed. Run --uninstall first.\n";
-            return static_cast<int>(ERROR_SERVICE_EXISTS);
+    ServiceHandle service(CreateServiceW(manager.get(), kServiceName, kServiceDisplayName,
+                                         SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
+                                         SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, command.c_str(),
+                                         nullptr, nullptr, nullptr, nullptr, nullptr));
+    if (!service && GetLastError() == ERROR_SERVICE_EXISTS) {
+        // An upgrade, or a service from another build folder: point it at this executable.
+        service.reset(OpenServiceW(manager.get(), kServiceName, SERVICE_ALL_ACCESS));
+        if (!service) {
+            return fail("OpenServiceW");
         }
+        stop_and_wait(service.get());
+        if (!ChangeServiceConfigW(service.get(), SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START,
+                                  SERVICE_ERROR_NORMAL, command.c_str(), nullptr, nullptr, nullptr,
+                                  nullptr, nullptr, kServiceDisplayName)) {
+            return fail("ChangeServiceConfigW");
+        }
+    }
+    if (!service) {
         return fail("CreateServiceW");
     }
 
@@ -68,7 +90,8 @@ int install_service() {
     failure.lpsaActions = actions.data();
     ChangeServiceConfig2W(service.get(), SERVICE_CONFIG_FAILURE_ACTIONS, &failure);
 
-    if (!StartServiceW(service.get(), 0, nullptr)) {
+    if (!StartServiceW(service.get(), 0, nullptr) &&
+        GetLastError() != ERROR_SERVICE_ALREADY_RUNNING) {
         return fail("StartServiceW");
     }
     std::cout << "OsplayHelper installed and started.\n";
@@ -82,22 +105,36 @@ int uninstall_service() {
     }
     const ServiceHandle service(
         OpenServiceW(manager.get(), kServiceName, SERVICE_STOP | SERVICE_QUERY_STATUS | DELETE));
+    if (!service && GetLastError() == ERROR_SERVICE_DOES_NOT_EXIST) {
+        std::cout << "OsplayHelper is not installed.\n";
+        return 0; // an uninstaller may run after a manual --uninstall
+    }
     if (!service) {
         return fail("OpenServiceW");
     }
 
-    SERVICE_STATUS status{};
-    if (ControlService(service.get(), SERVICE_CONTROL_STOP, &status)) {
-        const ULONGLONG deadline = GetTickCount64() + kServiceStopTimeoutMilliseconds;
-        while (QueryServiceStatus(service.get(), &status) &&
-               status.dwCurrentState != SERVICE_STOPPED && GetTickCount64() < deadline) {
-            Sleep(250);
-        }
-    }
+    stop_and_wait(service.get());
     if (!DeleteService(service.get())) {
         return fail("DeleteService");
     }
     std::cout << "OsplayHelper stopped and removed.\n";
+    return 0;
+}
+
+int stop_service() {
+    const ServiceHandle manager(OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT));
+    if (!manager) {
+        return fail("OpenSCManagerW");
+    }
+    const ServiceHandle service(
+        OpenServiceW(manager.get(), kServiceName, SERVICE_STOP | SERVICE_QUERY_STATUS));
+    if (!service && GetLastError() == ERROR_SERVICE_DOES_NOT_EXIST) {
+        return 0;
+    }
+    if (!service) {
+        return fail("OpenServiceW");
+    }
+    stop_and_wait(service.get());
     return 0;
 }
 

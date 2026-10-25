@@ -11,8 +11,12 @@ indent_size = 4
 [*.{yml,yaml,json,xcstrings,plist,xml,xaml,resx,csproj,props,targets,slnx,manifest}]
 indent_size = 2
 
-[*.{sln,slnx,csproj,props,targets,iss,bat,cmd}]
+[*.{sln,slnx,csproj,props,targets,iss,isl,bat,cmd}]
 end_of_line = crlf
+
+# Inno Setup reads message files as UTF-8 only with a byte order mark.
+[*.isl]
+charset = utf-8-bom
 
 [*.md]
 trim_trailing_whitespace = false
