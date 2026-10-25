@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <tuple>
 #include <utility>
 
 namespace osplay::media {
