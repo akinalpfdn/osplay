@@ -21,11 +21,18 @@ public partial class App : Application, IDisposable
     private PanelWindow? _panel;
     private SettingsWindow? _settingsWindow;
     private SettingsViewModel? _settingsViewModel;
+    private SingleInstance? _instance;
     private bool _quitting;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        _instance = SingleInstance.Claim();
+        if (_instance is null)
+        {
+            Shutdown(); // the running Osplay opens its panel instead
+            return;
+        }
         ApplySystemTheme();
 
         var settings = AppSettings.Load();
@@ -45,6 +52,7 @@ public partial class App : Application, IDisposable
         _trayIcon.DataContext = new TrayViewModel(_connection, _panel.Toggle, OpenSettings, QuitAsync);
         _trayIconTheme = new TrayIconTheme(_trayIcon);
         _trayIcon.ForceCreate(enablesEfficiencyMode: false);
+        _instance.OnShowRequested(() => Dispatcher.BeginInvoke(ShowPanel));
 
         _ = StartAsync(updates);
     }
@@ -75,6 +83,14 @@ public partial class App : Application, IDisposable
         }
     }
 
+    private void ShowPanel()
+    {
+        if (_panel is { IsVisible: false } && !_quitting)
+        {
+            _panel.Toggle();
+        }
+    }
+
     private void OpenSettings()
     {
         _panel?.Hide();
@@ -100,6 +116,8 @@ public partial class App : Application, IDisposable
         _trayIcon = null;
         _connection?.Dispose();
         _connection = null;
+        _instance?.Dispose();
+        _instance = null;
         GC.SuppressFinalize(this);
     }
 
