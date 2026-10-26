@@ -51,6 +51,15 @@ jobs:
           xcodebuild -project Osplay.xcodeproj -scheme Osplay -destination 'platform=macOS' \
             -derivedDataPath DerivedData -quiet test
 
+      - name: iPad app — build, test on a simulator
+        working-directory: macos
+        run: |
+          # Any available iPad simulator; the runner image decides which models exist.
+          simulator=$(xcrun simctl list devices available | grep -m 1 -oE 'iPad[^(]*\([0-9A-F-]{36}\)' | grep -oE '[0-9A-F-]{36}')
+          test -n "$simulator" || { echo "No iPad simulator available"; exit 1; }
+          xcodebuild -project Osplay.xcodeproj -scheme OsplayPad -destination "platform=iOS Simulator,id=$simulator" \
+            -derivedDataPath DerivedData -quiet test
+
   macos-sanitizers:
     name: macOS sanitizers
     runs-on: macos-26
