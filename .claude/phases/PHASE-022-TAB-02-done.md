@@ -1,5 +1,5 @@
 # Phase 022 (TAB-02) — Android tablet viewer over Wi-Fi
-Status: ACTIVE
+Status: DONE — Google Play release and the PC → Android test deferred (user decision 2026-10-27)
 
 DEVPLAN reference: Phase 15 (part TAB-02). Depends on: PHASE-021 (TAB-01).
 
@@ -25,3 +25,4 @@ An Android tablet shows a Mac's or a PC's extra display over Wi-Fi, from an Andr
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
 - 2026-10-27 — User decision: Google Play, application ID `com.akinalpfdn.osplay`, minimum Android 12; test on the Galaxy S23 Ultra; phones are supported as displays too.
+- 2026-10-27 — User decision: the Google Play release comes later, with the App Store submission; PC → Android is tested on the 0.2.0 release draft.

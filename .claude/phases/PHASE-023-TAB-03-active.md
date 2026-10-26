@@ -1,5 +1,5 @@
 # Phase 023 (TAB-03) — USB connections for tablets
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 15 (part TAB-03). Depends on: PHASE-022 (TAB-02).
 
