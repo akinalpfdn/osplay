@@ -1,6 +1,6 @@
 # Osplay wire protocol
 
-Version 1.1. This document is authoritative: `core/src/protocol/` implements it, and
+Version 1.2. This document is authoritative: `core/src/protocol/` implements it, and
 `protocol/tools/generate_fixtures.py` independently encodes the binary fixtures in
 `protocol/fixtures/` from it. Both implementations must agree byte for byte.
 
@@ -52,7 +52,11 @@ Service type `_osplay._tcp`; the SRV record carries the TCP control port. TXT re
 | `name` | device name (UTF-8) |
 | `id` | device ID: lowercase hex of the first 16 bytes of BLAKE2b-256 over the static public key |
 | `roles` | `host`, `viewer` or `host,viewer` |
-| `os` | `macos` or `windows` |
+| `os` | `macos`, `windows`, `ipados` or `android` |
+| `pm` | protocol minor version, decimal (`2`); added in 1.2, so a record without it comes from Osplay 0.1 |
+
+Osplay 0.1 (protocol 1.1 and older) refuses the `ipados` and `android` platforms in Hello, so a
+tablet tells the user to update a computer whose record has no `pm` instead of connecting to it.
 
 A host listens again on the same TCP port after every session (falling back to any free port when
 it is taken). Bonjour browsing reports instances, not changed ports, so a viewer that resolved the
@@ -100,8 +104,8 @@ Stream IDs are 0–3. Monitor IDs are 0–255 and chosen by the viewer.
 | Field | Type | Values |
 |-------|------|--------|
 | role | u8 | 1 host, 2 viewer |
-| platform | u8 | 1 macOS, 2 Windows |
-| protocol_minor | u8 | minor version of the sender (1) |
+| platform | u8 | 1 macOS, 2 Windows, 3 iPadOS, 4 Android (3 and 4 from minor version 2) |
+| protocol_minor | u8 | minor version of the sender (2) |
 | reserved | u8 | 0 |
 | device_name | string | 1–64 bytes |
 

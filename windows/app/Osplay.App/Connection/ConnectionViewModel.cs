@@ -420,7 +420,9 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
 
     private void OnViewerArrived(HostEntry entry, Platform platform, string name)
     {
-        entry.Viewer = new ViewerItem(name, platform == Platform.MacOS, new AsyncRelayCommand(entry.Host.StopAsync));
+        entry.Viewer = new ViewerItem(
+            name, platform == Platform.MacOS, platform is Platform.IPadOS or Platform.Android,
+            new AsyncRelayCommand(entry.Host.StopAsync));
         Viewers.Add(entry.Viewer);
         UpdateSharingStatus();
         _ = ListenAsync(); // the next computer can connect while this one pairs and streams

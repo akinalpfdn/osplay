@@ -177,6 +177,7 @@ osplay_engine_result osplay_engine_advertiser_start(const char* name_utf8, uint8
             return identity;
         }
         advertisement.protocol_version = OSPLAY_PROTOCOL_VERSION;
+        advertisement.protocol_minor = OSPLAY_PROTOCOL_MINOR;
         advertisement.platform = OSPLAY_PLATFORM_WINDOWS;
         advertisement.roles = roles;
         copy_text(name_utf8, advertisement.name);

@@ -128,6 +128,9 @@
                         <DataTrigger Binding="{Binding IsMac}" Value="True">
                           <Setter Property="Symbol" Value="Laptop24" />
                         </DataTrigger>
+                        <DataTrigger Binding="{Binding IsTablet}" Value="True">
+                          <Setter Property="Symbol" Value="Tablet24" />
+                        </DataTrigger>
                       </Style.Triggers>
                     </Style>
                   </ui:SymbolIcon.Style>

@@ -14,23 +14,30 @@ public struct Advertisement: Sendable, Equatable {
     /// The same type as a Swift string, for Network.framework.
     public static let serviceTypeName: String = OSPLAY_SERVICE_TYPE
     public static let protocolVersion = UInt32(OSPLAY_PROTOCOL_VERSION)
+    public static let protocolMinor = UInt8(OSPLAY_PROTOCOL_MINOR)
 
     public let protocolVersion: UInt32
+    /// 0 for Osplay 0.1, which sends no minor version and refuses iPads and Android tablets.
+    public let protocolMinor: UInt8
     public let platform: PeerPlatform
     public let roles: Roles
     /// Lowercase hex, as in the TXT record.
     public let deviceID: String
     public let name: String
 
-    /// This device: the current protocol version, macOS, and the identity's device ID.
+    /// This device: the current protocol version and platform, and the identity's device ID.
     public init(identity: DeviceIdentity, name: String, roles: Roles) {
         self.init(
-            protocolVersion: Self.protocolVersion, platform: .macOS, roles: roles, deviceID: identity.deviceID,
-            name: name)
+            protocolVersion: Self.protocolVersion, protocolMinor: Self.protocolMinor, platform: .current,
+            roles: roles, deviceID: identity.deviceID, name: name)
     }
 
-    public init(protocolVersion: UInt32, platform: PeerPlatform, roles: Roles, deviceID: String, name: String) {
+    public init(
+        protocolVersion: UInt32, protocolMinor: UInt8 = Self.protocolMinor, platform: PeerPlatform, roles: Roles,
+        deviceID: String, name: String
+    ) {
         self.protocolVersion = protocolVersion
+        self.protocolMinor = protocolMinor
         self.platform = platform
         self.roles = roles
         self.deviceID = deviceID
@@ -45,12 +52,14 @@ public struct Advertisement: Sendable, Equatable {
         Self.write(txtRecord[OSPLAY_TXT_KEY_DEVICE_ID] ?? "", into: &record.device_id)
         Self.write(txtRecord[OSPLAY_TXT_KEY_ROLES] ?? "", into: &record.roles)
         Self.write(txtRecord[OSPLAY_TXT_KEY_OS] ?? "", into: &record.os)
+        Self.write(txtRecord[OSPLAY_TXT_KEY_PROTOCOL_MINOR] ?? "", into: &record.protocol_minor)
         var parsed = osplay_advertisement()
         if let error = CoreError(result: osplay_advertisement_from_txt(&record, &parsed)) {
             throw error
         }
         self.init(
-            protocolVersion: parsed.protocol_version, platform: PeerPlatform(parsed.platform),
+            protocolVersion: parsed.protocol_version, protocolMinor: parsed.protocol_minor,
+            platform: PeerPlatform(parsed.platform),
             roles: Roles(rawValue: parsed.roles), deviceID: Self.hex(of: parsed.device_id),
             name: Self.read(parsed.name))
     }
@@ -59,6 +68,7 @@ public struct Advertisement: Sendable, Equatable {
     public func txtRecord() throws(CoreError) -> [String: String] {
         var advertisement = osplay_advertisement()
         advertisement.protocol_version = protocolVersion
+        advertisement.protocol_minor = protocolMinor
         advertisement.platform = platform.raw
         advertisement.roles = roles.rawValue
         guard let idBytes = Self.bytes(ofHex: deviceID), idBytes.count == Int(OSPLAY_DEVICE_ID_SIZE) else {
@@ -79,6 +89,7 @@ public struct Advertisement: Sendable, Equatable {
             OSPLAY_TXT_KEY_DEVICE_ID: Self.read(record.device_id),
             OSPLAY_TXT_KEY_ROLES: Self.read(record.roles),
             OSPLAY_TXT_KEY_OS: Self.read(record.os),
+            OSPLAY_TXT_KEY_PROTOCOL_MINOR: Self.read(record.protocol_minor),
         ]
     }
 

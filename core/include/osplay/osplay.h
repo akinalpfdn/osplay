@@ -28,6 +28,8 @@ typedef struct osplay_version {
 
 /* Wire protocol constants (docs/PROTOCOL.md). */
 #define OSPLAY_PROTOCOL_VERSION 1
+/* 1.2: the iPadOS and Android platforms and the "pm" TXT key (PROTOCOL.md). */
+#define OSPLAY_PROTOCOL_MINOR 2
 #define OSPLAY_MAX_CONTROL_MESSAGE_SIZE 4096
 #define OSPLAY_MAX_MEDIA_PLAINTEXT_SIZE 1184
 
@@ -193,6 +195,8 @@ typedef enum osplay_log_level {
 typedef enum osplay_platform {
     OSPLAY_PLATFORM_MACOS = 1,
     OSPLAY_PLATFORM_WINDOWS = 2,
+    OSPLAY_PLATFORM_IPADOS = 3,  /* protocol 1.2 */
+    OSPLAY_PLATFORM_ANDROID = 4, /* protocol 1.2 */
     OSPLAY_PLATFORM_MAX_ENUM = 0x7FFFFFFF
 } osplay_platform;
 
@@ -220,7 +224,8 @@ typedef enum osplay_cursor_mode {
 #define OSPLAY_TXT_KEY_DEVICE_ID "id"
 #define OSPLAY_TXT_KEY_ROLES "roles"
 #define OSPLAY_TXT_KEY_OS "os"
-#define OSPLAY_TXT_VALUE_SIZE 65 /* the longest value (the 64-byte name) and its NUL */
+#define OSPLAY_TXT_KEY_PROTOCOL_MINOR "pm" /* protocol 1.2; absent from Osplay 0.1 records */
+#define OSPLAY_TXT_VALUE_SIZE 65           /* the longest value (the 64-byte name) and its NUL */
 #define OSPLAY_ROLE_HOST 1U
 #define OSPLAY_ROLE_VIEWER 2U
 
@@ -228,6 +233,9 @@ typedef struct osplay_advertisement {
     uint32_t protocol_version; /* OSPLAY_PROTOCOL_VERSION when advertising */
     osplay_platform platform;
     uint8_t roles; /* OSPLAY_ROLE_* bits, at least one */
+    /* OSPLAY_PROTOCOL_MINOR when advertising; 0 in a peer's record without "pm" (Osplay 0.1,
+     * which refuses the iPadOS and Android platforms). */
+    uint8_t protocol_minor;
     uint8_t device_id[OSPLAY_DEVICE_ID_SIZE];
     char name[OSPLAY_TXT_VALUE_SIZE]; /* NUL-terminated UTF-8, 1 to 64 bytes */
 } osplay_advertisement;
@@ -239,6 +247,7 @@ typedef struct osplay_txt_record {
     char device_id[OSPLAY_TXT_VALUE_SIZE];
     char roles[OSPLAY_TXT_VALUE_SIZE];
     char os[OSPLAY_TXT_VALUE_SIZE];
+    char protocol_minor[OSPLAY_TXT_VALUE_SIZE];
 } osplay_txt_record;
 
 osplay_result osplay_advertisement_to_txt(const osplay_advertisement* advertisement,

@@ -332,7 +332,7 @@ private func withSessionConfig(
     return device.name.withCString { name in
         rawMonitors.withUnsafeBufferPointer { monitorBuffer in
             var config = osplay_session_config(
-                platform: PeerPlatform.macOS.raw, device_name: name, capabilities: device.capabilities.raw,
+                platform: PeerPlatform.current.raw, device_name: name, capabilities: device.capabilities.raw,
                 monitors: monitorBuffer.isEmpty ? nil : monitorBuffer.baseAddress, monitor_count: monitorBuffer.count,
                 control_port: controlPort)
             return body(&config)

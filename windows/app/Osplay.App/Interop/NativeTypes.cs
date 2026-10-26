@@ -91,6 +91,8 @@ internal enum Platform
 {
     MacOS = 1,
     Windows = 2,
+    IPadOS = 3,
+    Android = 4,
 }
 
 /// <summary>OSPLAY_ROLE_* bits.</summary>
@@ -120,6 +122,7 @@ internal unsafe struct NativeAdvertisement
     public uint ProtocolVersion;
     public Platform Platform;
     public Roles Roles;
+    public byte ProtocolMinor;
     public fixed byte DeviceId[NativeSizes.DeviceIdSize];
     public fixed byte Name[NativeSizes.NameSize];
 }

@@ -26,6 +26,10 @@ static_assert(OSPLAY_MAX_STRING_BYTES == protocol::kMaxStringBytes);
 static_assert(OSPLAY_MAX_MONITORS == protocol::kMaxMonitors);
 static_assert(OSPLAY_MAX_STREAMS == protocol::kMaxStreams);
 static_assert(OSPLAY_CODEC_H264_ANNEX_B == protocol::kCodecH264AnnexB);
+static_assert(OSPLAY_PLATFORM_MACOS == static_cast<int>(protocol::Platform::MacOS) &&
+              OSPLAY_PLATFORM_WINDOWS == static_cast<int>(protocol::Platform::Windows) &&
+              OSPLAY_PLATFORM_IPADOS == static_cast<int>(protocol::Platform::IPadOS) &&
+              OSPLAY_PLATFORM_ANDROID == static_cast<int>(protocol::Platform::Android));
 static_assert(static_cast<int>(OSPLAY_SESSION_CLOSED) ==
               static_cast<int>(session::SessionState::Closed));
 static_assert(static_cast<int>(OSPLAY_LOG_ERROR) == static_cast<int>(session::LogLevel::Error));
@@ -66,13 +70,18 @@ std::optional<protocol::Platform> platform_from(osplay_platform platform) {
         return protocol::Platform::MacOS;
     case OSPLAY_PLATFORM_WINDOWS:
         return protocol::Platform::Windows;
+    case OSPLAY_PLATFORM_IPADOS:
+        return protocol::Platform::IPadOS;
+    case OSPLAY_PLATFORM_ANDROID:
+        return protocol::Platform::Android;
     default:
         return std::nullopt;
     }
 }
 
 osplay_platform platform_to(protocol::Platform platform) {
-    return platform == protocol::Platform::MacOS ? OSPLAY_PLATFORM_MACOS : OSPLAY_PLATFORM_WINDOWS;
+    // The values are the same on the wire and in the C API.
+    return static_cast<osplay_platform>(platform);
 }
 
 std::optional<protocol::H264Profile> profile_from(osplay_h264_profile profile) {

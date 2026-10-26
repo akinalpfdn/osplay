@@ -1,3 +1,4 @@
+import CoreBridge
 import SwiftUI
 
 /// The single source of visual values. Views use these tokens and never literal values.
@@ -108,6 +109,16 @@ enum Theme {
     enum Symbol {
         static let mac = "laptopcomputer"
         static let windows = "pc"
+        static let tablet = "ipad.landscape"
+
+        /// The symbol for the other computer's or tablet's platform.
+        static func device(_ platform: PeerPlatform) -> String {
+            switch platform {
+            case .macOS: mac
+            case .windows: windows
+            case .iPadOS, .android: tablet
+            }
+        }
         static let sharing = "display.2"
         static let viewing = "rectangle.on.rectangle"
         static let paired = "checkmark.seal.fill"

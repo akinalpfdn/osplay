@@ -56,8 +56,7 @@ Check check_text(const std::string& text, bool allow_empty) {
 
 Check validate(const Hello& m) {
     const bool role_ok = m.role == Role::Host || m.role == Role::Viewer;
-    const bool platform_ok = m.platform == Platform::MacOS || m.platform == Platform::Windows;
-    if (!role_ok || !platform_ok) {
+    if (!role_ok || !is_known(m.platform)) {
         return fail(Error::ValueOutOfRange);
     }
     return check_text(m.device_name, false);

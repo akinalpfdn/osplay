@@ -587,3 +587,10 @@ choices the plan leaves open are logged here.
 **Why:** A separate module would need almost every type made `public` and its own test target; compiling the same sources into both apps keeps internal access, the existing tests and the code unchanged. A copy would drift.
 **Trade-offs:** The boundary is a folder, not enforced by the compiler; Mac-only code could creep into `Shared` (the iPad build catches it).
 **Revisit if:** The shared code grows large enough to need its own tests on iOS, or a third Apple target appears.
+
+## 2026-10-26 — Protocol 1.2: tablet platforms and the "pm" TXT key
+**Chosen:** Platforms 3 (iPadOS) and 4 (Android) are added now, for both TAB-01 and TAB-02. The minor version becomes 2, and the Bonjour record gains a `pm` key with it. A record without `pm` comes from Osplay 0.1.
+**Alternatives:** iPads announcing themselves as macOS (Osplay 0.1 would accept them, but the host would show and treat an iPad as a Mac); adding Android only in TAB-02 (a second protocol change); no `pm` key (an iPad would connect to a 0.1 host and fail with a closed connection).
+**Why:** Osplay 0.1 validates the platform in Hello and in the TXT record and refuses unknown values, so tablets need a newer desktop app in any case. With `pm` an iPad can tell which computers need that update before it tries.
+**Trade-offs:** iPads and Android tablets work only with Osplay 0.2 or later on the computer.
+**Revisit if:** Another platform is added (it takes the next value and the next minor version).

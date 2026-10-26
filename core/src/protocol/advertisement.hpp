@@ -23,19 +23,24 @@ inline constexpr std::uint8_t kRoleViewer = 2U;
 
 struct Advertisement {
     std::uint32_t protocol_version = 0;
+    /// 0 when the record has no "pm" key: Osplay 0.1 (protocol 1.1 and older), which refuses
+    /// the iPadOS and Android platforms.
+    std::uint8_t protocol_minor = 0;
     Platform platform = Platform::MacOS;
     std::uint8_t roles = 0; ///< kRole* bits, at least one
     std::array<std::uint8_t, kDeviceIdSize> device_id{};
     std::string name;
 };
 
-/// The five TXT values in key order pv, name, id, roles, os.
+/// The TXT values in key order pv, name, id, roles, os, pm; pm may be empty (protocol 1.1 and
+/// older did not send it).
 struct TxtValues {
     std::string protocol_version;
     std::string name;
     std::string device_id;
     std::string roles;
     std::string os;
+    std::string protocol_minor;
 };
 
 /// InvalidString for a bad name, ValueOutOfRange for anything else invalid.

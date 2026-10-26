@@ -27,12 +27,14 @@ public sealed class DeviceItem(string name, string detail, bool isCompatible, IR
 }
 
 /// <summary>A computer this PC extends onto: one row in the panel (DECISIONS.md, 2026-10-25).</summary>
-public sealed partial class ViewerItem(string name, bool isMac, IRelayCommand disconnect) : ObservableObject
+public sealed partial class ViewerItem(string name, bool isMac, bool isTablet, IRelayCommand disconnect) : ObservableObject
 {
     public string Name { get; } = name;
 
-    /// <summary>Its icon: a laptop for a Mac, a desktop for a PC.</summary>
+    /// <summary>Its icon: a laptop for a Mac, a tablet for an iPad or Android tablet, a desktop for a PC.</summary>
     public bool IsMac { get; } = isMac;
+
+    public bool IsTablet { get; } = isTablet;
 
     public IRelayCommand DisconnectCommand { get; } = disconnect;
 

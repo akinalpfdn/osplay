@@ -101,6 +101,18 @@ TEST(ControlCodec, BoundaryValuesOfEveryTypeRoundTrip) {
     }
 }
 
+TEST(ControlCodec, TabletsSayHelloWithTheirPlatform) {
+    for (const auto platform : {protocol::Platform::IPadOS, protocol::Platform::Android}) {
+        const ControlMessage hello = protocol::Hello{
+            .role = protocol::Role::Viewer, .platform = platform, .device_name = "Tablet"};
+        const auto encoded = protocol::encode_control(hello);
+        ASSERT_TRUE(encoded.has_value());
+        const auto decoded = protocol::decode_control(encoded.value());
+        ASSERT_TRUE(decoded.has_value());
+        EXPECT_EQ(decoded.value(), hello);
+    }
+}
+
 TEST(ControlCodec, EncoderRefusesWhatTheDecoderWouldReject) {
     const auto error = [](const ControlMessage& message) {
         const auto encoded = protocol::encode_control(message);
@@ -111,6 +123,9 @@ TEST(ControlCodec, EncoderRefusesWhatTheDecoderWouldReject) {
     EXPECT_EQ(error(protocol::Hello{.device_name = std::string(65, 'x')}), Error::InvalidString);
     EXPECT_EQ(error(protocol::Hello{.role = static_cast<protocol::Role>(0), .device_name = "PC"}),
               Error::ValueOutOfRange);
+    EXPECT_EQ(
+        error(protocol::Hello{.platform = static_cast<protocol::Platform>(5), .device_name = "PC"}),
+        Error::ValueOutOfRange);
     EXPECT_EQ(
         error(protocol::HandshakeMessage{.step = 1, .payload = std::vector<std::uint8_t>(1025)}),
         Error::ValueOutOfRange);
