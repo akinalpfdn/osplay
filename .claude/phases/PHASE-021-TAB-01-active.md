@@ -7,7 +7,7 @@ DEVPLAN reference: Phase 15 (part TAB-01). Depends on: Phase 14.
 An iPad shows a Mac's or a PC's extra display over Wi-Fi, from an iPad app that is a viewer only.
 
 ## Tasks
-- [ ] Decide the minimum iPadOS version and whether the iPad app is a separate App Store app or part of a universal app (ask the user).
+- [x] Minimum iPadOS 18 (user decision 2026-10-26); a separate App Store app, since the Mac app cannot be in the Mac App Store (private CGVirtualDisplay API).
 - [ ] `Package.swift`: build the core and CoreBridge for iPadOS; core tests on the iOS simulator.
 - [ ] Move the Mac viewer pipeline (Bonjour browse, session, H.264 decode, presentation, statistics overlay) into a module shared by the macOS app and the iPad app; the Mac app behaves the same.
 - [ ] iPad app (XcodeGen target): nearby computers, pairing code, paired devices, full-screen viewer offering one display at the iPad's native resolution, hide and disconnect.
@@ -28,3 +28,4 @@ An iPad shows a Mac's or a PC's extra display over Wi-Fi, from an iPad app that 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
 - 2026-10-26 — User decision: tablets are viewers only and forward no touch input.
+- 2026-10-26 — User decision: minimum iPadOS 18. Test device: the user's base iPad (11th generation, A16, 2025).
