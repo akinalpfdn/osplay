@@ -5,7 +5,7 @@ import PackageDescription
 // the CMake build in core/ is the reference build and must list the same sources.
 let package = Package(
     name: "OsplayCore",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v14), .iOS(.v18)],
     products: [
         .library(name: "CoreBridge", targets: ["CoreBridge"])
     ],

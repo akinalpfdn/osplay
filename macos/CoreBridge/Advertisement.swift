@@ -12,7 +12,7 @@ public struct Advertisement: Sendable, Equatable {
 
     public static let serviceType = OSPLAY_SERVICE_TYPE
     /// The same type as a Swift string, for Network.framework.
-    public static let serviceTypeName = String(cString: OSPLAY_SERVICE_TYPE)
+    public static let serviceTypeName: String = OSPLAY_SERVICE_TYPE
     public static let protocolVersion = UInt32(OSPLAY_PROTOCOL_VERSION)
 
     public let protocolVersion: UInt32

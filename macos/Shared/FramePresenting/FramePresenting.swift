@@ -4,10 +4,15 @@ import Foundation
 
 /// Where a stream is shown.
 enum PresentationTarget: Hashable, Sendable {
-    /// A borderless window covering this display; menu bar and Dock are hidden.
-    case fullScreen(CGDirectDisplayID)
-    /// An ordinary window (debug loopback).
-    case window(title: String)
+    #if os(macOS)
+        /// A borderless window covering this display; menu bar and Dock are hidden.
+        case fullScreen(CGDirectDisplayID)
+        /// An ordinary window (debug loopback).
+        case window(title: String)
+    #else
+        /// The app's full-screen viewer, on the device's only screen.
+        case screen
+    #endif
 }
 
 /// Accepts decoded frames from the decoder's thread. Kept apart from the presenter so the frame

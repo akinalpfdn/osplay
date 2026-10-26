@@ -30,6 +30,8 @@ targets:
     platform: macOS
     sources:
       - path: Osplay
+      # Code the iPad app shares with the Mac app (viewer pipeline, discovery, key store).
+      - path: Shared
     dependencies:
       - package: OsplayCore
         product: CoreBridge

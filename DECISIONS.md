@@ -580,3 +580,10 @@ choices the plan leaves open are logged here.
 **Why:** iPadOS and Android give apps no system virtual displays, so a tablet can only be a display. The iPad reuses most of the Mac viewer, so it comes first. USB through tethering costs Android almost nothing, while the iPad needs a media transport without UDP. Apple has no Wi-Fi Direct for apps, so it can only join Windows and Android.
 **Trade-offs:** Without touch input a tablet is a passive display. The iPad's USB path depends on Apple Devices being installed on Windows. Wi-Fi Direct shares the Wi-Fi card's channel with the router connection.
 **Revisit if:** Users ask for touch input, or Apple opens a peer-to-peer Wi-Fi API.
+
+## 2026-10-26 — Code shared by the Mac and iPad apps lives in macos/Shared
+**Chosen:** The viewer pipeline, decoder, Bonjour discovery, key store, logging and the shared tunables move to `macos/Shared/`, which XcodeGen compiles into both the macOS and the iPad app targets. Platform parts (AppKit presenter, IOKit power assertion, local display list) stay in each app.
+**Alternatives:** A Swift package target or framework shared by both apps; a full copy in the iPad app.
+**Why:** A separate module would need almost every type made `public` and its own test target; compiling the same sources into both apps keeps internal access, the existing tests and the code unchanged. A copy would drift.
+**Trade-offs:** The boundary is a folder, not enforced by the compiler; Mac-only code could creep into `Shared` (the iPad build catches it).
+**Revisit if:** The shared code grows large enough to need its own tests on iOS, or a third Apple target appears.
