@@ -7,11 +7,11 @@ DEVPLAN reference: Phase 15 (part TAB-03). Depends on: PHASE-022 (TAB-02).
 A tablet connected to the computer with a USB cable works as a display with Wi-Fi off.
 
 ## Tasks
-- [ ] Android: viewing over USB tethering (the cable makes an IP network; discovery and media work unchanged); the app explains how to turn tethering on; check tablets without mobile data.
-- [ ] Media carried on the control stream: a transport mode in `core` for links without UDP, negotiated in the handshake; PROTOCOL.md and the fuzzers cover the new framing.
-- [ ] iPad over USB: the host reaches the iPad app through usbmuxd (built into macOS; Apple Devices on Windows) and finds USB-connected iPads without Bonjour.
-- [ ] Mac and Windows hosts list USB-connected tablets next to the nearby computers.
-- [ ] Docs: README, TROUBLESHOOTING (Apple Devices on Windows, tethering), TESTING.
+- [x] Android: viewing over USB tethering (the cable makes an IP network; discovery and media work unchanged); the app explains how to turn tethering on; check tablets without mobile data.
+- [x] Media carried on the control stream: a transport mode in `core` for links without UDP, negotiated in the handshake; PROTOCOL.md and the fuzzers cover the new framing.
+- [x] iPad over USB: the host reaches the iPad app through usbmuxd (built into macOS; Apple Devices on Windows) and finds USB-connected iPads without Bonjour.
+- [x] Mac and Windows hosts list USB-connected tablets next to the nearby computers (as connected viewers once the iPad answers; see decisions).
+- [x] Docs: TROUBLESHOOTING (Apple Devices on Windows, tethering), TESTING, PROTOCOL, ARCHITECTURE. README waits for the store listings, like the other tablet sections.
 
 ## Acceptance Criteria
 - [ ] iPad over USB from a Mac and from a PC, with Wi-Fi off on both.

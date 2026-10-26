@@ -203,6 +203,12 @@ sample-buffer rendering helpers and the shared tunables — compiled into both a
   when it returns; a dropped connection or sleeping computer is retried the same way as on the Mac.
 - **Compatibility.** The iPad announces platform 3 (protocol 1.2). Osplay 0.1 refuses unknown
   platforms, so a computer whose Bonjour record has no `pm` key is listed as needing an update.
+- **USB cable** (PROTOCOL.md "Stream links"). Only the computer can open a connection over the
+  cable, through usbmuxd. Tapping **Computer on the USB cable** makes the iPad listen on loopback
+  port 41847; a sharing Mac or PC follows attached iPads with the core's `UsbWatcher` and tries each
+  every 2 s (`ConnectionViewModel` on both), so it connects within seconds. Those tries fail quietly
+  while the iPad is not waiting. Control and media share the one stream; neither side reconnects by
+  itself after a disconnect (DECISIONS.md, 2026-10-27).
 
 ## Android app
 

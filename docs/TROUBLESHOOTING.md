@@ -86,6 +86,22 @@ If the PC appears but the other computer cannot connect to it ("timed out"), the
 connection: check that Windows Defender Firewall › Inbound Rules has an enabled "Osplay" rule, and
 run the installer again to restore it.
 
+## An iPad on the USB cable does not connect
+
+On the iPad, tap **Computer on the USB cable** in Osplay; the computer connects only while the iPad
+waits there, and only while it shares (**Extend this Mac** / **Extend this PC**). The iPad must trust
+the computer: unlock it when plugging in and answer "Trust This Computer". A PC reaches the iPad
+through the Apple Mobile Device Service, which the Apple Devices app (Microsoft Store) or iTunes
+installs; without it the PC never sees the iPad. A cable that only charges carries no data: Finder
+(Mac) or Apple Devices (PC) shows the iPad when the cable works.
+
+## Android over a USB cable
+
+Android's USB tethering creates a network over the cable, and Osplay then works as on Wi-Fi. Windows
+supports it; macOS has no driver for the RNDIS tethering Android phones use, so on a Mac no network
+appears. With a Mac, turn on the phone's Wi-Fi hotspot and connect the Mac to it: no router is
+needed.
+
 ## A paired computer is refused
 
 The other side revoked it ("refused this Mac" / "refused this PC"). On that side, remove the device

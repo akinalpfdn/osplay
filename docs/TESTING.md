@@ -70,6 +70,20 @@ Run the iPad app from Xcode (BUILDING.md) or TestFlight. The computer runs Ospla
 The same cases apply to the Android app (A1–A6 for T1–T6), run from Android Studio or Google Play
 on a phone or tablet with Android 12 or later.
 
+### USB cable
+
+Turn Wi-Fi off on both devices for these. The iPad has trusted the computer once ("Trust This
+Computer" when first plugged in); a PC has the Apple Devices app installed.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| U1 | Mac → iPad over USB | Mac: **Extend this Mac**. Connect the iPad with a cable, open Osplay, tap **Computer on the USB cable**; confirm the code on both the first time | Within a few seconds one Mac display at the iPad's resolution, as in T1 |
+| U2 | PC → iPad over USB | The same with the PC (**Extend this PC**) | One PC virtual monitor at the iPad's resolution |
+| U3 | Turn and background | During U1, turn the iPad, then go to the Home Screen and back | The session starts again each time over the cable, as in T3 and T4 |
+| U4 | Disconnect | During U1, tap Disconnect on the iPad; start U1 again and disconnect from the Mac's menu | The display goes away and nothing reconnects until **Computer on the USB cable** is tapped again |
+| U5 | Unplug | During U1, pull the cable, wait 15 s, plug it in again | The Mac display goes away within 10 s. If the iPad is not already waiting on the cable, tapping **Computer on the USB cable** brings the session back |
+| U6 | Android over USB tethering, PC | Android: Settings › Connections › Mobile Hotspot and Tethering › USB tethering, with Wi-Fi off on both; the PC shares | The PC appears under Nearby computers on the phone; A1 works over the cable |
+
 ## Interruptions
 
 | # | Scenario | Steps | Expected |

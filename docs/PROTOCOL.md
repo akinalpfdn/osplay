@@ -24,6 +24,7 @@ Control (TCP)  frame = u32 length | payload
                payload = control message           (before the handshake completes)
                payload = AEAD(control message)     (after)
 Media (UDP)    datagram = media header (12 bytes, in clear) | AEAD(media body)
+Stream link    record = u8 kind | u16 length | control frame or media datagram   (USB, no UDP)
 ```
 
 The messages and packets below are defined in plaintext; "Encryption" specifies how they are
@@ -347,6 +348,35 @@ sent when it changes and again with every keyframe, so a viewer that joined late
 are not retransmitted: a viewer that keeps receiving visible positions naming a shape it lacks for
 100 ms sends KeyframeRequest (reason 2), which brings the shape again. A shape already delivered
 is not delivered again.
+
+## Stream links
+
+Where there is no UDP path, as on a USB cable to an iPad, the control frames and the media
+datagrams share one byte stream. Each is wrapped in a record:
+
+| Offset | Field | Type | Values |
+|-------:|-------|------|--------|
+| 0 | kind | u8 | 1 = control, 2 = media |
+| 1 | length | u16 | 1–4116 for control, 1–1200 for media |
+| 3 | payload | bytes[length] | a control frame with its u32 length (control), or a datagram (media) |
+
+An unknown kind or a length out of range ends the link. A record holds exactly one frame or one
+datagram; everything inside is unchanged, encryption and the replay window included. A sender
+drops media rather than queue more than 1 MiB of it, as a full UDP socket would, so a slow link
+shows up as loss (which NACKs and bitrate adaptation handle) instead of delay; control records
+are sent before queued media.
+
+Nothing is negotiated: the connection decides. A host reaches an iPad only through usbmuxd, and the
+iPad's USB listener only takes those connections:
+
+- The iPad's Osplay listens on TCP port **41847** on its loopback interface while the user waits for
+  a computer on the cable. usbmuxd (part of macOS; on Windows the Apple Mobile Device Service, at
+  127.0.0.1:27015, installed with Apple Devices or iTunes) delivers the host's connection there.
+- The host follows attached devices with a usbmuxd `Listen` request and connects with `Connect`
+  (DeviceID, PortNumber in network byte order). Result 3 means nothing listens there yet.
+- The host opens the connection, but the session roles do not change: the viewer is still the Noise
+  initiator. MediaSetup carries udp_port 1, which the viewer ignores; UdpHello travels as a media
+  record and associates nothing.
 
 ## Session flow
 
