@@ -35,6 +35,31 @@ public final class CoreSession: Sendable {
         }
     }
 
+    /// The loopback port the iPad's Osplay listens on for a computer on the USB cable.
+    public static let usbPort = UInt16(OSPLAY_USB_PORT)
+
+    /// Host over a USB cable: reaches the iPad `deviceID` (from `USBDeviceWatcher`) through usbmuxd.
+    /// The session closes with `.network` when the iPad is not waiting for a computer.
+    public static func hostOverUSB(
+        device: SessionDevice, deviceID: UInt32, port: UInt16 = usbPort,
+        trust: @escaping @Sendable ([UInt8]) -> TrustDecision
+    ) throws(CoreError) -> CoreSession {
+        try CoreSession(device: device, monitors: [], trust: trust) { config, secret, random, callbacks, out in
+            osplay_host_session_create_usb(config, secret, random, callbacks, deviceID, port, out)
+        }
+    }
+
+    /// Viewer on a USB cable: waits on the loopback `port` for a computer to connect through
+    /// usbmuxd, without a time limit. Throws `.network` when the port is taken.
+    public static func viewerOverUSB(
+        device: SessionDevice, monitors: [MonitorDescription], port: UInt16 = usbPort,
+        trust: @escaping @Sendable ([UInt8]) -> TrustDecision
+    ) throws(CoreError) -> CoreSession {
+        try CoreSession(device: device, monitors: monitors, trust: trust) { config, secret, random, callbacks, out in
+            osplay_viewer_session_create_usb(config, secret, random, callbacks, port, out)
+        }
+    }
+
     private typealias Create = (
         UnsafePointer<osplay_session_config>, UnsafePointer<UInt8>, UnsafePointer<osplay_random_source>,
         UnsafePointer<osplay_session_callbacks>, UnsafeMutablePointer<OpaquePointer?>

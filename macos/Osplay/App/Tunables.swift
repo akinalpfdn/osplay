@@ -67,6 +67,9 @@ extension Tunables {
         /// Pause before a dropped viewer tries its host again (an old advertisement can refuse at
         /// once; this keeps that from becoming a tight loop).
         static let reconnectDelay: Duration = .seconds(2)
+        /// While sharing, how often an iPad on the cable is tried; it answers once its user picks
+        /// the cable (TAB-03).
+        static let usbRetryDelay: Duration = .seconds(2)
         /// Capabilities this Mac announces in either role.
         static let maximumWidth = 7680
         static let maximumHeight = 4320

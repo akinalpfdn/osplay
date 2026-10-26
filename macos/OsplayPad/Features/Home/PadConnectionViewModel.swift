@@ -11,6 +11,8 @@ import SwiftUI
 final class PadConnectionViewModel {
     enum Status: Equatable {
         case idle
+        /// Listening on the USB cable until a sharing computer there connects (TAB-03).
+        case waitingForCable
         case connecting(peer: String)
         case viewing(peer: String)
         /// The connection dropped (sleep, network, rotation); waiting for the computer again.
@@ -44,7 +46,7 @@ final class PadConnectionViewModel {
     var isViewerShown: Bool {
         switch status {
         case .connecting, .viewing: true
-        case .idle, .reconnecting: false
+        case .idle, .waitingForCable, .reconnecting: false
         }
     }
 
@@ -69,6 +71,10 @@ final class PadConnectionViewModel {
     private var isInBackground = false
     /// The computer to connect to again when the app returns to the foreground.
     private var resumeDeviceID: String?
+    /// The session runs over the USB cable.
+    private var viaCable = false
+    /// Wait on the cable again when the app returns to the foreground.
+    private var resumesCable = false
 
     init(dependencies: PadDependencies) {
         self.dependencies = dependencies
@@ -159,17 +165,48 @@ final class PadConnectionViewModel {
             failure = .session(error)
             return
         }
+        let name = displayName(of: device)
+        viewedHost = (device.advertisement.deviceID, name)
+        status = .connecting(peer: name)
+        run(core, peer: peer, monitor: monitor, viaCable: false)
+    }
+
+    /// Listens on the USB cable; a computer sharing its screen there connects within seconds. The
+    /// computer opens the connection over the cable, so the iPad cannot pick one (TAB-03).
+    func waitForCable() {
+        guard viewer == nil, let identity = prepare() else { return }
+        guard let monitor = dependencies.screen.monitor() else {
+            failure = .noScreen
+            return
+        }
+        failure = nil
+        reconnectTask?.cancel()
+        awaitedDeviceID = nil
+        let peer = SessionPeer()
+        let core: CoreSession
+        do throws(CoreError) {
+            core = try CoreSession.viewerOverUSB(
+                device: sessionDevice(identity), monitors: [monitor],
+                trust: { [trust, peer] key in peer.trust(key, in: trust) })
+        } catch {
+            failure = .session(error)
+            return
+        }
+        viewedHost = nil
+        status = .waitingForCable
+        run(core, peer: peer, monitor: monitor, viaCable: true)
+    }
+
+    private func run(_ core: CoreSession, peer: SessionPeer, monitor: MonitorDescription, viaCable: Bool) {
         let session = ViewerSession(
             core: core, decoders: dependencies.decoders, presenters: dependencies.presenters,
             power: dependencies.power, target: { _ in .screen },
             showsStats: { [settings] in await MainActor.run { settings.showsStatsOverlay } })
-        let name = displayName(of: device)
         viewer = session
         viewerPeer = peer
-        viewedHost = (device.advertisement.deviceID, name)
         offeredMonitor = monitor
         endedByUser = false
-        status = .connecting(peer: name)
+        self.viaCable = viaCable
         viewerTasks = [
             Task { [weak self] in
                 let failure = await session.run()
@@ -188,6 +225,7 @@ final class PadConnectionViewModel {
         endedByUser = true
         awaitedDeviceID = nil
         resumeDeviceID = nil
+        resumesCable = false
         reconnectTask?.cancel()
         if case .reconnecting = status { status = .idle }
         Task { [viewer] in await viewer?.stop() }
@@ -224,6 +262,10 @@ final class PadConnectionViewModel {
         case .active:
             isInBackground = false
             start()
+            if resumesCable {
+                resumesCable = false
+                waitForCable()
+            }
             if let deviceID = resumeDeviceID {
                 resumeDeviceID = nil
                 awaitHost(deviceID, after: .zero)
@@ -238,7 +280,11 @@ final class PadConnectionViewModel {
     private func handle(_ event: ViewerSession.Event, from session: ViewerSession) {
         switch event {
         case .peer(let peer):
-            if let host = viewedHost, !isPaired(host.deviceID) {
+            if viaCable {
+                // Over the cable the computer is known from here on; its ID follows with its key.
+                viewedHost = ("", peer.deviceName)
+                status = .connecting(peer: peer.deviceName)
+            } else if let host = viewedHost, !isPaired(host.deviceID) {
                 viewedHost = (host.deviceID, peer.deviceName)
             }
         case .pairingCode(let code, _):
@@ -257,6 +303,11 @@ final class PadConnectionViewModel {
     }
 
     private func viewerConnected() {
+        if viaCable, let key = viewerPeer.key,
+            let paired = peers.first(where: { $0.publicKey == key && !$0.revoked })
+        {
+            viewedHost = (DeviceIdentity.deviceID(publicKey: key), paired.name)
+        }
         status = .viewing(peer: viewedHost?.name ?? "")
         if let key = viewerPeer.key {
             update { () throws(KeyStoreError) in try trust.seen(key) }
@@ -275,6 +326,23 @@ final class PadConnectionViewModel {
         let resumes = resumesAfterClose
         resumesAfterClose = false
         let expectedBack = resumes || failure == .peerSleeping || failure == .timedOut || failure == .network
+        if viaCable {
+            viaCable = false
+            viewedHost = nil
+            status = .idle
+            // The cable is waited on again only when the iPad closed the session itself or the
+            // computer went away for a while; a user's disconnect on either side ends it.
+            if expectedBack, !endedByUser {
+                if isInBackground {
+                    resumesCable = true
+                } else {
+                    waitForCable()
+                }
+            } else if let failure, failure != .connectionClosed {
+                self.failure = .session(failure)
+            }
+            return
+        }
         if let host, expectedBack, !endedByUser {
             status = .reconnecting(peer: host.name)
             if isInBackground {

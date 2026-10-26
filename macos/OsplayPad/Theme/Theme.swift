@@ -47,6 +47,7 @@ enum Theme {
         static let statistics = "chart.bar.xaxis"
         static let searching = "dot.radiowaves.left.and.right"
         static let update = "arrow.triangle.2.circlepath"
+        static let cable = "cable.connector"
 
         /// The symbol for a computer's platform.
         static func device(_ platform: PeerPlatform) -> String {

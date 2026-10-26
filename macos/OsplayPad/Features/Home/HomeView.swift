@@ -29,8 +29,14 @@ struct HomeView: View {
                                 name: connection.displayName(of: device), platform: device.advertisement.platform,
                                 state: connection.state(of: device)
                             ) { connection.connect(to: device) }
+                            .disabled(connection.status == .waitingForCable)
                         }
                     }
+                    Text("pad.home.cable")
+                        .font(Theme.Typography.rowTitle)
+                    CableRow(
+                        waiting: connection.status == .waitingForCable, wait: connection.waitForCable,
+                        cancel: connection.disconnect)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(Theme.Spacing.large)
@@ -93,6 +99,53 @@ private struct DeviceRow: View {
         case .new: "pad.device.new"
         case .needsUpdate: "pad.device.needsUpdate"
         case .incompatible: "pad.device.incompatible"
+        }
+    }
+}
+
+/// The computer on the USB cable: tapping makes the iPad wait for it; it connects from there.
+private struct CableRow: View {
+    let waiting: Bool
+    let wait: () -> Void
+    let cancel: () -> Void
+
+    var body: some View {
+        HStack(spacing: Theme.Spacing.medium) {
+            Group {
+                if waiting {
+                    ProgressView()
+                } else {
+                    Image(systemName: Theme.Symbol.cable)
+                        .font(Theme.Typography.symbol)
+                        .foregroundStyle(Theme.Colors.accent)
+                }
+            }
+            .frame(width: Theme.Size.symbolColumn)
+            .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: Theme.Spacing.small) {
+                Text(waiting ? "pad.cable.waiting" : "pad.cable.title")
+                    .font(Theme.Typography.rowTitle)
+                    .foregroundStyle(.primary)
+                Text("pad.cable.detail")
+                    .font(Theme.Typography.rowDetail)
+                    .foregroundStyle(Theme.Colors.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: Theme.Spacing.medium)
+            if waiting {
+                Button("pad.action.cancel", action: cancel)
+            }
+        }
+        .padding(Theme.Spacing.large)
+        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .onTapGesture {
+            if !waiting { wait() }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(waiting ? [] : .isButton)
+        .accessibilityAction {
+            if !waiting { wait() }
         }
     }
 }

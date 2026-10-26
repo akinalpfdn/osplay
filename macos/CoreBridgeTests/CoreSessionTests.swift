@@ -110,6 +110,29 @@ struct CoreSessionTests {
         #expect(reason == .notTrusted)
     }
 
+    @Test("A USB viewer holds its loopback port; a second one on it fails")
+    func usbViewerListens() throws {
+        // Any free port stands in for the USB port, which another run may hold.
+        var probe: CoreSession? = try CoreSession.host(
+            device: SessionDevice(identity: try .generate(), name: "Probe", capabilities: capabilities),
+            trust: { _ in .trusted })
+        let port = try #require(probe?.controlPort)
+        probe = nil  // destroying it frees the port
+        let device = SessionDevice(identity: try .generate(), name: "iPad", capabilities: capabilities)
+        let first = try CoreSession.viewerOverUSB(
+            device: device, monitors: [monitor], port: port, trust: { _ in .trusted })
+        #expect(first.controlPort == port)
+        #expect(throws: CoreError.network) {
+            try CoreSession.viewerOverUSB(device: device, monitors: [monitor], port: port, trust: { _ in .trusted })
+        }
+    }
+
+    @Test("The USB watcher starts and stops with or without devices")
+    func usbWatcherStartsAndStops() throws {
+        let watcher = try USBDeviceWatcher()
+        _ = watcher.events
+    }
+
     @Test("Invalid configurations fail before anything starts")
     func rejectsInvalidConfiguration() throws {
         let device = SessionDevice(identity: try .generate(), name: "Viewer", capabilities: capabilities)
