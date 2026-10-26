@@ -60,6 +60,26 @@ jobs:
           xcodebuild -project Osplay.xcodeproj -scheme OsplayPad -destination "platform=iOS Simulator,id=$simulator" \
             -derivedDataPath DerivedData -quiet test
 
+  android:
+    name: Android
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Android NDK and CMake
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "cmake;3.31.6" > /dev/null
+
+      - name: Build and unit test
+        run: ./gradlew --no-daemon assembleDebug testDebugUnitTest
+
   macos-sanitizers:
     name: macOS sanitizers
     runs-on: macos-26

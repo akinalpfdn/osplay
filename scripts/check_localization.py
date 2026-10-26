@@ -3,7 +3,8 @@
 
 Checks every String Catalog (*.xcstrings) under macos/, every neutral .resx under windows/
 against its Turkish satellite (<name>.tr.resx), the installer's message files (<name>.en.isl
-against <name>.tr.isl), and that every key the Mac app's Swift code uses exists in its catalog.
+against <name>.tr.isl), the Android strings (values/strings.xml against values-tr/strings.xml),
+and that every key the Apple apps' Swift code uses exists in their catalogs.
 """
 
 from __future__ import annotations
@@ -110,6 +111,29 @@ def check_isl(english: Path) -> list[str]:
     return problems
 
 
+def android_strings(path: Path) -> dict[str, str]:
+    return {
+        node.get("name", ""): "".join(node.itertext())
+        for node in ET.parse(path).getroot().iter("string")
+        if node.get("translatable") != "false"
+    }
+
+
+def check_android(english: Path) -> list[str]:
+    turkish = english.parent.parent / "values-tr" / "strings.xml"
+    if not turkish.exists():
+        return [f"{english.relative_to(ROOT)}: missing Turkish file {turkish.relative_to(ROOT)}"]
+    source, target = android_strings(english), android_strings(turkish)
+    problems = [f"{turkish.relative_to(ROOT)}: missing '{key}'" for key in sorted(source.keys() - target.keys())]
+    problems += [
+        f"{turkish.relative_to(ROOT)}: '{key}' does not exist in {english.relative_to(ROOT)}"
+        for key in sorted(target.keys() - source.keys())
+    ]
+    for path, entries in ((english, source), (turkish, target)):
+        problems += [f"{path.relative_to(ROOT)}: '{key}' is empty" for key, value in entries.items() if not value.strip()]
+    return problems
+
+
 def placeholder_count(key: str) -> int:
     return len(PLACEHOLDER.findall(key))
 
@@ -162,13 +186,16 @@ def main() -> int:
     installer_messages = sorted((ROOT / "windows/installer").glob("*.en.isl"))
     for messages in installer_messages:
         problems += check_isl(messages)
+    android = sorted((ROOT / "android").glob("*/src/main/res/values/strings.xml"))
+    for strings in android:
+        problems += check_android(strings)
 
     if problems:
         print("\n".join(problems), file=sys.stderr)
         return 1
     print(
         f"Localization complete: {len(catalogs)} string catalog(s), {len(resources)} resx file(s), "
-        f"{len(installer_messages)} installer message file(s)."
+        f"{len(installer_messages)} installer message file(s), {len(android)} Android string file(s)."
     )
     return 0
 

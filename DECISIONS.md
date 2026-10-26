@@ -594,3 +594,10 @@ choices the plan leaves open are logged here.
 **Why:** Osplay 0.1 validates the platform in Hello and in the TXT record and refuses unknown values, so tablets need a newer desktop app in any case. With `pm` an iPad can tell which computers need that update before it tries.
 **Trade-offs:** iPads and Android tablets work only with Osplay 0.2 or later on the computer.
 **Revisit if:** Another platform is added (it takes the next value and the next minor version).
+
+## 2026-10-27 — Android app structure
+**Chosen:** A Kotlin and Jetpack Compose app under `android/` with the C++ core built by the NDK through a small JNI bridge (`osplay_jni.cpp`). Discovery uses NsdManager, decoding uses MediaCodec in low-latency mode onto a SurfaceView, and the identity key is encrypted with an Android Keystore AES key. Services are wired in one composition root (`AppDependencies`) without a DI framework, and the view model sees only interfaces.
+**Alternatives:** Hilt for injection (the Kotlin rules' default); a Kotlin port of the protocol; Flutter or React Native.
+**Why:** One implementation of the protocol and crypto, as on every other platform. The app has one screen state and about ten services, so a hand-written root, like the Mac app's `AppDependencies`, is enough and keeps the build small. Text crosses JNI as UTF-8 bytes, because JNI's modified UTF-8 breaks names outside the BMP.
+**Trade-offs:** Native code needs the NDK and CMake 3.31 in CI. The view model cannot be unit tested past the identity without the native library on the JVM.
+**Revisit if:** The app grows several screens with their own state, or the JVM tests need the core.
