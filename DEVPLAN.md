@@ -504,10 +504,24 @@ Each phase is meant to be completed in one Claude Code session. A phase is done 
 - Final `docs/` set brought up to date.
 **Depends on**: Phase 13
 **Acceptance criteria**:
-- [ ] The DMG passes Gatekeeper on a clean Mac without warnings.
-- [ ] The Windows installer works on a clean Windows 11 machine without manual steps beyond SmartScreen (until signing is in place).
-- [ ] Uninstall leaves no service, driver config, firewall rule or virtual monitor behind.
-- [ ] A new contributor can build both apps using only `BUILDING.md`.
+- [x] The DMG passes Gatekeeper on a clean Mac without warnings.
+- [x] The Windows installer works on a clean Windows 11 machine without manual steps beyond SmartScreen (until signing is in place).
+- [x] Uninstall leaves no service, driver config, firewall rule or virtual monitor behind.
+- [x] A new contributor can build both apps using only `BUILDING.md`.
+
+### Phase 15: Tablets and direct connections
+**Goal**: An iPad or an Android tablet works as a display for a Mac or a PC, over Wi-Fi, over a USB cable, and (PC ↔ PC, PC ↔ Android) over Wi-Fi Direct without a router.
+**Delivers** (four parts, phase files TAB-01…04, in this order — user decision 2026-10-26):
+- TAB-01: an iPad app that is a viewer only, over Wi-Fi, sharing the viewer pipeline with the macOS app.
+- TAB-02: an Android tablet app that is a viewer only, over Wi-Fi, on the same C++ core through the NDK.
+- TAB-03: USB: Android through USB tethering; iPad through Apple's USB channel (usbmuxd) with media carried on the control stream.
+- TAB-04: Wi-Fi Direct between two PCs and between a PC and an Android tablet.
+**Constraints**: tablets are viewers only — iPadOS and Android give apps no system virtual displays. No touch or other input is forwarded (user decision 2026-10-26), as everywhere else in Osplay. Macs and iPads have no Wi-Fi Direct for apps (Apple's AWDL is private), so TAB-04 covers Windows and Android only.
+**Depends on**: Phase 14
+**Acceptance criteria**:
+- [ ] Mac → iPad and PC → iPad show one display at the iPad's resolution, over Wi-Fi and over USB.
+- [ ] Mac → Android tablet and PC → Android tablet do the same over Wi-Fi and over USB tethering.
+- [ ] PC → PC and PC → Android tablet work over Wi-Fi Direct with no router.
 
 ---
 
