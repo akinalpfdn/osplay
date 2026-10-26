@@ -1,32 +1,62 @@
 {
-  "sourceLanguage": "en",
-  "strings": {
-    "CFBundleDisplayName": {
-      "shouldTranslate": false
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Osplay"
+          }
+        }
+      },
+      "shouldTranslate" : false
     },
-    "CFBundleName": {
-      "shouldTranslate": false
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Osplay"
+          }
+        }
+      },
+      "shouldTranslate" : false
     },
-    "NSHumanReadableCopyright": {
-      "shouldTranslate": false
+    "NSHumanReadableCopyright" : {
+      "comment" : "Copyright (human-readable)",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copyright © 2026 Akinalp Fidan. MIT License."
+          }
+        }
+      },
+      "shouldTranslate" : false
     },
-    "NSLocalNetworkUsageDescription": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Osplay finds the computers on this network and shows their extra displays."
+    "NSLocalNetworkUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay finds the computers on this network and shows their extra displays."
           }
         },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Osplay bu ağdaki bilgisayarları bulur ve ek ekranlarını gösterir."
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay bu ağdaki bilgisayarları bulur ve ek ekranlarını gösterir."
           }
         }
       }
     }
   },
-  "version": "1.0"
+  "version" : "1.0"
 }
