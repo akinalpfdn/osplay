@@ -25,7 +25,7 @@ Virtual display ─► Capture ─► Encoder ─► core: packetize ──UDP�
 |------|----------|
 | `core/` | Shared C++20 library: protocol, crypto, transport, media, session, flat C API (`core/include/osplay/osplay.h`) |
 | `Package.swift` | Swift package: the C++ core as the `OsplayCore` module and its Swift wrapper `CoreBridge` (`macos/CoreBridge/`) |
-| `macos/` | Swift menu bar app, generated with XcodeGen from `macos/project.yml` |
+| `macos/` | The Apple apps, generated with XcodeGen from `macos/project.yml`: the macOS menu bar app (`Osplay/`), the iPad viewer app (`OsplayPad/`) and the code both compile (`Shared/`) |
 | `windows/engine/` | Native engine DLL (`OsplayEngine.dll`): capture, encode, decode, present, discovery |
 | `windows/helper/` | `OsplayHelper` Windows service for privileged virtual display driver operations |
 | `windows/app/` | WPF shell (`Osplay.App`) and its string resources (`Osplay.Localization`) |
@@ -148,7 +148,7 @@ menu bar window is usually closed.
 
 ## Viewer pipeline on macOS
 
-`ViewerSession` (`macos/Osplay/Features/Viewer/`) is an actor that owns one viewer session: the
+`ViewerSession` (`macos/Shared/Viewer/`) is an actor that owns one viewer session: the
 core session, and per stream a `ViewerStreamPipeline` (decoder) and a presenter.
 
 ```
@@ -164,7 +164,7 @@ core cursor shape/position ─► main actor ─► cursor layer above the video
   display with a new size, refresh rate or scale starts the session again, one that is unplugged
   ends only its own stream (unless it was the last one, which starts the session again too).
 
-- **Decode** (`Services/VideoDecoding/`). Annex B is split into NAL units; the SPS and PPS in
+- **Decode** (`macos/Shared/VideoDecoding/`). Annex B is split into NAL units; the SPS and PPS in
   front of each keyframe build the format description, slices go to a realtime
   `VTDecompressionSession` as 4-byte length-prefixed samples. Output is IOSurface-backed. After
   any error (invalid data, decode failure) frames are dropped until the next keyframe, and the
@@ -182,6 +182,26 @@ core cursor shape/position ─► main actor ─► cursor layer above the video
   latency-critical activity disables App Nap.
 - **Debug loopback.** The menu's "Viewer loopback" hosts a 1920×1080 virtual display and views
   it on the same Mac (window or full screen), with corruption injection and a frame freeze.
+
+## iPad app
+
+The iPad is a viewer only (DEVPLAN Phase 15): iPadOS gives apps no system virtual displays, and no
+touch or other input is forwarded. `macos/Shared/` holds what it shares with the Mac app — the
+viewer session and decoder, Bonjour discovery, the Keychain key store and paired devices, the
+sample-buffer rendering helpers and the shared tunables — compiled into both app targets
+(DECISIONS.md, 2026-10-26).
+
+- **One screen, one monitor** (`OsplayPad/Services/Screen/`). The iPad offers its screen in the
+  orientation it is held, in native pixels at 200% scale. Turning the iPad starts the session
+  again with the new shape; `UIRequiresFullScreen` keeps the app out of smaller windows.
+- **Present** (`OsplayPad/Services/Presenting/`). The stream's view — `AVSampleBufferDisplayLayer`
+  plus a cursor layer for Windows hosts and the statistics label — is embedded full screen by the
+  viewer screen; a tap shows Disconnect and the statistics toggle for a few seconds.
+- **Lifecycle.** While frames are shown the idle timer is off. Going to the background ends the
+  session cleanly (the host removes its display), and the app connects to the same computer again
+  when it returns; a dropped connection or sleeping computer is retried the same way as on the Mac.
+- **Compatibility.** The iPad announces platform 3 (protocol 1.2). Osplay 0.1 refuses unknown
+  platforms, so a computer whose Bonjour record has no `pm` key is listed as needing an update.
 
 ## Discovery and pairing
 

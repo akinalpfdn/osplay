@@ -20,7 +20,7 @@ An iPad shows a Mac's or a PC's extra display over Wi-Fi, from an iPad app that 
 - [ ] Docs: README (iPad download), BUILDING, TESTING (iPad cases), ARCHITECTURE.
 
 ## Acceptance Criteria
-- [ ] Mac → iPad and PC → iPad show one display at the iPad's resolution over Wi-Fi.
+- [ ] Mac → iPad and PC → iPad show one display at the iPad's resolution over Wi-Fi. (2026-10-27: Mac → iPad works on the user's iPad A16, run from Xcode; PC → iPad open.)
 - [ ] Pairing, revoking and reconnecting work as between computers.
 - [ ] Sending the iPad app to the background ends the session without leaving a virtual display on the host.
 - [ ] The app passes App Store review.

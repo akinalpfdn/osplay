@@ -53,6 +53,20 @@ gives one viewer at most two). The PC needs the current OsplayHelper (helper pro
 | M4 | No display left | Connect viewers until four displays are in use, then connect one more | The last one is turned away before any pairing code ("uses all the displays it can extend onto"); the waiting row says all four are in use |
 | M5 | Swap needs one viewer | In M1, try the swap shortcut, and the swap from a viewer | Not offered on the host while two are connected; a viewer's request is answered busy; with one left it works again |
 
+## iPad
+
+Run the iPad app from Xcode (BUILDING.md) or TestFlight. The computer runs Osplay 0.2 or later and
+**Extend this Mac** / **Extend this PC**.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| T1 | Mac → iPad | On the iPad, tap the Mac under Nearby computers; confirm the code on both | One Mac display at the iPad's resolution, full screen on the iPad |
+| T2 | PC → iPad | The same with the PC | One PC virtual monitor at the iPad's resolution, with the Windows pointer |
+| T3 | Turn the iPad | During T1, turn the iPad from landscape to portrait and back | The session starts again each time with the new shape; the Mac display follows |
+| T4 | Background | During T1, go to the Home Screen, wait 10 s, open Osplay again | The Mac display goes away while Osplay is in the background and comes back by itself |
+| T5 | Old computer | A computer with Osplay 0.1.1 shares its screen | Listed with "Update Osplay on this computer"; tapping it explains, no connection attempt |
+| T6 | Revoke | iPad Settings › Paired computers → swipe → Revoke, then connect | Refused at once without a code; Remove makes it ask for a code again |
+
 ## Interruptions
 
 | # | Scenario | Steps | Expected |
@@ -85,3 +99,4 @@ gives one viewer at most two). The PC needs the current OsplayHelper (helper pro
 | 2026-10-20 | `3fe19bd` | Wi-Fi | I1–I4 (sleep/wake both ways), S3 (Disconnect then Connect) | Pass | Found and fixed on the way: no connect timeout, frozen frame under Modern Standby, stale port after a session |
 | 2026-10-20 | `3fe19bd` | Wi-Fi | I5–I9, Q1, Q2, Q3, Q5 (one hour) | Pass | |
 | 2026-10-25 | `d0645b7` | Wi-Fi | D1, D2, D4–D8 (every direction but PC → PC), M1–M3 (several viewers on both hosts) | Pass | Found and fixed on the way: two monitors on one Windows driver device stall the desktop, pooled driver devices shared a stale mode list (issue #30 left open), a Mac host's second viewer took the first one's displays |
+| 2026-10-27 | `e00a28d` | Wi-Fi | T1 (Mac → iPad A16) | Pass | The iPad listed the Mac once Local Network access was granted |

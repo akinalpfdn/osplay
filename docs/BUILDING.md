@@ -137,6 +137,29 @@ DEVELOPMENT_TEAM = <your team ID>
 
 Then run `xcodegen generate` again.
 
+### iPad app
+
+The iPad viewer app is the `OsplayPad` scheme of the same project (iPadOS 18 or later). Its tests
+run on any iPad simulator:
+
+```sh
+cd macos
+xcodegen generate
+xcodebuild -project Osplay.xcodeproj -scheme OsplayPad \
+  -destination 'platform=iOS Simulator,name=iPad (A16)' -derivedDataPath DerivedData test
+```
+
+To run it on an iPad, connect the iPad, turn on Developer Mode on it (Settings › Privacy &
+Security), choose the `OsplayPad` scheme and the iPad in Xcode, and run. With a manual signing
+style in `Signing.local.xcconfig`, add a line so Xcode makes the iPad's development profile:
+
+```
+CODE_SIGN_STYLE[sdk=iphoneos*] = Automatic
+```
+
+The computer it connects to must run Osplay 0.2 or later (protocol 1.2), and the iPad asks once
+for Local Network access.
+
 ### Release build
 
 `scripts/macos/release.sh` builds the Release configuration, signs it with a Developer ID
