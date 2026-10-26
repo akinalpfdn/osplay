@@ -1,0 +1,23 @@
+{
+  "sourceLanguage": "en",
+  "version": "1.0",
+  "strings": {
+    "NSLocalNetworkUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay finds the computers on this network and shows their extra displays."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay bu ağdaki bilgisayarları bulur ve ek ekranlarını gösterir."
+          }
+        }
+      }
+    }
+  }
+}

@@ -153,6 +153,10 @@ def main() -> int:
     # Code in macos/Shared is compiled into the Mac app too, so its keys must be in the Mac catalog.
     mac_sources = [*(ROOT / "macos/Osplay").rglob("*.swift"), *(ROOT / "macos/Shared").rglob("*.swift")]
     problems += check_swift_keys(app_catalog, sorted(mac_sources))
+    # The iPad app compiles its own sources and macos/Shared against its own catalog.
+    pad_catalog = ROOT / "macos/OsplayPad/Resources/Localizable.xcstrings"
+    pad_sources = [*(ROOT / "macos/OsplayPad").rglob("*.swift"), *(ROOT / "macos/Shared").rglob("*.swift")]
+    problems += check_swift_keys(pad_catalog, sorted(pad_sources))
     for resource in resources:
         problems += check_resx(resource)
     installer_messages = sorted((ROOT / "windows/installer").glob("*.en.isl"))

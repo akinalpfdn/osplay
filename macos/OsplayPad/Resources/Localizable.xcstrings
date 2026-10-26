@@ -1,0 +1,958 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "pad.action.cancel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vazgeç"
+          }
+        }
+      }
+    },
+    "pad.device.connect": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows this computer's extra display on the iPad"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu bilgisayarın ek ekranını iPad'de gösterir"
+          }
+        }
+      }
+    },
+    "pad.device.incompatible": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runs a different Osplay version"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Farklı bir Osplay sürümü çalıştırıyor"
+          }
+        }
+      }
+    },
+    "pad.device.needsUpdate": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Osplay on this computer to use an iPad"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPad kullanmak için bu bilgisayardaki Osplay'i güncelleyin"
+          }
+        }
+      }
+    },
+    "pad.device.new": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pairs on first connection"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İlk bağlantıda eşleşir"
+          }
+        }
+      }
+    },
+    "pad.device.paired": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paired"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eşleşmiş"
+          }
+        }
+      }
+    },
+    "pad.error.discovery %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bonjour is not available (error %lld). Check that Osplay may use the local network."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bonjour kullanılamıyor (hata %lld). Osplay'in yerel ağı kullanabildiğini kontrol edin."
+          }
+        }
+      }
+    },
+    "pad.error.dismiss": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tamam"
+          }
+        }
+      }
+    },
+    "pad.error.incompatible": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This computer runs a different Osplay version. Update both to the latest version."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu bilgisayar farklı bir Osplay sürümü çalıştırıyor. İkisini de en son sürüme güncelleyin."
+          }
+        }
+      }
+    },
+    "pad.error.keyStore.damaged": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay's stored keys are damaged. Delete Osplay, install it again and pair again."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay'in saklanan anahtarları bozuk. Osplay'i silip yeniden yükleyin ve yeniden eşleşin."
+          }
+        }
+      }
+    },
+    "pad.error.keyStore.identity": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay could not create its device key."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay cihaz anahtarını oluşturamadı."
+          }
+        }
+      }
+    },
+    "pad.error.keyStore.keychain %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Keychain refused to store Osplay's key (error %lld)."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anahtar Zinciri Osplay'in anahtarını saklamadı (hata %lld)."
+          }
+        }
+      }
+    },
+    "pad.error.localNetwork": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay may not use the local network. Allow it in Settings › Apps › Osplay › Local Network."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay yerel ağı kullanamıyor. Ayarlar › Uygulamalar › Osplay › Yerel Ağ'da izin verin."
+          }
+        }
+      }
+    },
+    "pad.error.needsUpdate %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay on %@ is too old for an iPad. Update it to version 0.2 or later."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ üzerindeki Osplay iPad için çok eski. 0.2 ya da sonraki bir sürüme güncelleyin."
+          }
+        }
+      }
+    },
+    "pad.error.noScreen": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay could not read this iPad's screen size."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay bu iPad'in ekran boyutunu okuyamadı."
+          }
+        }
+      }
+    },
+    "pad.error.openSettings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ayarlar'ı aç"
+          }
+        }
+      }
+    },
+    "pad.error.session.busy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay is still closing the previous session. Try again in a moment."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay önceki oturumu hâlâ kapatıyor. Biraz sonra tekrar deneyin."
+          }
+        }
+      }
+    },
+    "pad.error.session.encryption": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The connection's encryption check failed, so it was closed. Connect again; if it keeps happening, check the network."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantının şifreleme denetimi başarısız oldu, bu yüzden kapatıldı. Yeniden bağlanın; tekrarlarsa ağı kontrol edin."
+          }
+        }
+      }
+    },
+    "pad.error.session.internal %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Something went wrong inside Osplay (code %lld)."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay'in içinde bir sorun oluştu (kod %lld)."
+          }
+        }
+      }
+    },
+    "pad.error.session.notTrusted": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The computer refused this iPad. It may have been removed from its paired devices."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilgisayar bu iPad'i reddetti. Eşleşmiş cihazlarından kaldırılmış olabilir."
+          }
+        }
+      }
+    },
+    "pad.error.session.pairingRejected": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pairing was rejected."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eşleşme reddedildi."
+          }
+        }
+      }
+    },
+    "pad.error.session.peerBusy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The computer already uses all the displays it can extend onto."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilgisayar genişleyebileceği bütün ekranları zaten kullanıyor."
+          }
+        }
+      }
+    },
+    "pad.error.session.peerError": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The computer ended the session because of an error there. Check Osplay on that computer."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilgisayar, orada oluşan bir hata yüzünden oturumu kapattı. O bilgisayardaki Osplay'i kontrol edin."
+          }
+        }
+      }
+    },
+    "pad.error.session.peerSleeping": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The computer went to sleep."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilgisayar uyku moduna geçti."
+          }
+        }
+      }
+    },
+    "pad.error.session.protocol": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The computer sent data Osplay does not understand. Update Osplay on both devices."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilgisayar Osplay'in anlamadığı veri gönderdi. İki cihazda da Osplay'i güncelleyin."
+          }
+        }
+      }
+    },
+    "pad.error.session.random": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPadOS could not provide secure random numbers. Restart the iPad and try again."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPadOS güvenli rastgele sayı üretemedi. iPad'i yeniden başlatıp tekrar deneyin."
+          }
+        }
+      }
+    },
+    "pad.error.session.unreachable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The connection to the computer was lost."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilgisayarla bağlantı kesildi."
+          }
+        }
+      }
+    },
+    "pad.home.nearby": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nearby computers"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yakındaki bilgisayarlar"
+          }
+        }
+      }
+    },
+    "pad.home.sameNetwork": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The iPad and the computer must be on the same network."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPad ve bilgisayar aynı ağda olmalı."
+          }
+        }
+      }
+    },
+    "pad.home.searching": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Looking for computers… On the computer, open Osplay and choose Extend this Mac or Extend this PC."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilgisayarlar aranıyor… Bilgisayarda Osplay'i açıp Bu Mac'i genişlet ya da Bu bilgisayarı genişlet'i seçin."
+          }
+        }
+      }
+    },
+    "pad.home.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use this iPad as an extra display for a Mac or a Windows PC."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu iPad'i bir Mac ya da Windows bilgisayar için ek ekran olarak kullanın."
+          }
+        }
+      }
+    },
+    "pad.home.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay"
+          }
+        }
+      }
+    },
+    "pad.pairing.accept": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pair"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eşleş"
+          }
+        }
+      }
+    },
+    "pad.pairing.codeLabel %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pairing code %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eşleşme kodu %@"
+          }
+        }
+      }
+    },
+    "pad.pairing.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check that the computer shows the same code, then confirm on both."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilgisayarda da aynı kodun göründüğünü kontrol edin, sonra ikisinde de onaylayın."
+          }
+        }
+      }
+    },
+    "pad.pairing.reject": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vazgeç"
+          }
+        }
+      }
+    },
+    "pad.pairing.title %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pair with %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ile eşleş"
+          }
+        }
+      }
+    },
+    "pad.settings.done": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitti"
+          }
+        }
+      }
+    },
+    "pad.settings.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPad name"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPad adı"
+          }
+        }
+      }
+    },
+    "pad.settings.nameFooter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Computers show this iPad by this name."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilgisayarlar bu iPad'i bu adla gösterir."
+          }
+        }
+      }
+    },
+    "pad.settings.noPaired": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No paired computers yet."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Henüz eşleşmiş bilgisayar yok."
+          }
+        }
+      }
+    },
+    "pad.settings.paired": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paired computers"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eşleşmiş bilgisayarlar"
+          }
+        }
+      }
+    },
+    "pad.settings.pairedFooter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Swipe left on a computer to revoke or remove it. A revoked computer is refused; a removed one asks for a pairing code again."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bir bilgisayarı iptal etmek ya da kaldırmak için sola kaydırın. İptal edilen bilgisayar reddedilir; kaldırılan bilgisayar yeniden eşleşme kodu ister."
+          }
+        }
+      }
+    },
+    "pad.settings.remove": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaldır"
+          }
+        }
+      }
+    },
+    "pad.settings.revoke": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revoke"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İptal et"
+          }
+        }
+      }
+    },
+    "pad.settings.revoked": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revoked"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İptal edildi"
+          }
+        }
+      }
+    },
+    "pad.settings.stats": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show stream statistics"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yayın istatistiklerini göster"
+          }
+        }
+      }
+    },
+    "pad.settings.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ayarlar"
+          }
+        }
+      }
+    },
+    "pad.settings.version": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sürüm"
+          }
+        }
+      }
+    },
+    "pad.status.connecting %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting to %@…"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ bilgisayarına bağlanılıyor…"
+          }
+        }
+      }
+    },
+    "pad.status.reconnecting %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for %@ to come back…"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ bilgisayarının geri gelmesi bekleniyor…"
+          }
+        }
+      }
+    },
+    "pad.viewer.disconnect": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantıyı kes"
+          }
+        }
+      }
+    },
+    "pad.viewer.stats": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Statistics"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İstatistikler"
+          }
+        }
+      }
+    },
+    "pad.viewer.waiting": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for the picture…"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Görüntü bekleniyor…"
+          }
+        }
+      }
+    },
+    "stats.accessibilityLabel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stream statistics"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Akış istatistikleri"
+          }
+        }
+      }
+    },
+    "stats.overlay %lld %@ %@ %@ %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld fps · %2$@ Mbit/s · RTT %3$@ ms · loss %4$@%% · latency %5$@ ms"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld fps · %2$@ Mbit/sn · RTT %3$@ ms · kayıp %%%4$@ · gecikme %5$@ ms"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
