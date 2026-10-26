@@ -573,3 +573,10 @@ choices the plan leaves open are logged here.
 **Why:** Testing the 0.1.0 draft, a Mac could find the PC but every connection timed out: the PC's network was Public, so the private-only rule did not apply and Windows did not ask again because a rule for the program existed. The development build had worked on the same network because the user's answer to Windows' prompt covered Public. Windows 11 marks new networks Public, so most installs would have failed the same way.
 **Trade-offs:** While Osplay runs, its listener accepts connections on public networks such as café Wi-Fi; only paired devices get past the Noise handshake, so the exposure is the handshake and protocol parsing, which are fuzzed.
 **Revisit if:** A security review finds the pre-pairing surface too large for public networks, or users ask for a way to restrict Osplay to private networks.
+
+## 2026-10-26 — User decision: tablets as viewers, then USB and Wi-Fi Direct
+**Chosen:** A new Phase 15 adds an iPad viewer, then an Android tablet viewer, then USB connections (Android tethering, iPad through usbmuxd), then Wi-Fi Direct for PC ↔ PC and PC ↔ Android. Tablets are viewers only and forward no touch input.
+**Alternatives:** Touch input forwarded as mouse events (Sidecar and spacedesk do it); Android first; Wi-Fi Direct before USB.
+**Why:** iPadOS and Android give apps no system virtual displays, so a tablet can only be a display. The iPad reuses most of the Mac viewer, so it comes first. USB through tethering costs Android almost nothing, while the iPad needs a media transport without UDP. Apple has no Wi-Fi Direct for apps, so it can only join Windows and Android.
+**Trade-offs:** Without touch input a tablet is a passive display. The iPad's USB path depends on Apple Devices being installed on Windows. Wi-Fi Direct shares the Wi-Fi card's channel with the router connection.
+**Revisit if:** Users ask for touch input, or Apple opens a peer-to-peer Wi-Fi API.
