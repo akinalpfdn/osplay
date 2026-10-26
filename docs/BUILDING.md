@@ -10,6 +10,7 @@ clone, that is a bug — please open an issue.
 | `windows/engine`, `windows/helper` | Windows | Visual Studio 2022 or later (MSVC), CMake, Ninja |
 | `windows/app` | Windows | .NET 10 SDK |
 | `windows/installer` | Windows | Inno Setup 6 or 7 |
+| `android/` | macOS, Windows or Linux | JDK 17 or later, Android SDK 36, NDK 28.2, CMake 3.31 |
 
 ## macOS
 
@@ -192,6 +193,21 @@ Turkish text (`scripts/check_localization.py`).
 
 `scripts/lint.sh` is exactly what CI runs. Tool versions are pinned inside it and fetched with `uv`
 on first use.
+
+## Android
+
+The Android viewer app needs JDK 17 or later (Android Studio's bundled JDK works), the Android SDK
+with platform 36, NDK 28.2.13676358 and CMake 3.31.6 (Android Studio › SDK Manager › SDK Tools, or
+`sdkmanager "ndk;28.2.13676358" "cmake;3.31.6"`). In a terminal:
+
+```sh
+cd android
+./gradlew assembleDebug testDebugUnitTest
+```
+
+Or open the `android` folder in Android Studio and run on a device with USB debugging on. The app
+runs on Android 12 or later, on phones and tablets; the computer it connects to must run Osplay 0.2
+or later.
 
 ## Windows
 

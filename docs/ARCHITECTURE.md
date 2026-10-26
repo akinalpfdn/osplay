@@ -26,6 +26,7 @@ Virtual display ─► Capture ─► Encoder ─► core: packetize ──UDP�
 | `core/` | Shared C++20 library: protocol, crypto, transport, media, session, flat C API (`core/include/osplay/osplay.h`) |
 | `Package.swift` | Swift package: the C++ core as the `OsplayCore` module and its Swift wrapper `CoreBridge` (`macos/CoreBridge/`) |
 | `macos/` | The Apple apps, generated with XcodeGen from `macos/project.yml`: the macOS menu bar app (`Osplay/`), the iPad viewer app (`OsplayPad/`) and the code both compile (`Shared/`) |
+| `android/` | Android viewer app (Kotlin, Jetpack Compose) with the core built by the NDK and a JNI bridge (`app/src/main/cpp/`) |
 | `windows/engine/` | Native engine DLL (`OsplayEngine.dll`): capture, encode, decode, present, discovery |
 | `windows/helper/` | `OsplayHelper` Windows service for privileged virtual display driver operations |
 | `windows/app/` | WPF shell (`Osplay.App`) and its string resources (`Osplay.Localization`) |
@@ -202,6 +203,25 @@ sample-buffer rendering helpers and the shared tunables — compiled into both a
   when it returns; a dropped connection or sleeping computer is retried the same way as on the Mac.
 - **Compatibility.** The iPad announces platform 3 (protocol 1.2). Osplay 0.1 refuses unknown
   platforms, so a computer whose Bonjour record has no `pm` key is listed as needing an update.
+
+## Android app
+
+Also a viewer only. The C++ core is compiled by the NDK into `libosplay_jni.so` together with a thin
+JNI bridge (`osplay_jni.cpp`): text crosses as UTF-8 byte arrays, the core's I/O thread attaches to
+the JVM once and its callbacks go to a Kotlin `SessionListener`.
+
+- **Discovery** (`discovery/NsdDiscovery.kt`). NsdManager browses `_osplay._tcp`; before Android 14
+  it resolves one service at a time, so resolves wait in a queue. TXT records are checked by the
+  core, as everywhere else.
+- **Decode and present** (`video/`, `viewer/StreamStage.kt`). MediaCodec in low-latency, realtime
+  mode decodes onto a SurfaceView and renders every frame at once. The stage starts the decoder
+  when both the surface and the stream exist; after a codec error it starts over at the next
+  keyframe and asks the host for one. Windows hosts' separate cursor is drawn above the video.
+- **Keys** (`storage/`). The identity's secret key is encrypted with an AES key that stays in the
+  Android Keystore; paired computers are JSON in app-private preferences.
+- **Lifecycle.** The activity handles rotation itself, so the session restarts with the new shape
+  instead of the activity being recreated; `onStop` ends the session cleanly and `onStart`
+  reconnects. The screen stays on and the system bars are hidden while viewing.
 
 ## Discovery and pairing
 

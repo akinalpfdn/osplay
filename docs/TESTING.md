@@ -67,6 +67,9 @@ Run the iPad app from Xcode (BUILDING.md) or TestFlight. The computer runs Ospla
 | T5 | Old computer | A computer with Osplay 0.1.1 shares its screen | Listed with "Update Osplay on this computer"; tapping it explains, no connection attempt |
 | T6 | Revoke | iPad Settings › Paired computers → swipe → Revoke, then connect | Refused at once without a code; Remove makes it ask for a code again |
 
+The same cases apply to the Android app (A1–A6 for T1–T6), run from Android Studio or Google Play
+on a phone or tablet with Android 12 or later.
+
 ## Interruptions
 
 | # | Scenario | Steps | Expected |
@@ -100,3 +103,4 @@ Run the iPad app from Xcode (BUILDING.md) or TestFlight. The computer runs Ospla
 | 2026-10-20 | `3fe19bd` | Wi-Fi | I5–I9, Q1, Q2, Q3, Q5 (one hour) | Pass | |
 | 2026-10-25 | `d0645b7` | Wi-Fi | D1, D2, D4–D8 (every direction but PC → PC), M1–M3 (several viewers on both hosts) | Pass | Found and fixed on the way: two monitors on one Windows driver device stall the desktop, pooled driver devices shared a stale mode list (issue #30 left open), a Mac host's second viewer took the first one's displays |
 | 2026-10-27 | `e00a28d` | Wi-Fi | T1 (Mac → iPad A16) | Pass | The iPad listed the Mac once Local Network access was granted |
+| 2026-10-27 | `8d766c6` | Wi-Fi | A1 (Mac → Galaxy S23 Ultra) | Pass | |
