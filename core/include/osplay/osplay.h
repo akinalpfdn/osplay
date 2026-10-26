@@ -158,7 +158,8 @@ osplay_result osplay_protocol_reencode(osplay_wire_kind kind, const uint8_t* dat
 
 /*
  * Sessions (docs/PROTOCOL.md "Session flow"). A session is one host and one viewer over a TCP
- * control connection and a UDP media socket, both driven by one I/O thread owned by the session.
+ * control connection and a UDP media socket (or, on a USB cable, one stream carrying both), driven
+ * by one I/O thread owned by the session.
  *
  * Threading: every callback runs on that I/O thread, must return quickly and must not call
  * osplay_session_destroy. The command functions may be called from any thread except a callback;
@@ -440,6 +441,34 @@ osplay_result osplay_viewer_session_create(const osplay_session_config* config,
                                            osplay_session** out_session);
 
 /*
+ * USB (PROTOCOL.md "Stream links"): an iPad on a cable is reached through usbmuxd, part of macOS;
+ * on Windows the Apple Mobile Device Service (Apple Devices or iTunes) provides it. The iPad's
+ * Osplay listens on OSPLAY_USB_PORT on its loopback interface and the host connects to it, so the
+ * connection runs from host to viewer while the session roles stay the same. Control and media
+ * share that one stream.
+ */
+#define OSPLAY_USB_PORT 41847
+
+/* Host: connects through usbmuxd to `port` on device `device_id` (from osplay_usb_callbacks). The
+ * session ends with OSPLAY_ERROR_NETWORK when nothing listens there (Osplay is not open on the
+ * iPad) or usbmuxd is missing; try again later. config->control_port is ignored. */
+osplay_result osplay_host_session_create_usb(const osplay_session_config* config,
+                                             const uint8_t* secret_key,
+                                             const osplay_random_source* random,
+                                             const osplay_session_callbacks* callbacks,
+                                             uint32_t device_id, uint16_t port,
+                                             osplay_session** out_session);
+
+/* Viewer: waits on `port` of the loopback interface for a host on the cable, without a time
+ * limit. Fails with OSPLAY_ERROR_NETWORK when the port is taken. config->control_port is ignored.
+ */
+osplay_result osplay_viewer_session_create_usb(const osplay_session_config* config,
+                                               const uint8_t* secret_key,
+                                               const osplay_random_source* random,
+                                               const osplay_session_callbacks* callbacks,
+                                               uint16_t port, osplay_session** out_session);
+
+/*
  * Sends Bye and closes the connection without waiting; on_state then reports CLOSED. Unlike
  * osplay_session_destroy it may be called from a callback. Later commands fail with
  * OSPLAY_ERROR_INVALID_STATE.
@@ -458,7 +487,7 @@ osplay_result osplay_session_refuse_busy(osplay_session* session);
 /* Sends Bye when possible, closes the sockets and joins the I/O thread. NULL is ignored. */
 void osplay_session_destroy(osplay_session* session);
 
-/* Host: the TCP port to advertise over Bonjour. */
+/* Host: the TCP port to advertise over Bonjour. USB viewer: the loopback port it listens on. */
 osplay_result osplay_session_control_port(const osplay_session* session, uint16_t* out_port);
 
 /* Answers on_pairing_code with the local user's decision (`accepted` is 0 or 1). */
@@ -503,6 +532,28 @@ osplay_result osplay_session_request_role_swap(osplay_session* session);
  * or BUSY refuses and keeps it running. */
 osplay_result osplay_session_answer_role_swap(osplay_session* session,
                                               osplay_role_swap_answer answer);
+
+/*
+ * The iPads on a USB cable, followed through usbmuxd on a thread of the watcher's own; callbacks
+ * run there and must return quickly. Devices usbmuxd reaches over Wi-Fi are left out. When
+ * usbmuxd is missing (Windows without Apple Devices) or restarts, the watcher tries again every
+ * few seconds and reports the devices it knew as detached. A device ID changes when the cable is
+ * plugged in again.
+ */
+typedef struct osplay_usb_callbacks {
+    void* context;
+    void (*on_attached)(void* context, uint32_t device_id);
+    void (*on_detached)(void* context, uint32_t device_id);
+} osplay_usb_callbacks;
+
+typedef struct osplay_usb_watcher osplay_usb_watcher;
+
+/* `callbacks` is copied; its context must outlive the watcher. */
+osplay_result osplay_usb_watcher_create(const osplay_usb_callbacks* callbacks,
+                                        osplay_usb_watcher** out_watcher);
+
+/* Stops the watcher; no callback runs after it returns. Not from a callback. NULL is ignored. */
+void osplay_usb_watcher_destroy(osplay_usb_watcher* watcher);
 
 #ifdef __cplusplus
 } /* extern "C" */

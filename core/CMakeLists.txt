@@ -39,6 +39,7 @@ add_library(osplay_core STATIC
     src/capi/media_capi.cpp
     src/capi/protocol_capi.cpp
     src/capi/session_capi.cpp
+    src/capi/usb_capi.cpp
     src/capi/version.cpp
     src/crypto/media_crypto.cpp
     src/crypto/noise.cpp
@@ -53,8 +54,11 @@ add_library(osplay_core STATIC
     src/session/session_engine.cpp
     src/transport/asio_session.cpp
     src/transport/traffic_class.cpp
+    src/transport/usb_watcher.cpp
+    src/transport/usbmux.cpp
     src/protocol/advertisement.cpp
     src/protocol/control_codec.cpp
+    src/protocol/link_record.cpp
     src/protocol/media_codec.cpp
     src/protocol/text.cpp)
 add_library(osplay::core ALIAS osplay_core)

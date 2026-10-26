@@ -19,3 +19,6 @@ A tablet connected to the computer with a USB cable works as a display with Wi-F
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
+- 2026-10-27 — Galaxy S23 Ultra USB tethering does not reach a Mac: Samsung uses RNDIS and macOS has no RNDIS driver (no network interface appears). Windows has one, so Android over USB is a Windows-only path; on a Mac the phone's Wi-Fi hotspot works instead (tested: Mac → S23 Ultra over the phone's hotspot, no router).
+- 2026-10-27 — User decision: a USB session starts on the iPad. Its home screen gets a "USB cable" row; tapping it makes the iPad listen, and a sharing Mac or PC on the cable connects within seconds. After a disconnect from either side nothing reconnects by itself.
+- 2026-10-27 — The stream-link framing is not negotiated in the handshake (as the task above first said): the connection itself decides it. A host reaches the iPad only through usbmuxd and the iPad's USB listener only takes those connections, so both sides know the link before Hello. Over usbmuxd the host opens the TCP connection; the Noise roles stay viewer = initiator.

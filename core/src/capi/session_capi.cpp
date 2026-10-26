@@ -476,6 +476,53 @@ osplay_result osplay_viewer_session_create(const osplay_session_config* config,
     });
 }
 
+osplay_result osplay_host_session_create_usb(const osplay_session_config* config,
+                                             const uint8_t* secret_key,
+                                             const osplay_random_source* random,
+                                             const osplay_session_callbacks* callbacks,
+                                             uint32_t device_id, uint16_t port,
+                                             osplay_session** out_session) {
+    return guarded([&]() -> osplay_result {
+        if (port == 0) {
+            if (out_session != nullptr) {
+                *out_session = nullptr;
+            }
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        return create_session(
+            config, secret_key, random, callbacks, protocol::Role::Host, out_session,
+            [device_id, port](session::SessionConfig session_config,
+                              osplay::crypto::KeyPair identity, osplay_session& handle) {
+                return osplay::transport::AsioSession::create_host_usb(
+                    std::move(session_config), std::move(identity), handle.random, handle.observer,
+                    {.device_id = device_id, .port = port, .usbmux = {}});
+            });
+    });
+}
+
+osplay_result osplay_viewer_session_create_usb(const osplay_session_config* config,
+                                               const uint8_t* secret_key,
+                                               const osplay_random_source* random,
+                                               const osplay_session_callbacks* callbacks,
+                                               uint16_t port, osplay_session** out_session) {
+    return guarded([&]() -> osplay_result {
+        if (port == 0) {
+            if (out_session != nullptr) {
+                *out_session = nullptr;
+            }
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        return create_session(config, secret_key, random, callbacks, protocol::Role::Viewer,
+                              out_session,
+                              [port](session::SessionConfig session_config,
+                                     osplay::crypto::KeyPair identity, osplay_session& handle) {
+                                  return osplay::transport::AsioSession::create_viewer_usb(
+                                      std::move(session_config), std::move(identity), handle.random,
+                                      handle.observer, port);
+                              });
+    });
+}
+
 osplay_result osplay_session_close(osplay_session* session) {
     return guarded([&]() -> osplay_result {
         if (session == nullptr) {

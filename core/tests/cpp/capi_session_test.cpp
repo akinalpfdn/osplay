@@ -365,6 +365,79 @@ TEST(CapiSession, RejectsInvalidArguments) {
     osplay_session_destroy(nullptr);
 }
 
+TEST(CapiSession, AUsbViewerListensOnItsPortAndAUsbSessionNeedsOne) {
+    Side side;
+    const auto callbacks = side.callbacks();
+    const auto secret = new_secret();
+    const osplay_monitor monitor{.monitor_id = 0,
+                                 .width_px = 2360,
+                                 .height_px = 1640,
+                                 .refresh_millihertz = 60'000,
+                                 .physical_width_mm = 228,
+                                 .physical_height_mm = 158,
+                                 .scale_percent = 200,
+                                 .name = "iPad"};
+    const osplay_session_config config{.platform = OSPLAY_PLATFORM_IPADOS,
+                                       .device_name = "C iPad",
+                                       .capabilities = kCapabilities,
+                                       .monitors = &monitor,
+                                       .monitor_count = 1,
+                                       .control_port = 0};
+    osplay_session* session = reinterpret_cast<osplay_session*>(&side); // must be overwritten
+    EXPECT_EQ(
+        osplay_viewer_session_create_usb(&config, secret.data(), &kRandom, &callbacks, 0, &session),
+        OSPLAY_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(session, nullptr);
+    session = reinterpret_cast<osplay_session*>(&side);
+    EXPECT_EQ(osplay_host_session_create_usb(&config, secret.data(), &kRandom, &callbacks, 1, 0,
+                                             &session),
+              OSPLAY_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(session, nullptr);
+
+    // Any free port stands in for OSPLAY_USB_PORT, which another test run may hold.
+    osplay_session* first = nullptr;
+    osplay_session* probe = nullptr;
+    osplay_session_config host_config = config;
+    host_config.monitors = nullptr;
+    host_config.monitor_count = 0;
+    ASSERT_EQ(osplay_host_session_create(&host_config, secret.data(), &kRandom, &callbacks, &probe),
+              OSPLAY_OK);
+    uint16_t port = 0;
+    ASSERT_EQ(osplay_session_control_port(probe, &port), OSPLAY_OK);
+    osplay_session_destroy(probe);
+    ASSERT_EQ(osplay_viewer_session_create_usb(&config, secret.data(), &kRandom, &callbacks, port,
+                                               &first),
+              OSPLAY_OK);
+    uint16_t listening = 0;
+    ASSERT_EQ(osplay_session_control_port(first, &listening), OSPLAY_OK);
+    EXPECT_EQ(listening, port);
+
+    Side other;
+    const auto other_callbacks = other.callbacks();
+    osplay_session* second = nullptr;
+    EXPECT_EQ(osplay_viewer_session_create_usb(&config, secret.data(), &kRandom, &other_callbacks,
+                                               port, &second),
+              OSPLAY_ERROR_NETWORK)
+        << "one listener per port";
+    EXPECT_EQ(second, nullptr);
+    osplay_session_destroy(first);
+}
+
+TEST(CapiUsbWatcher, NeedsBothCallbacks) {
+    osplay_usb_watcher* watcher = nullptr;
+    EXPECT_EQ(osplay_usb_watcher_create(nullptr, &watcher), OSPLAY_ERROR_INVALID_ARGUMENT);
+    osplay_usb_callbacks callbacks{
+        .context = nullptr, .on_attached = [](void*, uint32_t) {}, .on_detached = nullptr};
+    EXPECT_EQ(osplay_usb_watcher_create(&callbacks, &watcher), OSPLAY_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(watcher, nullptr);
+    callbacks.on_detached = [](void*, uint32_t) {};
+    EXPECT_EQ(osplay_usb_watcher_create(&callbacks, nullptr), OSPLAY_ERROR_INVALID_ARGUMENT);
+    // The real usbmuxd on a Mac, nothing (and retries) elsewhere: either way it starts and stops.
+    ASSERT_EQ(osplay_usb_watcher_create(&callbacks, &watcher), OSPLAY_OK);
+    osplay_usb_watcher_destroy(watcher);
+    osplay_usb_watcher_destroy(nullptr);
+}
+
 TEST(CapiSession, CommandsInTheWrongStateFail) {
     Side side;
     const auto callbacks = side.callbacks();
