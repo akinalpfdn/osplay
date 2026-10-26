@@ -4,7 +4,7 @@
     <string name="home_subtitle">Use this device as an extra display for a Mac or a Windows PC.</string>
     <string name="home_nearby">Nearby computers</string>
     <string name="home_searching">Looking for computers… On the computer, open Osplay and choose Extend this Mac or Extend this PC.</string>
-    <string name="home_same_network">This device and the computer must be on the same network.</string>
+    <string name="home_same_network">This device and the computer must be on the same network. Without Wi-Fi, connect a PC with a USB cable and turn on USB tethering (in Settings, under hotspot and tethering), or connect a Mac to this device\'s hotspot.</string>
     <string name="device_paired">Paired</string>
     <string name="device_new">Pairs on first connection</string>
     <string name="device_needs_update">Update Osplay on this computer to use it here</string>
