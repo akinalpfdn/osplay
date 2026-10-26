@@ -1,5 +1,5 @@
 # Phase 021 (TAB-01) — iPad viewer over Wi-Fi
-Status: ACTIVE
+Status: DONE — App Store submission and the PC → iPad test deferred (user decision 2026-10-27)
 
 DEVPLAN reference: Phase 15 (part TAB-01). Depends on: Phase 14.
 
@@ -31,3 +31,4 @@ An iPad shows a Mac's or a PC's extra display over Wi-Fi, from an iPad app that 
 - 2026-10-26 — User decision: minimum iPadOS 18. Test device: the user's base iPad (11th generation, A16, 2025).
 - 2026-10-26 — Shared Apple code lives in `macos/Shared`, compiled into both apps (DECISIONS.md). Protocol 1.2 adds the iPadOS and Android platforms and the `pm` TXT key; iPads need Osplay 0.2 on the computer.
 - 2026-10-26 — Rotating the iPad restarts the session with the new shape; the background ends it and the app reconnects on return.
+- 2026-10-27 — User decision: App Store submission comes later. PC → iPad (T2: odd VDD resolutions, the separate cursor layer, the Windows struct change) is tested on the 0.2.0 release draft before publishing.

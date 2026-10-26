@@ -1,5 +1,5 @@
 # Phase 022 (TAB-02) — Android tablet viewer over Wi-Fi
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 15 (part TAB-02). Depends on: PHASE-021 (TAB-01).
 
