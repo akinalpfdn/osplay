@@ -156,6 +156,15 @@ internal unsafe struct NativeBrowserCallbacks
     public delegate* unmanaged[Cdecl]<nint, byte*, void> OnLost;
 }
 
+/// <summary>osplay_usb_callbacks.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct NativeUsbCallbacks
+{
+    public nint Context;
+    public delegate* unmanaged[Cdecl]<nint, uint, void> OnAttached;
+    public delegate* unmanaged[Cdecl]<nint, uint, void> OnDetached;
+}
+
 /// <summary>osplay_engine_host_config.</summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct NativeHostConfig

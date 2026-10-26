@@ -276,13 +276,11 @@ osplay_session_callbacks core_callbacks(osplay_engine_host* host) {
     return callbacks;
 }
 
-} // namespace
-
-extern "C" {
-
-osplay_engine_result osplay_engine_host_start(const osplay_engine_host_config* config,
-                                              const osplay_engine_host_callbacks* callbacks,
-                                              osplay_engine_host** out_host) {
+/// Both start functions; `create` makes the core session (listening, or over usbmuxd).
+template <typename Create>
+osplay_engine_result start_host(const osplay_engine_host_config* config,
+                                const osplay_engine_host_callbacks* callbacks,
+                                osplay_engine_host** out_host, const Create& create) {
     return guarded([&] {
         if (out_host == nullptr) {
             return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
@@ -332,8 +330,8 @@ osplay_engine_result osplay_engine_host_start(const osplay_engine_host_config* c
         const osplay_random_source random{.fill = system_random, .context = nullptr};
         const osplay_session_callbacks session_callbacks = core_callbacks(host.get());
         osplay_session* session = nullptr;
-        const osplay_result created = osplay_host_session_create(
-            &session_config, secret->data(), &random, &session_callbacks, &session);
+        const osplay_result created =
+            create(session_config, secret->data(), random, session_callbacks, &session);
         SecureZeroMemory(secret->data(), secret->size());
         if (created != OSPLAY_OK) {
             return created == OSPLAY_ERROR_INVALID_ARGUMENT ? OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT
@@ -344,6 +342,56 @@ osplay_engine_result osplay_engine_host_start(const osplay_engine_host_config* c
         *out_host = host.release(); // ownership passes to the caller until _destroy
         return OSPLAY_ENGINE_OK;
     });
+}
+
+} // namespace
+
+extern "C" {
+
+osplay_engine_result osplay_engine_host_start(const osplay_engine_host_config* config,
+                                              const osplay_engine_host_callbacks* callbacks,
+                                              osplay_engine_host** out_host) {
+    return start_host(config, callbacks, out_host,
+                      [](const osplay_session_config& session_config, const uint8_t* secret,
+                         const osplay_random_source& random,
+                         const osplay_session_callbacks& session_callbacks,
+                         osplay_session** session) {
+                          return osplay_host_session_create(&session_config, secret, &random,
+                                                            &session_callbacks, session);
+                      });
+}
+
+osplay_engine_result osplay_engine_host_start_usb(const osplay_engine_host_config* config,
+                                                  const osplay_engine_host_callbacks* callbacks,
+                                                  uint32_t usb_device_id,
+                                                  osplay_engine_host** out_host) {
+    return start_host(config, callbacks, out_host,
+                      [usb_device_id](const osplay_session_config& session_config,
+                                      const uint8_t* secret, const osplay_random_source& random,
+                                      const osplay_session_callbacks& session_callbacks,
+                                      osplay_session** session) {
+                          return osplay_host_session_create_usb(&session_config, secret, &random,
+                                                                &session_callbacks, usb_device_id,
+                                                                OSPLAY_USB_PORT, session);
+                      });
+}
+
+osplay_engine_result osplay_engine_usb_watcher_start(const osplay_usb_callbacks* callbacks,
+                                                     osplay_usb_watcher** out_watcher) {
+    return guarded([&] {
+        switch (osplay_usb_watcher_create(callbacks, out_watcher)) {
+        case OSPLAY_OK:
+            return OSPLAY_ENGINE_OK;
+        case OSPLAY_ERROR_INVALID_ARGUMENT:
+            return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
+        default:
+            return OSPLAY_ENGINE_ERROR_INTERNAL;
+        }
+    });
+}
+
+void osplay_engine_usb_watcher_destroy(osplay_usb_watcher* watcher) {
+    osplay_usb_watcher_destroy(watcher);
 }
 
 osplay_engine_result osplay_engine_host_control_port(osplay_engine_host* host, uint16_t* out_port) {

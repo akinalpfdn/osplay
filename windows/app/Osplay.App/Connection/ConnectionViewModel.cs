@@ -33,6 +33,10 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private EngineAdvertiser? _advertiser;
     private ushort _advertisedPort;
     private bool _startingListener;
+    // While sharing: the iPads on the USB cable, and those a session is being started for.
+    private EngineUsbWatcher? _usbWatcher;
+    private readonly HashSet<uint> _usbDevices = [];
+    private readonly HashSet<uint> _usbStarting = [];
     /// <summary>Pairing codes waiting for the user; the first one is shown.</summary>
     private readonly List<PairingRequest> _pairingQueue = [];
     private EngineViewer? _viewer;
@@ -62,8 +66,11 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     {
         public EngineHost Host { get; } = host;
 
-        /// <summary>Its row in the panel; null while it listens for a viewer.</summary>
+        /// <summary>Its row in the panel; null while it waits for a viewer.</summary>
         public ViewerItem? Viewer { get; set; }
+
+        /// <summary>The session listening on the network for the next viewer (not one trying an iPad on the cable).</summary>
+        public bool IsListener => Viewer is null && Host.UsbDeviceId is null;
 
         public bool IsStreaming { get; set; }
 
@@ -346,6 +353,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     {
         Status = Localization.Strings.ConnectionStatusWaiting;
         await ListenAsync().ConfigureAwait(true);
+        await WatchUsbAsync().ConfigureAwait(true);
     }
 
     /// <summary>
@@ -355,7 +363,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private async Task ListenAsync()
     {
         if (Mode != ConnectionMode.Sharing || _pendingSwap is not null || _startingListener ||
-            _hosts.Exists(h => h.Viewer is null))
+            _hosts.Exists(h => h.IsListener))
         {
             return;
         }
@@ -405,17 +413,90 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
                 _advertiser = advertiser;
                 _advertisedPort = host.ControlPort;
             }
-            var entry = new HostEntry(host);
-            _hosts.Add(entry);
-            Attach(host);
-            host.PeerArrived += (platform, name) => OnViewerArrived(entry, platform, name);
-            host.Streaming += count => OnHostStreaming(entry, count);
-            UpdateSharingStatus();
+            AddHost(host);
         }
         finally
         {
             _startingListener = false;
         }
+    }
+
+    private void AddHost(EngineHost host)
+    {
+        var entry = new HostEntry(host);
+        _hosts.Add(entry);
+        Attach(host);
+        host.PeerArrived += (platform, name) => OnViewerArrived(entry, platform, name);
+        host.Streaming += count => OnHostStreaming(entry, count);
+        UpdateSharingStatus();
+    }
+
+    /// <summary>
+    /// Tries every iPad on the USB cable while sharing is on: one answers once its user picks the
+    /// cable there (DEVPLAN Phase 15 part TAB-03). Without Apple Devices nothing is ever attached.
+    /// </summary>
+    private async Task WatchUsbAsync()
+    {
+        if (Mode != ConnectionMode.Sharing || _usbWatcher is not null)
+        {
+            return;
+        }
+        (EngineResult started, EngineUsbWatcher? watcher) = await EngineUsbWatcher.StartAsync(_dispatcher).ConfigureAwait(true);
+        if (watcher is null)
+        {
+            Log.Write(LogLevel.Warning, $"Cannot watch USB devices: {started}"); // sharing goes on without the cable
+            return;
+        }
+        if (Mode != ConnectionMode.Sharing || _usbWatcher is not null)
+        {
+            await watcher.DisposeAsync().ConfigureAwait(true); // switched off meanwhile
+            return;
+        }
+        _usbWatcher = watcher;
+        watcher.Attached += device =>
+        {
+            _ = _usbDevices.Add(device);
+            _ = TryUsbAsync(device);
+        };
+        watcher.Detached += device => _usbDevices.Remove(device);
+    }
+
+    private async Task TryUsbAsync(uint device)
+    {
+        if (Mode != ConnectionMode.Sharing || _pendingSwap is not null || !_usbDevices.Contains(device) ||
+            _usbStarting.Contains(device) || _hosts.Exists(h => h.Host.UsbDeviceId == device))
+        {
+            return;
+        }
+        _ = _usbStarting.Add(device);
+        try
+        {
+            (EngineResult started, EngineHost? host) = await EngineHost
+                .StartUsbAsync(_dispatcher, _deviceName, _settings.Quality.MillibitsPerPixel(), _settings.StreamSize.Box(), device)
+                .ConfigureAwait(true);
+            if (host is null)
+            {
+                Log.Write(LogLevel.Warning, $"Could not try the iPad on USB: {started}");
+                _ = TryUsbLaterAsync(device);
+                return;
+            }
+            if (Mode != ConnectionMode.Sharing)
+            {
+                await host.DisposeAsync().ConfigureAwait(true); // switched off meanwhile
+                return;
+            }
+            AddHost(host);
+        }
+        finally
+        {
+            _ = _usbStarting.Remove(device);
+        }
+    }
+
+    private async Task TryUsbLaterAsync(uint device)
+    {
+        await Task.Delay(AppTunables.UsbRetryDelay).ConfigureAwait(true);
+        await TryUsbAsync(device).ConfigureAwait(true); // checks that sharing and the device are still there
     }
 
     private void OnViewerArrived(HostEntry entry, Platform platform, string name)
@@ -784,7 +865,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
                 await _advertiser.DisposeAsync().ConfigureAwait(true);
                 _advertiser = null;
             }
-            HostEntry? listener = _hosts.Find(h => h.Viewer is null);
+            HostEntry? listener = _hosts.Find(h => h.IsListener);
             if (listener is not null)
             {
                 await listener.Host.StopAsync().ConfigureAwait(true); // OnClosedAsync listens again
@@ -882,8 +963,11 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     {
         DropPairing(session);
         bool viewerComesBack = ReferenceEquals(session, _viewer) && ComesBack(reason);
+        // An iPad on the cable that is not waiting for a computer refuses: that is no failure.
+        bool usbAttempt = EntryOf(session) is { Viewer: null, Host.UsbDeviceId: not null };
         // A peer leaving or going to sleep is not an error; neither is a drop that heals by itself.
-        if (reason is not (CoreResult.Ok or CoreResult.ConnectionClosed or CoreResult.PeerSleeping) && !viewerComesBack)
+        if (reason is not (CoreResult.Ok or CoreResult.ConnectionClosed or CoreResult.PeerSleeping) && !viewerComesBack &&
+            !usbAttempt)
         {
             ErrorMessage = ErrorMessages.For(reason);
         }
@@ -931,7 +1015,12 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
                 return;
             }
             UpdateSharingStatus();
-            if (entry.Viewer is null && Mode == ConnectionMode.Sharing)
+            if (entry.Host.UsbDeviceId is uint device)
+            {
+                // The iPad is tried again; it only answers when its user picks the cable again.
+                await TryUsbLaterAsync(device).ConfigureAwait(true);
+            }
+            else if (entry.Viewer is null && Mode == ConnectionMode.Sharing)
             {
                 // The listener ended (a viewer turned away, a failure, wake): another one takes its place.
                 await Task.Delay(AppTunables.RelistenDelay).ConfigureAwait(true);
@@ -1094,6 +1183,9 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         Devices.Clear();
         EngineBrowser? browser = _browser;
         EngineAdvertiser? advertiser = _advertiser;
+        EngineUsbWatcher? usbWatcher = _usbWatcher;
+        _usbWatcher = null;
+        _usbDevices.Clear();
         List<HostEntry> hosts = [.. _hosts];
         EngineViewer? viewer = _viewer;
         _browser = null;
@@ -1110,6 +1202,10 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         if (advertiser is not null)
         {
             await advertiser.DisposeAsync().ConfigureAwait(true);
+        }
+        if (usbWatcher is not null)
+        {
+            await usbWatcher.DisposeAsync().ConfigureAwait(true);
         }
         foreach (HostEntry entry in hosts)
         {

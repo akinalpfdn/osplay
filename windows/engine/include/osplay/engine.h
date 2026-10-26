@@ -224,6 +224,22 @@ OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_start(
     const osplay_engine_host_config* config, const osplay_engine_host_callbacks* callbacks,
     osplay_engine_host** out_host);
 
+/* As _start, but reaches the iPad `usb_device_id` (from osplay_engine_usb_watcher_start) on the
+ * USB cable through the Apple Mobile Device Service (Apple Devices or iTunes). The session closes
+ * with OSPLAY_ERROR_NETWORK when the iPad is not waiting for a computer; config->control_port is
+ * ignored. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_start_usb(
+    const osplay_engine_host_config* config, const osplay_engine_host_callbacks* callbacks,
+    uint32_t usb_device_id, osplay_engine_host** out_host);
+
+/* Follows the iPads on a USB cable (osplay_usb_watcher_create in osplay.h): without the Apple
+ * Mobile Device Service none are reported and the watcher keeps trying. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_usb_watcher_start(
+    const osplay_usb_callbacks* callbacks, osplay_usb_watcher** out_watcher);
+
+/* No callback runs after it returns. Accepts NULL. */
+OSPLAY_ENGINE_API void osplay_engine_usb_watcher_destroy(osplay_usb_watcher* watcher);
+
 /* The TCP port to advertise. */
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_control_port(osplay_engine_host* host,
                                                                        uint16_t* out_port);

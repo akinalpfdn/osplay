@@ -15,6 +15,9 @@ internal static class AppTunables
     /// </summary>
     public static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(2);
 
+    /// <summary>While sharing, how often an iPad on the USB cable is tried; it answers once its user picks the cable (TAB-03).</summary>
+    public static readonly TimeSpan UsbRetryDelay = TimeSpan.FromSeconds(2);
+
     /// <summary>After a role swap, how long viewing waits for the other computer to advertise itself.</summary>
     public static readonly TimeSpan SwapReconnectTimeout = TimeSpan.FromSeconds(20);
 

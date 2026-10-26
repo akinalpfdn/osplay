@@ -197,11 +197,28 @@ internal sealed unsafe class EngineHost : EngineSession
     /// <summary>The virtual monitors stream; the argument is how many this viewer got.</summary>
     public event Action<uint>? Streaming;
 
+    /// <summary>The iPad on the USB cable this session reaches; null for one listening on the network.</summary>
+    public uint? UsbDeviceId { get; private set; }
+
     public static Task<(EngineResult Result, EngineHost? Host)> StartAsync(
         Dispatcher dispatcher, string deviceName, uint millibitsPerPixel, ushort controlPort,
-        (uint Width, uint Height) streamBox)
+        (uint Width, uint Height) streamBox) =>
+        StartAsync(dispatcher, deviceName, millibitsPerPixel, controlPort, streamBox, usbDeviceId: null);
+
+    /// <summary>
+    /// Reaches the iPad on the USB cable through the Apple Mobile Device Service; the session closes
+    /// with Network when the iPad is not waiting for a computer (TAB-03).
+    /// </summary>
+    public static Task<(EngineResult Result, EngineHost? Host)> StartUsbAsync(
+        Dispatcher dispatcher, string deviceName, uint millibitsPerPixel, (uint Width, uint Height) streamBox,
+        uint usbDeviceId) =>
+        StartAsync(dispatcher, deviceName, millibitsPerPixel, 0, streamBox, usbDeviceId);
+
+    private static Task<(EngineResult Result, EngineHost? Host)> StartAsync(
+        Dispatcher dispatcher, string deviceName, uint millibitsPerPixel, ushort controlPort,
+        (uint Width, uint Height) streamBox, uint? usbDeviceId)
     {
-        var created = new EngineHost(dispatcher);
+        var created = new EngineHost(dispatcher) { UsbDeviceId = usbDeviceId };
         return Native.Run(() =>
         {
             nint name = Utf8.Allocate(deviceName);
@@ -233,7 +250,9 @@ internal sealed unsafe class EngineHost : EngineSession
                     OnRoleSwapAnswer = &OnRoleSwapAnswer,
                 };
                 nint handle;
-                EngineResult result = NativeMethods.HostStart(&config, &callbacks, &handle);
+                EngineResult result = usbDeviceId is uint device
+                    ? NativeMethods.HostStartUsb(&config, &callbacks, device, &handle)
+                    : NativeMethods.HostStart(&config, &callbacks, &handle);
                 if (result != EngineResult.Ok)
                 {
                     return (result, (EngineHost?)null);

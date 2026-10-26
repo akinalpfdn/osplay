@@ -47,6 +47,19 @@ internal static unsafe partial class NativeMethods
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult HostStart(NativeHostConfig* config, NativeHostCallbacks* callbacks, nint* host);
 
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_host_start_usb")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial EngineResult HostStartUsb(
+        NativeHostConfig* config, NativeHostCallbacks* callbacks, uint usbDeviceId, nint* host);
+
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_usb_watcher_start")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial EngineResult UsbWatcherStart(NativeUsbCallbacks* callbacks, nint* watcher);
+
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_usb_watcher_destroy")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial void UsbWatcherDestroy(nint watcher);
+
     [LibraryImport(_engine, EntryPoint = "osplay_engine_host_control_port")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult HostControlPort(nint host, ushort* port);
