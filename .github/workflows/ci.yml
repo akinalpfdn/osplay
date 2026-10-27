@@ -54,9 +54,15 @@ jobs:
       - name: iPad app — build, test on a simulator
         working-directory: macos
         run: |
-          # Any available iPad simulator; the runner image decides which models exist.
-          simulator=$(xcrun simctl list devices available | grep -m 1 -oE 'iPad[^(]*\([0-9A-F-]{36}\)' | grep -oE '[0-9A-F-]{36}')
-          test -n "$simulator" || { echo "No iPad simulator available"; exit 1; }
+          # Any available iPad simulator (names contain parentheses, so the JSON listing is read); the
+          # runner image decides which exist, and one is created with the newest iOS runtime if none does.
+          simulator=$(xcrun simctl list devices available -j | jq -r '[.devices[][] | select(.name | startswith("iPad"))][0].udid // empty')
+          if [ -z "$simulator" ]; then
+            runtime=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == "iOS")] | last | .identifier // empty')
+            type=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == "iOS")] | last | [.supportedDeviceTypes[] | select(.productFamily == "iPad")] | last | .identifier // empty')
+            test -n "$runtime" && test -n "$type" || { echo "No iOS runtime with an iPad"; xcrun simctl list runtimes; exit 1; }
+            simulator=$(xcrun simctl create "Osplay CI iPad" "$type" "$runtime")
+          fi
           xcodebuild -project Osplay.xcodeproj -scheme OsplayPad -destination "platform=iOS Simulator,id=$simulator" \
             -derivedDataPath DerivedData -quiet test
 
