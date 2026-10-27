@@ -32,8 +32,8 @@ namespace osplay::transport {
 
 class UsbWatcher::Impl {
 public:
-    Impl(UsbObserver& observer, UsbmuxAddress address, Microseconds retry_interval)
-        : observer_(observer), address_(std::move(address)), retry_interval_(retry_interval),
+    Impl(UsbObserver& observer, const UsbmuxAddress& address, Microseconds retry_interval)
+        : observer_(observer), address_(address), retry_interval_(retry_interval),
           work_(asio::make_work_guard(io_)), socket_(io_), timer_(io_) {
         asio::post(io_, [this] { connect(); });
         thread_ = std::thread([this] { io_.run(); });
@@ -176,8 +176,9 @@ private:
     std::thread thread_;
 };
 
-UsbWatcher::UsbWatcher(UsbObserver& observer, UsbmuxAddress address, Microseconds retry_interval)
-    : impl_(std::make_unique<Impl>(observer, std::move(address), retry_interval)) {}
+UsbWatcher::UsbWatcher(UsbObserver& observer, const UsbmuxAddress& address,
+                       Microseconds retry_interval)
+    : impl_(std::make_unique<Impl>(observer, address, retry_interval)) {}
 
 UsbWatcher::~UsbWatcher() = default;
 

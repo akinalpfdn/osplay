@@ -22,7 +22,7 @@ public:
 
 class UsbWatcher {
 public:
-    explicit UsbWatcher(UsbObserver& observer, UsbmuxAddress address = {},
+    explicit UsbWatcher(UsbObserver& observer, const UsbmuxAddress& address = {},
                         Microseconds retry_interval = Microseconds{3'000'000});
     /// Stops the thread; no callback runs after it returns. Must not be called from a callback.
     ~UsbWatcher();
