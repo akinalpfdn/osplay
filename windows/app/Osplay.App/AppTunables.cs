@@ -48,6 +48,14 @@ internal static class AppTunables
     /// <summary>Copy diagnostics includes this many of the newest log lines.</summary>
     public const int DiagnosticsLogLines = 300;
 
+    /// <summary>The PC's own network: "Osplay-" and this many characters, and a WPA2 password of this length.</summary>
+    public const int PcNetworkNameSuffixLength = 4;
+
+    public const int PcNetworkPasswordLength = 12;
+
+    /// <summary>Pixels per module of the network's QR code.</summary>
+    public const int PcNetworkQrModulePixels = 6;
+
     /// <summary>The paired devices the engine can store.</summary>
     public const int MaxPairedDevices = 256;
 }

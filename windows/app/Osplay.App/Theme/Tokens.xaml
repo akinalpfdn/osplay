@@ -27,6 +27,8 @@
 
   <!-- Monitor picker -->
   <sys:Double x:Key="Osplay.Height.MonitorPicker">110</sys:Double>
+  <!-- The PC's network QR code: large enough for a phone camera at arm's length. -->
+  <sys:Double x:Key="Osplay.Size.QrCode">168</sys:Double>
   <sys:Double x:Key="Osplay.MonitorPicker.Gap">6</sys:Double>
   <CornerRadius x:Key="Osplay.CornerRadius.Monitor">4</CornerRadius>
 

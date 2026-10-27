@@ -105,6 +105,30 @@
                  Style="{StaticResource Osplay.Text.Caption}" />
     </StackPanel>
 
+    <!-- No router: this PC opens its own Wi-Fi network for the other device (TAB-04). -->
+    <ui:CardExpander Margin="{StaticResource Osplay.Thickness.SectionGap}" Icon="{ui:SymbolIcon Wifi124}"
+                     AutomationProperties.Name="{x:Static res:Strings.PcNetworkTitle}">
+      <ui:CardExpander.Header>
+        <TextBlock Text="{x:Static res:Strings.PcNetworkTitle}" Style="{StaticResource Osplay.Text.Body}" />
+      </ui:CardExpander.Header>
+      <StackPanel>
+        <TextBlock Text="{Binding PcNetwork.StatusText}" Style="{StaticResource Osplay.Text.Caption}" />
+        <StackPanel Margin="{StaticResource Osplay.Thickness.SectionGap}"
+                    Visibility="{Binding PcNetwork.IsOn, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">
+          <TextBlock Text="{Binding PcNetwork.NameText}" Style="{StaticResource Osplay.Text.Body}" />
+          <TextBlock Text="{Binding PcNetwork.PasswordText}" Style="{StaticResource Osplay.Text.Body}"
+                     FontFamily="{StaticResource Osplay.Font.Monospace}" />
+          <Image Margin="{StaticResource Osplay.Thickness.ItemGap}" HorizontalAlignment="Left"
+                 Width="{StaticResource Osplay.Size.QrCode}" Height="{StaticResource Osplay.Size.QrCode}"
+                 Source="{Binding PcNetwork.QrCode}" RenderOptions.BitmapScalingMode="NearestNeighbor"
+                 AutomationProperties.Name="{x:Static res:Strings.PcNetworkQrName}" />
+        </StackPanel>
+        <WrapPanel Margin="{StaticResource Osplay.Thickness.SectionGap}">
+          <ui:Button Content="{Binding PcNetwork.ActionText}" Command="{Binding PcNetwork.ToggleCommand}" />
+        </WrapPanel>
+      </StackPanel>
+    </ui:CardExpander>
+
     <!-- Sharing: one row per connected computer with its own Disconnect, the next one awaited,
          then quality for the next connection (DECISIONS.md, 2026-10-25). -->
     <StackPanel Visibility="{Binding Connection.IsSharing, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">

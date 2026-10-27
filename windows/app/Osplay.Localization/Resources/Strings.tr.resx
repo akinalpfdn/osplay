@@ -414,4 +414,40 @@
   <data name="SharingFull" xml:space="preserve">
     <value>Dört ekranın hepsi kullanımda</value>
   </data>
+  <data name="PcNetworkTitle" xml:space="preserve">
+    <value>Router yok mu? Bu bilgisayarın ağını açın</value>
+  </data>
+  <data name="PcNetworkDetail" xml:space="preserve">
+    <value>Başka bir PC, Mac, tablet ya da telefon bu ağa her Wi-Fi ağı gibi, şifreyle ya da kodu tarayarak katılır. Bağlıyken internete çıkmaz.</value>
+  </data>
+  <data name="PcNetworkOpen" xml:space="preserve">
+    <value>Ağı aç</value>
+  </data>
+  <data name="PcNetworkClose" xml:space="preserve">
+    <value>Ağı kapat</value>
+  </data>
+  <data name="PcNetworkStarting" xml:space="preserve">
+    <value>Ağ açılıyor…</value>
+  </data>
+  <data name="PcNetworkOn" xml:space="preserve">
+    <value>Ağ açık. Diğer cihazda bu ağa katılın, sonra Osplay'i her zamanki gibi kullanın.</value>
+  </data>
+  <data name="PcNetworkName" xml:space="preserve">
+    <value>Ağ: {0}</value>
+  </data>
+  <data name="PcNetworkPassword" xml:space="preserve">
+    <value>Şifre: {0}</value>
+  </data>
+  <data name="PcNetworkWifiOff" xml:space="preserve">
+    <value>Ağı açmak için bu bilgisayarda Wi-Fi'ı açın.</value>
+  </data>
+  <data name="PcNetworkInUse" xml:space="preserve">
+    <value>Mobil erişim noktası ya da başka bir uygulama Wi-Fi kartını kullanıyor. Mobil erişim noktasını kapatıp yeniden deneyin.</value>
+  </data>
+  <data name="PcNetworkNotSupported" xml:space="preserve">
+    <value>Bu bilgisayarın Wi-Fi kartı ağ açamıyor.</value>
+  </data>
+  <data name="PcNetworkQrName" xml:space="preserve">
+    <value>Ağa katılmak için QR kod</value>
+  </data>
 </root>
