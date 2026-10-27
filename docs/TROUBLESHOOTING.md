@@ -102,6 +102,19 @@ supports it; macOS has no driver for the RNDIS tethering Android phones use, so 
 appears. With a Mac, turn on the phone's Wi-Fi hotspot and connect the Mac to it: no router is
 needed.
 
+## No router: the PC's own network
+
+Panel › **No router? Open this PC's network** opens a Wi-Fi network the other device joins with the
+password shown, or by pointing a phone's or tablet's camera at the code. Then use Osplay as usual.
+
+- "Mobile hotspot or another app is using the Wi-Fi card": Windows' Mobile hotspot and this network
+  cannot run together; turn Mobile hotspot off in Settings › Network & internet.
+- "cannot open a network": the Wi-Fi card or its driver has no Wi-Fi Direct. A USB Wi-Fi adapter
+  that supports it, or a router, is needed.
+- Android says the network has no internet: choose to stay connected. Osplay sends its traffic over
+  the Wi-Fi network even while mobile data stays on.
+- The joined device has no internet while it is on this network; the PC keeps its own connection.
+
 ## A paired computer is refused
 
 The other side revoked it ("refused this Mac" / "refused this PC"). On that side, remove the device

@@ -14,6 +14,7 @@ build (the phase is listed) and whenever its pinned version changes.
 | [.NET](https://github.com/dotnet/runtime) 10 runtime and Windows Desktop | Runtime of the self-contained Windows shell | MIT, with its own third-party notices | Yes — in the installer | Phase 14 |
 | [H.NotifyIcon.Wpf](https://github.com/HavenDV/H.NotifyIcon) 2.4.1 | Windows tray icon | MIT | Yes — NuGet assembly | Phase 0 |
 | [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) 8.4.2 | WPF view models | MIT | Yes — NuGet assembly | Phase 0 |
+| [QRCoder](https://github.com/Shane32/QRCoder) 1.6.0 | QR code for joining the PC's own network | MIT | Yes — NuGet assembly | Phase 15 |
 | [GoogleTest](https://github.com/google/googletest) 1.18.0 | C++ tests | BSD-3-Clause | No — build time only | Phase 0 |
 | [XcodeGen](https://github.com/yonaskolb/XcodeGen) | Xcode project generation | MIT | No — build tool | Phase 0 |
 | [Inno Setup](https://jrsoftware.org/isinfo.php) | Windows installer | Inno Setup License | Installer runtime only | Phase 14 |
@@ -22,7 +23,7 @@ Where the license texts ship:
 
 - **Windows installer:** its license page shows Osplay's license, and `licenses\` in the install
   folder holds Osplay's license and the texts of every distributed component above: the files in
-  `windows/installer/licenses/` (Virtual Display Driver, WPF-UI, H.NotifyIcon, CommunityToolkit),
+  `windows/installer/licenses/` (Virtual Display Driver, WPF-UI, H.NotifyIcon, CommunityToolkit, QRCoder),
   the vendored Monocypher and Asio licenses, and the .NET SDK's `LICENSE.txt` and
   `ThirdPartyNotices.txt`. `scripts/windows/Build-Installer.ps1` stages them.
 - **macOS app:** it contains only Monocypher and Asio, and neither requires a notice in a binary:

@@ -466,6 +466,15 @@ with `DynamicResource`), every string from `Osplay.Localization` (English and Tu
   focus: problems first (errors, helper or driver missing, update available), the
   role cards "Extend this PC" and "Use as display", the quality preset while sharing, and while
   viewing a picture of this PC's monitors (click one to leave it out) and the nearby computers.
+- **The PC's own network** (`Services/PcNetwork.cs`, `Connection/PcNetworkViewModel.cs`). The
+  panel's "No router?" card opens a WPA2 network with the WinRT Wi-Fi Direct publisher in legacy
+  mode: the PC becomes its group owner and any device joins it as an ordinary Wi-Fi network
+  (192.168.137.0/24, no internet through it), after which discovery and sessions work as on a
+  router. The name (`Osplay-` and four characters) and password are generated once and kept in
+  `settings.json`, so devices rejoin; the card shows them and the standard Wi-Fi QR code phones and
+  tablets join from. Mobile hotspot takes the Wi-Fi card over and stops it (DECISIONS.md,
+  2026-10-27). On Android, `WifiPreference` binds Osplay's sockets to such a Wi-Fi network while
+  mobile data is the default route.
 - **Settings** (`Settings/`). General (start with Windows through the Run key, stats overlay,
   recordable hide/show shortcut, daily update check against GitHub Releases), Devices (revoke,
   remove), Advanced (helper and driver health with repair guidance, network profile, logs folder).

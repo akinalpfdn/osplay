@@ -84,6 +84,19 @@ Computer" when first plugged in); a PC has the Apple Devices app installed.
 | U5 | Unplug | During U1, pull the cable, wait 15 s, plug it in again | The Mac display goes away within 10 s. If the iPad is not already waiting on the cable, tapping **Computer on the USB cable** brings the session back |
 | U6 | Android over USB tethering, PC | Android: Settings › Connections › Mobile Hotspot and Tethering › USB tethering, with Wi-Fi off on both; the PC shares | The PC appears under Nearby computers on the phone; A1 works over the cable |
 
+### Without a router
+
+The PC opens its own network: panel › **No router? Open this PC's network** › **Open network**. The
+other device joins it (Wi-Fi settings, or the camera on the QR code) and is on no other Wi-Fi.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| W1 | Open the network | On a PC on no router (Wi-Fi on), open the network | Name, password and QR code appear; closing it makes the network disappear from other devices' lists |
+| W2 | PC → PC | The second PC joins the network; one PC extends, the other uses it as a display | Found under Nearby computers; streams as on a router, both ways |
+| W3 | PC → Android | The phone joins from the QR code with mobile data on, and keeps the network when Android says it has no internet | The PC appears in the app; A1 works |
+| W4 | Mac ↔ PC | The Mac joins from the Wi-Fi menu | Both directions work as D1 and D2 |
+| W5 | PC also on a router | Open the network while the PC's Wi-Fi is connected to a router; repeat W2 | Note the stats overlay's bitrate, loss and latency against the same test on the router alone |
+
 ## Interruptions
 
 | # | Scenario | Steps | Expected |
