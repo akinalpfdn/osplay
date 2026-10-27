@@ -32,6 +32,8 @@ namespace osplay::transport {
 
 class UsbWatcher::Impl {
 public:
+    // A port on Windows, where clang-tidy rejects moving it; a path elsewhere.
+    // NOLINTNEXTLINE(modernize-pass-by-value)
     Impl(UsbObserver& observer, const UsbmuxAddress& address, Microseconds retry_interval)
         : observer_(observer), address_(address), retry_interval_(retry_interval),
           work_(asio::make_work_guard(io_)), socket_(io_), timer_(io_) {
