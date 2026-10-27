@@ -3,6 +3,7 @@ package com.akinalpfdn.osplay.app
 import android.content.Context
 import com.akinalpfdn.osplay.discovery.NsdDiscovery
 import com.akinalpfdn.osplay.discovery.PeerDiscovering
+import com.akinalpfdn.osplay.network.WifiPreference
 import com.akinalpfdn.osplay.screen.AndroidScreen
 import com.akinalpfdn.osplay.screen.ScreenDescribing
 import com.akinalpfdn.osplay.storage.AndroidKeyStore
@@ -23,6 +24,7 @@ class AppDependencies(
 ) {
     companion object {
         fun create(context: Context): AppDependencies {
+            WifiPreference(context).start() // for the life of the process
             val stage = StreamStage { surface, shape, needsKeyframe ->
                 MediaCodecDecoder(surface, shape.width, shape.height, needsKeyframe) { }
             }
