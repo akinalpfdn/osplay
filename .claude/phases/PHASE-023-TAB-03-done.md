@@ -1,5 +1,5 @@
 # Phase 023 (TAB-03) — USB connections for tablets
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 15 (part TAB-03). Depends on: PHASE-022 (TAB-02).
 
@@ -14,8 +14,8 @@ A tablet connected to the computer with a USB cable works as a display with Wi-F
 - [x] Docs: TROUBLESHOOTING (Apple Devices on Windows, tethering), TESTING, PROTOCOL, ARCHITECTURE. README waits for the store listings, like the other tablet sections.
 
 ## Acceptance Criteria
-- [ ] iPad over USB from a Mac and from a PC, with Wi-Fi off on both.
-- [ ] Android tablet over USB tethering from a Mac and from a PC, with Wi-Fi off on both.
+- [x] iPad over USB from a Mac, with Wi-Fi off on both (U1, 2026-10-27). From a PC (U2): on the 0.2.0 release draft, user decision.
+- [ ] Android over USB tethering from a PC (U6): on the 0.2.0 release draft, user decision. From a Mac it cannot work (RNDIS, see below); the phone's hotspot was tested instead.
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)

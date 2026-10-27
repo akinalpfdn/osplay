@@ -118,3 +118,4 @@ Computer" when first plugged in); a PC has the Apple Devices app installed.
 | 2026-10-25 | `d0645b7` | Wi-Fi | D1, D2, D4–D8 (every direction but PC → PC), M1–M3 (several viewers on both hosts) | Pass | Found and fixed on the way: two monitors on one Windows driver device stall the desktop, pooled driver devices shared a stale mode list (issue #30 left open), a Mac host's second viewer took the first one's displays |
 | 2026-10-27 | `e00a28d` | Wi-Fi | T1 (Mac → iPad A16) | Pass | The iPad listed the Mac once Local Network access was granted |
 | 2026-10-27 | `8d766c6` | Wi-Fi | A1 (Mac → Galaxy S23 Ultra) | Pass | |
+| 2026-10-27 | `ed98792` | USB, Wi-Fi off | U1 (Mac → iPad A16 over the cable) | Pass | Pulling the cable ends the session at once |

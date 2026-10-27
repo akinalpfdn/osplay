@@ -1,5 +1,5 @@
 # Phase 024 (TAB-04) — Wi-Fi Direct between PCs and Android tablets
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 15 (part TAB-04). Depends on: PHASE-023 (TAB-03).
 
