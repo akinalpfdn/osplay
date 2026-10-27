@@ -551,13 +551,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The iPad and the computer must be on the same network."
+            "value": "The iPad and the computer must be on the same network. Without a router, join a PC's Osplay network in Settings › Wi-Fi, or scan the code the PC shows with the Camera."
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "iPad ve bilgisayar aynı ağda olmalı."
+            "value": "iPad ve bilgisayar aynı ağda olmalı. Router yoksa Ayarlar › Wi-Fi'dan bir PC'nin Osplay ağına katılın ya da PC'nin gösterdiği kodu Kamera ile tarayın."
           }
         }
       }
