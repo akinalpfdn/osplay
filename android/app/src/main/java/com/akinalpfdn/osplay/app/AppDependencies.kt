@@ -1,6 +1,8 @@
 package com.akinalpfdn.osplay.app
 
 import android.content.Context
+import com.akinalpfdn.osplay.discovery.CombinedDiscovery
+import com.akinalpfdn.osplay.discovery.MulticastDiscovery
 import com.akinalpfdn.osplay.discovery.NsdDiscovery
 import com.akinalpfdn.osplay.discovery.PeerDiscovering
 import com.akinalpfdn.osplay.network.WifiPreference
@@ -30,7 +32,7 @@ class AppDependencies(
             }
             return AppDependencies(
                 keyStore = AndroidKeyStore(context),
-                discovery = NsdDiscovery(context),
+                discovery = CombinedDiscovery(listOf(NsdDiscovery(context), MulticastDiscovery(context))),
                 screen = AndroidScreen(context),
                 settings = SettingsStore(context),
                 stage = stage,
