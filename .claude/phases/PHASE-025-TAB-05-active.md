@@ -1,5 +1,5 @@
 # Phase 025 (TAB-05) — Android over a USB cable through Android Open Accessory
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 15 (part TAB-05). Depends on: PHASE-024 (TAB-04).
 

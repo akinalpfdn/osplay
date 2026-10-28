@@ -1,5 +1,5 @@
 # Phase 024 (TAB-04) — A PC's own Wi-Fi network for connections without a router
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 15 (part TAB-04). Depends on: PHASE-023 (TAB-03).
 
@@ -25,3 +25,4 @@ A PC opens its own Wi-Fi network from Osplay (Windows Mobile hotspot), and anoth
 - 2026-10-27 — Code done; not run on Windows yet. Remaining: W1–W5 on the PCs (TESTING.md "Without a router"), which also settle the Bonjour, firewall and shared-channel tasks.
 - 2026-10-27 — User decision: the PC opens its own network (Wi-Fi Direct legacy mode) instead of real Wi-Fi Direct P2P pairing. Every platform can join it as a normal Wi-Fi network, so Macs and iPads are no longer out of scope as joiners; a Mac or iPad cannot open such a network itself. The joining device leaves its router while joined.
 - 2026-10-28 — User decision: Mobile hotspot replaces Wi-Fi Direct legacy mode, which ended every client two minutes after it joined; Android also browses with its own mDNS query next to NsdManager (DECISIONS.md). Tested on the PC with a Galaxy S23: joined, streamed at 60 fps across the two-minute mark, and the user's hotspot settings came back.
+- 2026-10-28 — User closed the phase: the PC's network works through Mobile hotspot. Wi-Fi Direct legacy mode is gone (clients dropped after two minutes, and the user's card could not open it at all).
