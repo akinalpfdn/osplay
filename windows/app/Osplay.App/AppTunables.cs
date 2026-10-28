@@ -56,6 +56,12 @@ internal static class AppTunables
     /// <summary>Pixels per module of the network's QR code.</summary>
     public const int PcNetworkQrModulePixels = 6;
 
+    /// <summary>How often the open network's state is read back from Windows, which turns it off without telling.</summary>
+    public static readonly TimeSpan PcNetworkPollInterval = TimeSpan.FromSeconds(2);
+
+    /// <summary>On quit, how long closing the network and restoring the user's hotspot settings may take.</summary>
+    public static readonly TimeSpan PcNetworkCloseTimeout = TimeSpan.FromSeconds(5);
+
     /// <summary>The paired devices the engine can store.</summary>
     public const int MaxPairedDevices = 256;
 }

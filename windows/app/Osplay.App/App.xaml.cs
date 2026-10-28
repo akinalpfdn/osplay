@@ -40,7 +40,7 @@ public partial class App : Application, IDisposable
         _connection = new ConnectionViewModel(Dispatcher, new PairingWindowPrompt(), settings);
         var updates = new UpdatesViewModel(settings);
         _settingsViewModel = new SettingsViewModel(settings, _connection, updates);
-        _pcNetwork = new PcNetworkViewModel(Dispatcher, settings, new WiFiDirectPcNetwork());
+        _pcNetwork = new PcNetworkViewModel(Dispatcher, settings, new MobileHotspotPcNetwork());
         _panel = new PanelWindow(new PanelViewModel(_connection, _pcNetwork, updates, settings, OpenSettings, QuitAsync));
         // WPF makes the first window the main window, and every theme apply (also those the Settings
         // and pairing windows' theme watchers make) clears the main window's background for Mica.

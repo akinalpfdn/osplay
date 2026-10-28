@@ -418,7 +418,7 @@
     <value>Router yok mu? Bu bilgisayarın ağını açın</value>
   </data>
   <data name="PcNetworkDetail" xml:space="preserve">
-    <value>Başka bir PC, Mac, tablet ya da telefon bu ağa her Wi-Fi ağı gibi, şifreyle ya da kodu tarayarak katılır. Bağlıyken internete çıkmaz.</value>
+    <value>Başka bir PC, Mac, tablet ya da telefon bu ağa her Wi-Fi ağı gibi, şifreyle ya da kodu tarayarak katılır. Ağ, Windows'un Mobil erişim noktasıdır: bu bilgisayar internete bağlıysa katılan cihazlar da bağlanır.</value>
   </data>
   <data name="PcNetworkOpen" xml:space="preserve">
     <value>Ağı aç</value>
@@ -442,10 +442,13 @@
     <value>Ağı açmak için bu bilgisayarda Wi-Fi'ı açın.</value>
   </data>
   <data name="PcNetworkInUse" xml:space="preserve">
-    <value>Mobil erişim noktası ya da başka bir uygulama Wi-Fi kartını kullanıyor. Mobil erişim noktasını kapatıp yeniden deneyin.</value>
+    <value>Windows Mobil erişim noktasını açıyor ya da kapatıyor. Biraz sonra yeniden deneyin.</value>
   </data>
   <data name="PcNetworkNotSupported" xml:space="preserve">
-    <value>Bu bilgisayarın Wi-Fi kartı ağ açamıyor.</value>
+    <value>Windows bu bilgisayarın Wi-Fi kartında Mobil erişim noktası açamıyor.</value>
+  </data>
+  <data name="PcNetworkFailed" xml:space="preserve">
+    <value>Windows ağı açamadı. Yeniden deneyin ya da sebebini görmek için Windows Ayarları'nda Mobil erişim noktasını açın.</value>
   </data>
   <data name="PcNetworkQrName" xml:space="preserve">
     <value>Ağa katılmak için QR kod</value>

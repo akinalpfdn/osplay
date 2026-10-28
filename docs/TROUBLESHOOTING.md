@@ -107,13 +107,17 @@ needed.
 Panel › **No router? Open this PC's network** opens a Wi-Fi network the other device joins with the
 password shown, or by pointing a phone's or tablet's camera at the code. Then use Osplay as usual.
 
-- "Mobile hotspot or another app is using the Wi-Fi card": Windows' Mobile hotspot and this network
-  cannot run together; turn Mobile hotspot off in Settings › Network & internet.
-- "cannot open a network": the Wi-Fi card or its driver has no Wi-Fi Direct. A USB Wi-Fi adapter
-  that supports it, or a router, is needed.
-- Android says the network has no internet: choose to stay connected. Osplay sends its traffic over
-  the Wi-Fi network even while mobile data stays on.
-- The joined device has no internet while it is on this network; the PC keeps its own connection.
+- The network is Windows' Mobile hotspot under Osplay's name. A hotspot you opened yourself is
+  turned off and opened again with Osplay's name; your own name, password and power-saving setting
+  come back when you close the network or quit Osplay.
+- "Windows is turning Mobile hotspot on or off": try again in a moment.
+- "Windows cannot open Mobile hotspot on this PC's Wi-Fi card": the card, its driver or a policy
+  does not allow a hotspot. Settings › Network & internet › Mobile hotspot says which.
+- "Windows could not open the network": the Osplay log (Settings › Advanced › Logs) has Windows'
+  reason; Settings › Network & internet › Mobile hotspot shows it too.
+- Android says the network has no internet (the PC is offline): choose to stay connected. Osplay
+  sends its traffic over the Wi-Fi network even while mobile data stays on.
+- If the PC is online, joined devices reach the internet through it.
 
 ## A paired computer is refused
 

@@ -65,6 +65,7 @@ public sealed partial class PcNetworkViewModel : ObservableObject, IDisposable
         PcNetworkState.WifiOff => Localization.Strings.PcNetworkWifiOff,
         PcNetworkState.InUse => Localization.Strings.PcNetworkInUse,
         PcNetworkState.NotSupported => Localization.Strings.PcNetworkNotSupported,
+        PcNetworkState.Failed => Localization.Strings.PcNetworkFailed,
         _ => Localization.Strings.PcNetworkDetail,
     };
 

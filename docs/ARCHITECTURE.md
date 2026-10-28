@@ -467,14 +467,20 @@ with `DynamicResource`), every string from `Osplay.Localization` (English and Tu
   role cards "Extend this PC" and "Use as display", the quality preset while sharing, and while
   viewing a picture of this PC's monitors (click one to leave it out) and the nearby computers.
 - **The PC's own network** (`Services/PcNetwork.cs`, `Connection/PcNetworkViewModel.cs`). The
-  panel's "No router?" card opens a WPA2 network with the WinRT Wi-Fi Direct publisher in legacy
-  mode: the PC becomes its group owner and any device joins it as an ordinary Wi-Fi network
-  (192.168.137.0/24, no internet through it), after which discovery and sessions work as on a
-  router. The name (`Osplay-` and four characters) and password are generated once and kept in
-  `settings.json`, so devices rejoin; the card shows them and the standard Wi-Fi QR code phones and
-  tablets join from. Mobile hotspot takes the Wi-Fi card over and stops it (DECISIONS.md,
-  2026-10-27). On Android, `WifiPreference` binds Osplay's sockets to such a Wi-Fi network while
-  mobile data is the default route.
+  panel's "No router?" card opens Windows' Mobile hotspot (`NetworkOperatorTetheringManager`) under
+  Osplay's name and password: any device joins it as an ordinary Wi-Fi network (192.168.137.0/24;
+  a PC that is online shares its connection), after which discovery and sessions work as on a
+  router. It starts from the internet connection's profile, or from any profile Windows knows when
+  the PC is offline. The hotspot's name, password and idle timeout are Windows-wide, so Osplay
+  saves the user's own, writes its own, turns the idle timeout off, and puts all three back when
+  the network closes or Osplay quits; it reads the hotspot's state every two seconds, because
+  Windows can turn it off without telling. Wi-Fi Direct legacy mode, the first design, disconnected
+  every client two minutes after it joined (DECISIONS.md, 2026-10-28). The name (`Osplay-` and four
+  characters) and password are generated once and kept in `settings.json`, so devices rejoin; the
+  card shows them and the standard Wi-Fi QR code phones and tablets join from. On Android,
+  `WifiPreference` binds Osplay's sockets to such a Wi-Fi network while mobile data is the default
+  route, and `MulticastDiscovery` browses next to NsdManager with its own mDNS query, because
+  NsdManager's queries did not reach the PC on that network (`CombinedDiscovery` merges both).
 - **Settings** (`Settings/`). General (start with Windows through the Run key, stats overlay,
   recordable hide/show shortcut, daily update check against GitHub Releases), Devices (revoke,
   remove), Advanced (helper and driver health with repair guidance, network profile, logs folder).

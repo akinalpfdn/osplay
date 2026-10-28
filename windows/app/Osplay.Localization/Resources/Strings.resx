@@ -418,7 +418,7 @@
     <value>No router? Open this PC's network</value>
   </data>
   <data name="PcNetworkDetail" xml:space="preserve">
-    <value>Another PC, a Mac, a tablet or a phone joins it like any Wi-Fi network, with the password or by scanning the code. It has no internet while joined.</value>
+    <value>Another PC, a Mac, a tablet or a phone joins it like any Wi-Fi network, with the password or by scanning the code. It is Windows' Mobile hotspot: if this PC is online, joined devices are too.</value>
   </data>
   <data name="PcNetworkOpen" xml:space="preserve">
     <value>Open network</value>
@@ -442,10 +442,13 @@
     <value>Turn on Wi-Fi on this PC to open the network.</value>
   </data>
   <data name="PcNetworkInUse" xml:space="preserve">
-    <value>Mobile hotspot or another app is using the Wi-Fi card. Turn Mobile hotspot off and try again.</value>
+    <value>Windows is turning Mobile hotspot on or off. Try again in a moment.</value>
   </data>
   <data name="PcNetworkNotSupported" xml:space="preserve">
-    <value>This PC's Wi-Fi card cannot open a network.</value>
+    <value>Windows cannot open Mobile hotspot on this PC's Wi-Fi card.</value>
+  </data>
+  <data name="PcNetworkFailed" xml:space="preserve">
+    <value>Windows could not open the network. Try again, or open Mobile hotspot in Windows Settings to see why.</value>
   </data>
   <data name="PcNetworkQrName" xml:space="preserve">
     <value>QR code to join the network</value>

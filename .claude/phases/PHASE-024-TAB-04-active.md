@@ -4,10 +4,10 @@ Status: ACTIVE
 DEVPLAN reference: Phase 15 (part TAB-04). Depends on: PHASE-023 (TAB-03).
 
 ## Goal
-A PC opens its own Wi-Fi network from Osplay (Wi-Fi Direct legacy mode), and another PC, an Android device, a Mac or an iPad joins it, so Osplay works where there is no router.
+A PC opens its own Wi-Fi network from Osplay (Windows Mobile hotspot), and another PC, an Android device, a Mac or an iPad joins it, so Osplay works where there is no router.
 
 ## Tasks
-- [x] Windows: open and close the network from the shell with the WinRT Wi-Fi Direct publisher in legacy mode (SSID `Osplay-…`, generated passphrase kept in settings so joined devices rejoin); report when the Wi-Fi card cannot.
+- [x] Windows: open and close the network from the shell with Windows' Mobile hotspot (was the WinRT Wi-Fi Direct publisher in legacy mode until 2026-10-28) (SSID `Osplay-…`, generated passphrase kept in settings so joined devices rejoin); report when the Wi-Fi card cannot.
 - [x] Windows UI: a "No router?" choice in the panel that shows the network name, password and a standard Wi-Fi QR code (phone and tablet cameras join from it).
 - [ ] Sessions, Bonjour and the firewall over the PC's network: the PC as host and as viewer; fix what does not reach that interface.
 - [x] Android: a Wi-Fi network without internet next to mobile data — bind Osplay's traffic to the Wi-Fi network so discovery and sessions use it.
@@ -24,3 +24,4 @@ A PC opens its own Wi-Fi network from Osplay (Wi-Fi Direct legacy mode), and ano
 (append as you go; full entries go to DECISIONS.md)
 - 2026-10-27 — Code done; not run on Windows yet. Remaining: W1–W5 on the PCs (TESTING.md "Without a router"), which also settle the Bonjour, firewall and shared-channel tasks.
 - 2026-10-27 — User decision: the PC opens its own network (Wi-Fi Direct legacy mode) instead of real Wi-Fi Direct P2P pairing. Every platform can join it as a normal Wi-Fi network, so Macs and iPads are no longer out of scope as joiners; a Mac or iPad cannot open such a network itself. The joining device leaves its router while joined.
+- 2026-10-28 — User decision: Mobile hotspot replaces Wi-Fi Direct legacy mode, which ended every client two minutes after it joined; Android also browses with its own mDNS query next to NsdManager (DECISIONS.md). Tested on the PC with a Galaxy S23: joined, streamed at 60 fps across the two-minute mark, and the user's hotspot settings came back.

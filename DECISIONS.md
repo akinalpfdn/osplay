@@ -615,3 +615,17 @@ choices the plan leaves open are logged here.
 **Why:** Every platform joins an ordinary network, Macs and iPads included, and nothing above the link changes. P2P would reach only Windows and Android, show Windows' pairing dialog on every connection and needs its own discovery; no documented Windows ↔ Android setup was found.
 **Trade-offs:** The joining device has no internet while it is on the PC's network. The PC's Wi-Fi card must support Wi-Fi Direct, and Mobile hotspot stops it. Macs and iPads can join but not open such a network.
 **Revisit if:** Users need their internet while connected, or Apple opens a peer-to-peer Wi-Fi API.
+
+## 2026-10-28 — User decision: the PC's own network is Windows' Mobile hotspot
+**Chosen:** Osplay opens the PC's network with Windows' Mobile hotspot (`NetworkOperatorTetheringManager`) under Osplay's name and password, saving the user's own hotspot name, password and idle timeout and putting them back when the network closes. It reads the hotspot's state every two seconds.
+**Alternatives:** Wi-Fi Direct legacy mode (the 2026-10-27 design); keeping it and sending keep-alive traffic to joined devices; using both, the hotspot first.
+**Why:** On the RTX 3080 PC with a Galaxy S23, Windows ended every client of the Wi-Fi Direct network exactly two minutes after it joined ("Wireless security stopped"); the phone still showed itself joined but nothing passed, so discovery and sessions failed after two idle minutes. Pinging the phone every five seconds did not prevent it. Microsoft treats the same report as a platform issue (Windows-classic-samples issue #82). On Mobile hotspot the same phone, with the same pings, stayed reachable for 4.5 minutes, and Osplay streamed over it at 60 fps for three minutes across the two-minute mark; it also opened with the PC off its router.
+**Trade-offs:** The hotspot's settings are Windows-wide; if Osplay is killed while the network is open, the hotspot keeps Osplay's name until the user changes it. A PC that is online shares its internet with joined devices. The per-session configuration that would avoid changing the user's settings needs Windows 11 24H2's SDK.
+**Revisit if:** Osplay moves to the 10.0.26100 SDK (use the per-session configuration), or Mobile hotspot is unavailable on PCs where Wi-Fi Direct works.
+
+## 2026-10-28 — Android browses with its own mDNS query next to NsdManager
+**Chosen:** The Android app runs NsdManager and `MulticastDiscovery` (a PTR query for `_osplay._tcp.local` from port 5353 on the Wi-Fi network, answers read from the same socket) together; `CombinedDiscovery` lists a computer while either sees it.
+**Alternatives:** NsdManager only; running the own query only when NsdManager finds nothing after a delay; asking the PC to listen on a fixed port the app connects to directly.
+**Why:** On the PC's Wi-Fi Direct network, Android 16's NsdManager (Galaxy S23) logged its queries as sent, yet none reached the PC in four live windows, while the same query sent from the phone's shell did and Windows answered it at once. Running both needs no timing guess and costs one small query every ten seconds.
+**Trade-offs:** A second browser on Wi-Fi, and the `CHANGE_WIFI_MULTICAST_STATE` permission (granted at install). A computer that leaves is dropped after about 30 s of silence or its goodbye packet.
+**Revisit if:** NsdManager is shown to reach the PC on the Mobile hotspot network, which would make the second browser unnecessary.

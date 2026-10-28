@@ -96,6 +96,8 @@ other device joins it (Wi-Fi settings, or the camera on the QR code) and is on n
 | W3 | PC → Android | The phone joins from the QR code with mobile data on, and keeps the network when Android says it has no internet | The PC appears in the app; A1 works |
 | W4 | Mac ↔ PC | The Mac joins from the Wi-Fi menu | Both directions work as D1 and D2 |
 | W5 | PC also on a router | Open the network while the PC's Wi-Fi is connected to a router; repeat W2 | Note the stats overlay's bitrate, loss and latency against the same test on the router alone |
+| W6 | Stays connected | Join a phone and leave it idle for five minutes, then stream to it | Still joined and streams; Event Viewer › WLAN-AutoConfig shows no "Wireless security stopped" for it |
+| W7 | Settings come back | Note the name in Settings › Mobile hotspot, open and close Osplay's network | The hotspot is off and shows your own name again |
 
 ## Interruptions
 
