@@ -395,9 +395,10 @@ needed on either side (no network, tethering or USB debugging).
 - **Who starts.** The viewer speaks first. A host keeps a read waiting on the IN endpoint and its
   session starts with the viewer's first bytes, so it waits without a time limit and the handshake
   timeout runs from there. As on usbmuxd links, MediaSetup carries udp_port 1.
-- **Ending.** Unplugging ends both sides with NETWORK. A host that closes its end sends a
-  zero-length packet on the OUT endpoint: Android's accessory read cannot be cancelled from the
-  device, and this returns it, so the app can open the accessory again.
+- **Ending.** Unplugging ends both sides with NETWORK. Android's accessory driver drops zero-length
+  packets, and a read blocked in it returns neither when the cable goes nor for anything a host
+  can send without data; the app interrupts its own read with a signal when its session ends, so
+  the accessory is free to be opened again.
 
 ## Session flow
 

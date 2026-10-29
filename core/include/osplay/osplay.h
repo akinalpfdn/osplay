@@ -483,8 +483,7 @@ typedef struct osplay_byte_pipe {
     osplay_result (*read)(void* context, uint8_t* buffer, size_t capacity, size_t* out_size);
     /* Blocks until some of `data` is sent on the OUT endpoint and stores how much. */
     osplay_result (*write)(void* context, const uint8_t* data, size_t size, size_t* out_written);
-    /* Unblocks read and write for good, then sends a zero-length packet on the OUT endpoint (it
-     * wakes the device's read). Called once, from any thread, while read or write may run. */
+    /* Unblocks read and write for good. Called once, from any thread, while they may run. */
     void (*cancel)(void* context);
     /* Called once, after read and write have returned for the last time; also when creating the
      * session fails. It may come from another thread and after osplay_session_destroy. */

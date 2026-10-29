@@ -79,9 +79,6 @@ private final class BulkPipe: AccessoryPipe, @unchecked Sendable {  // the flag 
         lock.withLock { cancelled = true }
         // try? throughout: an aborted or missing pipe has nothing left to stop.
         try? output.__abort(with: .synchronous)
-        // Wakes the Android app's read, which cannot be cancelled on the device (PROTOCOL.md).
-        try? output.__sendIORequest(
-            with: nil, bytesTransferred: nil, completionTimeout: Tunables.Connection.accessoryWakeTimeout)
         try? input.__abort(with: .synchronous)
     }
 

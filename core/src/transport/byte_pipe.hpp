@@ -37,9 +37,10 @@ public:
 #ifndef _WIN32
 /// A pipe over a file descriptor it owns and closes: an Android accessory
 /// (UsbManager.openAccessory), or one end of a socket pair in tests. An accessory's read returns 0
-/// for a zero-length packet; a socket's 0 ends the stream. cancel shuts a socket down; an accessory
-/// read cannot be woken from this side and returns when the host sends anything, even a
-/// zero-length packet.
+/// for a zero-length packet; a socket's 0 ends the stream. cancel shuts a socket down. Android's
+/// accessory driver ends a blocked read neither for a pulled cable nor for anything the host can
+/// send without data, so cancel interrupts the blocked threads with SIGURG, whose handler
+/// (installed once per process) does nothing.
 [[nodiscard]] std::unique_ptr<BytePipe> make_fd_pipe(int fd);
 #endif
 

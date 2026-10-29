@@ -892,6 +892,27 @@ TEST_F(RealSessions, StreamsFramesOverAnAccessoryFileDescriptor) {
 }
 #endif
 
+#ifndef _WIN32
+TEST(AccessoryFd, CancelInterruptsABlockedReadOnANonSocket) {
+    // A pipe(2) is no socket, so cancel must interrupt the read, as for an Android accessory.
+    std::array<int, 2> fds{};
+    ASSERT_EQ(::pipe(fds.data()), 0);
+    auto pipe = osplay::transport::make_fd_pipe(fds[0]);
+    std::atomic<bool> returned{false};
+    std::thread reader([&] {
+        std::array<std::uint8_t, 16> buffer{};
+        EXPECT_FALSE(pipe->read(buffer).has_value());
+        returned = true;
+    });
+    std::this_thread::sleep_for(milliseconds(100));
+    EXPECT_FALSE(returned) << "nothing to read yet";
+    pipe->cancel();
+    reader.join();
+    EXPECT_TRUE(returned);
+    ::close(fds[1]);
+}
+#endif
+
 TEST(RealSessionsConnect, AnAccessoryHostWaitsForTheViewerWithoutATimeLimit) {
     MemoryCable cable;
     osplay::test::SeededRandom random{10};
@@ -940,7 +961,7 @@ TEST(RealSessionsConnect, AViewerStuckInTheAccessoryDoesNotHoldUpItsEnd) {
     EXPECT_LT(std::chrono::steady_clock::now() - started, seconds(3));
     EXPECT_EQ(*cable.released, 0) << "still in the read";
 
-    cable.send_zero_length_packet(); // what a host sends when it closes its end
+    cable.send_zero_length_packet(); // the read returns at last
     for (int wait = 0; wait < 100 && *cable.released == 0; ++wait) {
         std::this_thread::sleep_for(milliseconds(20));
     }

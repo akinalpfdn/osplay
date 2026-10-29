@@ -9,8 +9,7 @@ public protocol AccessoryPipe: AnyObject, Sendable {
     func read(into buffer: UnsafeMutableRawBufferPointer) -> Int?
     /// Blocks until some of `data` is sent on the OUT endpoint; how much, or nil.
     func write(_ data: UnsafeRawBufferPointer) -> Int?
-    /// Unblocks read and write for good, then sends a zero-length packet on the OUT endpoint, which
-    /// wakes the Android app's read so it can open the accessory again.
+    /// Unblocks read and write for good.
     func cancel()
 }
 
