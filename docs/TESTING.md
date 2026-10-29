@@ -83,6 +83,10 @@ Computer" when first plugged in); a PC has the Apple Devices app installed.
 | U4 | Disconnect | During U1, tap Disconnect on the iPad; start U1 again and disconnect from the Mac's menu | The display goes away and nothing reconnects until **Computer on the USB cable** is tapped again |
 | U5 | Unplug | During U1, pull the cable, wait 15 s, plug it in again | The Mac display goes away within 10 s. If the iPad is not already waiting on the cable, tapping **Computer on the USB cable** brings the session back |
 | U6 | Android over USB tethering, PC | Android: Settings › Connections › Mobile Hotspot and Tethering › USB tethering, with Wi-Fi off on both; the PC shares | The PC appears under Nearby computers on the phone; A1 works over the cable |
+| U7 | Mac → Android over USB | Mac: **Extend this Mac** with the Android device plugged in (plug it in again first if it was in Osplay's mode). Answer Android's "Open Osplay?" with OK; the first time, also macOS's "Allow accessory to connect?" | Within a few seconds one Mac display on the Android device, as in A1 |
+| U8 | Android disconnect | During U7, tap Disconnect on Android, then **Computer on the USB cable**; again, disconnecting from the Mac's menu | The display goes away and nothing reconnects; the cable row brings it back within seconds |
+| U9 | Android unplug | During U7, pull the cable, wait 15 s, plug it in again | The display goes away; Android waits for the cable, asks "Open Osplay?" again and the display comes back |
+| U10 | Android Studio open | U7 with USB debugging on and Android Studio (adb) running on the Mac | The same as U7 |
 
 ### Without a router
 

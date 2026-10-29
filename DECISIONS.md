@@ -623,6 +623,13 @@ choices the plan leaves open are logged here.
 **Trade-offs:** The hotspot's settings are Windows-wide; if Osplay is killed while the network is open, the hotspot keeps Osplay's name until the user changes it. A PC that is online shares its internet with joined devices. The per-session configuration that would avoid changing the user's settings needs Windows 11 24H2's SDK.
 **Revisit if:** Osplay moves to the 10.0.26100 SDK (use the per-session configuration), or Mobile hotspot is unavailable on PCs where Wi-Fi Direct works.
 
+## 2026-10-29 — Android on the USB cable through Android Open Accessory
+**Chosen:** A sharing Mac switches an Android device on the cable into AOA mode and runs the stream link over its bulk endpoints; Android's "Open Osplay?" starts the session (user decision). The computer side uses each platform's USB API (IOUSBHost and IOKit's device interface on the Mac), the AOA requests and the link stay in the core; the Android side reads the accessory's file descriptor in the core.
+**Alternatives:** USB tethering (TAB-03, reaches only a PC from a phone); ADB forwarding (needs developer options); libusb (an LGPL dependency, and on Windows it needs a driver anyway); a menu entry on the computer instead of switching automatically.
+**Why:** AOA needs nothing on the device beyond the app and works on every Android 12+ phone and tablet with a Mac. Measured on a Galaxy S23: the device opens without seizing while macOS's ACM driver holds two interfaces; Android's accessory driver drops zero-length packets and does not return a blocked read when the cable goes, so the app interrupts its read with SIGURG; adb holds the device exclusively, so switching uses IOKit's device interface, whose control requests need no open.
+**Trade-offs:** While the Mac shares, any Android device plugged in leaves its normal USB mode (file transfer) until it is unplugged. macOS asks once per accessory identity. Windows blocks both steps today (its MTP driver holds the device; no driver binds the accessory), so the PC is not covered yet.
+**Revisit if:** The PC experiment shows a driver-free way on Windows, or Android changes its accessory driver.
+
 ## 2026-10-28 — Android browses with its own mDNS query next to NsdManager
 **Chosen:** The Android app runs NsdManager and `MulticastDiscovery` (a PTR query for `_osplay._tcp.local` from port 5353 on the Wi-Fi network, answers read from the same socket) together; `CombinedDiscovery` lists a computer while either sees it.
 **Alternatives:** NsdManager only; running the own query only when NsdManager finds nothing after a delay; asking the PC to listen on a fixed port the app connects to directly.

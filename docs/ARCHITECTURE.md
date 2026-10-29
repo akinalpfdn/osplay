@@ -209,6 +209,15 @@ sample-buffer rendering helpers and the shared tunables — compiled into both a
   every 2 s (`ConnectionViewModel` on both), so it connects within seconds. Those tries fail quietly
   while the iPad is not waiting. Control and media share the one stream; neither side reconnects by
   itself after a disconnect (DECISIONS.md, 2026-10-27).
+- **Android on the USB cable** (PROTOCOL.md "Android accessory links"). While a Mac shares,
+  `IOKitAndroidAccessories` follows USB devices: one that may be Android (not Apple, not a hub, not
+  only HID, audio or storage) is switched into Android Open Accessory mode through IOKit's device
+  interface, which needs no exclusive open (adb holds the device while Android Studio runs). When it
+  comes back as an accessory, its bulk endpoints are opened and a host session waits on them; the
+  Android app starts the viewer session when Android hands it the accessory (`usb/UsbCable.kt`),
+  and the core runs the stream link on the accessory's file descriptor. Android's accessory read
+  is woken by a signal when the session ends, since the driver ignores a pulled cable. The PC does
+  not do this yet (PHASE-025).
 
 ## Android app
 

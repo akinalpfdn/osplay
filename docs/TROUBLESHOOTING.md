@@ -95,12 +95,18 @@ through the Apple Mobile Device Service, which the Apple Devices app (Microsoft 
 installs; without it the PC never sees the iPad. A cable that only charges carries no data: Finder
 (Mac) or Apple Devices (PC) shows the iPad when the cable works.
 
-## Android over a USB cable
+## Android on the USB cable does not connect
 
-Android's USB tethering creates a network over the cable, and Osplay then works as on Wi-Fi. Windows
-supports it; macOS has no driver for the RNDIS tethering Android phones use, so on a Mac no network
-appears. With a Mac, turn on the phone's Wi-Fi hotspot and connect the Mac to it: no router is
-needed.
+A Mac that shares (**Extend this Mac**) switches an Android device on the cable into Osplay's
+accessory mode; Android then asks "Open Osplay?". Answer OK (tick "Always" to skip the question).
+
+- The first time, macOS asks "Allow accessory to connect?" for the device in Osplay's mode; allow
+  it. Android gives up on the switch after 10 s, so the Mac switches it again once allowed.
+- After a disconnect the device stays in Osplay's mode and nothing reconnects; tap **Computer on
+  the USB cable** on Android. When the Mac's sharing was turned off and on meanwhile, the same.
+- A cable that only charges carries no data.
+- A PC cannot use the cable to Android yet. Use the PC's own network (No router?), or a phone's USB
+  tethering: Windows supports it, so the phone then reaches the PC as on Wi-Fi.
 
 ## No router: the PC's own network
 
