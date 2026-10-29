@@ -493,8 +493,8 @@ JNIEXPORT jint JNICALL Java_com_akinalpfdn_osplay_core_Native_viewerCreate(
                                              .on_role_swap_answer = nullptr,
                                              .on_bitrate_target = nullptr};
     const osplay_result created =
-        on_cable ? osplay_viewer_session_create_accessory(&config, secret.data(), &kRandom,
-                                                          &callbacks, accessory_fd, &viewer->session)
+        on_cable ? osplay_viewer_session_create_accessory(
+                       &config, secret.data(), &kRandom, &callbacks, accessory_fd, &viewer->session)
                  : osplay_viewer_session_create(&config, secret.data(), &kRandom, &callbacks,
                                                 host_text.c_str(), static_cast<uint16_t>(port),
                                                 &viewer->session);
