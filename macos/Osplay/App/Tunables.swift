@@ -70,6 +70,14 @@ extension Tunables {
         /// While sharing, how often an iPad on the cable is tried; it answers once its user picks
         /// the cable (TAB-03).
         static let usbRetryDelay: Duration = .seconds(2)
+        /// Android on the cable (TAB-05): how long after a device appears its interfaces are read,
+        /// how many times one device is switched to Osplay's accessory per sharing (Android falls back
+        /// to its normal mode when macOS has not allowed the accessory within 10 s), the time limit of
+        /// each switching request, and of the zero-length packet that wakes the app's read.
+        static let accessoryProbeDelay: TimeInterval = 0.5
+        static let accessorySwitchAttempts = 3
+        static let accessoryControlTimeout: TimeInterval = 1
+        static let accessoryWakeTimeout: TimeInterval = 0.5
         /// Capabilities this Mac announces in either role.
         static let maximumWidth = 7680
         static let maximumHeight = 4320

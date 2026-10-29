@@ -60,6 +60,26 @@ public final class CoreSession: Sendable {
         }
     }
 
+    /// Host over an Android accessory on the USB cable: runs the session on `pipe`, starting with the
+    /// viewer's first bytes, so it waits without a time limit until Osplay on the device opens it.
+    public static func hostOverAccessory(
+        device: SessionDevice, pipe: any AccessoryPipe, trust: @escaping @Sendable ([UInt8]) -> TrustDecision
+    ) throws(CoreError) -> CoreSession {
+        // The core releases the box when it is done with the pipe, also when creating fails.
+        var raw = AccessoryPipeBox(pipe).retainedRawPipe()
+        var handedOver = false
+        do throws(CoreError) {
+            return try CoreSession(device: device, monitors: [], trust: trust) {
+                config, secret, random, callbacks, out in
+                handedOver = true
+                return osplay_host_session_create_accessory(config, secret, random, callbacks, &raw, out)
+            }
+        } catch {
+            if !handedOver, let context = raw.context { Unmanaged<AccessoryPipeBox>.fromOpaque(context).release() }
+            throw error
+        }
+    }
+
     private typealias Create = (
         UnsafePointer<osplay_session_config>, UnsafePointer<UInt8>, UnsafePointer<osplay_random_source>,
         UnsafePointer<osplay_session_callbacks>, UnsafeMutablePointer<OpaquePointer?>

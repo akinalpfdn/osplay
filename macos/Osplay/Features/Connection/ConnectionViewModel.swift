@@ -39,8 +39,8 @@ final class ConnectionViewModel {
         var displayCount = 0
     }
 
-    /// One host session: the one listening for the next viewer, one trying an iPad on the USB
-    /// cable, or one serving a viewer.
+    /// One host session: the one listening for the next viewer, one trying an iPad or waiting on
+    /// an Android device on the USB cable, or one serving a viewer.
     @MainActor
     private final class HostConnection {
         let id = UUID()
@@ -48,6 +48,8 @@ final class ConnectionViewModel {
         let peer: SessionPeer
         /// usbmuxd's ID of the iPad this session reaches over the cable; nil on the network.
         let usbDeviceID: UInt32?
+        /// The Android accessory this session waits on or serves over the cable; nil otherwise.
+        let accessoryID: UInt64?
         /// nil while it waits for a viewer.
         var viewer: ConnectedViewer?
         var isStreaming = false
@@ -56,14 +58,15 @@ final class ConnectionViewModel {
         var deviceID: String?
         var tasks: [Task<Void, Never>] = []
 
-        init(session: HostSession, peer: SessionPeer, usbDeviceID: UInt32?) {
+        init(session: HostSession, peer: SessionPeer, usbDeviceID: UInt32?, accessoryID: UInt64?) {
             self.session = session
             self.peer = peer
             self.usbDeviceID = usbDeviceID
+            self.accessoryID = accessoryID
         }
 
         /// The session listening on the network for the next viewer.
-        var isListener: Bool { viewer == nil && usbDeviceID == nil }
+        var isListener: Bool { viewer == nil && usbDeviceID == nil && accessoryID == nil }
     }
 
     /// The host being viewed, so the session can come back after sleep, a network change or a
@@ -115,6 +118,11 @@ final class ConnectionViewModel {
     private var usbTask: Task<Void, Never>?
     private var usbDevices: Set<UInt32> = []
     private var usbRetries: [UInt32: Task<Void, Never>] = [:]
+    /// While sharing: the Android devices on the cable in Osplay's accessory mode, and the pauses
+    /// before a new session waits on one again.
+    private var accessoryTask: Task<Void, Never>?
+    private var accessories: [UInt64: AndroidAccessoryLink] = [:]
+    private var accessoryRetries: [UInt64: Task<Void, Never>] = [:]
     private var advertisedPort: UInt16?
     private var relistenTask: Task<Void, Never>?
     private var viewer: ViewerSession?
@@ -366,6 +374,7 @@ final class ConnectionViewModel {
         }
         listen(identity)
         watchUSB(identity)
+        watchAccessories(identity)
         updateSharingStatus()
     }
 
@@ -400,11 +409,11 @@ final class ConnectionViewModel {
             status = .idle
             return
         }
-        startHost(core, peer: peer, usbDeviceID: nil)
+        startHost(core, peer: peer, usbDeviceID: nil, accessoryID: nil)
     }
 
     /// Runs a host session for the viewer that connects (or answers over the cable) on `core`.
-    private func startHost(_ core: CoreSession, peer: SessionPeer, usbDeviceID: UInt32?) {
+    private func startHost(_ core: CoreSession, peer: SessionPeer, usbDeviceID: UInt32?, accessoryID: UInt64?) {
         let settings = dependencies.settings
         let session = HostSession(
             core: core,
@@ -420,7 +429,8 @@ final class ConnectionViewModel {
             },
             displays: VirtualDisplayLender(provider: dependencies.virtualDisplays), budget: displayBudget,
             captures: dependencies.captures, encoders: dependencies.encoders, permissions: dependencies.permissions)
-        let connection = HostConnection(session: session, peer: peer, usbDeviceID: usbDeviceID)
+        let connection = HostConnection(
+            session: session, peer: peer, usbDeviceID: usbDeviceID, accessoryID: accessoryID)
         hostConnections.append(connection)
         connection.tasks = [
             Task { [weak self] in
@@ -469,7 +479,7 @@ final class ConnectionViewModel {
             tryUSBLater(deviceID, identity)
             return
         }
-        startHost(core, peer: peer, usbDeviceID: deviceID)
+        startHost(core, peer: peer, usbDeviceID: deviceID, accessoryID: nil)
     }
 
     private func tryUSBLater(_ deviceID: UInt32, _ identity: DeviceIdentity) {
@@ -480,6 +490,55 @@ final class ConnectionViewModel {
             guard !Task.isCancelled else { return }
             self?.usbRetries[deviceID] = nil
             self?.tryUSB(deviceID, identity)
+        }
+    }
+
+    /// Switches every Android device on the cable to Osplay's accessory while sharing is on and keeps
+    /// a session waiting on each: Osplay there starts it when Android hands it the accessory (TAB-05).
+    private func watchAccessories(_ identity: DeviceIdentity) {
+        accessoryTask?.cancel()
+        let events = dependencies.androidAccessories.watch()
+        accessoryTask = Task { [weak self] in
+            for await event in events {
+                switch event {
+                case .attached(let link):
+                    self?.accessories[link.id] = link
+                    self?.serveAccessory(link.id, identity)
+                case .detached(let id):
+                    self?.accessories.removeValue(forKey: id)
+                    self?.accessoryRetries.removeValue(forKey: id)?.cancel()
+                }
+            }
+        }
+    }
+
+    private func serveAccessory(_ id: UInt64, _ identity: DeviceIdentity) {
+        guard mode == .sharing, pendingSwap == nil, let link = accessories[id],
+            !hostConnections.contains(where: { $0.accessoryID == id })
+        else { return }
+        let peer = SessionPeer()
+        let core: CoreSession
+        do throws(CoreError) {
+            core = try CoreSession.hostOverAccessory(
+                device: sessionDevice(identity, maximumStreams: Tunables.VirtualDisplay.maximumDisplayCount),
+                pipe: link.makePipe(), trust: { [trust, peer] key in peer.trust(key, in: trust) })
+        } catch {
+            Log.connection.error(
+                "Could not wait on the Android accessory: \(String(describing: error), privacy: .public)")
+            serveAccessoryLater(id, identity)
+            return
+        }
+        startHost(core, peer: peer, usbDeviceID: nil, accessoryID: id)
+    }
+
+    private func serveAccessoryLater(_ id: UInt64, _ identity: DeviceIdentity) {
+        accessoryRetries[id]?.cancel()
+        accessoryRetries[id] = Task { [weak self] in
+            // Cancelled when the device goes or sharing stops; serveAccessory() checks both anyway.
+            try? await Task.sleep(for: Tunables.Connection.usbRetryDelay)
+            guard !Task.isCancelled else { return }
+            self?.accessoryRetries[id] = nil
+            self?.serveAccessory(id, identity)
         }
     }
 
@@ -518,6 +577,12 @@ final class ConnectionViewModel {
             // The iPad is tried again; it only answers when its user picks the cable again.
             tryUSBLater(deviceID, identity)
             // An iPad not waiting refuses the connection: that is no failure to show.
+            guard connection.viewer != nil else { return }
+        }
+        if let accessoryID = connection.accessoryID, let identity {
+            // A new session waits on the device; after a pause, so a cable that just went is
+            // reported gone first.
+            serveAccessoryLater(accessoryID, identity)
             guard connection.viewer != nil else { return }
         }
         if let failure {
@@ -616,6 +681,11 @@ final class ConnectionViewModel {
         usbRetries.values.forEach { $0.cancel() }
         usbRetries = [:]
         usbDevices = []
+        accessoryTask?.cancel()
+        accessoryTask = nil
+        accessoryRetries.values.forEach { $0.cancel() }
+        accessoryRetries = [:]
+        accessories = [:]
         let connections = hostConnections
         hostConnections = []
         for connection in connections {
