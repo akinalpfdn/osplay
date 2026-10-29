@@ -2,6 +2,8 @@
 
 #include "protocol/constants.hpp"
 #include "protocol/link_record.hpp"
+#include "transport/aoa.hpp"
+#include "transport/byte_pipe.hpp"
 #include "transport/traffic_class.hpp"
 #include "transport/usbmux.hpp"
 
@@ -27,14 +29,17 @@
 #pragma clang diagnostic pop
 #endif
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <deque>
 #include <exception>
 #include <functional>
 #include <future>
 #include <memory>
+#include <mutex>
 #include <span>
 #include <string>
 #include <thread>
@@ -56,6 +61,189 @@ constexpr auto kCommandTimeout = std::chrono::seconds(5);
 constexpr std::size_t kLinkMediaBudget = std::size_t{1024} * 1024;
 /// Stream link: the "UDP port" in MediaSetup, which the viewer ignores (PROTOCOL.md).
 constexpr std::uint16_t kLinkMediaPort = 1;
+/// How long a closing pipe stream waits for its threads before leaving one stuck in the pipe.
+constexpr auto kPipeThreadGrace = std::chrono::milliseconds(500);
+
+/// A BytePipe run as an asio stream with one operation in flight per direction: a reader thread
+/// and a writer thread block in the pipe and post their completions to the I/O thread. Their state
+/// is shared, so a thread the platform cannot wake (an Android accessory read) is left to finish on
+/// its own; it posts nothing after close.
+class PipeStream {
+public:
+    using Handler = std::function<void(const asio::error_code&, std::size_t)>;
+
+    PipeStream(asio::io_context& io, std::unique_ptr<BytePipe> pipe)
+        : state_(std::make_shared<State>(io, std::move(pipe))) {
+        reader_ = std::thread([state = state_] { state->run(state->read_side, true); });
+        writer_ = std::thread([state = state_] { state->run(state->write_side, false); });
+    }
+
+    ~PipeStream() {
+        close();
+        std::unique_lock lock(state_->mutex);
+        state_->finished.wait_for(lock, kPipeThreadGrace, [this] {
+            return state_->read_side.exited && state_->write_side.exited;
+        });
+        const bool read_exited = state_->read_side.exited;
+        const bool write_exited = state_->write_side.exited;
+        lock.unlock();
+        finish(reader_, read_exited);
+        finish(writer_, write_exited);
+    }
+
+    PipeStream(const PipeStream&) = delete;
+    PipeStream& operator=(const PipeStream&) = delete;
+    PipeStream(PipeStream&&) = delete;
+    PipeStream& operator=(PipeStream&&) = delete;
+
+    /// I/O thread. The bytes are copied into `buffer` there, just before `handler` runs.
+    void async_read_some(asio::mutable_buffer buffer, Handler handler) {
+        std::unique_lock lock(state_->mutex);
+        if (aborted(handler)) {
+            return;
+        }
+        Side& side = state_->read_side;
+        side.target = static_cast<std::uint8_t*>(buffer.data());
+        side.size = std::min(buffer.size(), side.buffer.size());
+        queue(lock, side, std::move(handler));
+    }
+
+    /// I/O thread. Sends up to one transfer of `buffer`, copied first.
+    void async_write_some(asio::const_buffer buffer, Handler handler) {
+        std::unique_lock lock(state_->mutex);
+        if (aborted(handler)) {
+            return;
+        }
+        Side& side = state_->write_side;
+        side.size = std::min(buffer.size(), side.buffer.size());
+        std::copy_n(static_cast<const std::uint8_t*>(buffer.data()), side.size,
+                    side.buffer.begin());
+        queue(lock, side, std::move(handler));
+    }
+
+    /// Pending operations complete with operation_aborted; the pipe is cancelled.
+    void close() {
+        std::unique_lock lock(state_->mutex);
+        if (state_->closed) {
+            return;
+        }
+        state_->closed = true;
+        for (Side* side : {&state_->read_side, &state_->write_side}) {
+            if (side->pending) {
+                side->pending = false;
+                asio::post(*state_->io, [handler = std::move(side->handler)] {
+                    handler(asio::error::operation_aborted, 0);
+                });
+            }
+        }
+        lock.unlock();
+        state_->pipe->cancel();
+        state_->wake.notify_all();
+    }
+
+private:
+    struct Side {
+        std::vector<std::uint8_t> buffer = std::vector<std::uint8_t>(aoa::kTransferSize);
+        std::uint8_t* target = nullptr; ///< read: the caller's buffer
+        std::size_t size = 0;           ///< read: the caller's capacity; write: the bytes copied
+        Handler handler;
+        bool pending = false;
+        bool broken = false; ///< the pipe failed; later operations fail at once
+        bool exited = false;
+    };
+
+    struct State : std::enable_shared_from_this<State> {
+        State(asio::io_context& context, std::unique_ptr<BytePipe> owned)
+            : io(&context), pipe(std::move(owned)) {}
+
+        /// One thread's loop: wait for an operation, run it in the pipe, post its completion.
+        void run(Side& side, bool reading) {
+            std::unique_lock lock(mutex);
+            for (;;) {
+                wake.wait(lock, [&] { return closed || side.pending; });
+                if (closed) {
+                    break;
+                }
+                auto done = Expected<std::size_t, Error>::failure(Error::NetworkError);
+                if (!side.broken) {
+                    const auto bytes = std::span(side.buffer).first(side.size);
+                    lock.unlock();
+                    done = reading ? pipe->read(bytes) : pipe->write(bytes);
+                    lock.lock();
+                }
+                if (closed) {
+                    break; // close() completed the operation already
+                }
+                if (done && done.value() == 0) {
+                    if (reading) {
+                        continue; // a zero-length packet: read again
+                    }
+                    done = Expected<std::size_t, Error>::failure(Error::NetworkError);
+                }
+                side.broken = !done;
+                side.pending = false;
+                const std::size_t size = done ? done.value() : 0;
+                asio::post(*io,
+                           [self = shared_from_this(), &side, reading, error = to_error_code(done),
+                            size, handler = std::move(side.handler)] {
+                               if (reading) {
+                                   std::copy_n(side.buffer.begin(), size, side.target);
+                               }
+                               handler(error, size);
+                           });
+            }
+            side.exited = true;
+            finished.notify_all();
+        }
+
+        std::mutex mutex;
+        std::condition_variable wake;
+        std::condition_variable finished;
+        asio::io_context* io;
+        std::unique_ptr<BytePipe> pipe;
+        bool closed = false;
+        Side read_side;
+        Side write_side;
+    };
+
+    static asio::error_code to_error_code(const Expected<std::size_t, Error>& done) {
+        if (done) {
+            return {};
+        }
+        return done.error() == Error::ConnectionClosed
+                   ? asio::error_code(asio::error::eof)
+                   : asio::error_code(asio::error::connection_reset);
+    }
+
+    /// Completes `handler` with operation_aborted after close; the caller holds the mutex.
+    bool aborted(Handler& handler) {
+        if (!state_->closed) {
+            return false;
+        }
+        asio::post(*state_->io,
+                   [moved = std::move(handler)] { moved(asio::error::operation_aborted, 0); });
+        return true;
+    }
+
+    void queue(std::unique_lock<std::mutex>& lock, Side& side, Handler handler) {
+        side.handler = std::move(handler);
+        side.pending = true;
+        lock.unlock();
+        state_->wake.notify_all();
+    }
+
+    static void finish(std::thread& thread, bool exited) {
+        if (exited) {
+            thread.join();
+        } else {
+            thread.detach(); // stuck in the pipe; it exits when the pipe returns
+        }
+    }
+
+    std::shared_ptr<State> state_;
+    std::thread reader_;
+    std::thread writer_;
+};
 
 } // namespace
 
@@ -218,6 +406,35 @@ public:
         start_thread();
     }
 
+    /// Android accessory link (PROTOCOL.md "Android accessory links"). The host waits for the
+    /// viewer's first bytes, so it can wait on the cable without a handshake timeout; the viewer
+    /// starts at once.
+    void start_pipe(std::unique_ptr<BytePipe> pipe, bool wait_for_viewer) {
+        link_ = true;
+        pipe_ = std::make_unique<PipeStream>(io_, std::move(pipe));
+        if (wait_for_viewer) {
+            pipe_->async_read_some(asio::buffer(read_buffer_),
+                                   [this](const asio::error_code& error, std::size_t size) {
+                                       if (closed_) {
+                                           return;
+                                       }
+                                       if (error) {
+                                           read_failed(error);
+                                           return;
+                                       }
+                                       link_up_ = true;
+                                       engine_.on_connected(now());
+                                       read_link_records(std::span(read_buffer_).first(size));
+                                       if (!closed_) {
+                                           read_control();
+                                       }
+                                   });
+        } else {
+            on_control_connected();
+        }
+        start_thread();
+    }
+
     void start_viewer_link() {
         acceptor_.async_accept(control_, [this](const asio::error_code& error) {
             if (error) {
@@ -355,6 +572,17 @@ private:
         }
 #endif
         std::forward<Operation>(operation)(control_);
+    }
+
+    /// As with_stream, but also over an accessory pipe: for reading and writing the session's
+    /// bytes, never for the usbmuxd exchange.
+    template <typename Operation>
+    void with_link_stream(Operation&& operation) {
+        if (pipe_) {
+            operation(*pipe_);
+            return;
+        }
+        with_stream(std::forward<Operation>(operation));
     }
 
     void start_connect_timer(Microseconds connect_timeout) {
@@ -526,16 +754,11 @@ private:
     }
 
     void read_control() {
-        with_stream([this](auto& socket) {
+        with_link_stream([this](auto& socket) {
             socket.async_read_some(asio::buffer(read_buffer_), [this](const asio::error_code& error,
                                                                       std::size_t size) {
                 if (error) {
-                    if (!closed_) {
-                        engine_.on_transport_closed(error == asio::error::eof
-                                                        ? Error::ConnectionClosed
-                                                        : Error::NetworkError);
-                        close();
-                    }
+                    read_failed(error);
                     return;
                 }
                 if (link_) {
@@ -548,6 +771,14 @@ private:
                 }
             });
         });
+    }
+
+    void read_failed(const asio::error_code& error) {
+        if (!closed_) {
+            engine_.on_transport_closed(error == asio::error::eof ? Error::ConnectionClosed
+                                                                  : Error::NetworkError);
+            close();
+        }
     }
 
     void read_link_records(std::span<const std::uint8_t> bytes) {
@@ -608,7 +839,7 @@ private:
         }
         writing_ = true;
         const auto& front = writing_from_->front();
-        with_stream([this, &front](auto& socket) {
+        with_link_stream([this, &front](auto& socket) {
             socket.async_write_some(
                 asio::buffer(front.data() + write_offset_, front.size() - write_offset_),
                 [this](const asio::error_code& error, std::size_t size) {
@@ -658,6 +889,9 @@ private:
         local_.shutdown(asio::socket_base::shutdown_both, ignored);
         local_.close(ignored);
 #endif
+        if (pipe_) {
+            pipe_->close();
+        }
     }
 
     void stop() {
@@ -681,6 +915,7 @@ private:
 #ifndef _WIN32
     asio::local::stream_protocol::socket local_; // Mac host's stream link: usbmuxd's Unix socket
 #endif
+    std::unique_ptr<PipeStream> pipe_; // Android accessory link
     udp::socket media_;
     tcp::resolver resolver_;
     asio::steady_timer timer_;
@@ -779,6 +1014,32 @@ AsioSession::create_viewer_usb(session::SessionConfig config, crypto::KeyPair id
         return Result::failure(listening.error());
     }
     impl->start_viewer_link();
+    return std::unique_ptr<AsioSession>(new AsioSession(
+        std::move(impl))); // NOLINT(cppcoreguidelines-owning-memory): private constructor
+}
+
+Expected<std::unique_ptr<AsioSession>, Error>
+AsioSession::create_host_pipe(session::SessionConfig config, crypto::KeyPair identity,
+                              crypto::RandomSource& random, session::SessionObserver& observer,
+                              std::unique_ptr<BytePipe> pipe) {
+    const auto tick = config.tunables.tick_interval;
+    auto impl = std::make_unique<Impl>(std::move(config), std::move(identity), random, observer,
+                                       TransportOptions{});
+    impl->set_tick_interval(tick);
+    impl->start_pipe(std::move(pipe), true);
+    return std::unique_ptr<AsioSession>(new AsioSession(
+        std::move(impl))); // NOLINT(cppcoreguidelines-owning-memory): private constructor
+}
+
+Expected<std::unique_ptr<AsioSession>, Error>
+AsioSession::create_viewer_pipe(session::SessionConfig config, crypto::KeyPair identity,
+                                crypto::RandomSource& random, session::SessionObserver& observer,
+                                std::unique_ptr<BytePipe> pipe) {
+    const auto tick = config.tunables.tick_interval;
+    auto impl = std::make_unique<Impl>(std::move(config), std::move(identity), random, observer,
+                                       TransportOptions{});
+    impl->set_tick_interval(tick);
+    impl->start_pipe(std::move(pipe), false);
     return std::unique_ptr<AsioSession>(new AsioSession(
         std::move(impl))); // NOLINT(cppcoreguidelines-owning-memory): private constructor
 }

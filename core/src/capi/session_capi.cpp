@@ -6,6 +6,7 @@
 #include "session/session_config.hpp"
 #include "session/session_engine.hpp"
 #include "transport/asio_session.hpp"
+#include "transport/byte_pipe.hpp"
 
 #include <osplay/osplay.h>
 
@@ -428,6 +429,45 @@ osplay_result to_status_result(const osplay::Status<Error>& status) {
     return status ? OSPLAY_OK : to_result(status.error());
 }
 
+/// A platform's osplay_byte_pipe; destroying it releases the platform's side.
+class CallbackPipe final : public osplay::transport::BytePipe {
+public:
+    explicit CallbackPipe(const osplay_byte_pipe& pipe) : pipe_(pipe) {}
+    ~CallbackPipe() override { pipe_.release(pipe_.context); }
+    CallbackPipe(const CallbackPipe&) = delete;
+    CallbackPipe& operator=(const CallbackPipe&) = delete;
+    CallbackPipe(CallbackPipe&&) = delete;
+    CallbackPipe& operator=(CallbackPipe&&) = delete;
+
+    osplay::Expected<std::size_t, Error> read(std::span<std::uint8_t> buffer) override {
+        std::size_t size = 0;
+        const auto result = pipe_.read(pipe_.context, buffer.data(), buffer.size(), &size);
+        return finished(result, size, buffer.size());
+    }
+
+    osplay::Expected<std::size_t, Error> write(std::span<const std::uint8_t> data) override {
+        std::size_t written = 0;
+        const auto result = pipe_.write(pipe_.context, data.data(), data.size(), &written);
+        return finished(result, written, data.size());
+    }
+
+    void cancel() override { pipe_.cancel(pipe_.context); }
+
+private:
+    static osplay::Expected<std::size_t, Error> finished(osplay_result result, std::size_t size,
+                                                         std::size_t limit) {
+        if (result == OSPLAY_ERROR_CONNECTION_CLOSED) {
+            return osplay::Expected<std::size_t, Error>::failure(Error::ConnectionClosed);
+        }
+        if (result != OSPLAY_OK || size > limit) {
+            return osplay::Expected<std::size_t, Error>::failure(Error::NetworkError);
+        }
+        return size;
+    }
+
+    osplay_byte_pipe pipe_;
+};
+
 } // namespace
 
 extern "C" {
@@ -520,6 +560,68 @@ osplay_result osplay_viewer_session_create_usb(const osplay_session_config* conf
                                       std::move(session_config), std::move(identity), handle.random,
                                       handle.observer, port);
                               });
+    });
+}
+
+osplay_result osplay_host_session_create_accessory(const osplay_session_config* config,
+                                                   const uint8_t* secret_key,
+                                                   const osplay_random_source* random,
+                                                   const osplay_session_callbacks* callbacks,
+                                                   const osplay_byte_pipe* pipe,
+                                                   osplay_session** out_session) {
+    return guarded([&]() -> osplay_result {
+        if (pipe == nullptr || pipe->read == nullptr || pipe->write == nullptr ||
+            pipe->cancel == nullptr || pipe->release == nullptr) {
+            if (out_session != nullptr) {
+                *out_session = nullptr;
+            }
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        std::unique_ptr<osplay::transport::BytePipe> owned = std::make_unique<CallbackPipe>(*pipe);
+        return create_session(config, secret_key, random, callbacks, protocol::Role::Host,
+                              out_session,
+                              [&owned](session::SessionConfig session_config,
+                                       osplay::crypto::KeyPair identity, osplay_session& handle) {
+                                  return osplay::transport::AsioSession::create_host_pipe(
+                                      std::move(session_config), std::move(identity), handle.random,
+                                      handle.observer, std::move(owned));
+                              });
+    });
+}
+
+osplay_result osplay_viewer_session_create_accessory(const osplay_session_config* config,
+                                                     const uint8_t* secret_key,
+                                                     const osplay_random_source* random,
+                                                     const osplay_session_callbacks* callbacks,
+                                                     int fd, osplay_session** out_session) {
+    return guarded([&]() -> osplay_result {
+#ifdef _WIN32
+        static_cast<void>(config);
+        static_cast<void>(secret_key);
+        static_cast<void>(random);
+        static_cast<void>(callbacks);
+        static_cast<void>(fd);
+        if (out_session != nullptr) {
+            *out_session = nullptr;
+        }
+        return OSPLAY_ERROR_INVALID_ARGUMENT;
+#else
+        if (fd < 0) {
+            if (out_session != nullptr) {
+                *out_session = nullptr;
+            }
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        auto owned = osplay::transport::make_fd_pipe(fd); // closes fd also when this fails
+        return create_session(config, secret_key, random, callbacks, protocol::Role::Viewer,
+                              out_session,
+                              [&owned](session::SessionConfig session_config,
+                                       osplay::crypto::KeyPair identity, osplay_session& handle) {
+                                  return osplay::transport::AsioSession::create_viewer_pipe(
+                                      std::move(session_config), std::move(identity), handle.random,
+                                      handle.observer, std::move(owned));
+                              });
+#endif
     });
 }
 

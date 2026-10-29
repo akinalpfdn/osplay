@@ -4,6 +4,7 @@
 #include "protocol/control_messages.hpp"
 #include "session_simulation.hpp"
 #include "transport/asio_session.hpp"
+#include "transport/byte_pipe.hpp"
 #include "transport/traffic_class.hpp"
 #include "transport/usbmux.hpp"
 
@@ -19,7 +20,7 @@
 #include <asio/write.hpp>
 #include <gtest/gtest.h>
 
-#ifdef __APPLE__
+#ifndef _WIN32
 #include <sys/socket.h>
 #endif
 
@@ -505,6 +506,99 @@ session::SessionConfig config(protocol::Role role) {
     return config;
 }
 
+// --- In-memory Android accessory --------------------------------------------------------------
+
+/// One direction of a cable: chunks as written, an empty one standing for a zero-length packet.
+struct CableDirection {
+    std::mutex mutex;
+    std::condition_variable changed;
+    std::deque<std::vector<std::uint8_t>> chunks;
+    bool unplugged = false;
+};
+
+/// A BytePipe end over two CableDirections. `stubborn` ignores cancel, as an Android accessory
+/// read does, until bytes arrive or the cable goes.
+class MemoryPipe final : public osplay::transport::BytePipe {
+public:
+    MemoryPipe(std::shared_ptr<CableDirection> in, std::shared_ptr<CableDirection> out,
+               bool stubborn, std::shared_ptr<std::atomic<int>> released)
+        : in_(std::move(in)), out_(std::move(out)), stubborn_(stubborn),
+          released_(std::move(released)) {}
+    ~MemoryPipe() override { ++*released_; }
+    MemoryPipe(const MemoryPipe&) = delete;
+    MemoryPipe& operator=(const MemoryPipe&) = delete;
+    MemoryPipe(MemoryPipe&&) = delete;
+    MemoryPipe& operator=(MemoryPipe&&) = delete;
+
+    osplay::Expected<std::size_t, Error> read(std::span<std::uint8_t> buffer) override {
+        std::unique_lock lock(in_->mutex);
+        in_->changed.wait(lock, [this] {
+            return !in_->chunks.empty() || in_->unplugged || (cancelled_ && !stubborn_);
+        });
+        if (in_->chunks.empty()) {
+            return osplay::Expected<std::size_t, Error>::failure(Error::NetworkError);
+        }
+        auto& front = in_->chunks.front();
+        const std::size_t size = std::min(front.size(), buffer.size());
+        std::copy_n(front.begin(), size, buffer.begin());
+        front.erase(front.begin(), front.begin() + static_cast<std::ptrdiff_t>(size));
+        if (front.empty()) {
+            in_->chunks.pop_front();
+        }
+        return size;
+    }
+
+    osplay::Expected<std::size_t, Error> write(std::span<const std::uint8_t> data) override {
+        const std::scoped_lock lock(out_->mutex);
+        if (out_->unplugged) {
+            return osplay::Expected<std::size_t, Error>::failure(Error::NetworkError);
+        }
+        out_->chunks.emplace_back(data.begin(), data.end());
+        out_->changed.notify_all();
+        return data.size();
+    }
+
+    void cancel() override {
+        const std::scoped_lock lock(in_->mutex);
+        cancelled_ = true;
+        in_->changed.notify_all();
+    }
+
+private:
+    std::shared_ptr<CableDirection> in_;
+    std::shared_ptr<CableDirection> out_;
+    bool stubborn_;
+    bool cancelled_ = false; // guarded by in_->mutex
+    std::shared_ptr<std::atomic<int>> released_;
+};
+
+/// A cable between a Mac (host end) and an Android device (accessory end).
+struct MemoryCable {
+    std::shared_ptr<CableDirection> to_accessory = std::make_shared<CableDirection>();
+    std::shared_ptr<CableDirection> to_host = std::make_shared<CableDirection>();
+    std::shared_ptr<std::atomic<int>> released = std::make_shared<std::atomic<int>>(0);
+
+    std::unique_ptr<osplay::transport::BytePipe> host_end() {
+        return std::make_unique<MemoryPipe>(to_host, to_accessory, false, released);
+    }
+    std::unique_ptr<osplay::transport::BytePipe> accessory_end(bool stubborn = false) {
+        return std::make_unique<MemoryPipe>(to_accessory, to_host, stubborn, released);
+    }
+    /// The host sends a zero-length packet.
+    void send_zero_length_packet() {
+        const std::scoped_lock lock(to_accessory->mutex);
+        to_accessory->chunks.emplace_back();
+        to_accessory->changed.notify_all();
+    }
+    void unplug() {
+        for (const auto& direction : {to_accessory, to_host}) {
+            const std::scoped_lock lock(direction->mutex);
+            direction->unplugged = true;
+            direction->changed.notify_all();
+        }
+    }
+};
+
 class RealSessions : public ::testing::Test {
 protected:
     /// Starts the host, optionally behind the relay, and connects the viewer.
@@ -544,6 +638,21 @@ protected:
             {.device_id = 7, .port = viewer->control_port(), .usbmux = usbmuxd.address()});
         ASSERT_TRUE(host_session.has_value());
         host = std::move(host_session.value());
+    }
+
+    /// The host waits on its end of the cable; the viewer starts on the accessory end.
+    void connect_accessory(std::unique_ptr<osplay::transport::BytePipe> host_end,
+                           std::unique_ptr<osplay::transport::BytePipe> accessory_end) {
+        auto host_session = osplay::transport::AsioSession::create_host_pipe(
+            config(protocol::Role::Host), osplay::test::key_pair(host_random), host_random,
+            host_observer, std::move(host_end));
+        ASSERT_TRUE(host_session.has_value());
+        host = std::move(host_session.value());
+        auto viewer_session = osplay::transport::AsioSession::create_viewer_pipe(
+            config(protocol::Role::Viewer), osplay::test::key_pair(viewer_random), viewer_random,
+            viewer_observer, std::move(accessory_end));
+        ASSERT_TRUE(viewer_session.has_value());
+        viewer = std::move(viewer_session.value());
     }
 
     void start_streaming() {
@@ -750,6 +859,92 @@ TEST_F(RealSessions, StreamsFramesOverAUsbLink) {
 
     viewer.reset(); // sends Bye
     EXPECT_TRUE(host_observer.wait_for_state(SessionState::Closed, seconds(3)));
+}
+
+TEST_F(RealSessions, StreamsFramesOverAnAndroidAccessory) {
+    MemoryCable cable;
+    connect_accessory(cable.host_end(), cable.accessory_end());
+    start_streaming();
+    cable.send_zero_length_packet(); // read again, not the end of the stream
+    stream_frames(120);
+
+    EXPECT_TRUE(viewer_observer.wait_for_frames(next_index, seconds(5)));
+    EXPECT_EQ(viewer_observer.frame_count(), next_index);
+    EXPECT_TRUE(viewer_observer.intact());
+
+    viewer.reset(); // sends Bye
+    EXPECT_TRUE(host_observer.wait_for_state(SessionState::Closed, seconds(3)));
+    host.reset();
+    EXPECT_EQ(*cable.released, 2) << "both ends are released once their threads are done";
+}
+
+#ifndef _WIN32
+TEST_F(RealSessions, StreamsFramesOverAnAccessoryFileDescriptor) {
+    std::array<int, 2> fds{};
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds.data()), 0);
+    connect_accessory(osplay::transport::make_fd_pipe(fds[0]),
+                      osplay::transport::make_fd_pipe(fds[1]));
+    start_streaming();
+    stream_frames(60);
+
+    EXPECT_TRUE(viewer_observer.wait_for_frames(next_index, seconds(5)));
+    EXPECT_TRUE(viewer_observer.intact());
+}
+#endif
+
+TEST(RealSessionsConnect, AnAccessoryHostWaitsForTheViewerWithoutATimeLimit) {
+    MemoryCable cable;
+    osplay::test::SeededRandom random{10};
+    SyncObserver observer;
+    auto host_config = config(protocol::Role::Host);
+    host_config.tunables.handshake_timeout = osplay::Microseconds{200'000};
+    auto host = osplay::transport::AsioSession::create_host_pipe(
+        std::move(host_config), osplay::test::key_pair(random), random, observer, cable.host_end());
+    ASSERT_TRUE(host.has_value());
+    std::this_thread::sleep_for(milliseconds(600));
+    EXPECT_EQ(observer.state(), SessionState::Connecting) << "the clock starts with the viewer";
+}
+
+TEST(RealSessionsConnect, AnAccessorySessionEndsWhenTheCableGoes) {
+    MemoryCable cable;
+    osplay::test::SeededRandom host_random{11};
+    osplay::test::SeededRandom viewer_random{12};
+    SyncObserver host_observer;
+    SyncObserver viewer_observer;
+    auto host = osplay::transport::AsioSession::create_host_pipe(
+        config(protocol::Role::Host), osplay::test::key_pair(host_random), host_random,
+        host_observer, cable.host_end());
+    auto viewer = osplay::transport::AsioSession::create_viewer_pipe(
+        config(protocol::Role::Viewer), osplay::test::key_pair(viewer_random), viewer_random,
+        viewer_observer, cable.accessory_end());
+    ASSERT_TRUE(host.has_value() && viewer.has_value());
+    ASSERT_TRUE(host_observer.wait_for_monitors(seconds(5)));
+
+    cable.unplug();
+    EXPECT_TRUE(host_observer.wait_for_state(SessionState::Closed, seconds(3)));
+    EXPECT_EQ(host_observer.close_reason(), Error::NetworkError);
+    EXPECT_TRUE(viewer_observer.wait_for_state(SessionState::Closed, seconds(3)));
+}
+
+TEST(RealSessionsConnect, AViewerStuckInTheAccessoryDoesNotHoldUpItsEnd) {
+    MemoryCable cable;
+    osplay::test::SeededRandom random{13};
+    SyncObserver observer;
+    auto viewer = osplay::transport::AsioSession::create_viewer_pipe(
+        config(protocol::Role::Viewer), osplay::test::key_pair(random), random, observer,
+        cable.accessory_end(true));
+    ASSERT_TRUE(viewer.has_value());
+
+    const auto started = std::chrono::steady_clock::now();
+    viewer.value().reset(); // its read ignores cancel
+    EXPECT_LT(std::chrono::steady_clock::now() - started, seconds(3));
+    EXPECT_EQ(*cable.released, 0) << "still in the read";
+
+    cable.send_zero_length_packet(); // what a host sends when it closes its end
+    for (int wait = 0; wait < 100 && *cable.released == 0; ++wait) {
+        std::this_thread::sleep_for(milliseconds(20));
+    }
+    EXPECT_EQ(*cable.released, 1);
 }
 
 TEST(RealSessionsConnect, AUsbHostEndsWhenNothingListensOnTheDevice) {

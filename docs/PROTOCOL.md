@@ -378,6 +378,27 @@ iPad's USB listener only takes those connections:
   initiator. MediaSetup carries udp_port 1, which the viewer ignores; UdpHello travels as a media
   record and associates nothing.
 
+## Android accessory links
+
+An Android device on a USB cable runs the same stream link records over Android Open Accessory
+(AOA): the computer is the USB host and switches the device into accessory mode; nothing else is
+needed on either side (no network, tethering or USB debugging).
+
+- **Switching.** On endpoint 0 the host sends GET_PROTOCOL (vendor IN request 51, 2-byte answer: the
+  AOA version, 0 without AOA), then SEND_STRING (vendor OUT request 52, wIndex 0–5) with Osplay's
+  identity, each string zero-terminated, then START (53). The identity is manufacturer `Osplay`,
+  model `Osplay Display`, a description, version `1`, the project URI and serial `1`; Android starts
+  the app whose accessory filter names that manufacturer and model.
+- **The link.** The device comes back as vendor 0x18D1, product 0x2D00 (0x2D01 with USB debugging
+  on). Interface 0 has one bulk IN and one bulk OUT endpoint; the records flow over them, at most
+  16 KiB per transfer. A zero-length packet carries nothing and is not the end of the stream.
+- **Who starts.** The viewer speaks first. A host keeps a read waiting on the IN endpoint and its
+  session starts with the viewer's first bytes, so it waits without a time limit and the handshake
+  timeout runs from there. As on usbmuxd links, MediaSetup carries udp_port 1.
+- **Ending.** Unplugging ends both sides with NETWORK. A host that closes its end sends a
+  zero-length packet on the OUT endpoint: Android's accessory read cannot be cancelled from the
+  device, and this returns it, so the app can open the accessory again.
+
 ## Session flow
 
 1. The viewer connects to the host's control port; a host that does not accept within **5 s** (asleep,

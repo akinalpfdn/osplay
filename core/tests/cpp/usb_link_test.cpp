@@ -1,6 +1,7 @@
 // Stream link records (PROTOCOL.md "Stream links"), the usbmuxd messages and the USB watcher
 // against a fake usbmuxd.
 #include "protocol/link_record.hpp"
+#include "transport/aoa.hpp"
 #include "transport/usb_watcher.hpp"
 #include "transport/usbmux.hpp"
 
@@ -31,6 +32,19 @@ namespace {
 namespace protocol = osplay::protocol;
 namespace usbmux = osplay::transport::usbmux;
 using osplay::Error;
+
+// --- Android Open Accessory --------------------------------------------------------------------
+
+TEST(Aoa, ReadsTheProtocolVersionTheDeviceAnswers) {
+    namespace aoa = osplay::transport::aoa;
+    const std::array<std::uint8_t, 2> two{2, 0};
+    ASSERT_TRUE(aoa::parse_protocol(two).has_value());
+    EXPECT_EQ(aoa::parse_protocol(two).value(), 2);
+    const std::array<std::uint8_t, 1> short_answer{2};
+    EXPECT_EQ(aoa::parse_protocol(short_answer).error(), Error::Truncated);
+    const std::array<std::uint8_t, 2> none{0, 0};
+    EXPECT_EQ(aoa::parse_protocol(none).error(), Error::UnsupportedVersion);
+}
 
 // --- Link records -------------------------------------------------------------------------------
 

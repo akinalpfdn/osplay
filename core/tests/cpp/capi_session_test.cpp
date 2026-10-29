@@ -438,6 +438,163 @@ TEST(CapiUsbWatcher, NeedsBothCallbacks) {
     osplay_usb_watcher_destroy(nullptr);
 }
 
+/// A host's pipe whose read blocks until cancel; counts what the core calls.
+struct CountingPipe {
+    std::mutex mutex;
+    std::condition_variable cancelled_changed;
+    bool cancelled = false;
+    int cancels = 0;
+    int releases = 0;
+
+    osplay_byte_pipe pipe() {
+        return {.context = this,
+                .read = [](void* context, uint8_t*, size_t, size_t*) -> osplay_result {
+                    auto& self = *static_cast<CountingPipe*>(context);
+                    std::unique_lock lock(self.mutex);
+                    self.cancelled_changed.wait(lock, [&] { return self.cancelled; });
+                    return OSPLAY_ERROR_NETWORK;
+                },
+                .write =
+                    [](void*, const uint8_t*, size_t size, size_t* out_written) {
+                        *out_written = size;
+                        return OSPLAY_OK;
+                    },
+                .cancel =
+                    [](void* context) {
+                        auto& self = *static_cast<CountingPipe*>(context);
+                        const std::scoped_lock lock(self.mutex);
+                        self.cancelled = true;
+                        ++self.cancels;
+                        self.cancelled_changed.notify_all();
+                    },
+                .release =
+                    [](void* context) {
+                        auto& self = *static_cast<CountingPipe*>(context);
+                        const std::scoped_lock lock(self.mutex);
+                        ++self.releases;
+                    }};
+    }
+};
+
+TEST(CapiAccessory, AHostPipeIsCancelledAndReleasedOnce) {
+    Side side;
+    const auto callbacks = side.callbacks();
+    const auto secret = new_secret();
+    const osplay_session_config config{.platform = OSPLAY_PLATFORM_MACOS,
+                                       .device_name = "C Mac",
+                                       .capabilities = kCapabilities,
+                                       .monitors = nullptr,
+                                       .monitor_count = 0,
+                                       .control_port = 0};
+    CountingPipe counting;
+    auto pipe = counting.pipe();
+    osplay_session* session = nullptr;
+    ASSERT_EQ(osplay_host_session_create_accessory(&config, secret.data(), &kRandom, &callbacks,
+                                                   &pipe, &session),
+              OSPLAY_OK);
+    osplay_session_destroy(session);
+    const std::scoped_lock lock(counting.mutex);
+    EXPECT_EQ(counting.cancels, 1);
+    EXPECT_EQ(counting.releases, 1);
+}
+
+TEST(CapiAccessory, ReleasesThePipeWhenCreatingFails) {
+    Side side;
+    const auto callbacks = side.callbacks();
+    const auto secret = new_secret();
+    CountingPipe counting;
+    auto pipe = counting.pipe();
+    osplay_session* session = reinterpret_cast<osplay_session*>(&side); // must be overwritten
+    EXPECT_EQ(osplay_host_session_create_accessory(nullptr, secret.data(), &kRandom, &callbacks,
+                                                   &pipe, &session),
+              OSPLAY_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(session, nullptr);
+    EXPECT_EQ(counting.releases, 1);
+
+    pipe.cancel = nullptr;
+    EXPECT_EQ(osplay_host_session_create_accessory(nullptr, secret.data(), &kRandom, &callbacks,
+                                                   &pipe, &session),
+              OSPLAY_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(counting.releases, 1) << "an incomplete pipe is not the core's to release";
+    EXPECT_EQ(osplay_viewer_session_create_accessory(nullptr, secret.data(), &kRandom, &callbacks,
+                                                     -1, &session),
+              OSPLAY_ERROR_INVALID_ARGUMENT);
+}
+
+/// Records the control transfers of a switch; GET_PROTOCOL answers `version`.
+struct SwitchRecorder {
+    struct Transfer {
+        uint8_t request_type;
+        uint8_t request;
+        uint16_t index;
+        std::string data;
+    };
+    uint16_t version = 2;
+    osplay_result fail_with = OSPLAY_OK;
+    std::vector<Transfer> transfers;
+
+    static osplay_result transfer(void* context, uint8_t request_type, uint8_t request,
+                                  uint16_t /*value*/, uint16_t index, uint8_t* data,
+                                  uint16_t length, uint16_t* out_transferred) {
+        auto& self = *static_cast<SwitchRecorder*>(context);
+        self.transfers.push_back(
+            {request_type, request, index, std::string(reinterpret_cast<char*>(data), length)});
+        if (self.fail_with != OSPLAY_OK) {
+            return self.fail_with;
+        }
+        if (request == 51 && length >= 2) {
+            data[0] = static_cast<uint8_t>(self.version & 0xFFU);
+            data[1] = static_cast<uint8_t>(self.version >> 8U);
+        }
+        *out_transferred = length;
+        return OSPLAY_OK;
+    }
+};
+
+TEST(CapiAccessory, SwitchAsksForTheProtocolSendsTheIdentityAndStarts) {
+    SwitchRecorder recorder;
+    ASSERT_EQ(osplay_aoa_switch(&recorder, &SwitchRecorder::transfer), OSPLAY_OK);
+    ASSERT_EQ(recorder.transfers.size(), 8U);
+    EXPECT_EQ(recorder.transfers[0].request_type, 0xC0);
+    EXPECT_EQ(recorder.transfers[0].request, 51);
+    EXPECT_EQ(recorder.transfers[0].data.size(), 2U);
+    const std::array<std::string, 2> matched = {std::string("Osplay\0", 7),
+                                                std::string("Osplay Display\0", 15)};
+    for (uint16_t index = 0; index < 6; ++index) {
+        const auto& sent = recorder.transfers[1 + index];
+        EXPECT_EQ(sent.request_type, 0x40);
+        EXPECT_EQ(sent.request, 52);
+        EXPECT_EQ(sent.index, index);
+        EXPECT_EQ(sent.data.back(), '\0');
+        if (index < matched.size()) {
+            EXPECT_EQ(sent.data, matched.at(index)) << "the Android accessory filter matches these";
+        }
+    }
+    EXPECT_EQ(recorder.transfers[7].request, 53);
+    EXPECT_TRUE(recorder.transfers[7].data.empty());
+}
+
+TEST(CapiAccessory, SwitchStopsAtADeviceWithoutAoaOrAFailedTransfer) {
+    SwitchRecorder no_aoa;
+    no_aoa.version = 0;
+    EXPECT_EQ(osplay_aoa_switch(&no_aoa, &SwitchRecorder::transfer),
+              OSPLAY_ERROR_UNSUPPORTED_VERSION);
+    EXPECT_EQ(no_aoa.transfers.size(), 1U);
+
+    SwitchRecorder stalled;
+    stalled.fail_with = OSPLAY_ERROR_NETWORK;
+    EXPECT_EQ(osplay_aoa_switch(&stalled, &SwitchRecorder::transfer), OSPLAY_ERROR_NETWORK);
+    EXPECT_EQ(stalled.transfers.size(), 1U);
+    EXPECT_EQ(osplay_aoa_switch(nullptr, nullptr), OSPLAY_ERROR_INVALID_ARGUMENT);
+}
+
+TEST(CapiAccessory, KnowsTheAccessoryIds) {
+    EXPECT_EQ(osplay_aoa_is_accessory(0x18D1, 0x2D00), 1);
+    EXPECT_EQ(osplay_aoa_is_accessory(0x18D1, 0x2D01), 1);
+    EXPECT_EQ(osplay_aoa_is_accessory(0x18D1, 0x4EE1), 0) << "a Pixel in its normal mode";
+    EXPECT_EQ(osplay_aoa_is_accessory(0x04E8, 0x2D00), 0);
+}
+
 TEST(CapiSession, CommandsInTheWrongStateFail) {
     Side side;
     const auto callbacks = side.callbacks();

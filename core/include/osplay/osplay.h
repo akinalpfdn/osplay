@@ -469,6 +469,64 @@ osplay_result osplay_viewer_session_create_usb(const osplay_session_config* conf
                                                uint16_t port, osplay_session** out_session);
 
 /*
+ * Android over a USB cable (PROTOCOL.md "Android accessory links"): the computer switches the
+ * device into Android Open Accessory mode with osplay_aoa_switch, the device comes back as an
+ * accessory (osplay_aoa_is_accessory) and Osplay on it opens that accessory. The session runs as a
+ * stream link over the accessory's two bulk endpoints; the viewer speaks first.
+ */
+
+/* A blocking pipe over the accessory's bulk endpoints, which the platform provides to a host. */
+typedef struct osplay_byte_pipe {
+    void* context;
+    /* Blocks until bytes arrive on the IN endpoint and stores their count; a zero-length packet
+     * may store 0. Returns OSPLAY_OK, or an error once the cable is gone or after cancel. */
+    osplay_result (*read)(void* context, uint8_t* buffer, size_t capacity, size_t* out_size);
+    /* Blocks until some of `data` is sent on the OUT endpoint and stores how much. */
+    osplay_result (*write)(void* context, const uint8_t* data, size_t size, size_t* out_written);
+    /* Unblocks read and write for good, then sends a zero-length packet on the OUT endpoint (it
+     * wakes the device's read). Called once, from any thread, while read or write may run. */
+    void (*cancel)(void* context);
+    /* Called once, after read and write have returned for the last time; also when creating the
+     * session fails. It may come from another thread and after osplay_session_destroy. */
+    void (*release)(void* context);
+} osplay_byte_pipe;
+
+/* Host: runs a session over `pipe` (copied), starting with the viewer's first bytes, so it waits
+ * without a time limit. config->control_port is ignored. */
+osplay_result osplay_host_session_create_accessory(const osplay_session_config* config,
+                                                   const uint8_t* secret_key,
+                                                   const osplay_random_source* random,
+                                                   const osplay_session_callbacks* callbacks,
+                                                   const osplay_byte_pipe* pipe,
+                                                   osplay_session** out_session);
+
+/* Viewer (Android): runs a session at once on the accessory's file descriptor (from
+ * UsbManager.openAccessory), which the core then owns and closes, also when this fails. Not on
+ * Windows (OSPLAY_ERROR_INVALID_ARGUMENT). config->control_port is ignored. */
+osplay_result osplay_viewer_session_create_accessory(const osplay_session_config* config,
+                                                     const uint8_t* secret_key,
+                                                     const osplay_random_source* random,
+                                                     const osplay_session_callbacks* callbacks,
+                                                     int fd, osplay_session** out_session);
+
+/* One control transfer on endpoint 0, done by the platform. `data` holds `length` bytes: sent for
+ * an OUT request (request_type bit 7 clear), filled for an IN request. Stores how many bytes the
+ * data stage moved. */
+typedef osplay_result (*osplay_usb_control_transfer)(void* context, uint8_t request_type,
+                                                     uint8_t request, uint16_t value,
+                                                     uint16_t index, uint8_t* data, uint16_t length,
+                                                     uint16_t* out_transferred);
+
+/* Switches an Android device into accessory mode with Osplay's identity: asks for the AOA
+ * protocol, sends the identity strings and START. The device then leaves the bus and comes back
+ * as an accessory. OSPLAY_ERROR_UNSUPPORTED_VERSION when the device answers without AOA (not
+ * Android); a failed transfer's own result otherwise. */
+osplay_result osplay_aoa_switch(void* context, osplay_usb_control_transfer transfer);
+
+/* 1 when the USB IDs are those of an Android device in accessory mode, else 0. */
+uint8_t osplay_aoa_is_accessory(uint16_t vendor_id, uint16_t product_id);
+
+/*
  * Sends Bye and closes the connection without waiting; on_state then reports CLOSED. Unlike
  * osplay_session_destroy it may be called from a callback. Later commands fail with
  * OSPLAY_ERROR_INVALID_STATE.

@@ -52,7 +52,9 @@ add_library(osplay_core STATIC
     src/session/bitrate_controller.cpp
     src/session/control_framer.cpp
     src/session/session_engine.cpp
+    src/transport/aoa.cpp
     src/transport/asio_session.cpp
+    src/transport/byte_pipe.cpp
     src/transport/traffic_class.cpp
     src/transport/usb_watcher.cpp
     src/transport/usbmux.cpp

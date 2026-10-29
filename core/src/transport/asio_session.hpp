@@ -10,6 +10,7 @@
 #include "protocol/control_messages.hpp"
 #include "session/session_config.hpp"
 #include "session/session_engine.hpp"
+#include "transport/byte_pipe.hpp"
 #include "transport/usbmux.hpp"
 #include "util/error.hpp"
 #include "util/expected.hpp"
@@ -74,6 +75,20 @@ public:
     create_viewer_usb(session::SessionConfig config, crypto::KeyPair identity,
                       crypto::RandomSource& random, session::SessionObserver& observer,
                       std::uint16_t port);
+
+    /// Host over an Android accessory (PROTOCOL.md "Android accessory links"): runs the session as
+    /// a stream link on `pipe`, starting with the viewer's first bytes, so it waits without a time
+    /// limit.
+    [[nodiscard]] static Expected<std::unique_ptr<AsioSession>, Error>
+    create_host_pipe(session::SessionConfig config, crypto::KeyPair identity,
+                     crypto::RandomSource& random, session::SessionObserver& observer,
+                     std::unique_ptr<BytePipe> pipe);
+
+    /// Viewer on an Android accessory: runs the session as a stream link on `pipe` at once.
+    [[nodiscard]] static Expected<std::unique_ptr<AsioSession>, Error>
+    create_viewer_pipe(session::SessionConfig config, crypto::KeyPair identity,
+                       crypto::RandomSource& random, session::SessionObserver& observer,
+                       std::unique_ptr<BytePipe> pipe);
 
     /// Sends Bye if possible, closes the sockets and joins the I/O thread. Must not be called from
     /// an observer callback.
