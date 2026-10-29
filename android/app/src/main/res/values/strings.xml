@@ -8,7 +8,7 @@
     <string name="cable_waiting">Waiting for the computer on the cable…</string>
     <string name="cable_detail">Turn on sharing in Osplay on the Mac, then plug in the cable. A PC cannot use the cable yet; open its own network instead.</string>
     <string name="home_searching">Looking for computers… On the computer, open Osplay and choose Extend this Mac or Extend this PC.</string>
-    <string name="home_same_network">This device and the computer must be on the same network. Without Wi-Fi, connect a PC with a USB cable and turn on USB tethering (in Settings, under hotspot and tethering), or connect the Mac or PC to this device\'s hotspot.</string>
+    <string name="home_same_network">This device and the computer must be on the same network. Without Wi-Fi: with a Mac, use the USB cable below; with a PC, open the PC\'s own network (No router? in Osplay on the PC) or turn on USB tethering (in Settings, under hotspot and tethering).</string>
     <string name="device_paired">Paired</string>
     <string name="device_new">Pairs on first connection</string>
     <string name="device_needs_update">Update Osplay on this computer to use it here</string>

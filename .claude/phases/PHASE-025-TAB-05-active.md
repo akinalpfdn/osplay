@@ -11,7 +11,7 @@ An Android 12+ phone or tablet works as a display for a Mac or a PC over a USB c
 - [x] Core (each platform's USB API instead of libusb, user decision): the computer side — find Android devices, switch them to accessory mode (AOA control requests with Osplay's manufacturer, model and version strings), open the bulk endpoints and carry stream link records over them; a watcher that reports attached and detached devices like the usbmuxd one.
 - [x] Android: Osplay as a USB accessory (accessory filter, the system's "open Osplay" prompt), the viewer session over the accessory's streams, a "USB cable" choice on the home screen like the iPad's.
 - [x] Mac (PC pending): start a host session on an attached accessory like the iPad USB flow; no reconnect after a disconnect from either side.
-- [ ] Keep USB tethering as a phone ↔ PC fallback; update the Android hint once AOA works.
+- [x] Keep USB tethering as a phone ↔ PC fallback; update the Android hint once AOA works.
 - [x] Tests: core tests with in-memory and file-descriptor pipes, Android view model, CoreBridge; TESTING.md cases for Mac → Android and PC → Android over the cable, unplug and disconnect.
 - [x] Docs: ARCHITECTURE, TESTING, TROUBLESHOOTING, PROTOCOL, DECISIONS (no libusb, so nothing for BUILDING or THIRD_PARTY).
 
