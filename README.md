@@ -49,6 +49,32 @@
 - **Swap roles in place.** One shortcut turns the display into the computer that extends.
 - **English and Turkish**, light and dark themes.
 
+## How Osplay compares
+
+✅ yes · 🟡 partly or with extra setup · ❌ no
+
+| | **Osplay** | Sidecar | Luna Display | Duet | spacedesk | Moonlight + Sunshine | Deskreen |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Price | **Free, open source** | Free, built into macOS | Hardware, one-time | Subscription | Free for personal use | Free, open source | Free, open source |
+| A Windows PC as a Mac's display | ✅ | ❌ | ❌ | ✅ | ❌ | 🟡 | 🟡 |
+| A Mac as a Windows PC's display | ✅ | ❌ | ❌ | ✅ | 🟡 | 🟡 | 🟡 |
+| A real extra monitor, no dummy plug | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | ❌ |
+| Uses every monitor of the other computer | ✅ up to four | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Extends onto several computers at once | ✅ | ❌ | ❌ | 🟡 | ✅ | ❌ | ✅ |
+| Swaps roles with one shortcut | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| iPad and Android tablets as displays | ✅ | iPad only | iPad only | ✅ | ✅ | ✅ | ✅ in a browser |
+| Works without a router | ✅ USB or the PC's own network | ✅ | ✅ | ✅ | ✅ | 🟡 | ❌ |
+| No account, no cloud | ✅ | Apple ID | ✅ | Account for wireless | ✅ | ✅ | ✅ |
+| Touch, pen and input | ❌ by design | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Over the internet | ❌ local only | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ |
+
+Osplay is built for one job: making a Mac and a Windows PC real monitors for each other, in every
+direction and with every screen they have, for free. Another tool fits better if you need touch or
+Apple Pencil on an iPad (Sidecar), pen pressure on an Android tablet (spacedesk, SuperDisplay), or a
+display over the internet (Duet, Moonlight).
+
+<sub>Compared in October 2026 from each product's site and published reviews; prices and features change.</sub>
+
 ## How it works
 
 <p align="center">
