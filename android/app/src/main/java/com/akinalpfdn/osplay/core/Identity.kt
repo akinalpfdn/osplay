@@ -2,7 +2,8 @@ package com.akinalpfdn.osplay.core
 
 /** The device identity: a static Curve25519 key pair; the device ID derives from the public key. */
 class Identity(val secretKey: ByteArray) {
-    val publicKey: ByteArray = requireNotNull(Native.identityPublicKey(secretKey)) { "invalid secret key" }
+    /** Derived on first use, so the view model's tests can hold an identity without the core. */
+    val publicKey: ByteArray by lazy { requireNotNull(Native.identityPublicKey(secretKey)) { "invalid secret key" } }
 
     val deviceId: String get() = deviceId(publicKey)
 

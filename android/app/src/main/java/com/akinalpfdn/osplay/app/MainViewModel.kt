@@ -12,7 +12,10 @@ import com.akinalpfdn.osplay.storage.KeyStoreError
 import com.akinalpfdn.osplay.storage.KeyStoreException
 import com.akinalpfdn.osplay.storage.TrustCache
 import com.akinalpfdn.osplay.storage.TrustedPeer
+import com.akinalpfdn.osplay.usb.CableEvent
+import com.akinalpfdn.osplay.usb.CableOpening
 import com.akinalpfdn.osplay.viewer.MonitorDescription
+import com.akinalpfdn.osplay.viewer.SessionTarget
 import com.akinalpfdn.osplay.viewer.StatsFigures
 import com.akinalpfdn.osplay.viewer.ViewerEvent
 import com.akinalpfdn.osplay.viewer.ViewerSessionHandle
@@ -39,6 +42,9 @@ sealed interface Screen {
 
     /** The connection dropped (sleep, network, rotation); waiting for the computer again. */
     data class Reconnecting(val peer: String) : Screen
+
+    /** Waiting for a Mac or PC sharing its screen to switch this device to Osplay on the USB cable (TAB-05). */
+    data object WaitingForCable : Screen
 }
 
 /** Why the app cannot list, connect to or keep showing a computer. */
@@ -97,11 +103,20 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
     private var awaitedDeviceId: String? = null
     private var inBackground = false
     private var resumeDeviceId: String? = null
+    private var cableEventsJob: Job? = null
+    private var cableRetryJob: Job? = null
+    /** The session runs on the USB cable. */
+    private var viaCable = false
+    /** Wait on the cable again when the app returns to the foreground. */
+    private var resumesCable = false
 
     // Nearby computers
 
     /** Loads the identity and paired computers and starts looking for computers. */
     fun start() {
+        if (cableEventsJob == null) {
+            cableEventsJob = viewModelScope.launch { dependencies.cable.events.collect(::cableChanged) }
+        }
         if (prepare() == null || browseJob != null) return
         browseJob = viewModelScope.launch {
             dependencies.discovery.browse().collect(::discovered)
@@ -165,8 +180,7 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
             identity = identity,
             deviceName = protocolDeviceName(),
             monitor = monitor,
-            host = device.host,
-            port = device.port,
+            target = SessionTarget.Network(device.host, device.port),
             trust = trust::trust,
             onEvent = ::handle,
         )
@@ -178,13 +192,75 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
         state.update { it.copy(screen = Screen.Connecting(name), failure = null, stats = null) }
     }
 
+    /**
+     * Waits for Osplay on the USB cable: a Mac or PC sharing its screen switches this device to
+     * its accessory when it is plugged in, and the session starts as soon as Android hands it over.
+     */
+    fun connectCable() {
+        if (session != null || prepare() == null) return
+        if (dependencies.screen.monitor() == null) return fail(Failure.NoScreen)
+        reconnectJob?.cancel()
+        awaitedDeviceId = null
+        endedByUser = false
+        state.update { it.copy(screen = Screen.WaitingForCable, failure = null) }
+        tryCable()
+    }
+
+    /** Android's "open Osplay for this accessory" was answered with Osplay; it may have launched the app. */
+    fun accessoryAttached() = cableChanged(CableEvent.Attached)
+
+    private fun cableChanged(event: CableEvent) {
+        when (event) {
+            // Plugging in while Osplay is open starts the session, as the user decided (TAB-05).
+            CableEvent.Attached -> if (state.value.screen == Screen.WaitingForCable) tryCable() else connectCable()
+            CableEvent.PermissionGranted -> if (state.value.screen == Screen.WaitingForCable) tryCable()
+            CableEvent.Detached -> Unit // a running session ends by itself; waiting goes on
+        }
+    }
+
+    private fun tryCable() {
+        cableRetryJob?.cancel()
+        if (session != null || state.value.screen != Screen.WaitingForCable) return
+        val identity = prepare() ?: return
+        val monitor = dependencies.screen.monitor() ?: return fail(Failure.NoScreen)
+        when (val opening = dependencies.cable.open()) {
+            is CableOpening.Opened -> {
+                val (started, error) = dependencies.sessions.start(
+                    identity = identity,
+                    deviceName = protocolDeviceName(),
+                    monitor = monitor,
+                    target = SessionTarget.Cable(opening.fd),
+                    trust = trust::trust,
+                    onEvent = ::handle,
+                )
+                if (started == null) {
+                    state.update { it.copy(screen = Screen.Home) }
+                    return fail(Failure.Session(error ?: CoreError.Internal))
+                }
+                session = started
+                viaCable = true
+                viewedHost = null
+                offeredMonitor = monitor
+                state.update { it.copy(screen = Screen.Connecting(""), stats = null) }
+            }
+            CableOpening.Busy -> cableRetryJob = viewModelScope.launch {
+                delay(CABLE_RETRY_DELAY_MS)
+                tryCable()
+            }
+            CableOpening.NotAttached, CableOpening.AskedForPermission -> Unit // an event follows
+        }
+    }
+
     /** Ends the session; nothing reconnects. */
     fun disconnect() {
         endedByUser = true
         awaitedDeviceId = null
         resumeDeviceId = null
+        resumesCable = false
         reconnectJob?.cancel()
-        if (state.value.screen is Screen.Reconnecting) state.update { it.copy(screen = Screen.Home) }
+        cableRetryJob?.cancel()
+        val screen = state.value.screen
+        if (screen is Screen.Reconnecting || screen == Screen.WaitingForCable) state.update { it.copy(screen = Screen.Home) }
         session?.stop()
     }
 
@@ -214,6 +290,10 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
     fun onForeground() {
         inBackground = false
         start()
+        if (resumesCable) {
+            resumesCable = false
+            connectCable()
+        }
         resumeDeviceId?.let {
             resumeDeviceId = null
             awaitHost(it, 0)
@@ -222,8 +302,14 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
 
     private fun handle(event: ViewerEvent) {
         when (event) {
-            is ViewerEvent.Peer -> viewedHost?.let { (id, name) ->
-                if (!trust.isPaired(id)) viewedHost = id to event.name.ifEmpty { name }
+            is ViewerEvent.Peer -> if (viaCable) {
+                // Over the cable the computer is known from here on.
+                viewedHost = "" to event.name
+                state.update { it.copy(screen = Screen.Connecting(event.name)) }
+            } else {
+                viewedHost?.let { (id, name) ->
+                    if (!trust.isPaired(id)) viewedHost = id to event.name.ifEmpty { name }
+                }
             }
             is ViewerEvent.PairingCode ->
                 state.update { it.copy(pairing = PairingRequest(event.code, viewedHost?.second.orEmpty())) }
@@ -247,6 +333,19 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
         state.update { it.copy(pairing = null, stats = null) }
         val expectedBack = resumes || failure == CoreError.PeerSleeping || failure == CoreError.TimedOut ||
             failure == CoreError.Network
+        if (viaCable) {
+            viaCable = false
+            viewedHost = null
+            state.update { it.copy(screen = Screen.Home) }
+            // The cable is waited on again only when this device closed the session itself or the
+            // computer went away for a while; a user's disconnect on either side ends it.
+            if (expectedBack && !endedByUser) {
+                if (inBackground) resumesCable = true else connectCable()
+            } else if (failure != null && failure != CoreError.ConnectionClosed) {
+                fail(Failure.Session(failure))
+            }
+            return
+        }
         if (host != null && expectedBack && !endedByUser) {
             state.update { it.copy(screen = Screen.Reconnecting(host.second)) }
             if (inBackground) resumeDeviceId = host.first else awaitHost(host.first, if (resumes) 0 else RECONNECT_DELAY_MS)
@@ -318,6 +417,8 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
 
     private companion object {
         const val RECONNECT_DELAY_MS = 2_000L
+        /** The previous session holds the accessory until the computer answers its close. */
+        const val CABLE_RETRY_DELAY_MS = 1_000L
         const val DEFAULT_NAME = "Android"
     }
 }

@@ -62,6 +62,14 @@ interface ViewerSessionHandle {
     fun stopForSleep()
 }
 
+/** Where a session runs. */
+sealed interface SessionTarget {
+    data class Network(val host: String, val port: Int) : SessionTarget
+
+    /** Osplay's accessory on the USB cable; the session owns the descriptor, also when it fails to start. */
+    data class Cable(val fd: Int) : SessionTarget
+}
+
 /** Starts sessions; a fake in tests. */
 interface ViewerSessionMaking {
     /** Null with the error when the core refused to start one. */
@@ -69,8 +77,7 @@ interface ViewerSessionMaking {
         identity: Identity,
         deviceName: String,
         monitor: MonitorDescription,
-        host: String,
-        port: Int,
+        target: SessionTarget,
         trust: (ByteArray) -> Trust,
         onEvent: (ViewerEvent) -> Unit,
     ): Pair<ViewerSessionHandle?, CoreError?>
@@ -82,8 +89,7 @@ class CoreViewerSessions(private val stage: StreamStage) : ViewerSessionMaking {
         identity: Identity,
         deviceName: String,
         monitor: MonitorDescription,
-        host: String,
-        port: Int,
+        target: SessionTarget,
         trust: (ByteArray) -> Trust,
         onEvent: (ViewerEvent) -> Unit,
     ): Pair<ViewerSessionHandle?, CoreError?> {
@@ -99,8 +105,9 @@ class CoreViewerSessions(private val stage: StreamStage) : ViewerSessionMaking {
             ),
             monitorName = monitor.name.encodeToByteArray(),
             capabilities = intArrayOf(MAX_STREAMS, MAX_WIDTH, MAX_HEIGHT, MAX_REFRESH_HZ),
-            host = host.encodeToByteArray(),
-            port = port,
+            host = (target as? SessionTarget.Network)?.host.orEmpty().encodeToByteArray(),
+            port = (target as? SessionTarget.Network)?.port ?: 0,
+            accessoryFd = (target as? SessionTarget.Cable)?.fd ?: NO_ACCESSORY,
             outHandle = handle,
         )
         val error = CoreError.of(result)
@@ -114,6 +121,7 @@ class CoreViewerSessions(private val stage: StreamStage) : ViewerSessionMaking {
         const val MAX_WIDTH = 7680
         const val MAX_HEIGHT = 4320
         const val MAX_REFRESH_HZ = 120
+        const val NO_ACCESSORY = -1
     }
 }
 

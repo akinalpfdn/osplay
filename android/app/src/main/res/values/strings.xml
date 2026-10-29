@@ -3,6 +3,10 @@
     <string name="app_name" translatable="false">Osplay</string>
     <string name="home_subtitle">Use this device as an extra display for a Mac or a Windows PC.</string>
     <string name="home_nearby">Nearby computers</string>
+    <string name="home_cable">USB cable</string>
+    <string name="cable_title">Computer on the USB cable</string>
+    <string name="cable_waiting">Waiting for the computer on the cable…</string>
+    <string name="cable_detail">Turn on sharing in Osplay on the Mac, then plug in the cable. A PC cannot use the cable yet; open its own network instead.</string>
     <string name="home_searching">Looking for computers… On the computer, open Osplay and choose Extend this Mac or Extend this PC.</string>
     <string name="home_same_network">This device and the computer must be on the same network. Without Wi-Fi, connect a PC with a USB cable and turn on USB tethering (in Settings, under hotspot and tethering), or connect the Mac or PC to this device\'s hotspot.</string>
     <string name="device_paired">Paired</string>
@@ -10,6 +14,7 @@
     <string name="device_needs_update">Update Osplay on this computer to use it here</string>
     <string name="device_incompatible">Runs a different Osplay version</string>
     <string name="status_connecting">Connecting to %1$s…</string>
+    <string name="status_connecting_cable">Connecting over the USB cable…</string>
     <string name="status_reconnecting">Waiting for %1$s to come back…</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_settings">Settings</string>

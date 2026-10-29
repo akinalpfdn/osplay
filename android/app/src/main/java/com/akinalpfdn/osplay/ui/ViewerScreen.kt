@@ -154,7 +154,11 @@ private fun Waiting(screen: Screen) {
         CircularProgressIndicator(color = OsplayColors.OnViewer)
         Text(
             if (screen is Screen.Connecting) {
-                stringResource(R.string.status_connecting, screen.peer)
+                if (screen.peer.isEmpty()) {
+                    stringResource(R.string.status_connecting_cable) // the computer names itself shortly
+                } else {
+                    stringResource(R.string.status_connecting, screen.peer)
+                }
             } else {
                 stringResource(R.string.viewer_waiting)
             },

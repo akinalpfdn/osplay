@@ -7,6 +7,7 @@
 #include <jni.h>
 #include <pthread.h>
 #include <sys/random.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <array>
@@ -413,14 +414,19 @@ JNIEXPORT jintArray JNICALL Java_com_akinalpfdn_osplay_core_Native_advertisement
 }
 
 /// monitor: width, height, refresh (mHz), physical width and height (mm), scale (%);
-/// capabilities: max streams, max width, max height, max refresh (Hz). The handle goes into
-/// out_handle[0].
+/// capabilities: max streams, max width, max height, max refresh (Hz). With accessory_fd >= 0 the
+/// session runs on that USB accessory (the core owns and closes it) instead of host and port. The
+/// handle goes into out_handle[0].
 JNIEXPORT jint JNICALL Java_com_akinalpfdn_osplay_core_Native_viewerCreate(
     JNIEnv* env, jobject /*self*/, jobject listener, jbyteArray device_name, jbyteArray secret_key,
     jintArray monitor, jbyteArray monitor_name, jintArray capabilities, jbyteArray host, jint port,
-    jlongArray out_handle) {
+    jint accessory_fd, jlongArray out_handle) {
+    const bool on_cable = accessory_fd >= 0;
     if (listener == nullptr || env->GetArrayLength(monitor) != 6 ||
         env->GetArrayLength(capabilities) != 4 || env->GetArrayLength(out_handle) != 1) {
+        if (on_cable) {
+            close(accessory_fd);
+        }
         return result(OSPLAY_ERROR_INVALID_ARGUMENT);
     }
     std::array<jint, 6> m{};
@@ -431,7 +437,10 @@ JNIEXPORT jint JNICALL Java_com_akinalpfdn_osplay_core_Native_viewerCreate(
     const std::string monitor_text = from_text(env, monitor_name);
     const std::string host_text = from_text(env, host);
     std::vector<uint8_t> secret = from_bytes(env, secret_key);
-    if (secret.size() != OSPLAY_KEY_SIZE || port <= 0 || port > 65535) {
+    if (secret.size() != OSPLAY_KEY_SIZE || (!on_cable && (port <= 0 || port > 65535))) {
+        if (on_cable) {
+            close(accessory_fd);
+        }
         return result(OSPLAY_ERROR_INVALID_ARGUMENT);
     }
 
@@ -440,6 +449,9 @@ JNIEXPORT jint JNICALL Java_com_akinalpfdn_osplay_core_Native_viewerCreate(
     if (!find_methods(env, listener, *viewer)) {
         env->DeleteGlobalRef(viewer->listener);
         delete viewer;
+        if (on_cable) {
+            close(accessory_fd);
+        }
         return result(OSPLAY_ERROR_INVALID_ARGUMENT);
     }
     const osplay_monitor offered{.monitor_id = 0,
@@ -480,9 +492,12 @@ JNIEXPORT jint JNICALL Java_com_akinalpfdn_osplay_core_Native_viewerCreate(
                                              .on_role_swap_request = on_role_swap_request,
                                              .on_role_swap_answer = nullptr,
                                              .on_bitrate_target = nullptr};
-    const osplay_result created = osplay_viewer_session_create(
-        &config, secret.data(), &kRandom, &callbacks, host_text.c_str(),
-        static_cast<uint16_t>(port), &viewer->session);
+    const osplay_result created =
+        on_cable ? osplay_viewer_session_create_accessory(&config, secret.data(), &kRandom,
+                                                          &callbacks, accessory_fd, &viewer->session)
+                 : osplay_viewer_session_create(&config, secret.data(), &kRandom, &callbacks,
+                                                host_text.c_str(), static_cast<uint16_t>(port),
+                                                &viewer->session);
     std::fill(secret.begin(), secret.end(), 0);
     if (created != OSPLAY_OK) {
         env->DeleteGlobalRef(viewer->listener);

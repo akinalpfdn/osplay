@@ -27,7 +27,8 @@ internal object Native {
 
     /**
      * monitor: width, height, refresh (mHz), physical width and height (mm), scale (%);
-     * capabilities: max streams, max width, max height, max refresh (Hz).
+     * capabilities: max streams, max width, max height, max refresh (Hz). With [accessoryFd] >= 0
+     * the session runs on that USB accessory, which the core owns from here on, instead of [host].
      */
     external fun viewerCreate(
         listener: SessionListener,
@@ -38,6 +39,7 @@ internal object Native {
         capabilities: IntArray,
         host: ByteArray,
         port: Int,
+        accessoryFd: Int,
         outHandle: LongArray,
     ): Int
 

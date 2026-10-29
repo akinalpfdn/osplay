@@ -1,5 +1,7 @@
 package com.akinalpfdn.osplay.app
 
+import android.content.Intent
+import android.hardware.usb.UsbManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -30,6 +32,16 @@ class MainActivity : ComponentActivity() {
                 OsplayApp(viewModel, stage)
             }
         }
+        if (savedInstanceState == null) handle(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handle(intent)
+    }
+
+    private fun handle(intent: Intent) {
+        if (intent.action == UsbManager.ACTION_USB_ACCESSORY_ATTACHED) viewModel.accessoryAttached()
     }
 
     override fun onStart() {

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.Laptop
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TabletAndroid
+import androidx.compose.material.icons.outlined.Usb
 import androidx.compose.material.icons.outlined.WifiFind
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,6 +56,7 @@ fun HomeScreen(
     state: UiState,
     onStart: () -> Unit,
     onConnect: (DiscoveredDevice) -> Unit,
+    onCable: () -> Unit,
     onCancelReconnect: () -> Unit,
     onDismissFailure: () -> Unit,
     onSettings: () -> Unit,
@@ -100,6 +102,14 @@ fun HomeScreen(
             } else {
                 items(state.devices, key = { it.device.label }) { row -> DeviceCard(row) { onConnect(row.device) } }
             }
+            item {
+                Text(
+                    stringResource(R.string.home_cable),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = Spacing.Medium),
+                )
+            }
+            item { CableCard(waiting = state.screen == Screen.WaitingForCable, onWait = onCable, onCancel = onCancelReconnect) }
         }
     }
 }
@@ -129,6 +139,41 @@ private fun DeviceCard(row: DeviceRow, onClick: () -> Unit) {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CableCard(waiting: Boolean, onWait: () -> Unit, onCancel: () -> Unit) {
+    Card(shape = Shapes.Card, modifier = Modifier.fillMaxWidth().clickable(enabled = !waiting, onClick = onWait)) {
+        Row(Modifier.padding(Spacing.Large), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.width(Sizes.SymbolColumn), contentAlignment = Alignment.Center) {
+                if (waiting) {
+                    CircularProgressIndicator(Modifier.size(Sizes.Symbol))
+                } else {
+                    Icon(
+                        Icons.Outlined.Usb,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(Sizes.Symbol),
+                    )
+                }
+            }
+            Spacer(Modifier.width(Spacing.Medium))
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small), modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(if (waiting) R.string.cable_waiting else R.string.cable_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    stringResource(R.string.cable_detail),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (waiting) {
+                TextButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) }
             }
         }
     }

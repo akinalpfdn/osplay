@@ -15,12 +15,18 @@ import com.akinalpfdn.osplay.discovery.PeerDiscovering
 import com.akinalpfdn.osplay.screen.ScreenDescribing
 import com.akinalpfdn.osplay.storage.KeyStoring
 import com.akinalpfdn.osplay.storage.PeerBook
+import com.akinalpfdn.osplay.usb.CableEvent
+import com.akinalpfdn.osplay.usb.CableOpening
+import com.akinalpfdn.osplay.usb.UsbCabling
 import com.akinalpfdn.osplay.viewer.MonitorDescription
+import com.akinalpfdn.osplay.viewer.SessionTarget
 import com.akinalpfdn.osplay.viewer.StreamStage
 import com.akinalpfdn.osplay.viewer.ViewerEvent
 import com.akinalpfdn.osplay.viewer.ViewerSessionHandle
 import com.akinalpfdn.osplay.viewer.ViewerSessionMaking
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -58,11 +64,15 @@ class DeviceStateTest {
                     identity: Identity,
                     deviceName: String,
                     monitor: MonitorDescription,
-                    host: String,
-                    port: Int,
+                    target: SessionTarget,
                     trust: (ByteArray) -> Trust,
                     onEvent: (ViewerEvent) -> Unit,
                 ): Pair<ViewerSessionHandle?, CoreError?> = null to CoreError.Internal
+            },
+            cable = object : UsbCabling {
+                override val events: SharedFlow<CableEvent> = MutableSharedFlow()
+
+                override fun open(): CableOpening = CableOpening.NotAttached
             },
         ),
     )

@@ -10,6 +10,8 @@ import com.akinalpfdn.osplay.screen.AndroidScreen
 import com.akinalpfdn.osplay.screen.ScreenDescribing
 import com.akinalpfdn.osplay.storage.AndroidKeyStore
 import com.akinalpfdn.osplay.storage.KeyStoring
+import com.akinalpfdn.osplay.usb.AndroidUsbCable
+import com.akinalpfdn.osplay.usb.UsbCabling
 import com.akinalpfdn.osplay.video.MediaCodecDecoder
 import com.akinalpfdn.osplay.viewer.CoreViewerSessions
 import com.akinalpfdn.osplay.viewer.StreamStage
@@ -23,6 +25,7 @@ class AppDependencies(
     val settings: SettingsStoring,
     val stage: StreamStage,
     val sessions: ViewerSessionMaking,
+    val cable: UsbCabling,
 ) {
     companion object {
         fun create(context: Context): AppDependencies {
@@ -37,6 +40,7 @@ class AppDependencies(
                 settings = SettingsStore(context),
                 stage = stage,
                 sessions = CoreViewerSessions(stage),
+                cable = AndroidUsbCable(context),
             )
         }
     }

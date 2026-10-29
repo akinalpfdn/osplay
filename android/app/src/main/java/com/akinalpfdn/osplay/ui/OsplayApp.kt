@@ -28,6 +28,7 @@ fun OsplayApp(viewModel: MainViewModel, stage: StreamStage) {
             state = state,
             onStart = viewModel::start,
             onConnect = viewModel::connect,
+            onCable = viewModel::connectCable,
             onCancelReconnect = viewModel::disconnect,
             onDismissFailure = viewModel::dismissFailure,
             onSettings = { showsSettings = true },
