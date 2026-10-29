@@ -216,36 +216,13 @@ private final class AccessoryWatch: @unchecked Sendable {
         let serial = (stringProperty(service, "USB Serial Number") ?? "") + "@\(property(service, "locationID") ?? 0)"
         let attempts = switches[serial, default: 0]
         guard attempts < Tunables.Connection.accessorySwitchAttempts else { return }
-        let device: IOUSBHostDevice
-        do {
-            device = try IOUSBHostDevice(__ioService: service, options: [], queue: nil, interestHandler: nil)
-        } catch {
-            return  // held by another client: not ours to switch
-        }
-        defer { device.destroy() }
+        guard let channel = USBControlChannel(service) else { return }
         do throws(CoreError) {
             try AndroidAccessory.switchToAccessory { request, data in
-                let raw = IOUSBDeviceRequest(
-                    bmRequestType: request.requestType, bRequest: request.request, wValue: request.value,
-                    wIndex: request.index, wLength: UInt16(data.count))
-                let buffer =
-                    request.isIn
-                    ? NSMutableData(length: data.count)
-                    : data.baseAddress.map {
-                        NSMutableData(bytes: $0, length: data.count)
-                    }
-                var transferred = 0
-                do {
-                    try device.__send(
-                        raw, data: data.isEmpty ? nil : buffer, bytesTransferred: &transferred,
-                        completionTimeout: Tunables.Connection.accessoryControlTimeout)
-                } catch {
-                    return nil
-                }
-                if request.isIn, let buffer, let address = data.baseAddress {
-                    buffer.getBytes(address, length: min(transferred, data.count))
-                }
-                return transferred
+                channel.send(
+                    requestType: request.requestType, request: request.request, value: request.value,
+                    index: request.index, data: data,
+                    timeoutMilliseconds: Tunables.Connection.accessoryControlTimeoutMilliseconds)
             }
             switches[serial] = attempts + 1
             Log.connection.info("Switched an Android device to Osplay's accessory")

@@ -76,7 +76,7 @@ extension Tunables {
         /// limit of each switching request.
         static let accessoryProbeDelay: TimeInterval = 0.5
         static let accessorySwitchAttempts = 3
-        static let accessoryControlTimeout: TimeInterval = 1
+        static let accessoryControlTimeoutMilliseconds: UInt32 = 1000
         /// Capabilities this Mac announces in either role.
         static let maximumWidth = 7680
         static let maximumHeight = 4320
