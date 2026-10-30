@@ -111,6 +111,9 @@
   <data name="ErrorHotkeyUnavailable" xml:space="preserve">
     <value>{0} başka bir program tarafından kullanılıyor; ekranı gizleyip gösteremez.</value>
   </data>
+  <data name="WarningUsbDebugging" xml:space="preserve">
+    <value>Android cihazda USB hata ayıklama açık, bu yüzden Osplay kabloyu kullanamıyor. Geliştirici seçeneklerinden kapatıp kabloyu yeniden takın ya da Wi-Fi ile bağlanın.</value>
+  </data>
   <data name="AppName" xml:space="preserve">
     <value>Osplay</value>
   </data>

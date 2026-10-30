@@ -111,6 +111,9 @@
   <data name="ErrorHotkeyUnavailable" xml:space="preserve">
     <value>{0} is used by another program, so it cannot hide and show the display.</value>
   </data>
+  <data name="WarningUsbDebugging" xml:space="preserve">
+    <value>USB debugging is on on the Android device, so Osplay cannot use the cable. Turn it off in Developer options and plug the cable in again, or connect over Wi-Fi.</value>
+  </data>
   <data name="AppName" xml:space="preserve">
     <value>Osplay</value>
   </data>

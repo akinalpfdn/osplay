@@ -165,6 +165,17 @@ internal unsafe struct NativeUsbCallbacks
     public delegate* unmanaged[Cdecl]<nint, uint, void> OnDetached;
 }
 
+/// <summary>osplay_engine_android_callbacks.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct NativeAndroidCallbacks
+{
+    public nint Context;
+    public delegate* unmanaged[Cdecl]<nint, uint, void> OnAttached;
+    public delegate* unmanaged[Cdecl]<nint, uint, void> OnDetached;
+    public delegate* unmanaged[Cdecl]<nint, void> OnDebuggingOn;
+    public delegate* unmanaged[Cdecl]<nint, LogLevel, byte*, void> OnLog;
+}
+
 /// <summary>osplay_engine_host_config.</summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct NativeHostConfig
