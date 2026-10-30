@@ -59,4 +59,12 @@ inline constexpr float kOverlayCornerRadius = 6.0F;
 inline constexpr float kOverlayBackgroundOpacity = 0.6F; // black
 inline constexpr std::uint32_t kOverlayTextColor = 0xFFFFFF;
 
+/// Android on the USB cable (TAB-05): one AOA control request through UsbDk may take this long.
+inline constexpr std::uint32_t kAccessoryControlTimeoutMilliseconds = 2000;
+/// A device's interfaces register after the device; it is looked at this long after it arrives.
+inline constexpr std::uint32_t kAccessoryProbeDelayMilliseconds = 1000;
+/// Switches per device (by instance ID) while a watcher runs: Android drops back to its normal
+/// mode when no app opens the accessory within 10 s, and is then switched again.
+inline constexpr int kAccessorySwitchAttempts = 3;
+
 } // namespace osplay::engine

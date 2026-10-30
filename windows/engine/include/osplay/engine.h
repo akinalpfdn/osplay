@@ -240,6 +240,39 @@ OSPLAY_ENGINE_API osplay_engine_result osplay_engine_usb_watcher_start(
 /* No callback runs after it returns. Accepts NULL. */
 OSPLAY_ENGINE_API void osplay_engine_usb_watcher_destroy(osplay_usb_watcher* watcher);
 
+/*
+ * Android devices on a USB cable: while the watcher runs, every phone or tablet plugged in (or
+ * already there) is switched to Osplay's accessory through UsbDk, and each one that comes back as
+ * an accessory on WinUSB is reported. Without UsbDk nothing is switched. A device with USB
+ * debugging on is not switched, since Windows would keep its accessory on the MTP driver, which
+ * Osplay cannot open: it is reported with on_debugging_on so the shell can ask to turn debugging
+ * off or use the network.
+ */
+typedef struct osplay_engine_android_watcher osplay_engine_android_watcher; /* opaque */
+
+/* Callbacks run on the watcher's thread, one at a time, and must return quickly. */
+typedef struct osplay_engine_android_callbacks {
+    void* context;
+    void (*on_attached)(void* context, uint32_t accessory_id);
+    void (*on_detached)(void* context, uint32_t accessory_id);
+    void (*on_debugging_on)(void* context);
+    void (*on_log)(void* context, osplay_log_level level, const char* message);
+} osplay_engine_android_callbacks;
+
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_android_watcher_start(
+    const osplay_engine_android_callbacks* callbacks, osplay_engine_android_watcher** out_watcher);
+
+/* No callback runs after it returns. Accepts NULL. */
+OSPLAY_ENGINE_API void
+osplay_engine_android_watcher_destroy(osplay_engine_android_watcher* watcher);
+
+/* As _start, but over the accessory `accessory_id` reported by `watcher`. The session waits for
+ * Osplay on the device to open the accessory; config->control_port is ignored. INVALID_ARGUMENT
+ * when the accessory is no longer attached. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_start_accessory(
+    const osplay_engine_host_config* config, const osplay_engine_host_callbacks* callbacks,
+    osplay_engine_android_watcher* watcher, uint32_t accessory_id, osplay_engine_host** out_host);
+
 /* The TCP port to advertise. */
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_control_port(osplay_engine_host* host,
                                                                        uint16_t* out_port);
