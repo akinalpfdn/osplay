@@ -24,15 +24,25 @@ final class AndroidAccessoryLink: @unchecked Sendable {  // IOUSBHost objects ar
     private let interface: IOUSBHostInterface
     private let input: IOUSBHostPipe
     private let output: IOUSBHostPipe
+    private let opened: @Sendable () -> Void
 
-    fileprivate init(id: UInt64, interface: IOUSBHostInterface, input: IOUSBHostPipe, output: IOUSBHostPipe) {
+    fileprivate init(
+        id: UInt64, interface: IOUSBHostInterface, input: IOUSBHostPipe, output: IOUSBHostPipe,
+        opened: @escaping @Sendable () -> Void
+    ) {
         self.id = id
         self.interface = interface
         self.input = input
         self.output = output
+        self.opened = opened
     }
 
     func makePipe() -> any AccessoryPipe { BulkPipe(input: input, output: output) }
+
+    /// Osplay on the device opened the accessory: its switches start counting again, so the device
+    /// is switched however often the cable is plugged in. Only switches nobody answered count
+    /// towards the limit, which keeps an ignored "Open Osplay?" prompt from coming back.
+    func markOpened() { opened() }
 
     fileprivate func close() { interface.destroy() }
 }
@@ -104,8 +114,9 @@ private final class AccessoryWatch: @unchecked Sendable {
     private var iterators: [io_iterator_t] = []
     private var handlers: [Unmanaged<HandlerBox>] = []
     private var links: [UInt64: AndroidAccessoryLink] = [:]
-    /// Switches per device (by serial number) in this watch: Android drops back to its normal mode
-    /// when macOS has not allowed the accessory within 10 s, and then it is switched again.
+    /// Unanswered switches per device (by serial number and port) in this watch: Android drops back
+    /// to its normal mode when macOS has not allowed the accessory within 10 s, or nobody opened it,
+    /// and then it is switched again. An accessory that is opened resets its device's count.
     private var switches: [String: Int] = [:]
     private var stopped = false
 
@@ -212,8 +223,13 @@ private final class AccessoryWatch: @unchecked Sendable {
         return classes.isEmpty || !classes.allSatisfy(Self.notAndroidClasses.contains)
     }
 
+    /// The key `switches` counts a device by; the same in its normal and its accessory mode.
+    private func switchKey(_ device: io_service_t) -> String {
+        (stringProperty(device, "USB Serial Number") ?? "") + "@\(property(device, "locationID") ?? 0)"
+    }
+
     private func switchToAccessory(_ service: io_service_t) {
-        let serial = (stringProperty(service, "USB Serial Number") ?? "") + "@\(property(service, "locationID") ?? 0)"
+        let serial = switchKey(service)
         let attempts = switches[serial, default: 0]
         guard attempts < Tunables.Connection.accessorySwitchAttempts else { return }
         guard let channel = USBControlChannel(service) else { return }
@@ -252,7 +268,11 @@ private final class AccessoryWatch: @unchecked Sendable {
             interface.destroy()
             return
         }
-        let link = AndroidAccessoryLink(id: id, interface: interface, input: input, output: output)
+        let key = deviceKey(ofInterface: service)
+        let link = AndroidAccessoryLink(id: id, interface: interface, input: input, output: output) { [weak self] in
+            guard let self, let key else { return }
+            queue.async { self.switches[key] = nil }
+        }
         links[id] = link
         continuation.yield(.attached(link))
     }
@@ -279,6 +299,13 @@ private final class AccessoryWatch: @unchecked Sendable {
     }
 
     // MARK: - Registry
+
+    private func deviceKey(ofInterface interface: io_service_t) -> String? {
+        var device: io_registry_entry_t = 0
+        guard IORegistryEntryGetParentEntry(interface, kIOServicePlane, &device) == KERN_SUCCESS else { return nil }
+        defer { IOObjectRelease(device) }
+        return switchKey(device)
+    }
 
     private func interfaceClasses(_ device: io_service_t) -> [Int] {
         var iterator: io_iterator_t = 0

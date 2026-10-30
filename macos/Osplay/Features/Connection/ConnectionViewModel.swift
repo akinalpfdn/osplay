@@ -607,6 +607,7 @@ final class ConnectionViewModel {
         switch event {
         case .peer(let peer):
             connection.viewer = ConnectedViewer(id: connection.id, name: peer.deviceName, platform: peer.platform)
+            if let accessoryID = connection.accessoryID { accessories[accessoryID]?.markOpened() }
             publishViewers()
             updateSharingStatus()
             updateSwapHotkey()
