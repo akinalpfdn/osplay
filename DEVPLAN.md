@@ -516,7 +516,7 @@ Each phase is meant to be completed in one Claude Code session. A phase is done 
 - TAB-02: an Android tablet app that is a viewer only, over Wi-Fi, on the same C++ core through the NDK.
 - TAB-03: USB: Android through USB tethering; iPad through Apple's USB channel (usbmuxd) with media carried on the control stream.
 - TAB-04: a PC opens its own Wi-Fi network (Windows Mobile hotspot) that any PC, Mac, iPad or Android device joins.
-- TAB-05: Android over a USB cable through Android Open Accessory (AOA), with the computer side in the core over libusb, so every Android 12+ device works with a Mac or a PC; USB tethering (TAB-03) only reaches a PC from a phone.
+- TAB-05: Android over a USB cable through Android Open Accessory (AOA), with the AOA handshake and link records in the core and each platform's own USB API underneath (IOUSBHost on the Mac, UsbDk and WinUSB on the PC; no libusb, user decision 2026-10-28), so every Android 12+ device works with a Mac or a PC; USB tethering (TAB-03) only reaches a PC from a phone.
 **Constraints**: tablets are viewers only — iPadOS and Android give apps no system virtual displays. No touch or other input is forwarded (user decision 2026-10-26), as everywhere else in Osplay. Only a PC opens the network in TAB-04 (Apple gives apps no way to open one); every device can join it.
 **Depends on**: Phase 14
 **Acceptance criteria**:

@@ -1,5 +1,5 @@
 # Phase 025 (TAB-05) — Android over a USB cable through Android Open Accessory
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 15 (part TAB-05). Depends on: PHASE-024 (TAB-04).
 
@@ -19,8 +19,8 @@ An Android 12+ phone or tablet works as a display for a Mac or a PC over a USB c
 - [x] Docs: ARCHITECTURE, TESTING, TROUBLESHOOTING, PROTOCOL, DECISIONS (no libusb, so nothing for BUILDING or THIRD_PARTY).
 
 ## Acceptance Criteria
-- [ ] Mac → Android tablet and PC → Android tablet over a USB cable, Wi-Fi off on both, on a tablet without tethering.
-- [ ] Unplugging ends the session within 10 s; nothing reconnects until the user chooses the cable again.
+- [x] Mac → Android and PC → Android over a USB cable with no network, tethering or developer options (tested on a Galaxy S23; user decision 2026-10-31: no separate tablet test).
+- [x] Unplugging ends the session within 10 s; nothing reconnects until the user chooses the cable again.
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
@@ -36,3 +36,4 @@ An Android 12+ phone or tablet works as a display for a Mac or a PC over a USB c
 - 2026-10-31 — Installer: the accessory driver is signed at install time with PowerShell (New-FileCatalog, probed on the PC: accepted, and Windows bound it after Zadig's package was removed; DECISIONS.md). UsbDk sees almost no device until Windows restarts once (its MSI returns 0). User decision: no restart prompt; the finished page says the cable works after one restart, everything else works at once.
 - 2026-10-31 — Installer tested on the PC (UsbDk and Zadig removed first): UsbDk and the accessory driver installed, one certificate without a private key; after one restart U11 (cable) and Wi-Fi worked. The "Start with Windows" entry pointed at a stale development build, which started after the restart: the installer now repoints an existing entry at the installed Osplay.exe (user decision), and the stale folder was deleted. Remaining: U14 (uninstall, reinstall with the finished-page note).
 - 2026-10-31 — U14 on the PC: the uninstaller removed UsbDk (Osplay's copy), the accessory package, the certificate, the app, service and firewall rule; UsbDk's class filter was gone, so no USB risk at the next restart. UsbDk's uninstaller keeps its service registered and its driver running until a restart: installing again before that fails with 1603, now shown as a finished-page note (user decision: rare, a restart and another run is acceptable); verified. The finished-page notes were clipped by the label's fixed height; fixed and verified. UsbDk's own "Please restart your computer" box appears even with /qn: now passed MSGBOX=n (UsbDk's documented switch, from its source). User decision: not verified on the PC (would need another uninstall and restart); check it at the next clean install.
+- 2026-10-31 — User decision: TAB-05 is done without a tablet test. AOA is the same on a phone and a tablet, and the cable needs no tethering or hotspot, so the S23 results stand for tablets. The Mac half of the unanswered-switch fix (c236393) compiles on the Mac.
