@@ -79,16 +79,22 @@ public:
     }
 
     ~PipeStream() {
-        close();
-        std::unique_lock lock(state_->mutex);
-        state_->finished.wait_for(lock, kPipeThreadGrace, [this] {
-            return state_->read_side.exited && state_->write_side.exited;
-        });
-        const bool read_exited = state_->read_side.exited;
-        const bool write_exited = state_->write_side.exited;
-        lock.unlock();
-        finish(reader_, read_exited);
-        finish(writer_, write_exited);
+        try {
+            close();
+            std::unique_lock lock(state_->mutex);
+            state_->finished.wait_for(lock, kPipeThreadGrace, [this] {
+                return state_->read_side.exited && state_->write_side.exited;
+            });
+            const bool read_exited = state_->read_side.exited;
+            const bool write_exited = state_->write_side.exited;
+            lock.unlock();
+            finish(reader_, read_exited);
+            finish(writer_, write_exited);
+        } catch (...) {
+            // Only locking, posting and joining can throw; a stream that cannot stop its threads
+            // would leave them running on freed state.
+            std::terminate();
+        }
     }
 
     PipeStream(const PipeStream&) = delete;
@@ -97,7 +103,7 @@ public:
     PipeStream& operator=(PipeStream&&) = delete;
 
     /// I/O thread. The bytes are copied into `buffer` there, just before `handler` runs.
-    void async_read_some(asio::mutable_buffer buffer, Handler handler) {
+    void async_read_some(const asio::mutable_buffer& buffer, Handler handler) {
         std::unique_lock lock(state_->mutex);
         if (aborted(handler)) {
             return;
@@ -109,7 +115,7 @@ public:
     }
 
     /// I/O thread. Sends up to one transfer of `buffer`, copied first.
-    void async_write_some(asio::const_buffer buffer, Handler handler) {
+    void async_write_some(const asio::const_buffer& buffer, Handler handler) {
         std::unique_lock lock(state_->mutex);
         if (aborted(handler)) {
             return;
