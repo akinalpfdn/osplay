@@ -17,6 +17,10 @@
 </p>
 
 <p align="center">
+  iPad'i ekran olarak kullanmak için: <a href="https://testflight.apple.com/join/P19BeWpg">TestFlight betasına katılın</a>
+</p>
+
+<p align="center">
   <a href="https://github.com/akinalpfdn/osplay/releases/latest"><img src="https://img.shields.io/github/v/release/akinalpfdn/osplay?label=s%C3%BCr%C3%BCm&color=1d4ed8" alt="Son sürüm"></a>
   <img src="https://img.shields.io/badge/macOS-14%2B-111111" alt="macOS 14 ve üzeri">
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0067c0" alt="Windows 10 ya da 11">
