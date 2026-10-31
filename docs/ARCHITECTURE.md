@@ -216,8 +216,13 @@ sample-buffer rendering helpers and the shared tunables — compiled into both a
   comes back as an accessory, its bulk endpoints are opened and a host session waits on them; the
   Android app starts the viewer session when Android hands it the accessory (`usb/UsbCable.kt`),
   and the core runs the stream link on the accessory's file descriptor. Android's accessory read
-  is woken by a signal when the session ends, since the driver ignores a pulled cable. The PC does
-  not do this yet (PHASE-025).
+  is woken by a signal when the session ends, since the driver ignores a pulled cable. A sharing PC
+  does the same in the engine (`usb/android_usb_watcher.cpp`): `CM_Register_Notification` reports
+  USB devices; one Windows knows as MTP or PTP is switched through UsbDk (Windows' own drivers hold
+  it, so WinUSB cannot send the requests), one with an ADB interface only raises the USB debugging
+  warning, and the accessory is opened through WinUSB (`usb/winusb_pipe.cpp`), which the
+  installer's self-signed driver package binds to `USB\VID_18D1&PID_2D00`. A device's switch is
+  counted until its accessory is opened, and given up after three.
 
 ## Android app
 

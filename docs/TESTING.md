@@ -87,6 +87,10 @@ Computer" when first plugged in); a PC has the Apple Devices app installed.
 | U8 | Android disconnect | During U7, tap Disconnect on Android, then **Computer on the USB cable**; again, disconnecting from the Mac's menu | The display goes away and nothing reconnects; the cable row brings it back within seconds |
 | U9 | Android unplug | During U7, pull the cable, wait 15 s, plug it in again | The display goes away; Android waits for the cable, asks "Open Osplay?" again and the display comes back |
 | U10 | Android Studio open | U7 with USB debugging on and Android Studio (adb) running on the Mac | The same as U7 |
+| U11 | PC → Android over USB | On a PC with Osplay installed by the installer (no Zadig): **Extend this PC** with the Android device plugged in, USB debugging off. Answer "Open Osplay?" with OK | Within a few seconds one PC virtual monitor on the Android device; Device Manager shows "Osplay Android USB" |
+| U12 | PC: Android disconnect and unplug | U8 and U9 with the PC | As U8 and U9; the virtual monitor goes away within 10 s of unplugging |
+| U13 | PC: USB debugging on | U11 with USB debugging on | No "Open Osplay?"; the panel says USB debugging is on; adb keeps working |
+| U14 | PC: install and uninstall | Install on a PC without UsbDk, restart, run U11, then uninstall | The installer adds UsbDk and the accessory driver without asking and without a restart prompt; its last page says the cable works after one restart; the uninstaller removes both, the certificate "Osplay Android USB driver (this computer only)" from the machine's Trusted Root and Trusted Publishers stores, and leaves a UsbDk that was installed before Osplay. Installing again before restarting shows no error; the last page asks for a restart and another run |
 
 ### Without a router
 

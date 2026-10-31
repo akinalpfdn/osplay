@@ -97,16 +97,27 @@ installs; without it the PC never sees the iPad. A cable that only charges carri
 
 ## Android on the USB cable does not connect
 
-A Mac that shares (**Extend this Mac**) switches an Android device on the cable into Osplay's
-accessory mode; Android then asks "Open Osplay?". Answer OK (tick "Always" to skip the question).
+A Mac or PC that shares (**Extend this Mac** / **Extend this PC**) switches an Android device on
+the cable into Osplay's accessory mode; Android then asks "Open Osplay?". Answer OK (tick "Always"
+to skip the question).
 
 - The first time, macOS asks "Allow accessory to connect?" for the device in Osplay's mode; allow
   it. Android gives up on the switch after 10 s, so the Mac switches it again once allowed.
 - After a disconnect the device stays in Osplay's mode and nothing reconnects; tap **Computer on
-  the USB cable** on Android. When the Mac's sharing was turned off and on meanwhile, the same.
+  the USB cable** on Android. When the computer's sharing was turned off and on meanwhile, the same.
 - A cable that only charges carries no data.
-- A PC cannot use the cable to Android yet. Use the PC's own network (No router?), or a phone's USB
-  tethering: Windows supports it, so the phone then reaches the PC as on Wi-Fi.
+- **PC: "USB debugging is on…"** A device with USB debugging on cannot use the cable to a PC. Turn
+  it off in Developer options and plug the cable in again, or connect over Wi-Fi.
+- **PC: nothing happens when plugged in.** The PC switches only devices Windows shows as a phone
+  for files or photos (MTP or PTP). Pick "File transfer" in Android's USB notification. After the
+  first install, Windows must restart once before the cable works (the installer says so on its
+  last page). UsbDk must be installed (Settings › Apps › Installed apps › "UsbDk Runtime Libraries"); run the Osplay
+  installer again if it is not.
+- **PC: "Open Osplay?" appears but nothing connects.** Device Manager › Universal Serial Bus
+  devices must show "Osplay Android USB" while the device is in Osplay's mode. If it shows with a
+  warning, or under Other devices, run the installer again and read
+  `%ProgramData%\Osplay\logs\accessory-driver.log`. A policy that blocks adding certificates to the
+  machine's Root store prevents this driver.
 
 ## No router: the PC's own network
 
