@@ -24,7 +24,13 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Without R8 the APK is ~48 MB, mostly unused library code (material icons).
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 
