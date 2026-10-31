@@ -3,8 +3,9 @@
     Builds the Windows installer, windows\build\installer\Osplay-Setup.exe.
 .DESCRIPTION
     Builds the engine and the helper with the release preset and runs their tests, publishes the
-    app self-contained, downloads the pinned Virtual Display Driver release and checks its hash,
-    stages the license texts, and compiles windows\installer\Osplay.iss with Inno Setup.
+    app self-contained, downloads the pinned Virtual Display Driver and UsbDk releases and checks
+    their hashes, stages the Android accessory driver files and the license texts, and compiles
+    windows\installer\Osplay.iss with Inno Setup.
 
     Run it from the repository root in a shell set up by scripts\windows\Enter-DevShell.ps1.
     Needs the .NET SDK from windows\app\global.json and Inno Setup 6 or 7 (winget install
@@ -27,6 +28,14 @@ $VddRelease = '25.7.23'
 $VddUrl = "https://github.com/VirtualDrivers/Virtual-Display-Driver/releases/download/$VddRelease/VirtualDisplayDriver-x86.Driver.Only.zip"
 $VddSha256 = 'e24210692b442b39af763536330ce78b423f19342b7a7792c26de3944e418b3a'
 $VddFiles = @('MttVDD.inf', 'mttvdd.cat', 'MttVDD.dll')
+
+# The UsbDk release bundled with Osplay, which switches Android devices on the USB cable
+# (docs/THIRD_PARTY.md). Change all four together; the ProductCode is the MSI's, which the
+# uninstaller removes it by.
+$UsbDkRelease = '1.0.22'
+$UsbDkUrl = 'https://github.com/daynix/UsbDk/releases/download/v1.00-22/UsbDk_1.0.22_x64.msi'
+$UsbDkSha256 = '91f6f695e1e13c656024e6d3b55620bf08d8835ef05ee0496935ba6bb62466a5'
+$UsbDkProductCode = '{6D4A6ED0-CF41-4615-A4B3-BDA018C3C1CD}'
 
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $windows = Join-Path $repo 'windows'
@@ -95,7 +104,10 @@ if (Test-Path $stage) {
 $appStage = Join-Path $stage 'app'
 $driverStage = Join-Path $stage 'driver'
 $licenseStage = Join-Path $stage 'licenses'
-New-Item -ItemType Directory -Force -Path $appStage, $driverStage, $licenseStage, $downloads | Out-Null
+$accessoryStage = Join-Path $stage 'accessory'
+$usbDkStage = Join-Path $stage 'usbdk'
+New-Item -ItemType Directory -Force -Path $appStage, $driverStage, $licenseStage, $accessoryStage,
+    $usbDkStage, $downloads | Out-Null
 
 Write-Host '==> App (self-contained, win-x64)'
 Invoke-Native dotnet @(
@@ -135,6 +147,23 @@ foreach ($file in $VddFiles) {
     Copy-Item $found.FullName (Join-Path $driverStage $file)
 }
 
+Write-Host "==> UsbDk $UsbDkRelease"
+$msi = Join-Path $downloads "UsbDk_$($UsbDkRelease)_x64.msi"
+if (-not (Test-Path $msi)) {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -Uri $UsbDkUrl -OutFile $msi -UseBasicParsing
+}
+$hash = (Get-FileHash $msi -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($hash -ne $UsbDkSha256) {
+    Remove-Item $msi -Force
+    throw "The UsbDk download has SHA-256 $hash, expected $UsbDkSha256"
+}
+Copy-Item $msi (Join-Path $usbDkStage 'UsbDk.msi')
+
+Write-Host '==> Android accessory driver'
+# The catalog is made and signed on each PC at install time (AccessoryDriver.ps1).
+Copy-Item (Join-Path $windows 'installer\accessory\*') $accessoryStage
+
 Write-Host '==> Licenses'
 $dotnetRoot = Split-Path (Get-Command dotnet).Source
 $licenses = [ordered]@{
@@ -155,6 +184,7 @@ Copy-Item (Join-Path $windows 'installer\licenses\*.txt') $licenseStage
 Write-Host '==> Installer'
 Invoke-Native $iscc @(
     '/Qp', "/DAppVersion=$version", "/DStageDir=$stage", "/DOutputDir=$output",
+    "/DUsbDkProductCode=$UsbDkProductCode",
     (Join-Path $windows 'installer\Osplay.iss')
 )
 $installer = Join-Path $output 'Osplay-Setup.exe'

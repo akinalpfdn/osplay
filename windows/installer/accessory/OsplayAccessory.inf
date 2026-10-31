@@ -1,0 +1,38 @@
+; Binds Windows' WinUSB driver to an Android device in Osplay's accessory mode, so the engine opens
+; it through the WinUSB API (docs/THIRD_PARTY.md, "Android accessory driver"). Every Android device
+; in accessory mode has the same ID. AccessoryDriver.ps1 makes and signs the catalog on each PC.
+; With USB debugging on the device comes back as PID_2D01 instead, which Osplay does not support.
+
+[Version]
+Signature   = "$Windows NT$"
+Class       = USBDevice
+ClassGuid   = {88BAE032-5A81-49F0-BC3D-A4FF138216D6}
+Provider    = %Provider%
+CatalogFile = OsplayAccessory.cat
+DriverVer   = 10/30/2026,1.0.0.0
+PnpLockdown = 1
+
+[Manufacturer]
+%Provider% = Osplay,NTamd64
+
+[Osplay.NTamd64]
+%DeviceName% = Accessory_Install, USB\VID_18D1&PID_2D00
+
+[Accessory_Install]
+Include = winusb.inf
+Needs   = WINUSB.NT
+
+[Accessory_Install.Services]
+Include = winusb.inf
+Needs   = WINUSB.NT.Services
+
+[Accessory_Install.HW]
+AddReg = Accessory_AddReg
+
+; WinUSB registers the device's interface under this GUID; the engine reads it from here.
+[Accessory_AddReg]
+HKR,,DeviceInterfaceGUIDs,0x10000,"{4F35C628-BBD6-4534-A19B-3D373DFD32BF}"
+
+[Strings]
+Provider   = "Osplay"
+DeviceName = "Osplay Android USB"
