@@ -35,6 +35,51 @@ public final class CoreSession: Sendable {
         }
     }
 
+    /// The loopback port the iPad's Osplay listens on for a computer on the USB cable.
+    public static let usbPort = UInt16(OSPLAY_USB_PORT)
+
+    /// Host over a USB cable: reaches the iPad `deviceID` (from `USBDeviceWatcher`) through usbmuxd.
+    /// The session closes with `.network` when the iPad is not waiting for a computer.
+    public static func hostOverUSB(
+        device: SessionDevice, deviceID: UInt32, port: UInt16 = usbPort,
+        trust: @escaping @Sendable ([UInt8]) -> TrustDecision
+    ) throws(CoreError) -> CoreSession {
+        try CoreSession(device: device, monitors: [], trust: trust) { config, secret, random, callbacks, out in
+            osplay_host_session_create_usb(config, secret, random, callbacks, deviceID, port, out)
+        }
+    }
+
+    /// Viewer on a USB cable: waits on the loopback `port` for a computer to connect through
+    /// usbmuxd, without a time limit. Throws `.network` when the port is taken.
+    public static func viewerOverUSB(
+        device: SessionDevice, monitors: [MonitorDescription], port: UInt16 = usbPort,
+        trust: @escaping @Sendable ([UInt8]) -> TrustDecision
+    ) throws(CoreError) -> CoreSession {
+        try CoreSession(device: device, monitors: monitors, trust: trust) { config, secret, random, callbacks, out in
+            osplay_viewer_session_create_usb(config, secret, random, callbacks, port, out)
+        }
+    }
+
+    /// Host over an Android accessory on the USB cable: runs the session on `pipe`, starting with the
+    /// viewer's first bytes, so it waits without a time limit until Osplay on the device opens it.
+    public static func hostOverAccessory(
+        device: SessionDevice, pipe: any AccessoryPipe, trust: @escaping @Sendable ([UInt8]) -> TrustDecision
+    ) throws(CoreError) -> CoreSession {
+        // The core releases the box when it is done with the pipe, also when creating fails.
+        var raw = AccessoryPipeBox(pipe).retainedRawPipe()
+        var handedOver = false
+        do throws(CoreError) {
+            return try CoreSession(device: device, monitors: [], trust: trust) {
+                config, secret, random, callbacks, out in
+                handedOver = true
+                return osplay_host_session_create_accessory(config, secret, random, callbacks, &raw, out)
+            }
+        } catch {
+            if !handedOver, let context = raw.context { Unmanaged<AccessoryPipeBox>.fromOpaque(context).release() }
+            throw error
+        }
+    }
+
     private typealias Create = (
         UnsafePointer<osplay_session_config>, UnsafePointer<UInt8>, UnsafePointer<osplay_random_source>,
         UnsafePointer<osplay_session_callbacks>, UnsafeMutablePointer<OpaquePointer?>
@@ -332,7 +377,7 @@ private func withSessionConfig(
     return device.name.withCString { name in
         rawMonitors.withUnsafeBufferPointer { monitorBuffer in
             var config = osplay_session_config(
-                platform: PeerPlatform.macOS.raw, device_name: name, capabilities: device.capabilities.raw,
+                platform: PeerPlatform.current.raw, device_name: name, capabilities: device.capabilities.raw,
                 monitors: monitorBuffer.isEmpty ? nil : monitorBuffer.baseAddress, monitor_count: monitorBuffer.count,
                 control_port: controlPort)
             return body(&config)

@@ -91,6 +91,8 @@ internal enum Platform
 {
     MacOS = 1,
     Windows = 2,
+    IPadOS = 3,
+    Android = 4,
 }
 
 /// <summary>OSPLAY_ROLE_* bits.</summary>
@@ -120,6 +122,7 @@ internal unsafe struct NativeAdvertisement
     public uint ProtocolVersion;
     public Platform Platform;
     public Roles Roles;
+    public byte ProtocolMinor;
     public fixed byte DeviceId[NativeSizes.DeviceIdSize];
     public fixed byte Name[NativeSizes.NameSize];
 }
@@ -151,6 +154,26 @@ internal unsafe struct NativeBrowserCallbacks
     public nint Context;
     public delegate* unmanaged[Cdecl]<nint, NativeDevice*, void> OnFound;
     public delegate* unmanaged[Cdecl]<nint, byte*, void> OnLost;
+}
+
+/// <summary>osplay_usb_callbacks.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct NativeUsbCallbacks
+{
+    public nint Context;
+    public delegate* unmanaged[Cdecl]<nint, uint, void> OnAttached;
+    public delegate* unmanaged[Cdecl]<nint, uint, void> OnDetached;
+}
+
+/// <summary>osplay_engine_android_callbacks.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct NativeAndroidCallbacks
+{
+    public nint Context;
+    public delegate* unmanaged[Cdecl]<nint, uint, void> OnAttached;
+    public delegate* unmanaged[Cdecl]<nint, uint, void> OnDetached;
+    public delegate* unmanaged[Cdecl]<nint, void> OnDebuggingOn;
+    public delegate* unmanaged[Cdecl]<nint, LogLevel, byte*, void> OnLog;
 }
 
 /// <summary>osplay_engine_host_config.</summary>

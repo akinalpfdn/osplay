@@ -111,6 +111,9 @@
   <data name="ErrorHotkeyUnavailable" xml:space="preserve">
     <value>{0} is used by another program, so it cannot hide and show the display.</value>
   </data>
+  <data name="WarningUsbDebugging" xml:space="preserve">
+    <value>USB debugging is on on the Android device, so Osplay cannot use the cable. Turn it off in Developer options and plug the cable in again, or connect over Wi-Fi.</value>
+  </data>
   <data name="AppName" xml:space="preserve">
     <value>Osplay</value>
   </data>
@@ -413,5 +416,44 @@
   </data>
   <data name="SharingFull" xml:space="preserve">
     <value>All four displays are in use</value>
+  </data>
+  <data name="PcNetworkTitle" xml:space="preserve">
+    <value>No router? Open this PC's network</value>
+  </data>
+  <data name="PcNetworkDetail" xml:space="preserve">
+    <value>Another PC, a Mac, a tablet or a phone joins it like any Wi-Fi network, with the password or by scanning the code. It is Windows' Mobile hotspot: if this PC is online, joined devices are too.</value>
+  </data>
+  <data name="PcNetworkOpen" xml:space="preserve">
+    <value>Open network</value>
+  </data>
+  <data name="PcNetworkClose" xml:space="preserve">
+    <value>Close network</value>
+  </data>
+  <data name="PcNetworkStarting" xml:space="preserve">
+    <value>Opening the network…</value>
+  </data>
+  <data name="PcNetworkOn" xml:space="preserve">
+    <value>The network is open. Join it on the other device, then use Osplay as usual.</value>
+  </data>
+  <data name="PcNetworkName" xml:space="preserve">
+    <value>Network: {0}</value>
+  </data>
+  <data name="PcNetworkPassword" xml:space="preserve">
+    <value>Password: {0}</value>
+  </data>
+  <data name="PcNetworkWifiOff" xml:space="preserve">
+    <value>Turn on Wi-Fi on this PC to open the network.</value>
+  </data>
+  <data name="PcNetworkInUse" xml:space="preserve">
+    <value>Windows is turning Mobile hotspot on or off. Try again in a moment.</value>
+  </data>
+  <data name="PcNetworkNotSupported" xml:space="preserve">
+    <value>Windows cannot open Mobile hotspot on this PC's Wi-Fi card.</value>
+  </data>
+  <data name="PcNetworkFailed" xml:space="preserve">
+    <value>Windows could not open the network. Try again, or open Mobile hotspot in Windows Settings to see why.</value>
+  </data>
+  <data name="PcNetworkQrName" xml:space="preserve">
+    <value>QR code to join the network</value>
   </data>
 </root>

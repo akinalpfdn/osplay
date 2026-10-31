@@ -261,7 +261,7 @@ private struct ViewerRow: View {
     var body: some View {
         Card {
             HStack(alignment: .top, spacing: Theme.Spacing.medium) {
-                Image(systemName: viewer.platform == .windows ? Theme.Symbol.windows : Theme.Symbol.mac)
+                Image(systemName: Theme.Symbol.device(viewer.platform))
                     .font(Theme.Typography.symbol)
                     .foregroundStyle(Theme.Colors.accent)
                     .frame(width: Theme.Size.symbolColumn)
@@ -501,7 +501,7 @@ private struct DeviceRow: View {
     var body: some View {
         Card {
             HStack(spacing: Theme.Spacing.medium) {
-                Image(systemName: platform == .windows ? Theme.Symbol.windows : Theme.Symbol.mac)
+                Image(systemName: Theme.Symbol.device(platform))
                     .font(Theme.Typography.symbol)
                     .frame(width: Theme.Size.symbolColumn)
                     .accessibilityHidden(true)

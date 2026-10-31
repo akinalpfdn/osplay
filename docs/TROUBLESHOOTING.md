@@ -86,6 +86,56 @@ If the PC appears but the other computer cannot connect to it ("timed out"), the
 connection: check that Windows Defender Firewall › Inbound Rules has an enabled "Osplay" rule, and
 run the installer again to restore it.
 
+## An iPad on the USB cable does not connect
+
+On the iPad, tap **Computer on the USB cable** in Osplay; the computer connects only while the iPad
+waits there, and only while it shares (**Extend this Mac** / **Extend this PC**). The iPad must trust
+the computer: unlock it when plugging in and answer "Trust This Computer". A PC reaches the iPad
+through the Apple Mobile Device Service, which the Apple Devices app (Microsoft Store) or iTunes
+installs; without it the PC never sees the iPad. A cable that only charges carries no data: Finder
+(Mac) or Apple Devices (PC) shows the iPad when the cable works.
+
+## Android on the USB cable does not connect
+
+A Mac or PC that shares (**Extend this Mac** / **Extend this PC**) switches an Android device on
+the cable into Osplay's accessory mode; Android then asks "Open Osplay?". Answer OK (tick "Always"
+to skip the question).
+
+- The first time, macOS asks "Allow accessory to connect?" for the device in Osplay's mode; allow
+  it. Android gives up on the switch after 10 s, so the Mac switches it again once allowed.
+- After a disconnect the device stays in Osplay's mode and nothing reconnects; tap **Computer on
+  the USB cable** on Android. When the computer's sharing was turned off and on meanwhile, the same.
+- A cable that only charges carries no data.
+- **PC: "USB debugging is on…"** A device with USB debugging on cannot use the cable to a PC. Turn
+  it off in Developer options and plug the cable in again, or connect over Wi-Fi.
+- **PC: nothing happens when plugged in.** The PC switches only devices Windows shows as a phone
+  for files or photos (MTP or PTP). Pick "File transfer" in Android's USB notification. After the
+  first install, Windows must restart once before the cable works (the installer says so on its
+  last page). UsbDk must be installed (Settings › Apps › Installed apps › "UsbDk Runtime Libraries"); run the Osplay
+  installer again if it is not.
+- **PC: "Open Osplay?" appears but nothing connects.** Device Manager › Universal Serial Bus
+  devices must show "Osplay Android USB" while the device is in Osplay's mode. If it shows with a
+  warning, or under Other devices, run the installer again and read
+  `%ProgramData%\Osplay\logs\accessory-driver.log`. A policy that blocks adding certificates to the
+  machine's Root store prevents this driver.
+
+## No router: the PC's own network
+
+Panel › **No router? Open this PC's network** opens a Wi-Fi network the other device joins with the
+password shown, or by pointing a phone's or tablet's camera at the code. Then use Osplay as usual.
+
+- The network is Windows' Mobile hotspot under Osplay's name. A hotspot you opened yourself is
+  turned off and opened again with Osplay's name; your own name, password and power-saving setting
+  come back when you close the network or quit Osplay.
+- "Windows is turning Mobile hotspot on or off": try again in a moment.
+- "Windows cannot open Mobile hotspot on this PC's Wi-Fi card": the card, its driver or a policy
+  does not allow a hotspot. Settings › Network & internet › Mobile hotspot says which.
+- "Windows could not open the network": the Osplay log (Settings › Advanced › Logs) has Windows'
+  reason; Settings › Network & internet › Mobile hotspot shows it too.
+- Android says the network has no internet (the PC is offline): choose to stay connected. Osplay
+  sends its traffic over the Wi-Fi network even while mobile data stays on.
+- If the PC is online, joined devices reach the internet through it.
+
 ## A paired computer is refused
 
 The other side revoked it ("refused this Mac" / "refused this PC"). On that side, remove the device

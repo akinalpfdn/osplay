@@ -62,24 +62,12 @@ enum LocalDisplays {
                 physicalWidthMillimeters: millimeters(candidate.physicalMillimeters.width),
                 physicalHeightMillimeters: millimeters(candidate.physicalMillimeters.height),
                 scalePercent: min(max(Int((candidate.backingScale * 100).rounded()), 100), 400),
-                name: protocolName(candidate.name))
+                name: ProtocolText.name(candidate.name))
             return LocalDisplay(
                 description: description, displayID: candidate.displayID,
                 key: "\(candidate.name)|\(Int(candidate.frame.minX))|\(Int(candidate.frame.minY))",
                 frame: candidate.frame)
         }
-    }
-
-    /// The name as the protocol carries it: no control characters, at most 64 bytes of UTF-8, cut
-    /// between characters.
-    static func protocolName(_ name: String) -> String {
-        var result = ""
-        for character in name {
-            if character.unicodeScalars.contains(where: { $0.properties.generalCategory == .control }) { continue }
-            guard result.utf8.count + String(character).utf8.count <= Limit.nameBytes else { break }
-            result.append(character)
-        }
-        return result
     }
 
     private static func millimeters(_ value: CGFloat) -> Int {
@@ -102,6 +90,5 @@ enum LocalDisplays {
         static let minimumMillihertz = 1000.0
         static let maximumMillihertz = 500_000.0
         static let maximumMillimeters = 10_000
-        static let nameBytes = 64
     }
 }

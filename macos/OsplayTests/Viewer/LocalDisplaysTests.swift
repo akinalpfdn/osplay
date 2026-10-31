@@ -51,10 +51,10 @@ struct LocalDisplaysTests {
     @Test("Names fit the protocol: at most 64 bytes, cut between characters, no control characters")
     func protocolNames() {
         let long = String(repeating: "ş", count: 40)  // 80 bytes
-        let name = LocalDisplays.protocolName(long)
+        let name = ProtocolText.name(long)
         #expect(name.utf8.count <= 64)
         #expect(name == String(repeating: "ş", count: 32))
-        #expect(LocalDisplays.protocolName("LG\u{7}HDR\n4K") == "LGHDR4K")
+        #expect(ProtocolText.name("LG\u{7}HDR\n4K") == "LGHDR4K")
     }
 
     @Test("Only size, refresh rate and scale count as a new mode")

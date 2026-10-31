@@ -42,3 +42,12 @@ windows/installer/Output/
 # Claude Code local files (phase files and project docs are tracked)
 .claude/*
 !.claude/phases/
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/.cxx/
+android/.kotlin/
+android/.idea/
+# Android Studio's "Generate Signed APK" output; released APKs go to android/release/.
+android/app/release/

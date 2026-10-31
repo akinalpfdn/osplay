@@ -7,6 +7,7 @@ add_library(osplay_engine_logic STATIC
     src/keystore/peer_list.cpp
     src/media/h264_stream.cpp
     src/media/pointer_shape.cpp
+    src/usb/android_usb_ids.cpp
     src/viewer/monitor_layout.cpp
     src/viewer/viewer_orchestrator.cpp)
 target_include_directories(osplay_engine_logic PUBLIC src)
@@ -16,6 +17,7 @@ target_link_libraries(osplay_engine_logic PUBLIC osplay::win_shared osplay::core
 
 if(WIN32)
     add_library(osplay_engine SHARED
+        src/capi/android_capi.cpp
         src/capi/device_capi.cpp
         src/capi/engine_capi.cpp
         src/capi/host_capi.cpp
@@ -32,6 +34,9 @@ if(WIN32)
         src/encode/nv12_converter.cpp
         src/keystore/dpapi_key_store.cpp
         src/present/presentation_thread.cpp
+        src/usb/android_usb_watcher.cpp
+        src/usb/usbdk.cpp
+        src/usb/winusb_pipe.cpp
         src/viewer/windows_monitors.cpp
         src/viewer/windows_viewer_stream.cpp)
 
@@ -45,7 +50,7 @@ if(WIN32)
         PUBLIC osplay::core
         PRIVATE osplay_engine_logic osplay::win_platform osplay::warnings user32 gdi32 ole32 bcrypt d3d11 d2d1 dwrite dxgi
             mfplat mfuuid propsys winmm wmcodecdspuuid shcore
-            crypt32 dnsapi shell32)
+            crypt32 dnsapi shell32 cfgmgr32 winusb)
     set_target_properties(osplay_engine PROPERTIES
         OUTPUT_NAME OsplayEngine
         CXX_EXTENSIONS OFF)
@@ -61,7 +66,8 @@ if(OSPLAY_CORE_BUILD_TESTS)
         tests/peer_list_test.cpp
         tests/txt_mapping_test.cpp
         tests/pointer_shape_test.cpp
-        tests/viewer_orchestrator_test.cpp)
+        tests/viewer_orchestrator_test.cpp
+        tests/android_usb_ids_test.cpp)
     target_link_libraries(osplay_engine_tests PRIVATE osplay_engine_logic osplay::warnings GTest::gtest_main)
     set_target_properties(osplay_engine_tests PROPERTIES CXX_EXTENSIONS OFF)
     include(GoogleTest)

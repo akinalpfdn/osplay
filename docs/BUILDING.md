@@ -10,6 +10,7 @@ clone, that is a bug — please open an issue.
 | `windows/engine`, `windows/helper` | Windows | Visual Studio 2022 or later (MSVC), CMake, Ninja |
 | `windows/app` | Windows | .NET 10 SDK |
 | `windows/installer` | Windows | Inno Setup 6 or 7 |
+| `android/` | macOS, Windows or Linux | JDK 17 or later, Android SDK 36, NDK 28.2, CMake 3.31 |
 
 ## macOS
 
@@ -137,6 +138,29 @@ DEVELOPMENT_TEAM = <your team ID>
 
 Then run `xcodegen generate` again.
 
+### iPad app
+
+The iPad viewer app is the `OsplayPad` scheme of the same project (iPadOS 18 or later). Its tests
+run on any iPad simulator:
+
+```sh
+cd macos
+xcodegen generate
+xcodebuild -project Osplay.xcodeproj -scheme OsplayPad \
+  -destination 'platform=iOS Simulator,name=iPad (A16)' -derivedDataPath DerivedData test
+```
+
+To run it on an iPad, connect the iPad, turn on Developer Mode on it (Settings › Privacy &
+Security), choose the `OsplayPad` scheme and the iPad in Xcode, and run. With a manual signing
+style in `Signing.local.xcconfig`, add a line so Xcode makes the iPad's development profile:
+
+```
+CODE_SIGN_STYLE[sdk=iphoneos*] = Automatic
+```
+
+The computer it connects to must run Osplay 0.2 or later (protocol 1.2), and the iPad asks once
+for Local Network access.
+
 ### Release build
 
 `scripts/macos/release.sh` builds the Release configuration, signs it with a Developer ID
@@ -169,6 +193,21 @@ Turkish text (`scripts/check_localization.py`).
 
 `scripts/lint.sh` is exactly what CI runs. Tool versions are pinned inside it and fetched with `uv`
 on first use.
+
+## Android
+
+The Android viewer app needs JDK 17 or later (Android Studio's bundled JDK works), the Android SDK
+with platform 36, NDK 28.2.13676358 and CMake 3.31.6 (Android Studio › SDK Manager › SDK Tools, or
+`sdkmanager "ndk;28.2.13676358" "cmake;3.31.6"`). In a terminal:
+
+```sh
+cd android
+./gradlew assembleDebug testDebugUnitTest
+```
+
+Or open the `android` folder in Android Studio and run on a device with USB debugging on. The app
+runs on Android 12 or later, on phones and tablets; the computer it connects to must run Osplay 0.2
+or later.
 
 ## Windows
 
@@ -237,7 +276,8 @@ It writes `windows\build\installer\Osplay-Setup.exe` and `Osplay-Setup.exe.sha25
 builds the native code with the `release` preset (static MSVC runtime, so no Visual C++
 redistributable is needed) and runs its tests (`-SkipTests` skips them), publishes the shell
 self-contained for win-x64 (no .NET runtime is needed), downloads the pinned Virtual Display Driver
-release and checks its SHA-256, and stages the license texts. The version is `<Version>` in
+and UsbDk releases and checks their SHA-256, and stages the Android accessory driver files and the
+license texts. The version is `<Version>` in
 `windows/app/Directory.Build.props`. The Release workflow (`.github/workflows/release.yml`) runs the
 same script for version tags and for pull requests that change the packaging; see
 [`RELEASING.md`](RELEASING.md).
@@ -248,13 +288,28 @@ The installer (`windows/installer/Osplay.iss`, English and Turkish) needs admini
 - adds the Virtual Display Driver package to the driver store (`pnputil /add-driver`);
 - runs `OsplayHelper.exe --install`, which adds the first driver device and registers and starts
   the OsplayHelper service;
-- adds the inbound firewall rule "Osplay" for `Osplay.exe` on every network profile.
+- installs UsbDk 1.0.22 (`msiexec /qn MSGBOX=n`; without `MSGBOX=n` UsbDk shows its own restart
+  box even when silent) when no UsbDk is installed, remembers that it did
+  (`HKLM\Software\Osplay`, `InstalledUsbDk`). UsbDk attaches to the USB controllers only when they
+  start, so until the next restart it sees almost no device; the finished page says that Android on
+  the cable works after one restart, without asking for it (everything else works at once). When
+  UsbDk was removed since the last restart, its driver still runs and its MSI fails (1603); the
+  installer then shows no error and the finished page asks for a restart and another run;
+- runs `accessory\AccessoryDriver.ps1`, which signs the catalog of the Android accessory driver
+  (WinUSB on `USB\VID_18D1&PID_2D00`) with a certificate made on this PC, puts that certificate in
+  the machine's Root and TrustedPublisher stores, deletes its private key and adds the package
+  (`pnputil /add-driver /install`); its log is `%ProgramData%\Osplay\logs\accessory-driver.log`;
+- adds the inbound firewall rule "Osplay" for `Osplay.exe` on every network profile;
+- points an existing "Start with Windows" entry at the installed `Osplay.exe`, since it names the
+  copy that turned it on (a development build would otherwise keep starting after each sign-in).
 
 An upgrade stops the service first (`OsplayHelper.exe --stop`) and keeps the driver devices, so
-Windows keeps the virtual monitors' arrangement. Uninstalling closes Osplay, runs
-`OsplayHelper.exe --uninstall` (the service, every driver device and the driver settings), asks
-whether to remove the driver package too (`--remove-driver`; a silent uninstall removes it), and
-deletes the firewall rule, the "Start with Windows" entry and the helper's logs. Paired devices and
+Windows keeps the virtual monitors' arrangement; the accessory driver is replaced with a newly
+signed one. Uninstalling closes Osplay, runs `OsplayHelper.exe --uninstall` (the service, every
+driver device and the driver settings), asks whether to remove the driver package too
+(`--remove-driver`; a silent uninstall removes it), removes the accessory driver and its
+certificate (`AccessoryDriver.ps1 -Remove`), removes UsbDk if Osplay installed it, and deletes the
+firewall rule, the "Start with Windows" entry and the helper's logs. Paired devices and
 settings in `%APPDATA%` stay for a reinstall. The setup log is in `%TEMP%` (`Setup Log *.txt`).
 
 ### Virtual monitor (developer setup)
@@ -392,6 +447,13 @@ built as above). For a development build:
      taskbar. Settings › Advanced shows the helper and driver as ready (stop the OsplayHelper
      service to see the repair message). Turn on the stats overlay and watch a Mac display: one line
      of figures in its top-left corner.
+
+   - **Android on the USB cable (TAB-05):** needs UsbDk and the accessory driver, which the
+     installer adds; install a release (or an installer built as above) once. Without the tray app
+     running (the helper serves one client), `.\OsplayAndroidTest.exe --seconds 120` in
+     `windows\build\debug\bin` switches every Android device plugged in, starts a host session when
+     it comes back as an accessory with this PC's stored identity (accepting a pairing code by
+     itself) and prints the watcher's log, session states and the virtual monitor.
 
    The identity and paired devices live in the Keychain (items named "Osplay") on the Mac and in
    `%APPDATA%\Osplay` (DPAPI) on Windows; deleting them makes both sides pair again.

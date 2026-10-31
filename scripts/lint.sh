@@ -35,7 +35,7 @@ list_files '*.h' '*.hpp' '*.c' '*.cpp' ':!:*/third_party/*' |
 
 echo "==> swift-format"
 xcrun swift-format lint --strict --recursive --parallel \
-    Package.swift macos/Osplay macos/OsplayTests macos/OsplayHardwareTests macos/CoreBridge macos/CoreBridgeTests
+    Package.swift macos/Osplay macos/Shared macos/OsplayPad macos/OsplayPadTests macos/OsplayTests macos/OsplayHardwareTests macos/CoreBridge macos/CoreBridgeTests
 
 echo "==> UI tokens"
 scripts/check_ui_tokens.sh

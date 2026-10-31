@@ -18,9 +18,11 @@ if(WIN32)
     add_subdirectory(tools/vdtool)
     add_subdirectory(tools/hosttest)
     add_subdirectory(tools/viewertest)
+    add_subdirectory(tools/androidtest)
 
     # Put every executable and the engine DLL in one folder so tools find OsplayEngine.dll.
-    foreach(target osplay_engine osplay_helper osplay_vdtool osplay_hosttest osplay_viewertest)
+    foreach(target osplay_engine osplay_helper osplay_vdtool osplay_hosttest osplay_viewertest
+        osplay_androidtest)
         set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
     endforeach()
 else()

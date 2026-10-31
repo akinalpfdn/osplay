@@ -13,10 +13,12 @@ public sealed record StreamSizeOption(StreamSizePreset Preset, string Name);
 
 /// <summary>The tray panel: roles, devices, monitors and quality (the Mac menu's counterpart).</summary>
 public sealed partial class PanelViewModel(
-    ConnectionViewModel connection, UpdatesViewModel updates, AppSettings settings, Action openSettings,
-    Func<Task> quit)
+    ConnectionViewModel connection, PcNetworkViewModel pcNetwork, UpdatesViewModel updates, AppSettings settings,
+    Action openSettings, Func<Task> quit)
 {
     public ConnectionViewModel Connection { get; } = connection;
+
+    public PcNetworkViewModel PcNetwork { get; } = pcNetwork;
 
     public UpdatesViewModel Updates { get; } = updates;
 

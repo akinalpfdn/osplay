@@ -40,7 +40,12 @@ enum class ControlType : std::uint8_t {
 };
 
 enum class Role : std::uint8_t { Host = 1, Viewer = 2 };
-enum class Platform : std::uint8_t { MacOS = 1, Windows = 2 };
+enum class Platform : std::uint8_t { MacOS = 1, Windows = 2, IPadOS = 3, Android = 4 };
+
+/// Platforms this protocol version knows; Osplay 0.1 (protocol 1.1 and older) knows 1 and 2 only.
+[[nodiscard]] constexpr bool is_known(Platform platform) {
+    return platform >= Platform::MacOS && platform <= Platform::Android;
+}
 enum class PairingDecision : std::uint8_t { Accepted = 1, Rejected = 2 };
 enum class Codec : std::uint8_t { H264 = 1 };
 enum class H264Profile : std::uint8_t { Baseline = 66, Main = 77, High = 100 };

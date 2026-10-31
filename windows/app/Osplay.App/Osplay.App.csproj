@@ -2,7 +2,8 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- The Windows 10 2004 SDK projections bring the WinRT Wi-Fi Direct API (Services/PcNetwork.cs). -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWPF>true</UseWPF>
     <AssemblyName>Osplay</AssemblyName>
     <RootNamespace>Osplay.App</RootNamespace>
@@ -15,6 +16,7 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="H.NotifyIcon.Wpf" />
+    <PackageReference Include="QRCoder" />
     <PackageReference Include="WPF-UI" />
   </ItemGroup>
 

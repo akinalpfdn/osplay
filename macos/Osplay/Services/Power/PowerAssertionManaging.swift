@@ -2,16 +2,7 @@ import Foundation
 import IOKit.pwr_mgt
 import OSLog
 
-/// Keeps the Mac awake and responsive while it is used as a display (DEVPLAN: power, App Nap).
-protocol PowerAssertionManaging: Sendable {
-    /// Prevents display sleep and App Nap until the returned token is released.
-    func preventDisplaySleep(reason: String) -> any PowerAssertion
-}
-
-protocol PowerAssertion: AnyObject, Sendable {
-    func release()
-}
-
+/// The Mac's power assertion: no display sleep and no App Nap while frames are on screen.
 struct SystemPower: PowerAssertionManaging {
     func preventDisplaySleep(reason: String) -> any PowerAssertion {
         SystemPowerAssertion(reason: reason)

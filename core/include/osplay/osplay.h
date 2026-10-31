@@ -28,6 +28,8 @@ typedef struct osplay_version {
 
 /* Wire protocol constants (docs/PROTOCOL.md). */
 #define OSPLAY_PROTOCOL_VERSION 1
+/* 1.2: the iPadOS and Android platforms and the "pm" TXT key (PROTOCOL.md). */
+#define OSPLAY_PROTOCOL_MINOR 2
 #define OSPLAY_MAX_CONTROL_MESSAGE_SIZE 4096
 #define OSPLAY_MAX_MEDIA_PLAINTEXT_SIZE 1184
 
@@ -156,7 +158,8 @@ osplay_result osplay_protocol_reencode(osplay_wire_kind kind, const uint8_t* dat
 
 /*
  * Sessions (docs/PROTOCOL.md "Session flow"). A session is one host and one viewer over a TCP
- * control connection and a UDP media socket, both driven by one I/O thread owned by the session.
+ * control connection and a UDP media socket (or, on a USB cable, one stream carrying both), driven
+ * by one I/O thread owned by the session.
  *
  * Threading: every callback runs on that I/O thread, must return quickly and must not call
  * osplay_session_destroy. The command functions may be called from any thread except a callback;
@@ -193,6 +196,8 @@ typedef enum osplay_log_level {
 typedef enum osplay_platform {
     OSPLAY_PLATFORM_MACOS = 1,
     OSPLAY_PLATFORM_WINDOWS = 2,
+    OSPLAY_PLATFORM_IPADOS = 3,  /* protocol 1.2 */
+    OSPLAY_PLATFORM_ANDROID = 4, /* protocol 1.2 */
     OSPLAY_PLATFORM_MAX_ENUM = 0x7FFFFFFF
 } osplay_platform;
 
@@ -220,7 +225,8 @@ typedef enum osplay_cursor_mode {
 #define OSPLAY_TXT_KEY_DEVICE_ID "id"
 #define OSPLAY_TXT_KEY_ROLES "roles"
 #define OSPLAY_TXT_KEY_OS "os"
-#define OSPLAY_TXT_VALUE_SIZE 65 /* the longest value (the 64-byte name) and its NUL */
+#define OSPLAY_TXT_KEY_PROTOCOL_MINOR "pm" /* protocol 1.2; absent from Osplay 0.1 records */
+#define OSPLAY_TXT_VALUE_SIZE 65           /* the longest value (the 64-byte name) and its NUL */
 #define OSPLAY_ROLE_HOST 1U
 #define OSPLAY_ROLE_VIEWER 2U
 
@@ -228,6 +234,9 @@ typedef struct osplay_advertisement {
     uint32_t protocol_version; /* OSPLAY_PROTOCOL_VERSION when advertising */
     osplay_platform platform;
     uint8_t roles; /* OSPLAY_ROLE_* bits, at least one */
+    /* OSPLAY_PROTOCOL_MINOR when advertising; 0 in a peer's record without "pm" (Osplay 0.1,
+     * which refuses the iPadOS and Android platforms). */
+    uint8_t protocol_minor;
     uint8_t device_id[OSPLAY_DEVICE_ID_SIZE];
     char name[OSPLAY_TXT_VALUE_SIZE]; /* NUL-terminated UTF-8, 1 to 64 bytes */
 } osplay_advertisement;
@@ -239,6 +248,7 @@ typedef struct osplay_txt_record {
     char device_id[OSPLAY_TXT_VALUE_SIZE];
     char roles[OSPLAY_TXT_VALUE_SIZE];
     char os[OSPLAY_TXT_VALUE_SIZE];
+    char protocol_minor[OSPLAY_TXT_VALUE_SIZE];
 } osplay_txt_record;
 
 osplay_result osplay_advertisement_to_txt(const osplay_advertisement* advertisement,
@@ -431,6 +441,91 @@ osplay_result osplay_viewer_session_create(const osplay_session_config* config,
                                            osplay_session** out_session);
 
 /*
+ * USB (PROTOCOL.md "Stream links"): an iPad on a cable is reached through usbmuxd, part of macOS;
+ * on Windows the Apple Mobile Device Service (Apple Devices or iTunes) provides it. The iPad's
+ * Osplay listens on OSPLAY_USB_PORT on its loopback interface and the host connects to it, so the
+ * connection runs from host to viewer while the session roles stay the same. Control and media
+ * share that one stream.
+ */
+#define OSPLAY_USB_PORT 41847
+
+/* Host: connects through usbmuxd to `port` on device `device_id` (from osplay_usb_callbacks). The
+ * session ends with OSPLAY_ERROR_NETWORK when nothing listens there (Osplay is not open on the
+ * iPad) or usbmuxd is missing; try again later. config->control_port is ignored. */
+osplay_result osplay_host_session_create_usb(const osplay_session_config* config,
+                                             const uint8_t* secret_key,
+                                             const osplay_random_source* random,
+                                             const osplay_session_callbacks* callbacks,
+                                             uint32_t device_id, uint16_t port,
+                                             osplay_session** out_session);
+
+/* Viewer: waits on `port` of the loopback interface for a host on the cable, without a time
+ * limit. Fails with OSPLAY_ERROR_NETWORK when the port is taken. config->control_port is ignored.
+ */
+osplay_result osplay_viewer_session_create_usb(const osplay_session_config* config,
+                                               const uint8_t* secret_key,
+                                               const osplay_random_source* random,
+                                               const osplay_session_callbacks* callbacks,
+                                               uint16_t port, osplay_session** out_session);
+
+/*
+ * Android over a USB cable (PROTOCOL.md "Android accessory links"): the computer switches the
+ * device into Android Open Accessory mode with osplay_aoa_switch, the device comes back as an
+ * accessory (osplay_aoa_is_accessory) and Osplay on it opens that accessory. The session runs as a
+ * stream link over the accessory's two bulk endpoints; the viewer speaks first.
+ */
+
+/* A blocking pipe over the accessory's bulk endpoints, which the platform provides to a host. */
+typedef struct osplay_byte_pipe {
+    void* context;
+    /* Blocks until bytes arrive on the IN endpoint and stores their count; a zero-length packet
+     * may store 0. Returns OSPLAY_OK, or an error once the cable is gone or after cancel. */
+    osplay_result (*read)(void* context, uint8_t* buffer, size_t capacity, size_t* out_size);
+    /* Blocks until some of `data` is sent on the OUT endpoint and stores how much. */
+    osplay_result (*write)(void* context, const uint8_t* data, size_t size, size_t* out_written);
+    /* Unblocks read and write for good. Called once, from any thread, while they may run. */
+    void (*cancel)(void* context);
+    /* Called once, after read and write have returned for the last time; also when creating the
+     * session fails. It may come from another thread and after osplay_session_destroy. */
+    void (*release)(void* context);
+} osplay_byte_pipe;
+
+/* Host: runs a session over `pipe` (copied), starting with the viewer's first bytes, so it waits
+ * without a time limit. config->control_port is ignored. */
+osplay_result osplay_host_session_create_accessory(const osplay_session_config* config,
+                                                   const uint8_t* secret_key,
+                                                   const osplay_random_source* random,
+                                                   const osplay_session_callbacks* callbacks,
+                                                   const osplay_byte_pipe* pipe,
+                                                   osplay_session** out_session);
+
+/* Viewer (Android): runs a session at once on the accessory's file descriptor (from
+ * UsbManager.openAccessory), which the core then owns and closes, also when this fails. Not on
+ * Windows (OSPLAY_ERROR_INVALID_ARGUMENT). config->control_port is ignored. */
+osplay_result osplay_viewer_session_create_accessory(const osplay_session_config* config,
+                                                     const uint8_t* secret_key,
+                                                     const osplay_random_source* random,
+                                                     const osplay_session_callbacks* callbacks,
+                                                     int fd, osplay_session** out_session);
+
+/* One control transfer on endpoint 0, done by the platform. `data` holds `length` bytes: sent for
+ * an OUT request (request_type bit 7 clear), filled for an IN request. Stores how many bytes the
+ * data stage moved. */
+typedef osplay_result (*osplay_usb_control_transfer)(void* context, uint8_t request_type,
+                                                     uint8_t request, uint16_t value,
+                                                     uint16_t index, uint8_t* data, uint16_t length,
+                                                     uint16_t* out_transferred);
+
+/* Switches an Android device into accessory mode with Osplay's identity: asks for the AOA
+ * protocol, sends the identity strings and START. The device then leaves the bus and comes back
+ * as an accessory. OSPLAY_ERROR_UNSUPPORTED_VERSION when the device answers without AOA (not
+ * Android); a failed transfer's own result otherwise. */
+osplay_result osplay_aoa_switch(void* context, osplay_usb_control_transfer transfer);
+
+/* 1 when the USB IDs are those of an Android device in accessory mode, else 0. */
+uint8_t osplay_aoa_is_accessory(uint16_t vendor_id, uint16_t product_id);
+
+/*
  * Sends Bye and closes the connection without waiting; on_state then reports CLOSED. Unlike
  * osplay_session_destroy it may be called from a callback. Later commands fail with
  * OSPLAY_ERROR_INVALID_STATE.
@@ -449,7 +544,7 @@ osplay_result osplay_session_refuse_busy(osplay_session* session);
 /* Sends Bye when possible, closes the sockets and joins the I/O thread. NULL is ignored. */
 void osplay_session_destroy(osplay_session* session);
 
-/* Host: the TCP port to advertise over Bonjour. */
+/* Host: the TCP port to advertise over Bonjour. USB viewer: the loopback port it listens on. */
 osplay_result osplay_session_control_port(const osplay_session* session, uint16_t* out_port);
 
 /* Answers on_pairing_code with the local user's decision (`accepted` is 0 or 1). */
@@ -494,6 +589,28 @@ osplay_result osplay_session_request_role_swap(osplay_session* session);
  * or BUSY refuses and keeps it running. */
 osplay_result osplay_session_answer_role_swap(osplay_session* session,
                                               osplay_role_swap_answer answer);
+
+/*
+ * The iPads on a USB cable, followed through usbmuxd on a thread of the watcher's own; callbacks
+ * run there and must return quickly. Devices usbmuxd reaches over Wi-Fi are left out. When
+ * usbmuxd is missing (Windows without Apple Devices) or restarts, the watcher tries again every
+ * few seconds and reports the devices it knew as detached. A device ID changes when the cable is
+ * plugged in again.
+ */
+typedef struct osplay_usb_callbacks {
+    void* context;
+    void (*on_attached)(void* context, uint32_t device_id);
+    void (*on_detached)(void* context, uint32_t device_id);
+} osplay_usb_callbacks;
+
+typedef struct osplay_usb_watcher osplay_usb_watcher;
+
+/* `callbacks` is copied; its context must outlive the watcher. */
+osplay_result osplay_usb_watcher_create(const osplay_usb_callbacks* callbacks,
+                                        osplay_usb_watcher** out_watcher);
+
+/* Stops the watcher; no callback runs after it returns. Not from a callback. NULL is ignored. */
+void osplay_usb_watcher_destroy(osplay_usb_watcher* watcher);
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -53,6 +53,60 @@ gives one viewer at most two). The PC needs the current OsplayHelper (helper pro
 | M4 | No display left | Connect viewers until four displays are in use, then connect one more | The last one is turned away before any pairing code ("uses all the displays it can extend onto"); the waiting row says all four are in use |
 | M5 | Swap needs one viewer | In M1, try the swap shortcut, and the swap from a viewer | Not offered on the host while two are connected; a viewer's request is answered busy; with one left it works again |
 
+## iPad
+
+Run the iPad app from Xcode (BUILDING.md) or TestFlight. The computer runs Osplay 0.2 or later and
+**Extend this Mac** / **Extend this PC**.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| T1 | Mac → iPad | On the iPad, tap the Mac under Nearby computers; confirm the code on both | One Mac display at the iPad's resolution, full screen on the iPad |
+| T2 | PC → iPad | The same with the PC | One PC virtual monitor at the iPad's resolution, with the Windows pointer |
+| T3 | Turn the iPad | During T1, turn the iPad from landscape to portrait and back | The session starts again each time with the new shape; the Mac display follows |
+| T4 | Background | During T1, go to the Home Screen, wait 10 s, open Osplay again | The Mac display goes away while Osplay is in the background and comes back by itself |
+| T5 | Old computer | A computer with Osplay 0.1.1 shares its screen | Listed with "Update Osplay on this computer"; tapping it explains, no connection attempt |
+| T6 | Revoke | iPad Settings › Paired computers → swipe → Revoke, then connect | Refused at once without a code; Remove makes it ask for a code again |
+
+The same cases apply to the Android app (A1–A6 for T1–T6), run from Android Studio or Google Play
+on a phone or tablet with Android 12 or later.
+
+### USB cable
+
+Turn Wi-Fi off on both devices for these. The iPad has trusted the computer once ("Trust This
+Computer" when first plugged in); a PC has the Apple Devices app installed.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| U1 | Mac → iPad over USB | Mac: **Extend this Mac**. Connect the iPad with a cable, open Osplay, tap **Computer on the USB cable**; confirm the code on both the first time | Within a few seconds one Mac display at the iPad's resolution, as in T1 |
+| U2 | PC → iPad over USB | The same with the PC (**Extend this PC**) | One PC virtual monitor at the iPad's resolution |
+| U3 | Turn and background | During U1, turn the iPad, then go to the Home Screen and back | The session starts again each time over the cable, as in T3 and T4 |
+| U4 | Disconnect | During U1, tap Disconnect on the iPad; start U1 again and disconnect from the Mac's menu | The display goes away and nothing reconnects until **Computer on the USB cable** is tapped again |
+| U5 | Unplug | During U1, pull the cable, wait 15 s, plug it in again | The Mac display goes away within 10 s. If the iPad is not already waiting on the cable, tapping **Computer on the USB cable** brings the session back |
+| U6 | Android over USB tethering, PC | Android: Settings › Connections › Mobile Hotspot and Tethering › USB tethering, with Wi-Fi off on both; the PC shares | The PC appears under Nearby computers on the phone; A1 works over the cable |
+| U7 | Mac → Android over USB | Mac: **Extend this Mac** with the Android device plugged in (plug it in again first if it was in Osplay's mode). Answer Android's "Open Osplay?" with OK; the first time, also macOS's "Allow accessory to connect?" | Within a few seconds one Mac display on the Android device, as in A1 |
+| U8 | Android disconnect | During U7, tap Disconnect on Android, then **Computer on the USB cable**; again, disconnecting from the Mac's menu | The display goes away and nothing reconnects; the cable row brings it back within seconds |
+| U9 | Android unplug | During U7, pull the cable, wait 15 s, plug it in again | The display goes away; Android waits for the cable, asks "Open Osplay?" again and the display comes back |
+| U10 | Android Studio open | U7 with USB debugging on and Android Studio (adb) running on the Mac | The same as U7 |
+| U11 | PC → Android over USB | On a PC with Osplay installed by the installer (no Zadig): **Extend this PC** with the Android device plugged in, USB debugging off. Answer "Open Osplay?" with OK | Within a few seconds one PC virtual monitor on the Android device; Device Manager shows "Osplay Android USB" |
+| U12 | PC: Android disconnect and unplug | U8 and U9 with the PC | As U8 and U9; the virtual monitor goes away within 10 s of unplugging |
+| U13 | PC: USB debugging on | U11 with USB debugging on | No "Open Osplay?"; the panel says USB debugging is on; adb keeps working |
+| U14 | PC: install and uninstall | Install on a PC without UsbDk, restart, run U11, then uninstall | The installer adds UsbDk and the accessory driver without asking and without a restart prompt; its last page says the cable works after one restart; the uninstaller removes both, the certificate "Osplay Android USB driver (this computer only)" from the machine's Trusted Root and Trusted Publishers stores, and leaves a UsbDk that was installed before Osplay. Installing again before restarting shows no error; the last page asks for a restart and another run |
+
+### Without a router
+
+The PC opens its own network: panel › **No router? Open this PC's network** › **Open network**. The
+other device joins it (Wi-Fi settings, or the camera on the QR code) and is on no other Wi-Fi.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| W1 | Open the network | On a PC on no router (Wi-Fi on), open the network | Name, password and QR code appear; closing it makes the network disappear from other devices' lists |
+| W2 | PC → PC | The second PC joins the network; one PC extends, the other uses it as a display | Found under Nearby computers; streams as on a router, both ways |
+| W3 | PC → Android | The phone joins from the QR code with mobile data on, and keeps the network when Android says it has no internet | The PC appears in the app; A1 works |
+| W4 | Mac ↔ PC | The Mac joins from the Wi-Fi menu | Both directions work as D1 and D2 |
+| W5 | PC also on a router | Open the network while the PC's Wi-Fi is connected to a router; repeat W2 | Note the stats overlay's bitrate, loss and latency against the same test on the router alone |
+| W6 | Stays connected | Join a phone and leave it idle for five minutes, then stream to it | Still joined and streams; Event Viewer › WLAN-AutoConfig shows no "Wireless security stopped" for it |
+| W7 | Settings come back | Note the name in Settings › Mobile hotspot, open and close Osplay's network | The hotspot is off and shows your own name again |
+
 ## Interruptions
 
 | # | Scenario | Steps | Expected |
@@ -85,3 +139,6 @@ gives one viewer at most two). The PC needs the current OsplayHelper (helper pro
 | 2026-10-20 | `3fe19bd` | Wi-Fi | I1–I4 (sleep/wake both ways), S3 (Disconnect then Connect) | Pass | Found and fixed on the way: no connect timeout, frozen frame under Modern Standby, stale port after a session |
 | 2026-10-20 | `3fe19bd` | Wi-Fi | I5–I9, Q1, Q2, Q3, Q5 (one hour) | Pass | |
 | 2026-10-25 | `d0645b7` | Wi-Fi | D1, D2, D4–D8 (every direction but PC → PC), M1–M3 (several viewers on both hosts) | Pass | Found and fixed on the way: two monitors on one Windows driver device stall the desktop, pooled driver devices shared a stale mode list (issue #30 left open), a Mac host's second viewer took the first one's displays |
+| 2026-10-27 | `e00a28d` | Wi-Fi | T1 (Mac → iPad A16) | Pass | The iPad listed the Mac once Local Network access was granted |
+| 2026-10-27 | `8d766c6` | Wi-Fi | A1 (Mac → Galaxy S23 Ultra) | Pass | |
+| 2026-10-27 | `ed98792` | USB, Wi-Fi off | U1 (Mac → iPad A16 over the cable) | Pass | Pulling the cable ends the session at once |

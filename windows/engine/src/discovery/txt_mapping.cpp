@@ -24,7 +24,8 @@ TxtPairs txt_pairs(const osplay_txt_record& record) {
             {OSPLAY_TXT_KEY_NAME, read(record.name)},
             {OSPLAY_TXT_KEY_DEVICE_ID, read(record.device_id)},
             {OSPLAY_TXT_KEY_ROLES, read(record.roles)},
-            {OSPLAY_TXT_KEY_OS, read(record.os)}};
+            {OSPLAY_TXT_KEY_OS, read(record.os)},
+            {OSPLAY_TXT_KEY_PROTOCOL_MINOR, read(record.protocol_minor)}};
 }
 
 osplay_txt_record txt_record(const TxtPairs& pairs) {
@@ -40,6 +41,8 @@ osplay_txt_record txt_record(const TxtPairs& pairs) {
             copy_value(value, record.roles);
         } else if (key == OSPLAY_TXT_KEY_OS) {
             copy_value(value, record.os);
+        } else if (key == OSPLAY_TXT_KEY_PROTOCOL_MINOR) {
+            copy_value(value, record.protocol_minor);
         }
     }
     return record;

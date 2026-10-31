@@ -10,6 +10,8 @@
 #include "protocol/control_messages.hpp"
 #include "session/session_config.hpp"
 #include "session/session_engine.hpp"
+#include "transport/byte_pipe.hpp"
+#include "transport/usbmux.hpp"
 #include "util/error.hpp"
 #include "util/expected.hpp"
 
@@ -30,6 +32,22 @@ struct TransportOptions {
     std::uint16_t control_port = 0;
 };
 
+/// Where usbmuxd listens: its Unix socket (macOS), or a port on 127.0.0.1 (Windows).
+struct UsbmuxAddress {
+#ifdef _WIN32
+    std::uint16_t port = usbmux::kWindowsServicePort;
+#else
+    std::string path = std::string(usbmux::kSocketPath);
+#endif
+};
+
+/// An iPad on the cable (its usbmuxd device ID) and the port its Osplay listens on.
+struct UsbTarget {
+    std::uint32_t device_id = 0;
+    std::uint16_t port = 0;
+    UsbmuxAddress usbmux;
+};
+
 class AsioSession {
 public:
     /// Host: listens for one viewer on an ephemeral TCP port (both IPv4 and IPv6).
@@ -44,6 +62,34 @@ public:
                   crypto::RandomSource& random, session::SessionObserver& observer,
                   const std::string& host, std::uint16_t port);
 
+    /// Host over a USB cable: reaches the iPad through usbmuxd and runs the session as a stream
+    /// link (control and media on one stream). Ends with NETWORK when nothing listens there.
+    [[nodiscard]] static Expected<std::unique_ptr<AsioSession>, Error>
+    create_host_usb(session::SessionConfig config, crypto::KeyPair identity,
+                    crypto::RandomSource& random, session::SessionObserver& observer,
+                    const UsbTarget& target);
+
+    /// Viewer on a USB cable: waits on the loopback port for the host's connection through
+    /// usbmuxd, then runs the session as a stream link. Fails when the port is taken.
+    [[nodiscard]] static Expected<std::unique_ptr<AsioSession>, Error>
+    create_viewer_usb(session::SessionConfig config, crypto::KeyPair identity,
+                      crypto::RandomSource& random, session::SessionObserver& observer,
+                      std::uint16_t port);
+
+    /// Host over an Android accessory (PROTOCOL.md "Android accessory links"): runs the session as
+    /// a stream link on `pipe`, starting with the viewer's first bytes, so it waits without a time
+    /// limit.
+    [[nodiscard]] static Expected<std::unique_ptr<AsioSession>, Error>
+    create_host_pipe(session::SessionConfig config, crypto::KeyPair identity,
+                     crypto::RandomSource& random, session::SessionObserver& observer,
+                     std::unique_ptr<BytePipe> pipe);
+
+    /// Viewer on an Android accessory: runs the session as a stream link on `pipe` at once.
+    [[nodiscard]] static Expected<std::unique_ptr<AsioSession>, Error>
+    create_viewer_pipe(session::SessionConfig config, crypto::KeyPair identity,
+                       crypto::RandomSource& random, session::SessionObserver& observer,
+                       std::unique_ptr<BytePipe> pipe);
+
     /// Sends Bye if possible, closes the sockets and joins the I/O thread. Must not be called from
     /// an observer callback.
     ~AsioSession();
@@ -52,7 +98,8 @@ public:
     AsioSession(AsioSession&&) = delete;
     AsioSession& operator=(AsioSession&&) = delete;
 
-    /// Host: the TCP port viewers connect to (advertised over Bonjour).
+    /// Host: the TCP port viewers connect to (advertised over Bonjour). USB viewer: the loopback
+    /// port it listens on.
     [[nodiscard]] std::uint16_t control_port() const;
 
     /// Host: the UDP port the media socket is bound to (before any advertised_media_port override).

@@ -25,7 +25,8 @@ Virtual display ─► Capture ─► Encoder ─► core: packetize ──UDP�
 |------|----------|
 | `core/` | Shared C++20 library: protocol, crypto, transport, media, session, flat C API (`core/include/osplay/osplay.h`) |
 | `Package.swift` | Swift package: the C++ core as the `OsplayCore` module and its Swift wrapper `CoreBridge` (`macos/CoreBridge/`) |
-| `macos/` | Swift menu bar app, generated with XcodeGen from `macos/project.yml` |
+| `macos/` | The Apple apps, generated with XcodeGen from `macos/project.yml`: the macOS menu bar app (`Osplay/`), the iPad viewer app (`OsplayPad/`) and the code both compile (`Shared/`) |
+| `android/` | Android viewer app (Kotlin, Jetpack Compose) with the core built by the NDK and a JNI bridge (`app/src/main/cpp/`) |
 | `windows/engine/` | Native engine DLL (`OsplayEngine.dll`): capture, encode, decode, present, discovery |
 | `windows/helper/` | `OsplayHelper` Windows service for privileged virtual display driver operations |
 | `windows/app/` | WPF shell (`Osplay.App`) and its string resources (`Osplay.Localization`) |
@@ -148,7 +149,7 @@ menu bar window is usually closed.
 
 ## Viewer pipeline on macOS
 
-`ViewerSession` (`macos/Osplay/Features/Viewer/`) is an actor that owns one viewer session: the
+`ViewerSession` (`macos/Shared/Viewer/`) is an actor that owns one viewer session: the
 core session, and per stream a `ViewerStreamPipeline` (decoder) and a presenter.
 
 ```
@@ -164,7 +165,7 @@ core cursor shape/position ─► main actor ─► cursor layer above the video
   display with a new size, refresh rate or scale starts the session again, one that is unplugged
   ends only its own stream (unless it was the last one, which starts the session again too).
 
-- **Decode** (`Services/VideoDecoding/`). Annex B is split into NAL units; the SPS and PPS in
+- **Decode** (`macos/Shared/VideoDecoding/`). Annex B is split into NAL units; the SPS and PPS in
   front of each keyframe build the format description, slices go to a realtime
   `VTDecompressionSession` as 4-byte length-prefixed samples. Output is IOSurface-backed. After
   any error (invalid data, decode failure) frames are dropped until the next keyframe, and the
@@ -182,6 +183,65 @@ core cursor shape/position ─► main actor ─► cursor layer above the video
   latency-critical activity disables App Nap.
 - **Debug loopback.** The menu's "Viewer loopback" hosts a 1920×1080 virtual display and views
   it on the same Mac (window or full screen), with corruption injection and a frame freeze.
+
+## iPad app
+
+The iPad is a viewer only (DEVPLAN Phase 15): iPadOS gives apps no system virtual displays, and no
+touch or other input is forwarded. `macos/Shared/` holds what it shares with the Mac app — the
+viewer session and decoder, Bonjour discovery, the Keychain key store and paired devices, the
+sample-buffer rendering helpers and the shared tunables — compiled into both app targets
+(DECISIONS.md, 2026-10-26).
+
+- **One screen, one monitor** (`OsplayPad/Services/Screen/`). The iPad offers its screen in the
+  orientation it is held, in native pixels at 200% scale. Turning the iPad starts the session
+  again with the new shape; `UIRequiresFullScreen` keeps the app out of smaller windows.
+- **Present** (`OsplayPad/Services/Presenting/`). The stream's view — `AVSampleBufferDisplayLayer`
+  plus a cursor layer for Windows hosts and the statistics label — is embedded full screen by the
+  viewer screen; a tap shows Disconnect and the statistics toggle for a few seconds.
+- **Lifecycle.** While frames are shown the idle timer is off. Going to the background ends the
+  session cleanly (the host removes its display), and the app connects to the same computer again
+  when it returns; a dropped connection or sleeping computer is retried the same way as on the Mac.
+- **Compatibility.** The iPad announces platform 3 (protocol 1.2). Osplay 0.1 refuses unknown
+  platforms, so a computer whose Bonjour record has no `pm` key is listed as needing an update.
+- **USB cable** (PROTOCOL.md "Stream links"). Only the computer can open a connection over the
+  cable, through usbmuxd. Tapping **Computer on the USB cable** makes the iPad listen on loopback
+  port 41847; a sharing Mac or PC follows attached iPads with the core's `UsbWatcher` and tries each
+  every 2 s (`ConnectionViewModel` on both), so it connects within seconds. Those tries fail quietly
+  while the iPad is not waiting. Control and media share the one stream; neither side reconnects by
+  itself after a disconnect (DECISIONS.md, 2026-10-27).
+- **Android on the USB cable** (PROTOCOL.md "Android accessory links"). While a Mac shares,
+  `IOKitAndroidAccessories` follows USB devices: one that may be Android (not Apple, not a hub, not
+  only HID, audio or storage) is switched into Android Open Accessory mode through IOKit's device
+  interface, which needs no exclusive open (adb holds the device while Android Studio runs). When it
+  comes back as an accessory, its bulk endpoints are opened and a host session waits on them; the
+  Android app starts the viewer session when Android hands it the accessory (`usb/UsbCable.kt`),
+  and the core runs the stream link on the accessory's file descriptor. Android's accessory read
+  is woken by a signal when the session ends, since the driver ignores a pulled cable. A sharing PC
+  does the same in the engine (`usb/android_usb_watcher.cpp`): `CM_Register_Notification` reports
+  USB devices; one Windows knows as MTP or PTP is switched through UsbDk (Windows' own drivers hold
+  it, so WinUSB cannot send the requests), one with an ADB interface only raises the USB debugging
+  warning, and the accessory is opened through WinUSB (`usb/winusb_pipe.cpp`), which the
+  installer's self-signed driver package binds to `USB\VID_18D1&PID_2D00`. A device's switch is
+  counted until its accessory is opened, and given up after three.
+
+## Android app
+
+Also a viewer only. The C++ core is compiled by the NDK into `libosplay_jni.so` together with a thin
+JNI bridge (`osplay_jni.cpp`): text crosses as UTF-8 byte arrays, the core's I/O thread attaches to
+the JVM once and its callbacks go to a Kotlin `SessionListener`.
+
+- **Discovery** (`discovery/NsdDiscovery.kt`). NsdManager browses `_osplay._tcp`; before Android 14
+  it resolves one service at a time, so resolves wait in a queue. TXT records are checked by the
+  core, as everywhere else.
+- **Decode and present** (`video/`, `viewer/StreamStage.kt`). MediaCodec in low-latency, realtime
+  mode decodes onto a SurfaceView and renders every frame at once. The stage starts the decoder
+  when both the surface and the stream exist; after a codec error it starts over at the next
+  keyframe and asks the host for one. Windows hosts' separate cursor is drawn above the video.
+- **Keys** (`storage/`). The identity's secret key is encrypted with an AES key that stays in the
+  Android Keystore; paired computers are JSON in app-private preferences.
+- **Lifecycle.** The activity handles rotation itself, so the session restarts with the new shape
+  instead of the activity being recreated; `onStop` ends the session cleanly and `onStart`
+  reconnects. The screen stays on and the system bars are hidden while viewing.
 
 ## Discovery and pairing
 
@@ -420,6 +480,21 @@ with `DynamicResource`), every string from `Osplay.Localization` (English and Tu
   focus: problems first (errors, helper or driver missing, update available), the
   role cards "Extend this PC" and "Use as display", the quality preset while sharing, and while
   viewing a picture of this PC's monitors (click one to leave it out) and the nearby computers.
+- **The PC's own network** (`Services/PcNetwork.cs`, `Connection/PcNetworkViewModel.cs`). The
+  panel's "No router?" card opens Windows' Mobile hotspot (`NetworkOperatorTetheringManager`) under
+  Osplay's name and password: any device joins it as an ordinary Wi-Fi network (192.168.137.0/24;
+  a PC that is online shares its connection), after which discovery and sessions work as on a
+  router. It starts from the internet connection's profile, or from any profile Windows knows when
+  the PC is offline. The hotspot's name, password and idle timeout are Windows-wide, so Osplay
+  saves the user's own, writes its own, turns the idle timeout off, and puts all three back when
+  the network closes or Osplay quits; it reads the hotspot's state every two seconds, because
+  Windows can turn it off without telling. Wi-Fi Direct legacy mode, the first design, disconnected
+  every client two minutes after it joined (DECISIONS.md, 2026-10-28). The name (`Osplay-` and four
+  characters) and password are generated once and kept in `settings.json`, so devices rejoin; the
+  card shows them and the standard Wi-Fi QR code phones and tablets join from. On Android,
+  `WifiPreference` binds Osplay's sockets to such a Wi-Fi network while mobile data is the default
+  route, and `MulticastDiscovery` browses next to NsdManager with its own mDNS query, because
+  NsdManager's queries did not reach the PC on that network (`CombinedDiscovery` merges both).
 - **Settings** (`Settings/`). General (start with Windows through the Run key, stats overlay,
   recordable hide/show shortcut, daily update check against GitHub Releases), Devices (revoke,
   remove), Advanced (helper and driver health with repair guidance, network profile, logs folder).

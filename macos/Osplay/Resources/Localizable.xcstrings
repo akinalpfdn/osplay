@@ -177,13 +177,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Looking for computers sharing their screens… If none appears, check that Osplay may use the local network (System Settings › Privacy & Security › Local Network)."
+            "value" : "Looking for computers sharing their screens… If none appears, check that Osplay may use the local network (System Settings › Privacy & Security › Local Network). Without a router, join a PC's Osplay network in the Wi-Fi menu."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ekranını paylaşan bilgisayarlar aranıyor… Hiçbiri görünmezse Osplay'in yerel ağı kullanma izni olduğunu kontrol edin (Sistem Ayarları › Gizlilik ve Güvenlik › Yerel Ağ)."
+            "value" : "Ekranını paylaşan bilgisayarlar aranıyor… Hiçbiri görünmezse Osplay'in yerel ağı kullanma izni olduğunu kontrol edin (Sistem Ayarları › Gizlilik ve Güvenlik › Yerel Ağ). Router yoksa Wi-Fi menüsünden bir PC'nin Osplay ağına katılın."
           }
         }
       }

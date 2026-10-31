@@ -15,6 +15,9 @@ internal static class AppTunables
     /// </summary>
     public static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(2);
 
+    /// <summary>While sharing, how often an iPad on the USB cable is tried; it answers once its user picks the cable (TAB-03).</summary>
+    public static readonly TimeSpan UsbRetryDelay = TimeSpan.FromSeconds(2);
+
     /// <summary>After a role swap, how long viewing waits for the other computer to advertise itself.</summary>
     public static readonly TimeSpan SwapReconnectTimeout = TimeSpan.FromSeconds(20);
 
@@ -44,6 +47,20 @@ internal static class AppTunables
 
     /// <summary>Copy diagnostics includes this many of the newest log lines.</summary>
     public const int DiagnosticsLogLines = 300;
+
+    /// <summary>The PC's own network: "Osplay-" and this many characters, and a WPA2 password of this length.</summary>
+    public const int PcNetworkNameSuffixLength = 4;
+
+    public const int PcNetworkPasswordLength = 12;
+
+    /// <summary>Pixels per module of the network's QR code.</summary>
+    public const int PcNetworkQrModulePixels = 6;
+
+    /// <summary>How often the open network's state is read back from Windows, which turns it off without telling.</summary>
+    public static readonly TimeSpan PcNetworkPollInterval = TimeSpan.FromSeconds(2);
+
+    /// <summary>On quit, how long closing the network and restoring the user's hotspot settings may take.</summary>
+    public static readonly TimeSpan PcNetworkCloseTimeout = TimeSpan.FromSeconds(5);
 
     /// <summary>The paired devices the engine can store.</summary>
     public const int MaxPairedDevices = 256;

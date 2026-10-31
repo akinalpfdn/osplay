@@ -197,11 +197,44 @@ internal sealed unsafe class EngineHost : EngineSession
     /// <summary>The virtual monitors stream; the argument is how many this viewer got.</summary>
     public event Action<uint>? Streaming;
 
+    /// <summary>The iPad on the USB cable this session reaches; null for one listening on the network.</summary>
+    public uint? UsbDeviceId { get; private set; }
+
+    /// <summary>The Android accessory on the USB cable this session waits on (TAB-05), or null.</summary>
+    public uint? AccessoryId { get; private set; }
+
+    /// <summary>The session reaches a device on the USB cable rather than listening on the network.</summary>
+    public bool IsCable => UsbDeviceId is not null || AccessoryId is not null;
+
     public static Task<(EngineResult Result, EngineHost? Host)> StartAsync(
         Dispatcher dispatcher, string deviceName, uint millibitsPerPixel, ushort controlPort,
-        (uint Width, uint Height) streamBox)
+        (uint Width, uint Height) streamBox) =>
+        StartAsync(deviceName, millibitsPerPixel, controlPort, streamBox, new EngineHost(dispatcher));
+
+    /// <summary>
+    /// Reaches the iPad on the USB cable through the Apple Mobile Device Service; the session closes
+    /// with Network when the iPad is not waiting for a computer (TAB-03).
+    /// </summary>
+    public static Task<(EngineResult Result, EngineHost? Host)> StartUsbAsync(
+        Dispatcher dispatcher, string deviceName, uint millibitsPerPixel, (uint Width, uint Height) streamBox,
+        uint usbDeviceId) =>
+        StartAsync(deviceName, millibitsPerPixel, 0, streamBox, new EngineHost(dispatcher) { UsbDeviceId = usbDeviceId });
+
+    /// <summary>
+    /// Waits on the Android accessory `accessoryId` reported by `watcher` until Osplay on the device
+    /// opens it; InvalidArgument when the accessory is gone already (TAB-05).
+    /// </summary>
+    public static Task<(EngineResult Result, EngineHost? Host)> StartAccessoryAsync(
+        Dispatcher dispatcher, string deviceName, uint millibitsPerPixel, (uint Width, uint Height) streamBox,
+        EngineAndroidWatcher watcher, uint accessoryId) =>
+        StartAsync(
+            deviceName, millibitsPerPixel, 0, streamBox,
+            new EngineHost(dispatcher) { AccessoryId = accessoryId }, watcher.Handle);
+
+    private static Task<(EngineResult Result, EngineHost? Host)> StartAsync(
+        string deviceName, uint millibitsPerPixel, ushort controlPort,
+        (uint Width, uint Height) streamBox, EngineHost created, nint androidWatcher = 0)
     {
-        var created = new EngineHost(dispatcher);
         return Native.Run(() =>
         {
             nint name = Utf8.Allocate(deviceName);
@@ -233,7 +266,12 @@ internal sealed unsafe class EngineHost : EngineSession
                     OnRoleSwapAnswer = &OnRoleSwapAnswer,
                 };
                 nint handle;
-                EngineResult result = NativeMethods.HostStart(&config, &callbacks, &handle);
+                EngineResult result = (created.UsbDeviceId, created.AccessoryId) switch
+                {
+                    (uint device, _) => NativeMethods.HostStartUsb(&config, &callbacks, device, &handle),
+                    (_, uint accessory) => NativeMethods.HostStartAccessory(&config, &callbacks, androidWatcher, accessory, &handle),
+                    _ => NativeMethods.HostStart(&config, &callbacks, &handle),
+                };
                 if (result != EngineResult.Ok)
                 {
                     return (result, (EngineHost?)null);

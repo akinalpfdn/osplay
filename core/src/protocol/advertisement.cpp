@@ -3,9 +3,13 @@
 #include "protocol/constants.hpp"
 #include "protocol/text.hpp"
 
+#include <array>
 #include <charconv>
+#include <limits>
+#include <optional>
 #include <span>
 #include <system_error>
+#include <utility>
 
 namespace osplay::protocol {
 namespace {
@@ -18,8 +22,37 @@ bool valid_name(std::string_view name) {
                std::span(reinterpret_cast<const std::uint8_t*>(name.data()), name.size()));
 }
 
+constexpr std::array<std::pair<Platform, std::string_view>, 4> kPlatformTexts{{
+    {Platform::MacOS, "macos"},
+    {Platform::Windows, "windows"},
+    {Platform::IPadOS, "ipados"},
+    {Platform::Android, "android"},
+}};
+
 std::string_view platform_text(Platform platform) {
-    return platform == Platform::Windows ? "windows" : "macos";
+    for (const auto& [value, text] : kPlatformTexts) {
+        if (value == platform) {
+            return text;
+        }
+    }
+    return {};
+}
+
+std::optional<Platform> platform_of(std::string_view text) {
+    for (const auto& [value, known] : kPlatformTexts) {
+        if (known == text) {
+            return value;
+        }
+    }
+    return std::nullopt;
+}
+
+/// A decimal number from 1 to `limit` with nothing around it.
+template <typename Number>
+bool parse_number(std::string_view text, Number limit, Number& out) {
+    const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), out);
+    return !text.empty() && error == std::errc{} && end == text.data() + text.size() && out != 0 &&
+           out <= limit;
 }
 
 std::string roles_text(std::uint8_t roles) {
@@ -40,9 +73,8 @@ Expected<TxtValues, Error> to_txt(const Advertisement& advertisement) {
     using Result = Expected<TxtValues, Error>;
     const bool roles_ok =
         advertisement.roles != 0 && (advertisement.roles & ~(kRoleHost | kRoleViewer)) == 0;
-    const bool platform_ok =
-        advertisement.platform == Platform::MacOS || advertisement.platform == Platform::Windows;
-    if (advertisement.protocol_version == 0 || !roles_ok || !platform_ok) {
+    if (advertisement.protocol_version == 0 || advertisement.protocol_minor == 0 || !roles_ok ||
+        !is_known(advertisement.platform)) {
         return Result::failure(Error::ValueOutOfRange);
     }
     if (!valid_name(advertisement.name)) {
@@ -57,17 +89,20 @@ Expected<TxtValues, Error> to_txt(const Advertisement& advertisement) {
     }
     values.roles = roles_text(advertisement.roles);
     values.os = std::string(platform_text(advertisement.platform));
+    values.protocol_minor = std::to_string(advertisement.protocol_minor);
     return values;
 }
 
 Expected<Advertisement, Error> from_txt(const TxtValues& values) {
     using Result = Expected<Advertisement, Error>;
     Advertisement advertisement;
-    const std::string_view version = values.protocol_version;
-    const auto [end, error] = std::from_chars(version.data(), version.data() + version.size(),
-                                              advertisement.protocol_version);
-    if (version.empty() || error != std::errc{} || end != version.data() + version.size() ||
-        advertisement.protocol_version == 0) {
+    if (!parse_number(std::string_view(values.protocol_version),
+                      std::numeric_limits<std::uint32_t>::max(), advertisement.protocol_version)) {
+        return Result::failure(Error::ValueOutOfRange);
+    }
+    if (!values.protocol_minor.empty() &&
+        !parse_number(std::string_view(values.protocol_minor),
+                      std::numeric_limits<std::uint8_t>::max(), advertisement.protocol_minor)) {
         return Result::failure(Error::ValueOutOfRange);
     }
     if (!valid_name(values.name)) {
@@ -94,13 +129,11 @@ Expected<Advertisement, Error> from_txt(const TxtValues& values) {
     } else {
         return Result::failure(Error::ValueOutOfRange);
     }
-    if (values.os == "macos") {
-        advertisement.platform = Platform::MacOS;
-    } else if (values.os == "windows") {
-        advertisement.platform = Platform::Windows;
-    } else {
+    const auto platform = platform_of(values.os);
+    if (!platform) {
         return Result::failure(Error::ValueOutOfRange);
     }
+    advertisement.platform = *platform;
     return advertisement;
 }
 

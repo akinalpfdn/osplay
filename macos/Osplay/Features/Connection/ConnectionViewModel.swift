@@ -39,13 +39,18 @@ final class ConnectionViewModel {
         var displayCount = 0
     }
 
-    /// One host session: the one listening for the next viewer, or one serving a viewer.
+    /// One host session: the one listening for the next viewer, one trying an iPad or waiting on
+    /// an Android device on the USB cable, or one serving a viewer.
     @MainActor
     private final class HostConnection {
         let id = UUID()
         let session: HostSession
         let peer: SessionPeer
-        /// nil while it listens for a viewer.
+        /// usbmuxd's ID of the iPad this session reaches over the cable; nil on the network.
+        let usbDeviceID: UInt32?
+        /// The Android accessory this session waits on or serves over the cable; nil otherwise.
+        let accessoryID: UInt64?
+        /// nil while it waits for a viewer.
         var viewer: ConnectedViewer?
         var isStreaming = false
         /// The displays standing in for the viewer's monitors, by monitor ID.
@@ -53,10 +58,15 @@ final class ConnectionViewModel {
         var deviceID: String?
         var tasks: [Task<Void, Never>] = []
 
-        init(session: HostSession, peer: SessionPeer) {
+        init(session: HostSession, peer: SessionPeer, usbDeviceID: UInt32?, accessoryID: UInt64?) {
             self.session = session
             self.peer = peer
+            self.usbDeviceID = usbDeviceID
+            self.accessoryID = accessoryID
         }
+
+        /// The session listening on the network for the next viewer.
+        var isListener: Bool { viewer == nil && usbDeviceID == nil && accessoryID == nil }
     }
 
     /// The host being viewed, so the session can come back after sleep, a network change or a
@@ -104,6 +114,15 @@ final class ConnectionViewModel {
     private let displayBudget = DisplayBudget()
     private var hostConnections: [HostConnection] = []
     private var advertising: (any Advertising)?
+    /// While sharing: the iPads on the USB cable, and the pauses before one is tried again.
+    private var usbTask: Task<Void, Never>?
+    private var usbDevices: Set<UInt32> = []
+    private var usbRetries: [UInt32: Task<Void, Never>] = [:]
+    /// While sharing: the Android devices on the cable in Osplay's accessory mode, and the pauses
+    /// before a new session waits on one again.
+    private var accessoryTask: Task<Void, Never>?
+    private var accessories: [UInt64: AndroidAccessoryLink] = [:]
+    private var accessoryRetries: [UInt64: Task<Void, Never>] = [:]
     private var advertisedPort: UInt16?
     private var relistenTask: Task<Void, Never>?
     private var viewer: ViewerSession?
@@ -354,13 +373,15 @@ final class ConnectionViewModel {
             return
         }
         listen(identity)
+        watchUSB(identity)
+        watchAccessories(identity)
         updateSharingStatus()
     }
 
     /// A core host session takes one viewer, so a new one listens as soon as a viewer arrives: several
     /// computers can use this Mac at once (DEVPLAN Phase 13b part SYM-03).
     private func listen(_ identity: DeviceIdentity) {
-        guard mode == .sharing, pendingSwap == nil, !hostConnections.contains(where: { $0.viewer == nil }) else {
+        guard mode == .sharing, pendingSwap == nil, !hostConnections.contains(where: \.isListener) else {
             return
         }
         let peer = SessionPeer()
@@ -388,6 +409,11 @@ final class ConnectionViewModel {
             status = .idle
             return
         }
+        startHost(core, peer: peer, usbDeviceID: nil, accessoryID: nil)
+    }
+
+    /// Runs a host session for the viewer that connects (or answers over the cable) on `core`.
+    private func startHost(_ core: CoreSession, peer: SessionPeer, usbDeviceID: UInt32?, accessoryID: UInt64?) {
         let settings = dependencies.settings
         let session = HostSession(
             core: core,
@@ -403,7 +429,8 @@ final class ConnectionViewModel {
             },
             displays: VirtualDisplayLender(provider: dependencies.virtualDisplays), budget: displayBudget,
             captures: dependencies.captures, encoders: dependencies.encoders, permissions: dependencies.permissions)
-        let connection = HostConnection(session: session, peer: peer)
+        let connection = HostConnection(
+            session: session, peer: peer, usbDeviceID: usbDeviceID, accessoryID: accessoryID)
         hostConnections.append(connection)
         connection.tasks = [
             Task { [weak self] in
@@ -416,6 +443,103 @@ final class ConnectionViewModel {
                 self?.hostEnded(connection, failure: failure)
             },
         ]
+    }
+
+    /// Tries every iPad on the USB cable while sharing is on: one answers once its user picks the
+    /// cable there (DEVPLAN Phase 15 part TAB-03).
+    private func watchUSB(_ identity: DeviceIdentity) {
+        usbTask?.cancel()
+        let events = dependencies.usbDevices.watch()
+        usbTask = Task { [weak self] in
+            for await event in events {
+                switch event {
+                case .attached(let deviceID):
+                    self?.usbDevices.insert(deviceID)
+                    self?.tryUSB(deviceID, identity)
+                case .detached(let deviceID):
+                    self?.usbDevices.remove(deviceID)
+                    self?.usbRetries.removeValue(forKey: deviceID)?.cancel()
+                }
+            }
+        }
+    }
+
+    private func tryUSB(_ deviceID: UInt32, _ identity: DeviceIdentity) {
+        guard mode == .sharing, pendingSwap == nil, usbDevices.contains(deviceID),
+            !hostConnections.contains(where: { $0.usbDeviceID == deviceID })
+        else { return }
+        let peer = SessionPeer()
+        let core: CoreSession
+        do throws(CoreError) {
+            core = try CoreSession.hostOverUSB(
+                device: sessionDevice(identity, maximumStreams: Tunables.VirtualDisplay.maximumDisplayCount),
+                deviceID: deviceID, trust: { [trust, peer] key in peer.trust(key, in: trust) })
+        } catch {
+            Log.connection.error("Could not try the iPad on USB: \(String(describing: error), privacy: .public)")
+            tryUSBLater(deviceID, identity)
+            return
+        }
+        startHost(core, peer: peer, usbDeviceID: deviceID, accessoryID: nil)
+    }
+
+    private func tryUSBLater(_ deviceID: UInt32, _ identity: DeviceIdentity) {
+        usbRetries[deviceID]?.cancel()
+        usbRetries[deviceID] = Task { [weak self] in
+            // Cancelled when the device goes or sharing stops; tryUSB() checks both anyway.
+            try? await Task.sleep(for: Tunables.Connection.usbRetryDelay)
+            guard !Task.isCancelled else { return }
+            self?.usbRetries[deviceID] = nil
+            self?.tryUSB(deviceID, identity)
+        }
+    }
+
+    /// Switches every Android device on the cable to Osplay's accessory while sharing is on and keeps
+    /// a session waiting on each: Osplay there starts it when Android hands it the accessory (TAB-05).
+    private func watchAccessories(_ identity: DeviceIdentity) {
+        accessoryTask?.cancel()
+        let events = dependencies.androidAccessories.watch()
+        accessoryTask = Task { [weak self] in
+            for await event in events {
+                switch event {
+                case .attached(let link):
+                    self?.accessories[link.id] = link
+                    self?.serveAccessory(link.id, identity)
+                case .detached(let id):
+                    self?.accessories.removeValue(forKey: id)
+                    self?.accessoryRetries.removeValue(forKey: id)?.cancel()
+                }
+            }
+        }
+    }
+
+    private func serveAccessory(_ id: UInt64, _ identity: DeviceIdentity) {
+        guard mode == .sharing, pendingSwap == nil, let link = accessories[id],
+            !hostConnections.contains(where: { $0.accessoryID == id })
+        else { return }
+        let peer = SessionPeer()
+        let core: CoreSession
+        do throws(CoreError) {
+            core = try CoreSession.hostOverAccessory(
+                device: sessionDevice(identity, maximumStreams: Tunables.VirtualDisplay.maximumDisplayCount),
+                pipe: link.makePipe(), trust: { [trust, peer] key in peer.trust(key, in: trust) })
+        } catch {
+            Log.connection.error(
+                "Could not wait on the Android accessory: \(String(describing: error), privacy: .public)")
+            serveAccessoryLater(id, identity)
+            return
+        }
+        startHost(core, peer: peer, usbDeviceID: nil, accessoryID: id)
+    }
+
+    private func serveAccessoryLater(_ id: UInt64, _ identity: DeviceIdentity) {
+        accessoryRetries[id]?.cancel()
+        accessoryRetries[id] = Task { [weak self] in
+            // Cancelled when the device goes or sharing stops; serveAccessory() checks both anyway.
+            try? await Task.sleep(for: Tunables.Connection.usbRetryDelay)
+            guard !Task.isCancelled else { return }
+            self?.accessoryRetries[id] = nil
+            self?.serveAccessory(id, identity)
+        }
     }
 
     /// One advertisement for as long as sharing is on; a new one only when the port changed.
@@ -449,6 +573,18 @@ final class ConnectionViewModel {
             performSwap()
             return
         }
+        if let deviceID = connection.usbDeviceID, let identity {
+            // The iPad is tried again; it only answers when its user picks the cable again.
+            tryUSBLater(deviceID, identity)
+            // An iPad not waiting refuses the connection: that is no failure to show.
+            guard connection.viewer != nil else { return }
+        }
+        if let accessoryID = connection.accessoryID, let identity {
+            // A new session waits on the device; after a pause, so a cable that just went is
+            // reported gone first.
+            serveAccessoryLater(accessoryID, identity)
+            guard connection.viewer != nil else { return }
+        }
         if let failure {
             error = .host(failure)
             if case .screenRecordingPermissionMissing = failure {
@@ -461,7 +597,7 @@ final class ConnectionViewModel {
         updateSharingStatus()
         updateSwapHotkey()
         // The listener ended (a viewer turned away, a failure, wake): another one takes its place.
-        if connection.viewer == nil, let identity {
+        if connection.isListener, let identity {
             listenAgainLater(identity)
         }
     }
@@ -471,6 +607,7 @@ final class ConnectionViewModel {
         switch event {
         case .peer(let peer):
             connection.viewer = ConnectedViewer(id: connection.id, name: peer.deviceName, platform: peer.platform)
+            if let accessoryID = connection.accessoryID { accessories[accessoryID]?.markOpened() }
             publishViewers()
             updateSharingStatus()
             updateSwapHotkey()
@@ -540,6 +677,16 @@ final class ConnectionViewModel {
     private func stopSharing() {
         relistenTask?.cancel()
         relistenTask = nil
+        usbTask?.cancel()
+        usbTask = nil
+        usbRetries.values.forEach { $0.cancel() }
+        usbRetries = [:]
+        usbDevices = []
+        accessoryTask?.cancel()
+        accessoryTask = nil
+        accessoryRetries.values.forEach { $0.cancel() }
+        accessoryRetries = [:]
+        accessories = [:]
         let connections = hostConnections
         hostConnections = []
         for connection in connections {
@@ -693,7 +840,7 @@ final class ConnectionViewModel {
         advertising?.cancel()
         advertising = nil
         advertisedPort = nil
-        if let listener = hostConnections.first(where: { $0.viewer == nil }) {
+        if let listener = hostConnections.first(where: \.isListener) {
             // Its end starts the next listener, which advertises again.
             Task { [session = listener.session] in await session.stop() }
         } else if let identity {

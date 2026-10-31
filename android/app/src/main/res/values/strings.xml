@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Osplay</string>
+    <string name="home_subtitle">Use this device as an extra display for a Mac or a Windows PC.</string>
+    <string name="home_nearby">Nearby computers</string>
+    <string name="home_cable">USB cable</string>
+    <string name="cable_title">Computer on the USB cable</string>
+    <string name="cable_waiting">Waiting for the computer on the cable…</string>
+    <string name="cable_detail">Turn on sharing in Osplay on the Mac, then plug in the cable. A PC cannot use the cable yet; open its own network instead.</string>
+    <string name="home_searching">Looking for computers… On the computer, open Osplay and choose Extend this Mac or Extend this PC.</string>
+    <string name="home_same_network">This device and the computer must be on the same network. Without Wi-Fi: with a Mac, use the USB cable below; with a PC, open the PC\'s own network (No router? in Osplay on the PC) or turn on USB tethering (in Settings, under hotspot and tethering).</string>
+    <string name="device_paired">Paired</string>
+    <string name="device_new">Pairs on first connection</string>
+    <string name="device_needs_update">Update Osplay on this computer to use it here</string>
+    <string name="device_incompatible">Runs a different Osplay version</string>
+    <string name="status_connecting">Connecting to %1$s…</string>
+    <string name="status_connecting_cable">Connecting over the USB cable…</string>
+    <string name="status_reconnecting">Waiting for %1$s to come back…</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_ok">OK</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_name">Device name</string>
+    <string name="settings_name_footer">Computers show this device by this name.</string>
+    <string name="settings_stats">Show stream statistics</string>
+    <string name="settings_paired">Paired computers</string>
+    <string name="settings_no_paired">No paired computers yet.</string>
+    <string name="settings_revoked">Revoked: refused until removed</string>
+    <string name="settings_revoke">Revoke</string>
+    <string name="settings_remove">Remove</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="pairing_title">Pair with %1$s</string>
+    <string name="pairing_message">Check that the computer shows the same code, then confirm on both.</string>
+    <string name="pairing_accept">Pair</string>
+    <string name="viewer_disconnect">Disconnect</string>
+    <string name="viewer_stats">Statistics</string>
+    <string name="viewer_waiting">Waiting for the picture…</string>
+    <string name="stats_overlay">%1$d fps · %2$s Mbit/s · RTT %3$d ms · loss %4$s%% · latency %5$s ms</string>
+    <string name="error_key_store_damaged">Osplay\'s stored keys are damaged. Clear Osplay\'s storage in Android settings and pair again.</string>
+    <string name="error_key_store_identity">Osplay could not create its device key.</string>
+    <string name="error_key_store_system">Android\'s key store refused Osplay\'s key (%1$s).</string>
+    <string name="error_discovery">Looking for computers failed (error %1$d). Check that Wi-Fi is on.</string>
+    <string name="error_incompatible">This computer runs a different Osplay version. Update both to the latest version.</string>
+    <string name="error_needs_update">Osplay on %1$s is too old for this device. Update it to version 0.2 or later.</string>
+    <string name="error_no_screen">Osplay could not read this device\'s screen size.</string>
+    <string name="error_session_not_trusted">The computer refused this device. It may have been removed from its paired devices.</string>
+    <string name="error_session_pairing_rejected">Pairing was rejected.</string>
+    <string name="error_session_peer_busy">The computer already uses all the displays it can extend onto.</string>
+    <string name="error_session_unreachable">The connection to the computer was lost.</string>
+    <string name="error_session_peer_sleeping">The computer went to sleep.</string>
+    <string name="error_session_protocol">The computer sent data Osplay does not understand. Update Osplay on both devices.</string>
+    <string name="error_session_encryption">The connection\'s encryption check failed, so it was closed. Connect again; if it keeps happening, check the network.</string>
+    <string name="error_session_random">Android could not provide secure random numbers. Restart the device and try again.</string>
+    <string name="error_session_peer_error">The computer ended the session because of an error there. Check Osplay on that computer.</string>
+    <string name="error_session_busy">Osplay is still closing the previous session. Try again in a moment.</string>
+    <string name="error_session_internal">Something went wrong inside Osplay (code %1$d).</string>
+</resources>

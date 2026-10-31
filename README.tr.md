@@ -49,6 +49,32 @@
 - **Rolleri yerinde değiştirme.** Tek bir kısayol, ekran olan bilgisayarı genişleyen yapar.
 - **Türkçe ve İngilizce**, açık ve koyu tema.
 
+## Osplay ve diğerleri
+
+✅ var · 🟡 kısmen ya da ek kurulumla · ❌ yok
+
+| | **Osplay** | Sidecar | Luna Display | Duet | spacedesk | Moonlight + Sunshine | Deskreen |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Fiyat | **Ücretsiz, açık kaynak** | Ücretsiz, macOS'ta yerleşik | Donanım, tek seferlik | Abonelik | Kişisel kullanıma ücretsiz | Ücretsiz, açık kaynak | Ücretsiz, açık kaynak |
+| Windows PC'yi Mac'e ekran yapma | ✅ | ❌ | ❌ | ✅ | ❌ | 🟡 | 🟡 |
+| Mac'i Windows PC'ye ekran yapma | ✅ | ❌ | ❌ | ✅ | 🟡 | 🟡 | 🟡 |
+| Sahte ekran fişi olmadan gerçek ek monitör | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | ❌ |
+| Diğer bilgisayarın bütün monitörlerini kullanma | ✅ dörde kadar | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Aynı anda birden çok bilgisayara genişleme | ✅ | ❌ | ❌ | 🟡 | ✅ | ❌ | ✅ |
+| Tek kısayolla rolleri değiştirme | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| iPad ve Android tableti ekran yapma | ✅ | Yalnızca iPad | Yalnızca iPad | ✅ | ✅ | ✅ | ✅ tarayıcıda |
+| Modem olmadan çalışma | ✅ USB ya da PC'nin kendi ağı | ✅ | ✅ | ✅ | ✅ | 🟡 | ❌ |
+| Hesap ve bulut yok | ✅ | Apple ID | ✅ | Kablosuz için hesap | ✅ | ✅ | ✅ |
+| Dokunma, kalem ve girdi | ❌ bilinçli olarak | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| İnternet üzerinden | ❌ yalnızca yerel | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ |
+
+Osplay tek bir iş için yapıldı: bir Mac ile bir Windows PC'yi, her yönde ve bütün ekranlarıyla,
+ücretsiz olarak birbirinin gerçek monitörü yapmak. iPad'de dokunma ya da Apple Pencil (Sidecar),
+Android tablette kalem basıncı (spacedesk, SuperDisplay) ya da internet üzerinden ekran (Duet,
+Moonlight) gerekiyorsa başka bir araç daha uygun olur.
+
+<sub>Karşılaştırma Ekim 2026'da ürünlerin sitelerinden ve yayımlanmış incelemelerden yapıldı; fiyatlar ve özellikler değişebilir.</sub>
+
 ## Nasıl çalışır
 
 <p align="center">

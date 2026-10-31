@@ -23,6 +23,7 @@ inline osplay_advertisement blank_advertisement() {
     return {.protocol_version = 0,
             .platform = OSPLAY_PLATFORM_MACOS,
             .roles = 0,
+            .protocol_minor = 0,
             .device_id = {},
             .name = {}};
 }

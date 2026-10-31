@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Osplay's identity as a Mac or PC sends it when it switches this device to accessory mode
+     (core/src/transport/aoa.hpp). -->
+<resources>
+    <usb-accessory manufacturer="Osplay" model="Osplay Display" />
+</resources>

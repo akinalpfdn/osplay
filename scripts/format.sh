@@ -10,4 +10,4 @@ clang_format_version="$(sed -n 's/^readonly CLANG_FORMAT_VERSION="\(.*\)"$/\1/p'
 git ls-files --cached --others --exclude-standard -- '*.h' '*.hpp' '*.c' '*.cpp' ':!:*/third_party/*' |
     xargs uvx "clang-format@${clang_format_version}" -i
 xcrun swift-format format --in-place --recursive --parallel \
-    Package.swift macos/Osplay macos/OsplayTests macos/OsplayHardwareTests macos/CoreBridge macos/CoreBridgeTests
+    Package.swift macos/Osplay macos/Shared macos/OsplayPad macos/OsplayPadTests macos/OsplayTests macos/OsplayHardwareTests macos/CoreBridge macos/CoreBridgeTests

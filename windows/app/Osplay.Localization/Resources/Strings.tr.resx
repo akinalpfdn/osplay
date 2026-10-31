@@ -111,6 +111,9 @@
   <data name="ErrorHotkeyUnavailable" xml:space="preserve">
     <value>{0} başka bir program tarafından kullanılıyor; ekranı gizleyip gösteremez.</value>
   </data>
+  <data name="WarningUsbDebugging" xml:space="preserve">
+    <value>Android cihazda USB hata ayıklama açık, bu yüzden Osplay kabloyu kullanamıyor. Geliştirici seçeneklerinden kapatıp kabloyu yeniden takın ya da Wi-Fi ile bağlanın.</value>
+  </data>
   <data name="AppName" xml:space="preserve">
     <value>Osplay</value>
   </data>
@@ -413,5 +416,44 @@
   </data>
   <data name="SharingFull" xml:space="preserve">
     <value>Dört ekranın hepsi kullanımda</value>
+  </data>
+  <data name="PcNetworkTitle" xml:space="preserve">
+    <value>Router yok mu? Bu bilgisayarın ağını açın</value>
+  </data>
+  <data name="PcNetworkDetail" xml:space="preserve">
+    <value>Başka bir PC, Mac, tablet ya da telefon bu ağa her Wi-Fi ağı gibi, şifreyle ya da kodu tarayarak katılır. Ağ, Windows'un Mobil erişim noktasıdır: bu bilgisayar internete bağlıysa katılan cihazlar da bağlanır.</value>
+  </data>
+  <data name="PcNetworkOpen" xml:space="preserve">
+    <value>Ağı aç</value>
+  </data>
+  <data name="PcNetworkClose" xml:space="preserve">
+    <value>Ağı kapat</value>
+  </data>
+  <data name="PcNetworkStarting" xml:space="preserve">
+    <value>Ağ açılıyor…</value>
+  </data>
+  <data name="PcNetworkOn" xml:space="preserve">
+    <value>Ağ açık. Diğer cihazda bu ağa katılın, sonra Osplay'i her zamanki gibi kullanın.</value>
+  </data>
+  <data name="PcNetworkName" xml:space="preserve">
+    <value>Ağ: {0}</value>
+  </data>
+  <data name="PcNetworkPassword" xml:space="preserve">
+    <value>Şifre: {0}</value>
+  </data>
+  <data name="PcNetworkWifiOff" xml:space="preserve">
+    <value>Ağı açmak için bu bilgisayarda Wi-Fi'ı açın.</value>
+  </data>
+  <data name="PcNetworkInUse" xml:space="preserve">
+    <value>Windows Mobil erişim noktasını açıyor ya da kapatıyor. Biraz sonra yeniden deneyin.</value>
+  </data>
+  <data name="PcNetworkNotSupported" xml:space="preserve">
+    <value>Windows bu bilgisayarın Wi-Fi kartında Mobil erişim noktası açamıyor.</value>
+  </data>
+  <data name="PcNetworkFailed" xml:space="preserve">
+    <value>Windows ağı açamadı. Yeniden deneyin ya da sebebini görmek için Windows Ayarları'nda Mobil erişim noktasını açın.</value>
+  </data>
+  <data name="PcNetworkQrName" xml:space="preserve">
+    <value>Ağa katılmak için QR kod</value>
   </data>
 </root>

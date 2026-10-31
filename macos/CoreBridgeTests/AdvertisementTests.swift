@@ -13,7 +13,26 @@ struct AdvertisementTests {
         #expect(record["os"] == "macos")
         #expect(record["roles"] == "host")
         #expect(record["id"] == identity.deviceID)
+        #expect(record["pm"] == "2")
         #expect(try Advertisement(txtRecord: record) == advertisement)
+    }
+
+    @Test("A record without a minor version comes from Osplay 0.1")
+    func osplay01Record() throws {
+        let parsed = try Advertisement(txtRecord: [
+            "pv": "1", "name": "Old PC", "id": String(repeating: "ab", count: 16), "roles": "host", "os": "windows",
+        ])
+        #expect(parsed.protocolMinor == 0)
+    }
+
+    @Test("An iPad viewer's record reads back as iPadOS")
+    func iPadRecord() throws {
+        let iPad = Advertisement(
+            protocolVersion: 1, platform: .iPadOS, roles: .viewer, deviceID: String(repeating: "cd", count: 16),
+            name: "iPad")
+        let record = try iPad.txtRecord()
+        #expect(record["os"] == "ipados")
+        #expect(try Advertisement(txtRecord: record) == iPad)
     }
 
     @Test("A Windows record with both roles is understood; unknown keys are ignored")

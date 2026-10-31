@@ -18,6 +18,7 @@ public partial class App : Application, IDisposable
     private TaskbarIcon? _trayIcon;
     private TrayIconTheme? _trayIconTheme;
     private ConnectionViewModel? _connection;
+    private PcNetworkViewModel? _pcNetwork;
     private PanelWindow? _panel;
     private SettingsWindow? _settingsWindow;
     private SettingsViewModel? _settingsViewModel;
@@ -39,7 +40,8 @@ public partial class App : Application, IDisposable
         _connection = new ConnectionViewModel(Dispatcher, new PairingWindowPrompt(), settings);
         var updates = new UpdatesViewModel(settings);
         _settingsViewModel = new SettingsViewModel(settings, _connection, updates);
-        _panel = new PanelWindow(new PanelViewModel(_connection, updates, settings, OpenSettings, QuitAsync));
+        _pcNetwork = new PcNetworkViewModel(Dispatcher, settings, new MobileHotspotPcNetwork());
+        _panel = new PanelWindow(new PanelViewModel(_connection, _pcNetwork, updates, settings, OpenSettings, QuitAsync));
         // WPF makes the first window the main window, and every theme apply (also those the Settings
         // and pairing windows' theme watchers make) clears the main window's background for Mica.
         // The panel has no backdrop and would turn white, so it must not be the main window.
@@ -116,6 +118,8 @@ public partial class App : Application, IDisposable
         _trayIcon = null;
         _connection?.Dispose();
         _connection = null;
+        _pcNetwork?.Dispose(); // the network closes with Osplay
+        _pcNetwork = null;
         _instance?.Dispose();
         _instance = null;
         GC.SuppressFinalize(this);

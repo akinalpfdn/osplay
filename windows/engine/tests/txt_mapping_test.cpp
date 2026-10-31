@@ -23,6 +23,7 @@ osplay_txt_record mac_record() {
     advertisement.protocol_version = OSPLAY_PROTOCOL_VERSION;
     advertisement.platform = OSPLAY_PLATFORM_MACOS;
     advertisement.roles = OSPLAY_ROLE_HOST;
+    advertisement.protocol_minor = OSPLAY_PROTOCOL_MINOR;
     advertisement.device_id[0] = 0xAB;
     set_text(advertisement.name, "MacBook Air");
     osplay_txt_record record{};
@@ -30,10 +31,10 @@ osplay_txt_record mac_record() {
     return record;
 }
 
-TEST(TxtMapping, PairsCarryTheFiveKeysAndReadBack) {
+TEST(TxtMapping, PairsCarryTheSixKeysAndReadBack) {
     const osplay_txt_record record = mac_record();
     const auto pairs = txt_pairs(record);
-    ASSERT_EQ(pairs.size(), 5U);
+    ASSERT_EQ(pairs.size(), 6U);
     EXPECT_EQ(pairs[1].first, "name");
     EXPECT_EQ(pairs[1].second, "MacBook Air");
 
@@ -44,6 +45,7 @@ TEST(TxtMapping, PairsCarryTheFiveKeysAndReadBack) {
     const osplay_txt_record back = txt_record(shuffled);
     EXPECT_EQ(osplay_advertisement_from_txt(&back, &parsed), OSPLAY_OK);
     EXPECT_STREQ(parsed.name, "MacBook Air");
+    EXPECT_EQ(parsed.protocol_minor, OSPLAY_PROTOCOL_MINOR);
 }
 
 TEST(TxtMapping, AMissingKeyIsRejectedByTheCore) {

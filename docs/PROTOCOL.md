@@ -1,6 +1,6 @@
 # Osplay wire protocol
 
-Version 1.1. This document is authoritative: `core/src/protocol/` implements it, and
+Version 1.2. This document is authoritative: `core/src/protocol/` implements it, and
 `protocol/tools/generate_fixtures.py` independently encodes the binary fixtures in
 `protocol/fixtures/` from it. Both implementations must agree byte for byte.
 
@@ -24,6 +24,7 @@ Control (TCP)  frame = u32 length | payload
                payload = control message           (before the handshake completes)
                payload = AEAD(control message)     (after)
 Media (UDP)    datagram = media header (12 bytes, in clear) | AEAD(media body)
+Stream link    record = u8 kind | u16 length | control frame or media datagram   (USB, no UDP)
 ```
 
 The messages and packets below are defined in plaintext; "Encryption" specifies how they are
@@ -52,7 +53,11 @@ Service type `_osplay._tcp`; the SRV record carries the TCP control port. TXT re
 | `name` | device name (UTF-8) |
 | `id` | device ID: lowercase hex of the first 16 bytes of BLAKE2b-256 over the static public key |
 | `roles` | `host`, `viewer` or `host,viewer` |
-| `os` | `macos` or `windows` |
+| `os` | `macos`, `windows`, `ipados` or `android` |
+| `pm` | protocol minor version, decimal (`2`); added in 1.2, so a record without it comes from Osplay 0.1 |
+
+Osplay 0.1 (protocol 1.1 and older) refuses the `ipados` and `android` platforms in Hello, so a
+tablet tells the user to update a computer whose record has no `pm` instead of connecting to it.
 
 A host listens again on the same TCP port after every session (falling back to any free port when
 it is taken). Bonjour browsing reports instances, not changed ports, so a viewer that resolved the
@@ -100,8 +105,8 @@ Stream IDs are 0–3. Monitor IDs are 0–255 and chosen by the viewer.
 | Field | Type | Values |
 |-------|------|--------|
 | role | u8 | 1 host, 2 viewer |
-| platform | u8 | 1 macOS, 2 Windows |
-| protocol_minor | u8 | minor version of the sender (1) |
+| platform | u8 | 1 macOS, 2 Windows, 3 iPadOS, 4 Android (3 and 4 from minor version 2) |
+| protocol_minor | u8 | minor version of the sender (2) |
 | reserved | u8 | 0 |
 | device_name | string | 1–64 bytes |
 
@@ -343,6 +348,57 @@ sent when it changes and again with every keyframe, so a viewer that joined late
 are not retransmitted: a viewer that keeps receiving visible positions naming a shape it lacks for
 100 ms sends KeyframeRequest (reason 2), which brings the shape again. A shape already delivered
 is not delivered again.
+
+## Stream links
+
+Where there is no UDP path, as on a USB cable to an iPad, the control frames and the media
+datagrams share one byte stream. Each is wrapped in a record:
+
+| Offset | Field | Type | Values |
+|-------:|-------|------|--------|
+| 0 | kind | u8 | 1 = control, 2 = media |
+| 1 | length | u16 | 1–4116 for control, 1–1200 for media |
+| 3 | payload | bytes[length] | a control frame with its u32 length (control), or a datagram (media) |
+
+An unknown kind or a length out of range ends the link. A record holds exactly one frame or one
+datagram; everything inside is unchanged, encryption and the replay window included. A sender
+drops media rather than queue more than 1 MiB of it, as a full UDP socket would, so a slow link
+shows up as loss (which NACKs and bitrate adaptation handle) instead of delay; control records
+are sent before queued media.
+
+Nothing is negotiated: the connection decides. A host reaches an iPad only through usbmuxd, and the
+iPad's USB listener only takes those connections:
+
+- The iPad's Osplay listens on TCP port **41847** on its loopback interface while the user waits for
+  a computer on the cable. usbmuxd (part of macOS; on Windows the Apple Mobile Device Service, at
+  127.0.0.1:27015, installed with Apple Devices or iTunes) delivers the host's connection there.
+- The host follows attached devices with a usbmuxd `Listen` request and connects with `Connect`
+  (DeviceID, PortNumber in network byte order). Result 3 means nothing listens there yet.
+- The host opens the connection, but the session roles do not change: the viewer is still the Noise
+  initiator. MediaSetup carries udp_port 1, which the viewer ignores; UdpHello travels as a media
+  record and associates nothing.
+
+## Android accessory links
+
+An Android device on a USB cable runs the same stream link records over Android Open Accessory
+(AOA): the computer is the USB host and switches the device into accessory mode; nothing else is
+needed on either side (no network, tethering or USB debugging).
+
+- **Switching.** On endpoint 0 the host sends GET_PROTOCOL (vendor IN request 51, 2-byte answer: the
+  AOA version, 0 without AOA), then SEND_STRING (vendor OUT request 52, wIndex 0–5) with Osplay's
+  identity, each string zero-terminated, then START (53). The identity is manufacturer `Osplay`,
+  model `Osplay Display`, a description, version `1`, the project URI and serial `1`; Android starts
+  the app whose accessory filter names that manufacturer and model.
+- **The link.** The device comes back as vendor 0x18D1, product 0x2D00 (0x2D01 with USB debugging
+  on). Interface 0 has one bulk IN and one bulk OUT endpoint; the records flow over them, at most
+  16 KiB per transfer. A zero-length packet carries nothing and is not the end of the stream.
+- **Who starts.** The viewer speaks first. A host keeps a read waiting on the IN endpoint and its
+  session starts with the viewer's first bytes, so it waits without a time limit and the handshake
+  timeout runs from there. As on usbmuxd links, MediaSetup carries udp_port 1.
+- **Ending.** Unplugging ends both sides with NETWORK. Android's accessory driver drops zero-length
+  packets, and a read blocked in it returns neither when the cable goes nor for anything a host
+  can send without data; the app interrupts its own read with a signal when its session ends, so
+  the accessory is free to be opened again.
 
 ## Session flow
 

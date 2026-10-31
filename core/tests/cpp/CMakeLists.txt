@@ -32,6 +32,7 @@ add_executable(osplay_core_tests
     protocol_values_test.cpp
     session_engine_test.cpp
     transport_test.cpp
+    usb_link_test.cpp
     version_test.cpp)
 # Tests reach internal headers; only the C header is public API.
 target_include_directories(osplay_core_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)

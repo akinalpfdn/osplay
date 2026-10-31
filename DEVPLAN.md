@@ -504,10 +504,25 @@ Each phase is meant to be completed in one Claude Code session. A phase is done 
 - Final `docs/` set brought up to date.
 **Depends on**: Phase 13
 **Acceptance criteria**:
-- [ ] The DMG passes Gatekeeper on a clean Mac without warnings.
-- [ ] The Windows installer works on a clean Windows 11 machine without manual steps beyond SmartScreen (until signing is in place).
-- [ ] Uninstall leaves no service, driver config, firewall rule or virtual monitor behind.
-- [ ] A new contributor can build both apps using only `BUILDING.md`.
+- [x] The DMG passes Gatekeeper on a clean Mac without warnings.
+- [x] The Windows installer works on a clean Windows 11 machine without manual steps beyond SmartScreen (until signing is in place).
+- [x] Uninstall leaves no service, driver config, firewall rule or virtual monitor behind.
+- [x] A new contributor can build both apps using only `BUILDING.md`.
+
+### Phase 15: Tablets and direct connections
+**Goal**: An iPad or an Android tablet works as a display for a Mac or a PC, over Wi-Fi, over a USB cable, and over a PC's own Wi-Fi network without a router.
+**Delivers** (five parts, phase files TAB-01…05, in this order — user decisions 2026-10-26 and 2026-10-27):
+- TAB-01: an iPad app that is a viewer only, over Wi-Fi, sharing the viewer pipeline with the macOS app.
+- TAB-02: an Android tablet app that is a viewer only, over Wi-Fi, on the same C++ core through the NDK.
+- TAB-03: USB: Android through USB tethering; iPad through Apple's USB channel (usbmuxd) with media carried on the control stream.
+- TAB-04: a PC opens its own Wi-Fi network (Windows Mobile hotspot) that any PC, Mac, iPad or Android device joins.
+- TAB-05: Android over a USB cable through Android Open Accessory (AOA), with the AOA handshake and link records in the core and each platform's own USB API underneath (IOUSBHost on the Mac, UsbDk and WinUSB on the PC; no libusb, user decision 2026-10-28), so every Android 12+ device works with a Mac or a PC; USB tethering (TAB-03) only reaches a PC from a phone.
+**Constraints**: tablets are viewers only — iPadOS and Android give apps no system virtual displays. No touch or other input is forwarded (user decision 2026-10-26), as everywhere else in Osplay. Only a PC opens the network in TAB-04 (Apple gives apps no way to open one); every device can join it.
+**Depends on**: Phase 14
+**Acceptance criteria**:
+- [ ] Mac → iPad and PC → iPad show one display at the iPad's resolution, over Wi-Fi and over USB.
+- [ ] Mac → Android tablet and PC → Android tablet do the same over Wi-Fi and over USB (AOA).
+- [ ] PC → PC, PC → Android tablet and Mac ↔ PC work over the PC's own network with no router.
 
 ---
 

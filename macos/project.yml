@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.akinalpfdn
   deploymentTarget:
     macOS: "14.0"
+    iOS: "18.0"
   developmentLanguage: en
   createIntermediateGroups: true
   generateEmptyDirectories: false
@@ -30,6 +31,8 @@ targets:
     platform: macOS
     sources:
       - path: Osplay
+      # Code the iPad app shares with the Mac app (viewer pipeline, discovery, key store).
+      - path: Shared
     dependencies:
       - package: OsplayCore
         product: CoreBridge
@@ -42,6 +45,37 @@ targets:
         ENABLE_HARDENED_RUNTIME: YES
         COMBINE_HIDPI_IMAGES: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  OsplayPad:
+    type: application
+    platform: iOS
+    sources:
+      - path: OsplayPad
+      - path: Shared
+    dependencies:
+      - package: OsplayCore
+        product: CoreBridge
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akinalpfdn.osplay.ipad
+        PRODUCT_NAME: Osplay
+        INFOPLIST_FILE: OsplayPad/Resources/Info.plist
+        TARGETED_DEVICE_FAMILY: "2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  OsplayPadTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: OsplayPadTests
+      - path: OsplayTests/Support/InMemoryKeyStore.swift
+    dependencies:
+      - target: OsplayPad
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akinalpfdn.osplay.ipad.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "2"
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Osplay.app/Osplay
   OsplayTests:
     type: bundle.unit-test
     platform: macOS
@@ -69,6 +103,16 @@ targets:
         BUNDLE_LOADER: $(TEST_HOST)
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/Osplay.app/Contents/MacOS/Osplay
 schemes:
+  OsplayPad:
+    build:
+      targets:
+        OsplayPad: all
+        OsplayPadTests: [test]
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - OsplayPadTests
   Osplay:
     build:
       targets:

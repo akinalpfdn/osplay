@@ -45,15 +45,33 @@ public enum TrustDecision: Sendable {
 public enum PeerPlatform: Sendable, Equatable {
     case macOS
     case windows
+    case iPadOS
+    case android
+
+    /// The platform this app runs on.
+    public static var current: PeerPlatform {
+        #if os(macOS)
+            .macOS
+        #else
+            .iPadOS
+        #endif
+    }
 
     init(_ raw: osplay_platform) {
-        self = raw == OSPLAY_PLATFORM_WINDOWS ? .windows : .macOS
+        switch raw {
+        case OSPLAY_PLATFORM_WINDOWS: self = .windows
+        case OSPLAY_PLATFORM_IPADOS: self = .iPadOS
+        case OSPLAY_PLATFORM_ANDROID: self = .android
+        default: self = .macOS
+        }
     }
 
     var raw: osplay_platform {
         switch self {
         case .macOS: OSPLAY_PLATFORM_MACOS
         case .windows: OSPLAY_PLATFORM_WINDOWS
+        case .iPadOS: OSPLAY_PLATFORM_IPADOS
+        case .android: OSPLAY_PLATFORM_ANDROID
         }
     }
 }

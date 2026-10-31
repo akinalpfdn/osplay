@@ -4,17 +4,23 @@
 #include "protocol/control_messages.hpp"
 #include "session_simulation.hpp"
 #include "transport/asio_session.hpp"
+#include "transport/byte_pipe.hpp"
 #include "transport/traffic_class.hpp"
+#include "transport/usbmux.hpp"
 
 #include <asio/executor_work_guard.hpp>
 #include <asio/io_context.hpp>
 #include <asio/ip/tcp.hpp>
 #include <asio/ip/udp.hpp>
+#ifndef _WIN32
+#include <asio/local/stream_protocol.hpp>
+#endif
 #include <asio/post.hpp>
+#include <asio/read.hpp>
 #include <asio/write.hpp>
 #include <gtest/gtest.h>
 
-#ifdef __APPLE__
+#ifndef _WIN32
 #include <sys/socket.h>
 #endif
 
@@ -25,6 +31,7 @@
 #include <condition_variable>
 #include <cstring>
 #include <deque>
+#include <filesystem>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -311,6 +318,164 @@ private:
     std::thread thread_;
 };
 
+// --- Fake usbmuxd
+// ---------------------------------------------------------------------------------------
+
+/// Answers one Connect request the way usbmuxd does: Result 0 and then the socket carries the
+/// device port's bytes (here a loopback port, where a USB viewer listens), or Result 3 when
+/// nothing listens there.
+class FakeUsbmuxd {
+public:
+    FakeUsbmuxd()
+        : work_(asio::make_work_guard(io_)),
+#ifdef _WIN32
+          acceptor_(io_, tcp::endpoint(asio::ip::address_v4::loopback(), 0)),
+#else
+          path_(fresh_socket_path()), acceptor_(io_, asio::local::stream_protocol::endpoint(path_)),
+#endif
+          client_(io_), device_(io_) {
+        acceptor_.async_accept(client_, [this](const asio::error_code& error) {
+            if (!error) {
+                read_request();
+            }
+        });
+        thread_ = std::thread([this] { io_.run(); });
+    }
+
+    FakeUsbmuxd(const FakeUsbmuxd&) = delete;
+    FakeUsbmuxd& operator=(const FakeUsbmuxd&) = delete;
+    FakeUsbmuxd(FakeUsbmuxd&&) = delete;
+    FakeUsbmuxd& operator=(FakeUsbmuxd&&) = delete;
+
+    ~FakeUsbmuxd() {
+        asio::post(io_, [this] {
+            asio::error_code ignored;
+            acceptor_.close(ignored);
+            client_.close(ignored);
+            device_.close(ignored);
+        });
+        work_.reset();
+        thread_.join();
+#ifndef _WIN32
+        std::error_code ignored;
+        std::filesystem::remove(path_, ignored);
+#endif
+    }
+
+    [[nodiscard]] osplay::transport::UsbmuxAddress address() const {
+#ifdef _WIN32
+        return {.port = acceptor_.local_endpoint().port()};
+#else
+        return {.path = path_};
+#endif
+    }
+
+    /// The DeviceID of the Connect request, once it arrived.
+    [[nodiscard]] std::optional<std::uint32_t> requested_device() {
+        const std::scoped_lock lock(mutex_);
+        return requested_device_;
+    }
+
+private:
+#ifndef _WIN32
+    static std::string fresh_socket_path() {
+        static std::atomic<int> instances{0};
+        auto path = std::filesystem::temp_directory_path() /
+                    ("osplay-usbmuxd-" + std::to_string(++instances) + ".sock");
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored); // left over from a crashed run
+        return path.string();
+    }
+#endif
+
+    void read_request() {
+        asio::async_read(
+            client_, asio::buffer(header_), [this](const asio::error_code& error, std::size_t) {
+                const auto size = osplay::transport::usbmux::plist_size(header_);
+                if (error || !size) {
+                    return;
+                }
+                plist_.assign(size.value(), '\0');
+                asio::async_read(client_, asio::buffer(plist_),
+                                 [this](const asio::error_code& read_error, std::size_t) {
+                                     if (!read_error) {
+                                         answer();
+                                     }
+                                 });
+            });
+    }
+
+    static std::uint32_t integer_after(const std::string& plist, const std::string& key) {
+        const auto at = plist.find("<integer>", plist.find("<key>" + key + "</key>"));
+        return static_cast<std::uint32_t>(std::stoul(plist.substr(at + 9)));
+    }
+
+    void answer() {
+        const auto device = integer_after(plist_, "DeviceID");
+        const auto swapped = integer_after(plist_, "PortNumber");
+        {
+            const std::scoped_lock lock(mutex_);
+            requested_device_ = device;
+        }
+        const auto port = static_cast<std::uint16_t>(((swapped & 0xFFU) << 8U) | (swapped >> 8U));
+        asio::error_code connect_error;
+        device_.connect(tcp::endpoint(asio::ip::address_v4::loopback(), port), connect_error);
+        const int number = connect_error ? 3 : 0;
+        const std::string body = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                                 "<plist version=\"1.0\">\n<dict>\n"
+                                 "\t<key>MessageType</key>\n\t<string>Result</string>\n"
+                                 "\t<key>Number</key>\n\t<integer>" +
+                                 std::to_string(number) + "</integer>\n</dict>\n</plist>\n";
+        std::vector<std::uint8_t> reply;
+        for (const std::uint32_t field :
+             {static_cast<std::uint32_t>(16 + body.size()), 1U, 8U, 1U}) {
+            for (unsigned shift = 0; shift < 32; shift += 8) {
+                reply.push_back(static_cast<std::uint8_t>(field >> shift));
+            }
+        }
+        reply.insert(reply.end(), body.begin(), body.end());
+        asio::error_code ignored;
+        asio::write(client_, asio::buffer(reply), ignored);
+        if (number == 0) {
+            pump(client_, device_);
+            pump(device_, client_);
+        }
+    }
+
+    template <typename From, typename To>
+    void pump(From& from, To& to) {
+        auto buffer = std::make_shared<std::array<std::uint8_t, 16384>>();
+        from.async_read_some(
+            asio::buffer(*buffer),
+            [this, &from, &to, buffer](const asio::error_code& error, std::size_t size) {
+                asio::error_code ignored;
+                if (error) {
+                    to.shutdown(asio::socket_base::shutdown_send, ignored);
+                    return;
+                }
+                asio::write(to, asio::buffer(buffer->data(), size), ignored);
+                pump(from, to);
+            });
+    }
+
+    asio::io_context io_;
+    asio::executor_work_guard<asio::io_context::executor_type> work_;
+#ifdef _WIN32
+    tcp::acceptor acceptor_;
+    tcp::socket client_;
+#else
+    std::string path_;
+    asio::local::stream_protocol::acceptor acceptor_;
+    asio::local::stream_protocol::socket client_;
+#endif
+    tcp::socket device_;
+    std::array<std::uint8_t, osplay::transport::usbmux::kHeaderSize> header_{};
+    std::string plist_;
+    std::mutex mutex_;
+    std::optional<std::uint32_t> requested_device_;
+    std::thread thread_;
+};
+
 // --- Fixture
 // ---------------------------------------------------------------------------------------
 
@@ -341,6 +506,99 @@ session::SessionConfig config(protocol::Role role) {
     return config;
 }
 
+// --- In-memory Android accessory --------------------------------------------------------------
+
+/// One direction of a cable: chunks as written, an empty one standing for a zero-length packet.
+struct CableDirection {
+    std::mutex mutex;
+    std::condition_variable changed;
+    std::deque<std::vector<std::uint8_t>> chunks;
+    bool unplugged = false;
+};
+
+/// A BytePipe end over two CableDirections. `stubborn` ignores cancel, as an Android accessory
+/// read does, until bytes arrive or the cable goes.
+class MemoryPipe final : public osplay::transport::BytePipe {
+public:
+    MemoryPipe(std::shared_ptr<CableDirection> in, std::shared_ptr<CableDirection> out,
+               bool stubborn, std::shared_ptr<std::atomic<int>> released)
+        : in_(std::move(in)), out_(std::move(out)), stubborn_(stubborn),
+          released_(std::move(released)) {}
+    ~MemoryPipe() override { ++*released_; }
+    MemoryPipe(const MemoryPipe&) = delete;
+    MemoryPipe& operator=(const MemoryPipe&) = delete;
+    MemoryPipe(MemoryPipe&&) = delete;
+    MemoryPipe& operator=(MemoryPipe&&) = delete;
+
+    osplay::Expected<std::size_t, Error> read(std::span<std::uint8_t> buffer) override {
+        std::unique_lock lock(in_->mutex);
+        in_->changed.wait(lock, [this] {
+            return !in_->chunks.empty() || in_->unplugged || (cancelled_ && !stubborn_);
+        });
+        if (in_->chunks.empty()) {
+            return osplay::Expected<std::size_t, Error>::failure(Error::NetworkError);
+        }
+        auto& front = in_->chunks.front();
+        const std::size_t size = std::min(front.size(), buffer.size());
+        std::copy_n(front.begin(), size, buffer.begin());
+        front.erase(front.begin(), front.begin() + static_cast<std::ptrdiff_t>(size));
+        if (front.empty()) {
+            in_->chunks.pop_front();
+        }
+        return size;
+    }
+
+    osplay::Expected<std::size_t, Error> write(std::span<const std::uint8_t> data) override {
+        const std::scoped_lock lock(out_->mutex);
+        if (out_->unplugged) {
+            return osplay::Expected<std::size_t, Error>::failure(Error::NetworkError);
+        }
+        out_->chunks.emplace_back(data.begin(), data.end());
+        out_->changed.notify_all();
+        return data.size();
+    }
+
+    void cancel() override {
+        const std::scoped_lock lock(in_->mutex);
+        cancelled_ = true;
+        in_->changed.notify_all();
+    }
+
+private:
+    std::shared_ptr<CableDirection> in_;
+    std::shared_ptr<CableDirection> out_;
+    bool stubborn_;
+    bool cancelled_ = false; // guarded by in_->mutex
+    std::shared_ptr<std::atomic<int>> released_;
+};
+
+/// A cable between a Mac (host end) and an Android device (accessory end).
+struct MemoryCable {
+    std::shared_ptr<CableDirection> to_accessory = std::make_shared<CableDirection>();
+    std::shared_ptr<CableDirection> to_host = std::make_shared<CableDirection>();
+    std::shared_ptr<std::atomic<int>> released = std::make_shared<std::atomic<int>>(0);
+
+    std::unique_ptr<osplay::transport::BytePipe> host_end() {
+        return std::make_unique<MemoryPipe>(to_host, to_accessory, false, released);
+    }
+    std::unique_ptr<osplay::transport::BytePipe> accessory_end(bool stubborn = false) {
+        return std::make_unique<MemoryPipe>(to_accessory, to_host, stubborn, released);
+    }
+    /// The host sends a zero-length packet.
+    void send_zero_length_packet() {
+        const std::scoped_lock lock(to_accessory->mutex);
+        to_accessory->chunks.emplace_back();
+        to_accessory->changed.notify_all();
+    }
+    void unplug() {
+        for (const auto& direction : {to_accessory, to_host}) {
+            const std::scoped_lock lock(direction->mutex);
+            direction->unplugged = true;
+            direction->changed.notify_all();
+        }
+    }
+};
+
 class RealSessions : public ::testing::Test {
 protected:
     /// Starts the host, optionally behind the relay, and connects the viewer.
@@ -363,6 +621,36 @@ protected:
         auto viewer_session = osplay::transport::AsioSession::create_viewer(
             config(protocol::Role::Viewer), osplay::test::key_pair(viewer_random), viewer_random,
             viewer_observer, "127.0.0.1", port);
+        ASSERT_TRUE(viewer_session.has_value());
+        viewer = std::move(viewer_session.value());
+    }
+
+    /// The viewer listens as on an iPad; the host reaches it through the fake usbmuxd.
+    void connect_usb(FakeUsbmuxd& usbmuxd) {
+        auto viewer_session = osplay::transport::AsioSession::create_viewer_usb(
+            config(protocol::Role::Viewer), osplay::test::key_pair(viewer_random), viewer_random,
+            viewer_observer, 0);
+        ASSERT_TRUE(viewer_session.has_value());
+        viewer = std::move(viewer_session.value());
+        auto host_session = osplay::transport::AsioSession::create_host_usb(
+            config(protocol::Role::Host), osplay::test::key_pair(host_random), host_random,
+            host_observer,
+            {.device_id = 7, .port = viewer->control_port(), .usbmux = usbmuxd.address()});
+        ASSERT_TRUE(host_session.has_value());
+        host = std::move(host_session.value());
+    }
+
+    /// The host waits on its end of the cable; the viewer starts on the accessory end.
+    void connect_accessory(std::unique_ptr<osplay::transport::BytePipe> host_end,
+                           std::unique_ptr<osplay::transport::BytePipe> accessory_end) {
+        auto host_session = osplay::transport::AsioSession::create_host_pipe(
+            config(protocol::Role::Host), osplay::test::key_pair(host_random), host_random,
+            host_observer, std::move(host_end));
+        ASSERT_TRUE(host_session.has_value());
+        host = std::move(host_session.value());
+        auto viewer_session = osplay::transport::AsioSession::create_viewer_pipe(
+            config(protocol::Role::Viewer), osplay::test::key_pair(viewer_random), viewer_random,
+            viewer_observer, std::move(accessory_end));
         ASSERT_TRUE(viewer_session.has_value());
         viewer = std::move(viewer_session.value());
     }
@@ -555,6 +843,169 @@ TEST_F(RealSessions, SurvivesAThreeSecondNetworkInterruption) {
     EXPECT_EQ(host_observer.state(), SessionState::Streaming);
     EXPECT_EQ(viewer_observer.state(), SessionState::Streaming);
     EXPECT_TRUE(viewer_observer.intact());
+}
+
+TEST_F(RealSessions, StreamsFramesOverAUsbLink) {
+    FakeUsbmuxd usbmuxd;
+    connect_usb(usbmuxd);
+    start_streaming();
+    stream_frames(120);
+
+    EXPECT_TRUE(viewer_observer.wait_for_frames(next_index, seconds(5)))
+        << "media shares the stream, so nothing is lost";
+    EXPECT_EQ(viewer_observer.frame_count(), next_index);
+    EXPECT_TRUE(viewer_observer.intact());
+    EXPECT_EQ(usbmuxd.requested_device(), 7U);
+
+    viewer.reset(); // sends Bye
+    EXPECT_TRUE(host_observer.wait_for_state(SessionState::Closed, seconds(3)));
+}
+
+TEST_F(RealSessions, StreamsFramesOverAnAndroidAccessory) {
+    MemoryCable cable;
+    connect_accessory(cable.host_end(), cable.accessory_end());
+    start_streaming();
+    cable.send_zero_length_packet(); // read again, not the end of the stream
+    stream_frames(120);
+
+    EXPECT_TRUE(viewer_observer.wait_for_frames(next_index, seconds(5)));
+    EXPECT_EQ(viewer_observer.frame_count(), next_index);
+    EXPECT_TRUE(viewer_observer.intact());
+
+    viewer.reset(); // sends Bye
+    EXPECT_TRUE(host_observer.wait_for_state(SessionState::Closed, seconds(3)));
+    host.reset();
+    EXPECT_EQ(*cable.released, 2) << "both ends are released once their threads are done";
+}
+
+#ifndef _WIN32
+TEST_F(RealSessions, StreamsFramesOverAnAccessoryFileDescriptor) {
+    std::array<int, 2> fds{};
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds.data()), 0);
+    connect_accessory(osplay::transport::make_fd_pipe(fds[0]),
+                      osplay::transport::make_fd_pipe(fds[1]));
+    start_streaming();
+    stream_frames(60);
+
+    EXPECT_TRUE(viewer_observer.wait_for_frames(next_index, seconds(5)));
+    EXPECT_TRUE(viewer_observer.intact());
+}
+#endif
+
+#ifndef _WIN32
+TEST(AccessoryFd, CancelInterruptsABlockedReadOnANonSocket) {
+    // A pipe(2) is no socket, so cancel must interrupt the read, as for an Android accessory.
+    std::array<int, 2> fds{};
+    ASSERT_EQ(::pipe(fds.data()), 0);
+    auto pipe = osplay::transport::make_fd_pipe(fds[0]);
+    std::atomic<bool> returned{false};
+    std::thread reader([&] {
+        std::array<std::uint8_t, 16> buffer{};
+        EXPECT_FALSE(pipe->read(buffer).has_value());
+        returned = true;
+    });
+    std::this_thread::sleep_for(milliseconds(100));
+    EXPECT_FALSE(returned) << "nothing to read yet";
+    pipe->cancel();
+    reader.join();
+    EXPECT_TRUE(returned);
+    ::close(fds[1]);
+}
+#endif
+
+TEST(RealSessionsConnect, AnAccessoryHostWaitsForTheViewerWithoutATimeLimit) {
+    MemoryCable cable;
+    osplay::test::SeededRandom random{10};
+    SyncObserver observer;
+    auto host_config = config(protocol::Role::Host);
+    host_config.tunables.handshake_timeout = osplay::Microseconds{200'000};
+    auto host = osplay::transport::AsioSession::create_host_pipe(
+        std::move(host_config), osplay::test::key_pair(random), random, observer, cable.host_end());
+    ASSERT_TRUE(host.has_value());
+    std::this_thread::sleep_for(milliseconds(600));
+    EXPECT_EQ(observer.state(), SessionState::Connecting) << "the clock starts with the viewer";
+}
+
+TEST(RealSessionsConnect, AnAccessorySessionEndsWhenTheCableGoes) {
+    MemoryCable cable;
+    osplay::test::SeededRandom host_random{11};
+    osplay::test::SeededRandom viewer_random{12};
+    SyncObserver host_observer;
+    SyncObserver viewer_observer;
+    auto host = osplay::transport::AsioSession::create_host_pipe(
+        config(protocol::Role::Host), osplay::test::key_pair(host_random), host_random,
+        host_observer, cable.host_end());
+    auto viewer = osplay::transport::AsioSession::create_viewer_pipe(
+        config(protocol::Role::Viewer), osplay::test::key_pair(viewer_random), viewer_random,
+        viewer_observer, cable.accessory_end());
+    ASSERT_TRUE(host.has_value() && viewer.has_value());
+    ASSERT_TRUE(host_observer.wait_for_monitors(seconds(5)));
+
+    cable.unplug();
+    EXPECT_TRUE(host_observer.wait_for_state(SessionState::Closed, seconds(3)));
+    EXPECT_EQ(host_observer.close_reason(), Error::NetworkError);
+    EXPECT_TRUE(viewer_observer.wait_for_state(SessionState::Closed, seconds(3)));
+}
+
+TEST(RealSessionsConnect, AViewerStuckInTheAccessoryDoesNotHoldUpItsEnd) {
+    MemoryCable cable;
+    osplay::test::SeededRandom random{13};
+    SyncObserver observer;
+    auto viewer = osplay::transport::AsioSession::create_viewer_pipe(
+        config(protocol::Role::Viewer), osplay::test::key_pair(random), random, observer,
+        cable.accessory_end(true));
+    ASSERT_TRUE(viewer.has_value());
+
+    const auto started = std::chrono::steady_clock::now();
+    viewer.value().reset(); // its read ignores cancel
+    EXPECT_LT(std::chrono::steady_clock::now() - started, seconds(3));
+    EXPECT_EQ(*cable.released, 0) << "still in the read";
+
+    cable.send_zero_length_packet(); // the read returns at last
+    for (int wait = 0; wait < 100 && *cable.released == 0; ++wait) {
+        std::this_thread::sleep_for(milliseconds(20));
+    }
+    EXPECT_EQ(*cable.released, 1);
+}
+
+TEST(RealSessionsConnect, AUsbHostEndsWhenNothingListensOnTheDevice) {
+    // A port that was just free: usbmuxd answers "connection refused".
+    std::uint16_t free_port = 0;
+    {
+        asio::io_context io;
+        const tcp::acceptor probe(io, tcp::endpoint(asio::ip::address_v4::loopback(), 0));
+        free_port = probe.local_endpoint().port();
+    }
+    FakeUsbmuxd usbmuxd;
+    osplay::test::SeededRandom random{8};
+    SyncObserver observer;
+    auto host = osplay::transport::AsioSession::create_host_usb(
+        config(protocol::Role::Host), osplay::test::key_pair(random), random, observer,
+        {.device_id = 3, .port = free_port, .usbmux = usbmuxd.address()});
+    ASSERT_TRUE(host.has_value());
+    EXPECT_TRUE(observer.wait_for_state(SessionState::Closed, seconds(3)));
+    EXPECT_EQ(observer.close_reason(), Error::NetworkError);
+}
+
+TEST(RealSessionsConnect, AUsbHostEndsWhenUsbmuxdIsMissing) {
+    osplay::transport::UsbmuxAddress missing;
+#ifdef _WIN32
+    {
+        asio::io_context io;
+        const tcp::acceptor probe(io, tcp::endpoint(asio::ip::address_v4::loopback(), 0));
+        missing.port = probe.local_endpoint().port();
+    }
+#else
+    missing.path = (std::filesystem::temp_directory_path() / "osplay-no-usbmuxd.sock").string();
+#endif
+    osplay::test::SeededRandom random{9};
+    SyncObserver observer;
+    auto host = osplay::transport::AsioSession::create_host_usb(
+        config(protocol::Role::Host), osplay::test::key_pair(random), random, observer,
+        {.device_id = 1, .port = 40'000, .usbmux = missing});
+    ASSERT_TRUE(host.has_value());
+    EXPECT_TRUE(observer.wait_for_state(SessionState::Closed, seconds(3)));
+    EXPECT_EQ(observer.close_reason(), Error::NetworkError);
 }
 
 } // namespace

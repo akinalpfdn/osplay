@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-files=$(find macos/Osplay/Features macos/Osplay/App -name '*.swift' | sort)
+files=$(find macos/Osplay/Features macos/Osplay/App macos/OsplayPad/Features macos/OsplayPad/App -name '*.swift' | sort)
 pattern='\.(padding|frame|spacing|cornerRadius|offset)\([^)]*[^a-zA-Z_.][0-9]+(\.[0-9]+)?\b|\.font\(\.(system|title|body|caption|headline|subheadline|largeTitle|footnote)|Color\.(red|green|blue|orange|yellow|gray|black|white|pink|purple)\b|Color\(red:|spacing: [0-9]'
 violations=$(grep -nE "$pattern" $files || true)
 if [[ -n "$violations" ]]; then

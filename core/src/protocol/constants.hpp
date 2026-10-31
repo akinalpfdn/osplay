@@ -9,7 +9,8 @@ namespace osplay::protocol {
 
 inline constexpr std::array<std::uint8_t, 2> kMagic{'O', 'P'};
 inline constexpr std::uint8_t kVersion = 1;
-inline constexpr std::uint8_t kMinorVersion = 1;
+// 1.1 added role swap; 1.2 added the iPadOS and Android platforms and the "pm" TXT key.
+inline constexpr std::uint8_t kMinorVersion = 2;
 
 inline constexpr std::size_t kMaxControlMessageSize = 4096;
 inline constexpr std::size_t kControlHeaderSize = 4; // magic, version, type

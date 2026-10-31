@@ -43,6 +43,13 @@ public sealed partial class AppSettings : ObservableObject
     [ObservableProperty]
     private DateTimeOffset? _lastUpdateCheck;
 
+    /// <summary>The PC's own network (TAB-04): generated once, so devices that joined it join again.</summary>
+    [ObservableProperty]
+    private string _pcNetworkName = string.Empty;
+
+    [ObservableProperty]
+    private string _pcNetworkPassword = string.Empty;
+
     /// <summary>Monitors not offered to hosts, by <see cref="MonitorKey"/>.</summary>
     [ObservableProperty]
     private IReadOnlyList<string> _excludedMonitors = [];
@@ -101,6 +108,8 @@ public sealed partial class AppSettings : ObservableObject
             SwapHotkey = stored.SwapKey == 0
                 ? HotkeyGesture.DefaultSwap
                 : new HotkeyGesture(stored.SwapModifiers, stored.SwapKey);
+            PcNetworkName = stored.PcNetworkName ?? string.Empty;
+            PcNetworkPassword = stored.PcNetworkPassword ?? string.Empty;
         }
         finally
         {
@@ -113,7 +122,7 @@ public sealed partial class AppSettings : ObservableObject
         var stored = new Stored(
             Quality, ViewerHotkey.Modifiers, ViewerHotkey.VirtualKey, ShowsStatsOverlay, ChecksForUpdates, LastUpdateCheck,
             [.. ExcludedMonitors], SwapHotkey.Modifiers, SwapHotkey.VirtualKey,
-            StatsHotkey.Modifiers, StatsHotkey.VirtualKey, StreamSize);
+            StatsHotkey.Modifiers, StatsHotkey.VirtualKey, StreamSize, PcNetworkName, PcNetworkPassword);
         try
         {
             _ = Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
@@ -129,5 +138,6 @@ public sealed partial class AppSettings : ObservableObject
         QualityPreset Quality, uint HotkeyModifiers, uint HotkeyKey, bool ShowsStatsOverlay, bool ChecksForUpdates,
         DateTimeOffset? LastUpdateCheck, List<string>? ExcludedMonitors,
         uint SwapModifiers = 0, uint SwapKey = 0, uint StatsModifiers = 0, uint StatsKey = 0,
-        StreamSizePreset StreamSize = StreamSizePreset.Hd1080);
+        StreamSizePreset StreamSize = StreamSizePreset.Hd1080, string? PcNetworkName = null,
+        string? PcNetworkPassword = null);
 }

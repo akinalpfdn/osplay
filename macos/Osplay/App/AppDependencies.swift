@@ -11,6 +11,8 @@ final class AppDependencies {
     let hotkeys: any HotkeyRegistering
     let keyStore: any KeyStoring
     let discovery: any PeerDiscovering
+    let usbDevices: any USBDeviceWatching
+    let androidAccessories: any AndroidAccessoryWatching
     let pairingPrompt: any PairingPrompting
     let settings: AppSettings
 
@@ -25,6 +27,8 @@ final class AppDependencies {
         hotkeys: any HotkeyRegistering = CarbonHotkeys(),
         keyStore: any KeyStoring = KeychainKeyStore(),
         discovery: any PeerDiscovering = DNSServiceDiscovery(),
+        usbDevices: any USBDeviceWatching = CoreUSBDevices(),
+        androidAccessories: any AndroidAccessoryWatching = IOKitAndroidAccessories(),
         pairingPrompt: (any PairingPrompting)? = nil,
         settings: AppSettings? = nil
     ) {
@@ -38,6 +42,8 @@ final class AppDependencies {
         self.hotkeys = hotkeys
         self.keyStore = keyStore
         self.discovery = discovery
+        self.usbDevices = usbDevices
+        self.androidAccessories = androidAccessories
         self.pairingPrompt = pairingPrompt ?? PairingPanel()
         self.settings = settings ?? AppSettings()
     }

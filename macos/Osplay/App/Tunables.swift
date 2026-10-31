@@ -2,8 +2,9 @@ import Carbon.HIToolbox
 import CoreBridge
 import Foundation
 
-/// Every tunable value of the macOS app. Protocol constants live in `core`, not here.
-enum Tunables {
+/// The macOS app's tunable values; those the iPad app shares are in `Shared/App/SharedTunables.swift`.
+/// Protocol constants live in `core`, not here.
+extension Tunables {
     enum VirtualDisplay {
         /// Mac host: up to two displays per viewer (DEVPLAN, MVP scope).
         static let maximumDisplayCount = 2
@@ -38,30 +39,6 @@ enum Tunables {
 
     }
 
-    enum Viewer {
-        /// Refresh rate offered for a display that reports none (built-in panels report 0 Hz).
-        static let defaultRefreshRate = 60.0
-        /// Displays a viewer offers at most (the protocol's OSPLAY_MAX_MONITORS).
-        static let maximumDisplays = 4
-        /// The local pointer hides after this many seconds without movement over a viewer.
-        static let cursorIdleDelay: TimeInterval = 2
-        /// Decoder errors closer together than this send one keyframe request (the core limits
-        /// requests to one per 250 ms as well).
-        static let keyframeRequestSpacing: Duration = .milliseconds(100)
-        static let powerAssertionReason = "Osplay is showing another computer's display"
-        /// The default toggle hotkey (User decision: ⌃⌥⌘V); configurable from Phase 11.
-        static let toggleHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_V), modifiers: [.control, .option, .command])
-        /// The default role swap hotkey (Phase 12b): ⌃⌥⌘S, next to the toggle.
-        static let swapHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_S), modifiers: [.control, .option, .command])
-        /// The default stats overlay hotkey (Phase 13): ⌃⌥⌘I.
-        static let statsHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_I), modifiers: [.control, .option, .command])
-
-        /// Debug loopback windows open at half the stream's size.
-        static func loopbackWindowSize(streamWidth: Int, streamHeight: Int) -> CGSize {
-            CGSize(width: streamWidth / 2, height: streamHeight / 2)
-        }
-    }
-
     enum Onboarding {
         /// How often the permissions window rereads Screen Recording access.
         static let pollInterval: Duration = .seconds(1)
@@ -90,18 +67,20 @@ enum Tunables {
         /// Pause before a dropped viewer tries its host again (an old advertisement can refuse at
         /// once; this keeps that from becoming a tight loop).
         static let reconnectDelay: Duration = .seconds(2)
+        /// While sharing, how often an iPad on the cable is tried; it answers once its user picks
+        /// the cable (TAB-03).
+        static let usbRetryDelay: Duration = .seconds(2)
+        /// Android on the cable (TAB-05): how long after a device appears its interfaces are read,
+        /// how many times one device is switched to Osplay's accessory per sharing (Android falls back
+        /// to its normal mode when macOS has not allowed the accessory within 10 s), and the time
+        /// limit of each switching request.
+        static let accessoryProbeDelay: TimeInterval = 0.5
+        static let accessorySwitchAttempts = 3
+        static let accessoryControlTimeoutMilliseconds: UInt32 = 1000
         /// Capabilities this Mac announces in either role.
         static let maximumWidth = 7680
         static let maximumHeight = 4320
         static let maximumRefreshHz = 240
-    }
-
-    enum KeyStore {
-        static let keychainService = "com.akinalpfdn.osplay"
-        static let identityAccount = "identity"
-        static let peersAccount = "paired-devices"
-        /// Shown in Keychain Access.
-        static let itemLabel = "Osplay"
     }
 
     enum Host {
@@ -158,4 +137,21 @@ enum Tunables {
             ]
         }
     #endif
+}
+
+/// The Mac viewer's values on top of the shared ones.
+extension Tunables.Viewer {
+    /// The local pointer hides after this many seconds without movement over a viewer.
+    static let cursorIdleDelay: TimeInterval = 2
+    /// The default toggle hotkey (User decision: ⌃⌥⌘V); configurable from Phase 11.
+    static let toggleHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_V), modifiers: [.control, .option, .command])
+    /// The default role swap hotkey (Phase 12b): ⌃⌥⌘S, next to the toggle.
+    static let swapHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_S), modifiers: [.control, .option, .command])
+    /// The default stats overlay hotkey (Phase 13): ⌃⌥⌘I.
+    static let statsHotkey = Hotkey(keyCode: UInt32(kVK_ANSI_I), modifiers: [.control, .option, .command])
+
+    /// Debug loopback windows open at half the stream's size.
+    static func loopbackWindowSize(streamWidth: Int, streamHeight: Int) -> CGSize {
+        CGSize(width: streamWidth / 2, height: streamHeight / 2)
+    }
 }
