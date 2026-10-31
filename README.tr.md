@@ -13,7 +13,8 @@
 
 <p align="center">
   <a href="https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay.dmg"><img src="artwork/readme/download-macos.tr.svg" height="48" alt="macOS için indir"></a>&nbsp;&nbsp;
-  <a href="https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay-Setup.exe"><img src="artwork/readme/download-windows.tr.svg" height="48" alt="Windows için indir"></a>
+  <a href="https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay-Setup.exe"><img src="artwork/readme/download-windows.tr.svg" height="48" alt="Windows için indir"></a>&nbsp;&nbsp;
+  <a href="https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay.apk"><img src="artwork/readme/download-android.tr.svg" height="48" alt="Android için indir"></a>
 </p>
 
 <p align="center">
