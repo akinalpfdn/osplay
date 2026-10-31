@@ -657,3 +657,10 @@ choices the plan leaves open are logged here.
 **Why:** Probed on the developer PC (Windows 11 26200): the PowerShell catalog without OS attributes was accepted by `pnputil` silently, and after Zadig's package was deleted Windows installed this one on the S23's accessory by itself. The PowerShell route is about 100 lines with no new native code, and every cmdlet ships with Windows 10 and 11. UsbDk is shared with other apps (SPICE, QEMU), so another app's copy must survive Osplay's uninstall.
 **Trade-offs:** PowerShell must be allowed to run (Constrained Language Mode or an AppLocker rule blocking it makes the step fail with a message; Wi-Fi still works). A certificate per machine sits in Trusted Root until uninstall, with no private key anywhere.
 **Revisit if:** A Windows release rejects the catalog, a policy blocks PowerShell on users' PCs, or the helper gains a reason to do driver work itself.
+
+## 2026-10-31 — User decision: distribute the Android APK from the repository until Google Play
+**Chosen:** The release-signed APK is committed to `android/release/` (0.1.1 first), with a `.sha256`, and attached to GitHub releases from the next release on. The release build uses R8 (minify and resource shrinking), which took the APK from 48 MB to 4.5 MB.
+**Alternatives:** Only GitHub release assets (no binary in git history); committing the unshrunk 48 MB APK (near GitHub's 50 MB warning).
+**Why:** The user wants a download in the repository before the Play listing exists. Without R8 most of the APK was unused library code (material icons).
+**Trade-offs:** Every committed APK stays in git history (about 4.5 MB each). R8 can break code reached by name: the JNI callbacks are kept by `proguard-rules.pro`; AGP 8.13's R8 warns that it cannot read Kotlin 2.3 metadata, which matters only for kotlin-reflect, not used here. The user opened the 0.1.1 APK and it worked; a full Wi-Fi and cable pass is not recorded.
+**Revisit if:** The app is published on Google Play, or the repository grows uncomfortably from APKs.

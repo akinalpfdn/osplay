@@ -76,3 +76,21 @@ Each download has a `.sha256` file next to it.
 - The bundled Virtual Display Driver release is pinned in `scripts/windows/Build-Installer.ps1`
   (release, URL and SHA-256). Change it only after testing the new driver with Osplay, and update
   [`THIRD_PARTY.md`](THIRD_PARTY.md) with it.
+
+## Android APK
+
+Until the app is on Google Play, the signed APK is distributed from the repository:
+`android/release/Osplay-X.Y.Z.apk` with its `.sha256`, and from the next GitHub release on, also
+attached to the release. It is built and signed on the maintainer's PC; the release keystore never
+leaves it.
+
+1. Set `osplayVersion` and raise `osplayVersionCode` in `android/gradle.properties`.
+2. Android Studio › Build › Generate Signed App Bundle or APK › APK, the release keystore, build
+   type **release** (R8 is on: `android/app/proguard-rules.pro` keeps the JNI callbacks).
+3. Copy `android/app/release/app-release.apk` to `android/release/Osplay-X.Y.Z.apk`, write the
+   `.sha256` next to it and check the signature:
+   `apksigner verify --print-certs android/release/Osplay-X.Y.Z.apk`. The signing certificate's
+   SHA-256 is `2bec6a29003313043810da29e3d50bf3f2357979bed8efdc0fd995013830470c`; an APK signed
+   with another key cannot update an installed one.
+4. Install it on a device and connect once over Wi-Fi and once over the USB cable before
+   committing it.
