@@ -155,7 +155,7 @@ struct SessionEngine::ViewerStream {
                           .frame_interval = Microseconds{static_cast<std::int64_t>(
                               kMillihertzMicros /
                               std::max<std::uint32_t>(stream_config.refresh_millihertz, 1))},
-                          .minimum_rtt = Microseconds{2'000},
+                          .minimum_rtt = tunables.reassembly_minimum_rtt,
                           .max_frames_in_flight = tunables.max_frames_in_flight},
                       adapter),
           keyframe_limiter(tunables.keyframe_request_interval) {}

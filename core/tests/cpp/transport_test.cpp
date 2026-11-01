@@ -494,6 +494,13 @@ session::SessionConfig config(protocol::Role role) {
                          .max_refresh_hz = 240},
         .monitors = {},
         .tunables = {}};
+    // Real sockets on a busy machine (CI, sanitizers, parallel tests) deliver late without losing
+    // anything: frames wait for their fragments longer than on a network, and more of them may be
+    // in flight, so a scheduling delay is not mistaken for loss. Loss handling itself is tested
+    // on the simulated network (session_engine_test.cpp).
+    config.tunables.reassembly_minimum_rtt =
+        std::chrono::duration_cast<osplay::Microseconds>(std::chrono::milliseconds(500));
+    config.tunables.max_frames_in_flight = 64;
     if (role == protocol::Role::Viewer) {
         config.monitors.push_back({.monitor_id = 0,
                                    .width_px = 1920,

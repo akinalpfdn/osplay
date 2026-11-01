@@ -42,6 +42,9 @@ struct SessionTunables {
     std::size_t retransmit_frames = 16;
     std::size_t retransmit_bytes = std::size_t{8} * 1024 * 1024;
     std::size_t max_frames_in_flight = 8;
+    /// Viewer: an incomplete frame is given up a frame interval plus the RTT, at least this,
+    /// after its last fragment arrived.
+    Microseconds reassembly_minimum_rtt{2'000};
     /// Viewer: positions naming a shape it does not have for this long trigger a keyframe
     /// request, which brings the shape again. Covers a shape change still in flight.
     Microseconds missing_cursor_shape_grace{100'000};
