@@ -89,6 +89,9 @@ extension Tunables {
         /// Viewer monitors scaled at least this much start in the crisp HiDPI resolution; others
         /// start at one point per pixel.
         static let hiDPIMinimumScalePercent = 150
+        /// A viewer monitor of unknown size (0 mm: a TV, a projector) is given the size its pixels
+        /// have at this density times its scale, as a desktop monitor at 100% has about 96 dpi.
+        static let unknownSizeDotsPerInch = 96.0
         /// Streams never exceed this rate; 120 Hz capture runs at ~80 fps on a MacBook Air M3.
         static let maximumRefreshMillihertz: UInt32 = 60_000
     }

@@ -163,6 +163,10 @@ Monitor:
 | scale_percent | u16 | 100–400 (backing scale × 100) |
 | name | string | 0–64 bytes |
 
+A TV or a projector may not know its size and sends 0 mm. A host that needs a size (macOS virtual
+displays do) uses the size the pixels have at 96 dpi × scale_percent / 100; the starting
+resolution follows scale_percent either way.
+
 ### 0x06 StreamConfig
 
 | Field | Type | Values |
