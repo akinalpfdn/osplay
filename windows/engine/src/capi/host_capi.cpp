@@ -244,8 +244,10 @@ osplay_session_callbacks core_callbacks(osplay_engine_host* host) {
             self->callbacks.on_paired(self->callbacks.context, key);
         }
     };
-    callbacks.on_viewer_monitors = [](void* context, const osplay_monitor* monitors, size_t count) {
-        host_of(context)->orchestrator->on_viewer_monitors(std::span(monitors, count));
+    callbacks.on_viewer_monitors = [](void* context, const osplay_monitor* monitors, size_t count,
+                                      const osplay_capabilities* viewer) {
+        host_of(context)->orchestrator->on_viewer_monitors(
+            std::span(monitors, count), viewer != nullptr ? *viewer : osplay_capabilities{});
     };
     callbacks.on_keyframe_request = [](void* context, uint8_t stream_id) {
         host_of(context)->orchestrator->on_keyframe_request(stream_id);

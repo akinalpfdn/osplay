@@ -390,8 +390,11 @@ typedef struct osplay_session_callbacks {
     void (*on_pairing_code)(void* context, uint32_t code, const uint8_t* peer_public_key);
     /* Both users accepted: store the key as trusted. */
     void (*on_paired)(void* context, const uint8_t* peer_public_key);
-    /* Host: the viewer's monitors; answer with osplay_session_configure_streams. */
-    void (*on_viewer_monitors)(void* context, const osplay_monitor* monitors, size_t count);
+    /* Host: the viewer's monitors and what it can decode (max_width, max_height, max_refresh_hz;
+     * 0 means no limit); answer with osplay_session_configure_streams, every stream fitted inside
+     * those limits (osplay_fit_stream_size). */
+    void (*on_viewer_monitors)(void* context, const osplay_monitor* monitors, size_t count,
+                               const osplay_capabilities* viewer);
     /* Viewer: a stream the host is about to send. */
     void (*on_stream_config)(void* context, const osplay_stream_config* config);
     /* Host: encode a keyframe for this stream next. */

@@ -385,10 +385,10 @@ void SessionEngine::handle_message(const ControlMessage& message, TimePoint now)
                    [&](const protocol::Hello& m) { handle_hello(m); },
                    [&](const protocol::HandshakeMessage& m) { handle_handshake(m, now); },
                    [&](const protocol::PairingConfirm& m) { handle_pairing_confirm(m, now); },
-                   [&](const protocol::Capabilities& /*m*/) {},
+                   [&](const protocol::Capabilities& m) { peer_capabilities_ = m; },
                    [&](const protocol::ViewerMonitors& m) {
                        monitors_received_ = true;
-                       observer_.on_viewer_monitors(m.monitors);
+                       observer_.on_viewer_monitors(m.monitors, peer_capabilities_);
                    },
                    [&](const protocol::StreamConfig& m) { handle_stream_config(m); },
                    [&](const protocol::MediaSetup& m) { handle_media_setup(m, now); },

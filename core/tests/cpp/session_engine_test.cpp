@@ -31,6 +31,15 @@ protocol::Capabilities capabilities() {
             .max_refresh_hz = 240};
 }
 
+/// A viewer that decodes less than the host could send, like a TV's decoder.
+protocol::Capabilities viewer_capabilities() {
+    protocol::Capabilities limits = capabilities();
+    limits.max_width = 3840;
+    limits.max_height = 2160;
+    limits.max_refresh_hz = 30;
+    return limits;
+}
+
 /// `paced` false sends every frame in one burst, so a loss window covers whole frames only.
 session::SessionConfig host_config(bool paced = true) {
     session::SessionConfig config{.role = protocol::Role::Host,
@@ -49,7 +58,7 @@ session::SessionConfig viewer_config(std::uint8_t monitor_count = 1) {
     session::SessionConfig config{.role = protocol::Role::Viewer,
                                   .platform = protocol::Platform::Windows,
                                   .device_name = "Test Viewer",
-                                  .capabilities = capabilities(),
+                                  .capabilities = viewer_capabilities(),
                                   .monitors = {},
                                   .tunables = {}};
     for (std::uint8_t id = 0; id < monitor_count; ++id) {
@@ -173,6 +182,15 @@ TEST(SessionEngine, TrustedPeersReachStreamingAndDeliverEveryFrameOnACleanLink) 
     ASSERT_TRUE(sim.viewer.observer.stats.has_value());
     EXPECT_EQ(sim.viewer.observer.stats->streams.at(0).frames_dropped, 0U);
     EXPECT_GT(sim.viewer.observer.stats->rtt_us, 0U);
+}
+
+TEST(SessionEngine, TheHostLearnsWhatTheViewerCanDecodeWithItsMonitors) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+
+    ASSERT_FALSE(sim.host.observer.monitors.empty());
+    EXPECT_EQ(sim.host.observer.viewer_capabilities, viewer_capabilities());
 }
 
 TEST(SessionEngine, RecoversFromFivePercentDatagramLossThroughNacksAndKeyframes) {

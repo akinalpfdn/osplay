@@ -73,7 +73,8 @@ public:
     }
     void on_pairing_code(std::uint32_t /*code*/, const osplay::crypto::Key& /*key*/) override {}
     void on_paired(const osplay::crypto::Key& /*key*/) override {}
-    void on_viewer_monitors(const std::vector<protocol::Monitor>& received) override {
+    void on_viewer_monitors(const std::vector<protocol::Monitor>& received,
+                            const protocol::Capabilities& /*viewer*/) override {
         update([&] { monitors_ = received; });
     }
     void on_stream_config(const protocol::StreamConfig& /*config*/) override {}

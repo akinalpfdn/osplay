@@ -72,7 +72,8 @@ bool HostOrchestrator::on_peer() {
     return false;
 }
 
-void HostOrchestrator::on_viewer_monitors(std::span<const osplay_monitor> monitors) {
+void HostOrchestrator::on_viewer_monitors(std::span<const osplay_monitor> monitors,
+                                          const osplay_capabilities& viewer) {
     if (monitors.empty()) {
         return;
     }
@@ -85,7 +86,7 @@ void HostOrchestrator::on_viewer_monitors(std::span<const osplay_monitor> monito
             std::min(monitor.refresh_millihertz, kMaxStreamRefreshMillihertz);
         offered.push_back(monitor);
     }
-    post([this, offered = std::move(offered)] { start(offered); });
+    post([this, offered = std::move(offered), viewer] { start(offered, viewer); });
 }
 
 void HostOrchestrator::on_keyframe_request(std::uint8_t stream_id) {
@@ -118,14 +119,23 @@ void HostOrchestrator::wait_idle() {
 }
 
 osplay_stream_config HostOrchestrator::stream_for(const osplay_monitor& monitor,
-                                                  double bits_per_pixel, StreamBox box) {
+                                                  double bits_per_pixel, StreamBox box,
+                                                  const osplay_capabilities& viewer) {
     std::uint32_t width = monitor.width_px;
     std::uint32_t height = monitor.height_px;
-    // Cannot fail for a monitor the core accepted (its sides are at least 320 × 240).
+    // Cannot fail for a monitor the core accepted (its sides are at least 320 × 240), nor for
+    // a size fitted once already.
     static_cast<void>(osplay_fit_stream_size(monitor.width_px, monitor.height_px, box.width,
                                              box.height, &width, &height));
+    static_cast<void>(osplay_fit_stream_size(width, height, viewer.max_width, viewer.max_height,
+                                             &width, &height));
+    std::uint32_t refresh_millihertz = monitor.refresh_millihertz;
+    if (viewer.max_refresh_hz != 0) {
+        refresh_millihertz =
+            std::min(refresh_millihertz, std::uint32_t{viewer.max_refresh_hz} * 1000U);
+    }
     const double pixels_per_second =
-        static_cast<double>(width) * height * monitor.refresh_millihertz / 1000.0;
+        static_cast<double>(width) * height * refresh_millihertz / 1000.0;
     const double bits = std::clamp(bits_per_pixel, kMinBitsPerPixel, kMaxBitsPerPixel);
     const auto kbps = static_cast<std::uint32_t>(pixels_per_second * bits / 1000.0);
     return osplay_stream_config{
@@ -133,7 +143,7 @@ osplay_stream_config HostOrchestrator::stream_for(const osplay_monitor& monitor,
         .monitor_id = monitor.monitor_id,
         .width = static_cast<std::uint16_t>(width),
         .height = static_cast<std::uint16_t>(height),
-        .refresh_millihertz = monitor.refresh_millihertz,
+        .refresh_millihertz = refresh_millihertz,
         .profile = OSPLAY_H264_HIGH,
         // Desktop Duplication delivers the pointer apart from the image (DEVPLAN).
         .cursor_mode = OSPLAY_CURSOR_SEPARATE,
@@ -171,7 +181,8 @@ void HostOrchestrator::run() {
     }
 }
 
-void HostOrchestrator::start(const std::vector<osplay_monitor>& monitors) {
+void HostOrchestrator::start(const std::vector<osplay_monitor>& monitors,
+                             const osplay_capabilities& viewer) {
     if (!streams_.empty() || failed_) {
         return; // the viewer's monitors arrive once per session
     }
@@ -183,7 +194,8 @@ void HostOrchestrator::start(const std::vector<osplay_monitor>& monitors) {
     }
     std::vector<osplay_stream_config> configs;
     for (std::size_t index = 0; index < granted; ++index) {
-        osplay_stream_config config = stream_for(monitors[index], bits_per_pixel_, stream_box_);
+        osplay_stream_config config =
+            stream_for(monitors[index], bits_per_pixel_, stream_box_, viewer);
         config.stream_id = static_cast<std::uint8_t>(index);
         configs.push_back(config);
         streams_.try_emplace(config.stream_id, config, monitors[index], *this);
@@ -204,10 +216,11 @@ bool HostOrchestrator::open_streams() {
     std::vector<VirtualMonitorConfig> monitors;
     for (auto& [stream_id, stream] : streams_) {
         stream.pipeline.reset(); // its monitor is about to be made again
-        // The virtual monitor in the viewer monitor's mode; the pipeline scales it to the stream.
+        // The virtual monitor in the viewer monitor's mode; the pipeline scales it to the stream
+        // and captures at the stream's rate, which a viewer's decoder may hold below the mode's.
         monitors.push_back({.width = stream.monitor.width_px,
                             .height = stream.monitor.height_px,
-                            .refresh_millihertz = stream.config.refresh_millihertz,
+                            .refresh_millihertz = stream.monitor.refresh_millihertz,
                             .gpu_name = {}});
     }
     const auto created = displays_->create_monitors(monitors);

@@ -138,6 +138,26 @@ public struct SessionCapabilities: Sendable, Equatable {
         self.maximumRefreshHz = maximumRefreshHz
     }
 
+    /// A peer that sent no limits (the protocol's 0 means none).
+    public static let unlimited = SessionCapabilities(
+        maximumStreams: 0, maximumWidth: 0, maximumHeight: 0, maximumRefreshHz: 0)
+
+    /// The largest stream it decodes, as a box for `StreamSizing.fit`; nil without a limit.
+    public var decodingBox: (width: Int, height: Int)? {
+        maximumWidth > 0 && maximumHeight > 0 ? (maximumWidth, maximumHeight) : nil
+    }
+
+    /// The highest frame rate it decodes in millihertz; nil without a limit.
+    public var maximumRefreshMillihertz: UInt32? {
+        maximumRefreshHz > 0 ? UInt32(maximumRefreshHz) * 1000 : nil
+    }
+
+    init(_ raw: osplay_capabilities) {
+        self.init(
+            maximumStreams: Int(raw.max_streams), maximumWidth: Int(raw.max_width),
+            maximumHeight: Int(raw.max_height), maximumRefreshHz: Int(raw.max_refresh_hz))
+    }
+
     var raw: osplay_capabilities {
         osplay_capabilities(
             codecs: OSPLAY_CODEC_H264_ANNEX_B, max_streams: UInt8(clamping: maximumStreams), flags: 0,
@@ -355,8 +375,9 @@ public enum SessionEvent: Sendable {
     case pairingCode(UInt32, peerPublicKey: [UInt8])
     /// Both users accepted: store the key as trusted.
     case paired(peerPublicKey: [UInt8])
-    /// Host: answer with `configureStreams`.
-    case viewerMonitors([MonitorDescription])
+    /// Host: the viewer's monitors and what it decodes; answer with `configureStreams`, every
+    /// stream within those limits.
+    case viewerMonitors([MonitorDescription], viewer: SessionCapabilities = .unlimited)
     /// Viewer: a stream the host is about to send.
     case streamConfiguration(StreamConfiguration)
     /// Host: encode a keyframe for this stream next.

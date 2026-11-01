@@ -36,7 +36,7 @@ struct CoreSessionTests {
         try viewer.confirmPairing(true)
         let offered = try #require(
             await hostEvents.next { event in
-                if case .viewerMonitors(let monitors) = event { monitors } else { nil }
+                if case .viewerMonitors(let monitors, _) = event { monitors } else { nil }
             })
         #expect(offered == [monitor])
 

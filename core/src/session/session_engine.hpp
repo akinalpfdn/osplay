@@ -88,9 +88,12 @@ public:
     virtual void on_pairing_code(std::uint32_t code, const crypto::Key& peer_static_key) = 0;
     /// Both users confirmed: store the key as trusted.
     virtual void on_paired(const crypto::Key& peer_static_key) = 0;
-    virtual void on_viewer_monitors(const std::vector<protocol::Monitor>& monitors) = 0; // host
-    virtual void on_stream_config(const protocol::StreamConfig& config) = 0;             // viewer
-    virtual void on_keyframe_request(std::uint8_t stream_id) = 0;                        // host
+    /// Host: the viewer's monitors and what it can decode (its Capabilities, which it sends first;
+    /// zero limits mean none).
+    virtual void on_viewer_monitors(const std::vector<protocol::Monitor>& monitors,
+                                    const protocol::Capabilities& viewer) = 0;
+    virtual void on_stream_config(const protocol::StreamConfig& config) = 0; // viewer
+    virtual void on_keyframe_request(std::uint8_t stream_id) = 0;            // host
     /// The peer stopped a stream for good (e.g. the viewer's monitor was unplugged).
     virtual void on_stream_stopped(std::uint8_t stream_id) = 0;
     virtual void on_access_unit(const media::CompletedFrame& frame) = 0; // viewer
@@ -244,6 +247,7 @@ private:
     crypto::Key peer_static_{};
     bool peer_hello_received_ = false;
     std::uint8_t peer_protocol_minor_ = 0;
+    protocol::Capabilities peer_capabilities_{};
     bool closing_ = false;
 
     TrustDecision trust_ = TrustDecision::Unknown;

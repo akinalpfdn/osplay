@@ -52,6 +52,7 @@ public:
     std::vector<std::uint32_t> pairing_codes;
     std::vector<crypto::Key> paired;
     std::vector<protocol::Monitor> monitors;
+    protocol::Capabilities viewer_capabilities{};
     std::vector<std::string> info_logs;
     std::vector<protocol::StreamConfig> stream_configs;
     int keyframe_requests = 0;
@@ -75,8 +76,10 @@ public:
         pairing_codes.push_back(code);
     }
     void on_paired(const crypto::Key& key) override { paired.push_back(key); }
-    void on_viewer_monitors(const std::vector<protocol::Monitor>& offered) override {
+    void on_viewer_monitors(const std::vector<protocol::Monitor>& offered,
+                            const protocol::Capabilities& viewer) override {
         monitors = offered;
+        viewer_capabilities = viewer;
     }
     void on_stream_config(const protocol::StreamConfig& config) override {
         stream_configs.push_back(config);

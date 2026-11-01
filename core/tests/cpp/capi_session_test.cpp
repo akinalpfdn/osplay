@@ -41,6 +41,7 @@ struct Side {
     std::vector<uint32_t> codes;
     std::vector<std::array<uint8_t, OSPLAY_KEY_SIZE>> paired;
     std::vector<osplay_monitor> monitors;
+    osplay_capabilities viewer_capabilities{};
     std::vector<std::string> monitor_names;
     std::string peer_name;
     std::vector<osplay_stream_config> stream_configs;
@@ -121,9 +122,10 @@ struct Side {
             std::memcpy(copy.data(), key, copy.size());
             update(context, [copy](Side& side) { side.paired.push_back(copy); });
         };
-        result.on_viewer_monitors = [](void* context, const osplay_monitor* received,
-                                       size_t count) {
-            update(context, [received, count](Side& side) {
+        result.on_viewer_monitors = [](void* context, const osplay_monitor* received, size_t count,
+                                       const osplay_capabilities* viewer) {
+            update(context, [received, count, viewer](Side& side) {
+                side.viewer_capabilities = *viewer;
                 for (size_t i = 0; i < count; ++i) {
                     side.monitor_names.emplace_back(received[i].name);
                     side.monitors.push_back(received[i]);
@@ -231,6 +233,9 @@ TEST(CapiSession, PairsConfiguresAndStreamsOverLoopback) {
     EXPECT_EQ(host_side.paired.size(), 1U);
     EXPECT_EQ(host_side.monitor_names, std::vector<std::string>{"Studio Display"});
     EXPECT_EQ(host_side.monitors.front().refresh_millihertz, 144'000U);
+    EXPECT_EQ(host_side.viewer_capabilities.max_width, kCapabilities.max_width);
+    EXPECT_EQ(host_side.viewer_capabilities.max_height, kCapabilities.max_height);
+    EXPECT_EQ(host_side.viewer_capabilities.max_refresh_hz, kCapabilities.max_refresh_hz);
 
     const osplay_stream_config stream{.stream_id = 0,
                                       .monitor_id = 0,

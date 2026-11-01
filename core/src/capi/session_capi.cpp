@@ -222,7 +222,8 @@ public:
         }
     }
 
-    void on_viewer_monitors(const std::vector<protocol::Monitor>& monitors) override {
+    void on_viewer_monitors(const std::vector<protocol::Monitor>& monitors,
+                            const protocol::Capabilities& viewer) override {
         if (callbacks_.on_viewer_monitors == nullptr) {
             return;
         }
@@ -238,7 +239,14 @@ public:
                                  .scale_percent = monitor.scale_percent,
                                  .name = monitor.name.c_str()});
         }
-        callbacks_.on_viewer_monitors(callbacks_.context, converted.data(), converted.size());
+        const osplay_capabilities limits{.codecs = viewer.codecs,
+                                         .max_streams = viewer.max_streams,
+                                         .flags = viewer.flags,
+                                         .max_width = viewer.max_width,
+                                         .max_height = viewer.max_height,
+                                         .max_refresh_hz = viewer.max_refresh_hz};
+        callbacks_.on_viewer_monitors(callbacks_.context, converted.data(), converted.size(),
+                                      &limits);
     }
 
     void on_stream_config(const protocol::StreamConfig& config) override {

@@ -136,6 +136,13 @@ Stream IDs are 0–3. Monitor IDs are 0–255 and chosen by the viewer.
 | max_height | u16 | 240–16384 |
 | max_refresh_hz | u16 | 24–1000 |
 
+A viewer's limits describe its decoder. The viewer sends Capabilities before ViewerMonitors, and
+the host fits every stream inside them: the stream's size inside max_width × max_height (with the
+monitor's aspect ratio, the longer side against the longer limit, as for the host's own stream-size
+setting) and its frame rate at most max_refresh_hz. The virtual display keeps the monitor's
+resolution and refresh rate; the viewer scales the stream up. A TV whose decoder stops at 4K30 thus
+gets a 4K display streamed at 30 fps.
+
 ### 0x05 ViewerMonitors
 
 | Field | Type | Values |

@@ -284,9 +284,10 @@ private final class CallbackBox: Sendable {
         callbacks.on_paired = { context, key in
             CallbackBox.from(context)?.continuation.yield(.paired(peerPublicKey: keyBytes(key)))
         }
-        callbacks.on_viewer_monitors = { context, monitors, count in
+        callbacks.on_viewer_monitors = { context, monitors, count, viewer in
             let list = UnsafeBufferPointer(start: monitors, count: count).map(MonitorDescription.init)
-            CallbackBox.from(context)?.continuation.yield(.viewerMonitors(list))
+            let limits = viewer.map { SessionCapabilities($0.pointee) } ?? .unlimited
+            CallbackBox.from(context)?.continuation.yield(.viewerMonitors(list, viewer: limits))
         }
         callbacks.on_stream_config = { context, config in
             guard let config = config?.pointee else { return }

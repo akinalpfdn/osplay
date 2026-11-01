@@ -101,8 +101,8 @@ actor HostSession {
         }
         for await event in core.events {
             switch event {
-            case .viewerMonitors(let monitors):
-                await startStreams(for: monitors)
+            case .viewerMonitors(let monitors, let viewer):
+                await startStreams(for: monitors, viewer: viewer)
             case .keyframeRequested(let streamID):
                 pipelines[streamID]?.requestKeyframe()
             case .bitrateTarget(let streamID, let kbps):
@@ -190,7 +190,7 @@ actor HostSession {
         dump?.finish() ?? []
     }
 
-    private func startStreams(for monitors: [MonitorDescription]) async {
+    private func startStreams(for monitors: [MonitorDescription], viewer: SessionCapabilities) async {
         let granted = budget.take(upTo: min(monitors.count, Tunables.VirtualDisplay.maximumDisplayCount))
         guard granted > 0 else {
             refuseBusy()
@@ -209,7 +209,8 @@ actor HostSession {
         }
         let streams = lent.enumerated().map { index, display in
             Self.streamConfiguration(
-                id: UInt8(index), for: display.monitor, quality: policy.quality, streamSize: policy.streamSize)
+                id: UInt8(index), for: display.monitor, quality: policy.quality, streamSize: policy.streamSize,
+                viewer: viewer)
         }
         for (stream, display) in zip(streams, lent) {
             dump?.prepare(stream)
@@ -293,18 +294,23 @@ actor HostSession {
             name: monitor.name)
     }
 
-    /// The virtual display keeps the monitor's size; the stream is fitted to the size setting, and
-    /// the bitrate follows the stream's pixels.
+    /// The virtual display keeps the monitor's size; the stream is fitted to the size setting and to
+    /// what the viewer decodes (a TV's decoder may stop at 4K30), and the bitrate follows the
+    /// stream's pixels and frame rate.
     static func streamConfiguration(
-        id: UInt8, for monitor: MonitorDescription, quality: QualityPreset, streamSize: StreamSizePreset
+        id: UInt8, for monitor: MonitorDescription, quality: QualityPreset, streamSize: StreamSizePreset,
+        viewer: SessionCapabilities = .unlimited
     )
         -> StreamConfiguration
     {
-        let size = streamSize.streamSize(width: monitor.widthPixels, height: monitor.heightPixels)
+        let setting = streamSize.streamSize(width: monitor.widthPixels, height: monitor.heightPixels)
+        let size = StreamSizing.fit(width: setting.width, height: setting.height, inside: viewer.decodingBox)
+        let refresh = min(monitor.refreshMillihertz, viewer.maximumRefreshMillihertz ?? .max)
         return StreamConfiguration(
             streamID: id, monitorID: monitor.id, width: size.width, height: size.height,
-            refreshMillihertz: monitor.refreshMillihertz, profile: Tunables.Encoding.profile, cursorMode: .inVideo,
-            bitrateKbps: quality.bitrateKbps(width: size.width, height: size.height, frameRate: monitor.refreshRate))
+            refreshMillihertz: refresh, profile: Tunables.Encoding.profile, cursorMode: .inVideo,
+            bitrateKbps: quality.bitrateKbps(
+                width: size.width, height: size.height, frameRate: Double(refresh) / 1000))
     }
 
     private func log(_ level: SessionLogLevel, _ message: String) {
