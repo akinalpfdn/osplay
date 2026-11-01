@@ -563,4 +563,16 @@ TEST(HostOrchestrator, TheQualityPresetScalesTheBitrateWithinItsRange) {
     EXPECT_EQ(HostOrchestrator::stream_for(monitor(), 1.0).bitrate_kbps, 76'677U);
 }
 
+TEST(HostOrchestrator, A4KTvAt60HzStreamsAtFullSizeBelowTheCeiling) {
+    auto tv = monitor();
+    tv.width_px = 3840;
+    tv.height_px = 2160;
+    const osplay_stream_config stream = HostOrchestrator::stream_for(tv);
+    EXPECT_EQ(stream.width, 3840U);
+    EXPECT_EQ(stream.height, 2160U);
+    EXPECT_EQ(stream.refresh_millihertz, 60'000U);
+    EXPECT_EQ(stream.bitrate_kbps, 49'766U);
+    EXPECT_EQ(HostOrchestrator::stream_for(tv, 0.16).bitrate_kbps, 79'626U);
+}
+
 } // namespace
