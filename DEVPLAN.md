@@ -524,6 +524,19 @@ Each phase is meant to be completed in one Claude Code session. A phase is done 
 - [ ] Mac → Android tablet and PC → Android tablet do the same over Wi-Fi and over USB (AOA).
 - [ ] PC → PC, PC → Android tablet and Mac ↔ PC work over the PC's own network with no router.
 
+### Phase 16: TV viewers
+**Goal**: An Apple TV or an Android TV works as a display for a Mac or a PC over the network.
+**Delivers** (three parts, phase files TV-01…03, in this order — user decision 2026-11-01):
+- TV-01: hosts ready for TV viewers: the viewer's decoder limits honoured, monitors of unknown physical size, a readable desktop scale for a TV, 4K60 streams, and a simulated TV viewer in the Mac's developer tools.
+- TV-02: an Apple TV app that is a viewer only, sharing `macos/Shared` with the iPad app; verified in the tvOS simulator and shipped as an experimental TestFlight build (no Apple TV to test on).
+- TV-03: Android TV and Google TV support in the existing Android app, after a decision on the minimum Android version.
+**Constraints**: TVs are viewers only and take no input, as everywhere else in Osplay. Network only (Wi-Fi, Ethernet or the PC's own network); Apple TV has no USB. The main value is the directions no OS covers: PC → Apple TV and Mac/PC → Android TV.
+**Depends on**: Phase 15
+**Acceptance criteria**:
+- [ ] Mac → simulated 4K TV and PC → simulated 4K TV show a readable 3840×2160 display within the viewer's decoder limits.
+- [ ] Mac → Apple TV and PC → Apple TV work in the tvOS simulator.
+- [ ] Mac → Android TV and PC → Android TV work on a 4K Android TV.
+
 ---
 
 ## Implementation Guidelines
