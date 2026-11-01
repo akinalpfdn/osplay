@@ -101,8 +101,15 @@ ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─�
   HiDPI resolution, so the capture backing equals the remote monitor's pixels. A session returns its
   own displays when it ends; the other viewers keep theirs.
 - **Stream size.** Each stream is fitted inside the user's stream size setting (720p, 1080p by
-  default, 1440p or Native) with `osplay_fit_stream_size`, so a large monitor is captured from its
-  full-size virtual display and encoded smaller; the bitrate follows the stream's pixels.
+  default, 1440p or Native) and then inside the viewer's decoder limits (its Capabilities, which
+  arrive with its monitors) with `osplay_fit_stream_size`, so a large monitor is captured from its
+  full-size virtual display and encoded smaller; the frame rate stops at the viewer's limit (a TV
+  chip that decodes 4K only at 30 Hz) and the bitrate follows the stream's pixels and frame rate.
+- **Monitors of unknown size.** A monitor that sends 0 mm (a TV, a projector) gets the size its
+  pixels have at 96 dpi × its scale; the starting resolution follows its scale either way.
+- **Simulated TV** (Debug). Menu › Developer tools › Simulated TV makes this Mac, when it is used
+  as a display, offer one 4K or 1080p monitor of unknown size at 200% with a TV's decoder limits
+  (`Features/Developer/SimulatedTV.swift`), to test both hosts without a TV (TESTING.md V1–V5).
 - **Capture** (`Services/ScreenCapture/`). One `SCStream` per display at the stream's pixel size
   and refresh rate, 420v pixel format, BT.709, cursor composited. Only samples with status
   complete or started are frames; an unchanged screen produces nothing and the viewer keeps its
@@ -414,11 +421,15 @@ VDD monitor ─► Desktop Duplication ─► BGRA copy ─► video processor (
 - **Convert and encode** (`src/encode/`). The D3D11 video processor converts BGRA to NV12 at the
   stream size, BT.709 studio range. The virtual monitor keeps the viewer monitor's mode while the
   stream is fitted inside the shell's stream size setting (`max_stream_width/height` in the host
-  config, `osplay_fit_stream_size`), so the processor scales it down. The first
+  config, `osplay_fit_stream_size`) and inside the viewer's decoder limits, frame rate included,
+  so the processor scales it down. The first
   hardware H.264 MFT from `MFTEnumEx` runs in async mode with a DXGI device manager, low-latency
   mode, CBR, no B-frames and an endless GOP; `CODECAPI_AVEncVideoForceKeyFrame` answers keyframe
   requests. Output keyframes get SPS/PPS put in front when the encoder omits them
   (`media/h264_stream.cpp`).
+- **Scale.** Before capture starts, each virtual monitor is set to the Windows display scale
+  closest to the viewer monitor's (`display/dpi_scaling.cpp`, the undocumented CCD requests
+  Settings › Display uses; DECISIONS.md 2026-11-01). A refusal keeps Windows' own choice.
 - **Cursor.** Desktop Duplication reports the pointer apart from the image. Shapes (monochrome,
   colour, masked colour) become premultiplied BGRA (`media/pointer_shape.cpp`; screen-inverting
   pixels become black with a white outline, larger than 256 px are cropped around the hotspot),

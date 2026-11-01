@@ -107,6 +107,21 @@ other device joins it (Wi-Fi settings, or the camera on the QR code) and is on n
 | W6 | Stays connected | Join a phone and leave it idle for five minutes, then stream to it | Still joined and streams; Event Viewer › WLAN-AutoConfig shows no "Wireless security stopped" for it |
 | W7 | Settings come back | Note the name in Settings › Mobile hotspot, open and close Osplay's network | The hotspot is off and shows your own name again |
 
+## TVs (simulated)
+
+A Debug build of the Mac app poses as a TV when it is used as a display: menu › Developer tools ›
+**Simulated TV**. It offers one monitor of unknown size at 200% instead of its own displays and
+shows the stream full screen on the first one. Turn the stats overlay on (Settings) to read the
+frame rate and bitrate.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| V1 | Mac → 4K TV | Viewer Mac: **4K TV, 60 Hz**. Host Mac extends onto it | A 3840×2160 display on the host that looks like 1920×1080 (crisp HiDPI); the overlay shows about 60 fps |
+| V2 | PC → 4K TV | V1 with the PC as host | A 3840×2160 virtual monitor at 200% in Settings › Display; the overlay as in V1 |
+| V3 | Decoder limit | Viewer Mac: **4K TV, decoder up to 30 Hz**, stream size Native on the host; repeat V1 and V2 | The display stays 3840×2160 at 60 Hz on the host (System Settings › Displays, Settings › Display); the overlay shows about 30 fps and about half V1's bitrate |
+| V4 | 1080p TV | Viewer Mac: **1080p TV**; Mac and PC host | A 1920×1080 display at 200% (looks like 960×540 on the Mac) |
+| V5 | Back to normal | Viewer Mac: **Off**; connect again | The Mac's own displays are offered, at their own sizes and scales |
+
 ## Interruptions
 
 | # | Scenario | Steps | Expected |

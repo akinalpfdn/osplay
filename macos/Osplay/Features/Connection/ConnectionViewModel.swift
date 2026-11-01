@@ -100,6 +100,10 @@ final class ConnectionViewModel {
     private(set) var peers: [TrustedPeer] = []
     private(set) var error: ConnectionError?
     private(set) var hotkeyUnavailable = false
+    #if DEBUG
+        /// Developer tools: the TV this Mac poses as when it views another computer.
+        var simulatedTV: SimulatedTV = .off
+    #endif
     /// This Mac's displays, for the picker of those offered to hosts.
     private(set) var displays: [LocalDisplay] = LocalDisplays.all()
     /// While sharing: the computers this Mac extends onto, in the order they connected.
@@ -206,17 +210,24 @@ final class ConnectionViewModel {
             return
         }
         displays = LocalDisplays.all()
-        let offered = offeredDisplays()
+        var offered = offeredDisplays()
         guard !offered.isEmpty else {
             error = displays.isEmpty ? .noDisplay : .noDisplaySelected
             return
         }
+        var viewerDevice = sessionDevice(identity, maximumStreams: offered.count)
+        #if DEBUG
+            offered = simulatedTV.offered(offered)
+            if let decoder = simulatedTV.capabilities(maximumStreams: offered.count) {
+                viewerDevice = SessionDevice(identity: identity, name: deviceName, capabilities: decoder)
+            }
+        #endif
         error = nil
         let peer = SessionPeer()
         let core: CoreSession
         do throws(CoreError) {
             core = try CoreSession.viewer(
-                device: sessionDevice(identity, maximumStreams: offered.count), monitors: offered.map(\.description),
+                device: viewerDevice, monitors: offered.map(\.description),
                 host: device.host, port: device.port, trust: { [trust, peer] key in peer.trust(key, in: trust) })
         } catch {
             self.error = .session(error)

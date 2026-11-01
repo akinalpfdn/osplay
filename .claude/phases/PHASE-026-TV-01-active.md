@@ -11,9 +11,9 @@ A Mac or a PC extends onto a TV-sized viewer (1080p or 4K, size unknown, watched
 - [x] Unknown physical size: a monitor with 0 mm (tvOS gives no size; Android TV reports unreliable DPI) gets a size the host can use. Mac: `CGVirtualDisplay` needs `sizeInMillimeters`; PC: check what the virtual display driver and Windows do with it.
 - [x] Desktop scale for a TV: the viewer's `scale_percent` (200 for a 4K TV) gives a readable desktop on both hosts. Mac already picks HiDPI from it; PC: investigate setting the virtual monitor's DPI scale per viewer, and present the options to the user before building.
 - [x] 4K60: bitrate table and H.264 level reach 3840×2160 at 60 Hz on both hosts (VideoToolbox auto level, Media Foundation level), within the 80 Mbit/s ceiling.
-- [ ] Developer tools: the Mac viewer can offer a simulated TV (3840×2160 or 1920×1080, 0 mm, scale 200, decoder limits like a TV chip), so Mac → "TV" and PC → "TV" are tested without a TV.
-- [ ] Tests: core tests for the capability limits; Mac host tests for the size fallback and scale; TESTING.md cases for the simulated TV from a Mac and a PC host.
-- [ ] Docs: PROTOCOL (what hosts do with Capabilities and 0 mm), ARCHITECTURE, DECISIONS.
+- [x] Developer tools: the Mac viewer can offer a simulated TV (3840×2160 or 1920×1080, 0 mm, scale 200, decoder limits like a TV chip), so Mac → "TV" and PC → "TV" are tested without a TV.
+- [x] Tests: core tests for the capability limits; Mac host tests for the size fallback and scale; TESTING.md cases for the simulated TV from a Mac and a PC host.
+- [x] Docs: PROTOCOL (what hosts do with Capabilities and 0 mm), ARCHITECTURE, DECISIONS.
 
 ## Acceptance Criteria
 - [ ] Mac → simulated 4K TV and PC → simulated 4K TV: a 3840×2160 virtual display at a readable scale, the stream inside the simulated decoder limits.

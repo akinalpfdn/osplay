@@ -122,6 +122,9 @@ extension Tunables {
             static let loopbackMonitor = (width: 1920, height: 1080, refreshMillihertz: UInt32(60_000))
             static let loopbackDeviceName = "Osplay Loopback"
             static let freezeDelay: Duration = .seconds(5)
+            /// Simulated TV: a TV's mode and the scale a TV app offers (watched from across a room).
+            static let simulatedTVRefreshMillihertz: UInt32 = 60_000
+            static let simulatedTVScalePercent = 200
             /// Frame intervals the pacing statistics cover (5 s at 60 fps).
             static let pacingWindow = 300
             static let statisticsRefreshInterval: Duration = .milliseconds(500)

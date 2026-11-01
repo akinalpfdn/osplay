@@ -766,6 +766,142 @@
         }
       }
     },
+    "developer.tv.fullHD" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1080p TV"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1080p TV"
+          }
+        }
+      }
+    },
+    "developer.tv.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When this Mac is used as a display, it offers one TV (unknown size, 200% scale) instead of its displays, shown on the first one."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Mac ekran olarak kullanılırken kendi ekranları yerine tek bir TV (boyutu bilinmiyor, %200 ölçek) sunar ve ilk ekranında gösterir."
+          }
+        }
+      }
+    },
+    "developer.tv.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Simulated TV"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Simüle TV"
+          }
+        }
+      }
+    },
+    "developer.tv.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off (this Mac's displays)"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapalı (bu Mac'in ekranları)"
+          }
+        }
+      }
+    },
+    "developer.tv.picker" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pose as"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taklit edilen"
+          }
+        }
+      }
+    },
+    "developer.tv.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Simulated TV"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Simüle TV"
+          }
+        }
+      }
+    },
+    "developer.tv.uhd4K" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4K TV, 60 Hz"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4K TV, 60 Hz"
+          }
+        }
+      }
+    },
+    "developer.tv.uhd4KDecoder30" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4K TV, decoder up to 30 Hz"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4K TV, çözücü en fazla 30 Hz"
+          }
+        }
+      }
+    },
     "error.capture.displayNotFound" : {
       "extractionState" : "manual",
       "localizations" : {
