@@ -664,3 +664,31 @@ choices the plan leaves open are logged here.
 **Why:** The user wants a download in the repository before the Play listing exists. Without R8 most of the APK was unused library code (material icons).
 **Trade-offs:** Every committed APK stays in git history (about 4.5 MB each). R8 can break code reached by name: the JNI callbacks are kept by `proguard-rules.pro`; AGP 8.13's R8 warns that it cannot read Kotlin 2.3 metadata, which matters only for kotlin-reflect, not used here. The user opened the 0.1.1 APK and it worked; a full Wi-Fi and cable pass is not recorded.
 **Revisit if:** The app is published on Google Play, or the repository grows uncomfortably from APKs.
+
+## 2026-11-01 — User decision: three TV phases, hosts first
+**Chosen:** DEVPLAN Phase 16 in three parts: TV-01 makes the Mac and PC hosts ready for TV viewers (decoder limits, unknown size, scale, 4K60, a simulated TV in the developer tools), TV-02 an Apple TV app, TV-03 Android TV in the existing Android app.
+**Alternatives:** One phase per TV with the host work inside the first; Android TV before Apple TV.
+**Why:** The user has no Apple TV and never will, and the 4K Android TV is not at hand, so neither TV can be tested now. The host work is shared by both TVs and testable from a Mac viewer posing as a TV. Apple TV is verified in the tvOS simulator only and ships as an experimental TestFlight build.
+**Trade-offs:** Apple TV latency, hardware decoding and HDMI 4K are never measured by the maintainer; they surface only through TestFlight users.
+**Revisit if:** An Apple TV becomes available for testing.
+
+## 2026-11-01 — Hosts honour the viewer's decoder limits
+**Chosen:** The core passes the viewer's Capabilities to the host with its monitors (a new `osplay_capabilities*` in `on_viewer_monitors`); Mac and PC fit each stream inside both the host's stream-size setting and the viewer's max_width × max_height, and cap its frame rate at max_refresh_hz. The virtual display keeps the viewer monitor's resolution and refresh rate; on the PC it no longer takes the stream's rate.
+**Alternatives:** The core clamping StreamConfig itself (the host's encoder and capture would disagree with it); lowering the virtual display's refresh rate with the stream's (the driver's mode list may not have 30 Hz).
+**Why:** Until now the host ignored the limits every viewer already sends. TV chips often decode H.264 4K only at 30 Hz, so a 4K60 stream would fail there.
+**Trade-offs:** Capabilities hold one size and one rate, so a decoder that does 1080p60 or 4K30 must pick one of the two.
+**Revisit if:** The protocol gains per-size decoder limits or a second codec.
+
+## 2026-11-01 — User decision: the PC sets each virtual monitor's scale to the viewer's
+**Chosen:** After creating its virtual monitors, and before capture starts, the Windows host sets each one's display scale to the Windows step closest to the viewer monitor's `scale_percent` (a Retina Mac or a 4K TV at 200%), through `DisplayConfigGetDeviceInfo`/`DisplayConfigSetDeviceInfo` with the undocumented request types -3 and -4 that Settings › Display uses (layout as in the Unlicense windows-DPI-scaling-sample). A refusal leaves the scale Windows chose and the session continues.
+**Alternatives:** Writing `PerMonitorSettings\…\DpiValue` in the registry before the monitor appears (also undocumented, needs the monitor's ID in advance); leaving the scale to Windows and the user.
+**Why:** The Mac host already starts each virtual display at the viewer's scale. On the PC, Windows picked a scale from the driver's fixed EDID, and the same driver device serves different viewers, so a remembered scale was right for one viewer and wrong for the next; a 4K TV would open at an unreadable 100%.
+**Trade-offs:** An undocumented API can change in a Windows update; the code checks the structure sizes and the reported range and falls back to Windows' choice. A scale the user changes by hand is replaced at the next session.
+**Revisit if:** Windows documents a per-monitor scale API, or the requests stop working on a Windows release.
+
+## 2026-11-01 — A viewer monitor of unknown size gets a size from its pixels
+**Chosen:** A monitor that sends 0 mm gets, on a Mac host, the size its pixels have at 96 dpi × scale_percent / 100.
+**Alternatives:** Assuming a typical TV size (a 55-inch panel); refusing the monitor.
+**Why:** `CGVirtualDisplay` needs a size and the Mac host refused 0 mm, so PC → Mac failed for Windows monitors without a size in their EDID; tvOS gives no size at all. The starting resolution follows scale_percent, so the assumed size changes nothing a user sees.
+**Trade-offs:** macOS shows a made-up diagonal for such displays.
+**Revisit if:** macOS starts deriving behaviour from the size that users notice.

@@ -101,6 +101,14 @@ public:
         ++removed;
         return win::Status<DisplayError>::ok();
     }
+    std::vector<std::pair<std::wstring, std::uint16_t>> scales; // every set_scale, in order
+    bool refuse_scale = false;
+    win::Status<DisplayError> set_scale(const std::wstring& gdi_name,
+                                        std::uint16_t percent) override {
+        scales.emplace_back(gdi_name, percent);
+        return refuse_scale ? win::Status<DisplayError>::failure(DisplayError::ModeChangeFailed)
+                            : win::Status<DisplayError>::ok();
+    }
     win::Expected<VirtualMonitorStatus, DisplayError> status() override {
         return VirtualMonitorStatus{};
     }
@@ -271,6 +279,33 @@ TEST(HostOrchestrator, TheStreamIsFittedToTheBoxWhileTheVirtualMonitorKeepsItsMo
     EXPECT_EQ(h.pipelines.started[0].bitrate_kbps,
               HostOrchestrator::stream_for(monitor(4), kBitsPerPixel, {1920, 1080}).bitrate_kbps);
     EXPECT_LT(h.pipelines.started[0].bitrate_kbps, 25'559U) << "less than at the monitor's size";
+}
+
+TEST(HostOrchestrator, EachVirtualMonitorGetsItsViewerMonitorsScale) {
+    Harness h;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    osplay_monitor plain = monitor(2);
+    plain.scale_percent = 100;
+    const std::vector<osplay_monitor> monitors{monitor(1), plain};
+    orchestrator.on_viewer_monitors(monitors);
+    orchestrator.wait_idle();
+
+    const std::vector<std::pair<std::wstring, std::uint16_t>> expected{{L"\\\\.\\DISPLAY10", 200},
+                                                                       {L"\\\\.\\DISPLAY11", 100}};
+    EXPECT_EQ(h.displays.scales, expected);
+}
+
+TEST(HostOrchestrator, ARefusedScaleStillStreams) {
+    Harness h;
+    h.displays.refuse_scale = true;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    const std::vector<osplay_monitor> monitors{monitor(4)};
+    orchestrator.on_viewer_monitors(monitors);
+    orchestrator.wait_idle();
+
+    EXPECT_EQ(h.displays.scales.size(), 1U);
+    EXPECT_EQ(h.pipelines.started.size(), 1U);
+    EXPECT_TRUE(h.observer.streaming.has_value()) << "the monitor keeps the scale Windows chose";
 }
 
 TEST(HostOrchestrator, TheStreamStaysWithinWhatTheViewerDecodes) {

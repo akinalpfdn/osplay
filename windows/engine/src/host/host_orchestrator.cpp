@@ -235,6 +235,15 @@ bool HostOrchestrator::open_streams() {
         return false;
     }
     monitors_added_ = true;
+    // The viewer's scale (a Retina Mac or a 4K TV at 200%), set before capture starts since a
+    // scale change restarts Desktop Duplication. Without it the monitor keeps the scale Windows
+    // chose, which is still usable, so a refusal (the request is undocumented) does not end the
+    // session.
+    std::size_t scaled = 0;
+    for (const auto& [stream_id, stream] : streams_) {
+        static_cast<void>(
+            displays_->set_scale(created.value().at(scaled++), stream.monitor.scale_percent));
+    }
     std::size_t index = 0;
     for (auto& [stream_id, stream] : streams_) {
         auto pipeline = pipelines_->start({.width = stream.config.width,

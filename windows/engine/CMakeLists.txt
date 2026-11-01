@@ -1,6 +1,7 @@
 # Platform-independent engine logic, linked into the DLL and its tests.
 add_library(osplay_engine_logic STATIC
     src/discovery/txt_mapping.cpp
+    src/display/dpi_scale.cpp
     src/display/virtual_display_hub.cpp
     src/host/host_orchestrator.cpp
     src/host/stream_dump.cpp
@@ -27,6 +28,7 @@ if(WIN32)
         src/decode/mf_h264_decoder.cpp
         src/discovery/dns_sd_discovery.cpp
         src/display/display_config.cpp
+        src/display/dpi_scaling.cpp
         src/display/gdi_display_mode_applier.cpp
         src/display/pipe_helper_channel.cpp
         src/display/vdd_monitor.cpp
@@ -58,6 +60,7 @@ endif()
 
 if(OSPLAY_CORE_BUILD_TESTS)
     add_executable(osplay_engine_tests
+        tests/dpi_scale_test.cpp
         tests/frame_pacer_test.cpp
         tests/h264_stream_test.cpp
         tests/virtual_display_hub_test.cpp
