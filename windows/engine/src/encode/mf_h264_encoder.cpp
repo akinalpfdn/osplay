@@ -15,8 +15,8 @@ using Microsoft::WRL::ComPtr;
 constexpr UINT32 kGopSize = 0xFFFFFFFF;
 constexpr std::int64_t kHundredNanosecondsPerSecond = 10'000'000;
 
-/// The first hardware encoder taking NV12 in and producing H.264, activated.
-ComPtr<IMFTransform> activate_hardware_encoder() {
+/// Every hardware encoder taking NV12 in and producing H.264, in the system's order.
+std::vector<ComPtr<IMFActivate>> hardware_encoders() {
     const MFT_REGISTER_TYPE_INFO input{.guidMajorType = MFMediaType_Video,
                                        .guidSubtype = MFVideoFormat_NV12};
     const MFT_REGISTER_TYPE_INFO output{.guidMajorType = MFMediaType_Video,
@@ -26,18 +26,14 @@ ComPtr<IMFTransform> activate_hardware_encoder() {
     if (FAILED(MFTEnumEx(MFT_CATEGORY_VIDEO_ENCODER,
                          MFT_ENUM_FLAG_HARDWARE | MFT_ENUM_FLAG_SORTANDFILTER, &input, &output,
                          &activates, &count))) {
-        return nullptr;
+        return {};
     }
-    ComPtr<IMFTransform> transform;
+    std::vector<ComPtr<IMFActivate>> encoders(count);
     for (UINT32 i = 0; i < count; ++i) {
-        if (transform == nullptr &&
-            FAILED(activates[i]->ActivateObject(IID_PPV_ARGS(&transform)))) {
-            transform.Reset();
-        }
-        activates[i]->Release();
+        encoders[i].Attach(activates[i]); // takes over the reference MFTEnumEx returned
     }
     CoTaskMemFree(static_cast<void*>(activates));
-    return transform;
+    return encoders;
 }
 
 HRESULT set_codec_value(ICodecAPI* api, const GUID& property, UINT32 value) {
@@ -84,19 +80,25 @@ MfH264Encoder::~MfH264Encoder() {
 }
 
 win::Expected<std::unique_ptr<MfH264Encoder>, PipelineError>
-MfH264Encoder::create(ID3D11Device* device, const StreamSettings& settings, Output output) {
+MfH264Encoder::create(ID3D11Device* device, const StreamSettings& settings, const Output& output) {
     using Result = win::Expected<std::unique_ptr<MfH264Encoder>, PipelineError>;
-    auto transform = activate_hardware_encoder();
-    if (transform == nullptr) {
-        return Result::failure(PipelineError::EncoderUnavailable);
+    // Every encoder the system lists, not just the first: a laptop with integrated and discrete
+    // graphics lists one per GPU, and only the one on the captured monitor's GPU accepts the
+    // device. The order says nothing about that, so whichever accepts the settings is used.
+    for (const ComPtr<IMFActivate>& activate : hardware_encoders()) {
+        ComPtr<IMFTransform> transform;
+        if (FAILED(activate->ActivateObject(IID_PPV_ARGS(&transform)))) {
+            continue;
+        }
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory): the constructor is private
+        std::unique_ptr<MfH264Encoder> encoder(new MfH264Encoder(std::move(transform), output));
+        if (encoder->configure(device, settings)) {
+            return {std::move(encoder)};
+        }
+        encoder.reset();
+        static_cast<void>(activate->ShutdownObject()); // frees what the refused encoder holds
     }
-    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory): the constructor is private
-    std::unique_ptr<MfH264Encoder> encoder(
-        new MfH264Encoder(std::move(transform), std::move(output)));
-    if (!encoder->configure(device, settings)) {
-        return Result::failure(PipelineError::EncoderUnavailable);
-    }
-    return {std::move(encoder)};
+    return Result::failure(PipelineError::EncoderUnavailable);
 }
 
 bool MfH264Encoder::configure(ID3D11Device* device, const StreamSettings& settings) {

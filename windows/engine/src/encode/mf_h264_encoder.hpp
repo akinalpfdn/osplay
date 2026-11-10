@@ -33,9 +33,10 @@ public:
     using Output = std::function<void(std::span<const std::uint8_t> annexb, bool keyframe,
                                       std::int64_t sample_time)>;
 
-    /// Requires MFStartup on this thread.
+    /// The first hardware encoder that accepts `device` and the settings. Requires MFStartup on
+    /// this thread.
     [[nodiscard]] static win::Expected<std::unique_ptr<MfH264Encoder>, PipelineError>
-    create(ID3D11Device* device, const StreamSettings& settings, Output output);
+    create(ID3D11Device* device, const StreamSettings& settings, const Output& output);
 
     ~MfH264Encoder();
     MfH264Encoder(const MfH264Encoder&) = delete;
