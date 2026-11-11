@@ -107,6 +107,21 @@ other device joins it (Wi-Fi settings, or the camera on the QR code) and is on n
 | W6 | Stays connected | Join a phone and leave it idle for five minutes, then stream to it | Still joined and streams; Event Viewer › WLAN-AutoConfig shows no "Wireless security stopped" for it |
 | W7 | Settings come back | Note the name in Settings › Mobile hotspot, open and close Osplay's network | The hotspot is off and shows your own name again |
 
+## Android TV
+
+The Android app on an Android TV or Google TV with Android 12 or later, installed with
+`adb install` (BUILDING.md) or from Google Play, driven with the TV's remote. Turn the stats
+overlay on in the app's Settings for TV4.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| TV1 | Launcher | Open the TV's apps row | Osplay's blue banner is there; it opens the list of computers with no USB cable section |
+| TV2 | Mac → TV | Choose the Mac with the remote (each row shows a ring when focused) and confirm the code | A Mac display in the TV's mode (3840×2160 on a 4K TV) that looks like 1920×1080 |
+| TV3 | PC → TV | The same with the PC | A virtual monitor in the TV's mode at 200% in Settings › Display (100% on a 1080p TV) |
+| TV4 | Native stream | On the computer set the stream size to Native, then TV2 | The overlay shows close to 60 fps; on a TV whose decoder stops at 4K30 the stream is smaller instead, still near 60 fps |
+| TV5 | Remote | During TV2 press OK, move along the controls, press Back twice | OK shows the controls with the stats button focused; they stay while focused; the first Back hides them, the second ends the session and shows the list |
+| TV6 | Home button | During TV2 press the remote's Home button, wait 10 s, open Osplay again | The display goes away on the computer and comes back when Osplay opens |
+
 ## TVs (simulated)
 
 A Debug build of the Mac app poses as a TV when it is used as a display: menu › Developer tools ›

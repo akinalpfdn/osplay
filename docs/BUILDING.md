@@ -206,8 +206,18 @@ cd android
 ```
 
 Or open the `android` folder in Android Studio and run on a device with USB debugging on. The app
-runs on Android 12 or later, on phones and tablets; the computer it connects to must run Osplay 0.2
-or later.
+runs on Android 12 or later, on phones, tablets and Android TVs; the computer it connects to must
+run Osplay 0.2 or later.
+
+An Android TV has no USB debugging cable; install over the network instead. On the TV: Settings ›
+Device Preferences › About, select Build seven times, then Settings › Device Preferences ›
+Developer options › turn on USB debugging (and Network debugging where the TV lists it). Then, with
+the TV's address from Settings › Network:
+
+```sh
+adb connect <TV address>:5555      # the TV asks once whether to allow this computer
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
 
 ## Windows
 

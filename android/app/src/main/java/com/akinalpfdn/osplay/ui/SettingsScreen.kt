@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -51,7 +52,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = onClose, modifier = Modifier.focusRing(Shapes.Round)) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.action_cancel))
                     }
                 },
@@ -76,7 +77,7 @@ fun SettingsScreen(
             item {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.settings_stats), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                    Switch(checked = state.showsStats, onCheckedChange = onStats)
+                    Switch(checked = state.showsStats, onCheckedChange = onStats, modifier = Modifier.focusRing(Shapes.Controls))
                 }
             }
             item {
@@ -121,8 +122,14 @@ private fun PeerCard(peer: TrustedPeer, onRevoke: (TrustedPeer) -> Unit, onRemov
                     )
                 }
             }
-            if (!peer.revoked) TextButton(onClick = { onRevoke(peer) }) { Text(stringResource(R.string.settings_revoke)) }
-            TextButton(onClick = { onRemove(peer) }) { Text(stringResource(R.string.settings_remove)) }
+            if (!peer.revoked) {
+                TextButton(onClick = { onRevoke(peer) }, modifier = Modifier.focusRing(ButtonDefaults.textShape)) {
+                    Text(stringResource(R.string.settings_revoke))
+                }
+            }
+            TextButton(onClick = { onRemove(peer) }, modifier = Modifier.focusRing(ButtonDefaults.textShape)) {
+                Text(stringResource(R.string.settings_remove))
+            }
         }
     }
 }

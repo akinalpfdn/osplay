@@ -249,6 +249,14 @@ the JVM once and its callbacks go to a Kotlin `SessionListener`.
 - **Lifecycle.** The activity handles rotation itself, so the session restarts with the new shape
   instead of the activity being recreated; `onStop` ends the session cleanly and `onStart`
   reconnects. The screen stays on and the system bars are hidden while viewing.
+- **Android TV** (`screen/Television.kt`). The same APK has a TV launcher entry and banner and needs
+  no touchscreen. A TV offers its panel's display mode (4K on a 4K TV, whose interface is drawn at
+  1080p while the SurfaceView's video plane runs at the mode), no physical size, and the scale of
+  its own interface (200% on a 4K TV). Its Capabilities are the largest size the H.264 decoder plays
+  at the mode's rate, from the mode down to 720p, then the same at 30 Hz (`video/DecodingLimits.kt`);
+  phones and tablets announce generous limits. Every control shows a focus ring for the remote, and
+  in the viewer OK shows the controls and Back hides them, then ends the session. The USB cable
+  section is hidden: a TV is a USB host only.
 
 ## Discovery and pairing
 

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TabletAndroid
 import androidx.compose.material.icons.outlined.Usb
 import androidx.compose.material.icons.outlined.WifiFind
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,7 +68,7 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
-                    IconButton(onClick = onSettings) {
+                    IconButton(onClick = onSettings, modifier = Modifier.focusRing(Shapes.Round)) {
                         Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.action_settings))
                     }
                 },
@@ -119,7 +120,7 @@ fun HomeScreen(
 @Composable
 private fun DeviceCard(row: DeviceRow, onClick: () -> Unit) {
     val enabled = row.state != DeviceState.Incompatible
-    Card(shape = Shapes.Card, modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick)) {
+    Card(shape = Shapes.Card, modifier = Modifier.fillMaxWidth().focusRing(Shapes.Card).clickable(enabled = enabled, onClick = onClick)) {
         Row(Modifier.padding(Spacing.Large), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(Sizes.SymbolColumn), contentAlignment = Alignment.Center) {
                 Icon(
@@ -148,7 +149,7 @@ private fun DeviceCard(row: DeviceRow, onClick: () -> Unit) {
 
 @Composable
 private fun CableCard(waiting: Boolean, onWait: () -> Unit, onCancel: () -> Unit) {
-    Card(shape = Shapes.Card, modifier = Modifier.fillMaxWidth().clickable(enabled = !waiting, onClick = onWait)) {
+    Card(shape = Shapes.Card, modifier = Modifier.fillMaxWidth().focusRing(Shapes.Card).clickable(enabled = !waiting, onClick = onWait)) {
         Row(Modifier.padding(Spacing.Large), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(Sizes.SymbolColumn), contentAlignment = Alignment.Center) {
                 if (waiting) {
@@ -175,7 +176,9 @@ private fun CableCard(waiting: Boolean, onWait: () -> Unit, onCancel: () -> Unit
                 )
             }
             if (waiting) {
-                TextButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) }
+                TextButton(onClick = onCancel, modifier = Modifier.focusRing(ButtonDefaults.textShape)) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         }
     }
@@ -219,7 +222,9 @@ private fun ReconnectingCard(peer: String, onCancel: () -> Unit) {
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) }
+            TextButton(onClick = onCancel, modifier = Modifier.focusRing(ButtonDefaults.textShape)) {
+                Text(stringResource(R.string.action_cancel))
+            }
         }
     }
 }
@@ -229,7 +234,7 @@ private fun FailureCard(failure: Failure, onDismiss: () -> Unit) {
     Card(shape = Shapes.Card, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(Spacing.Large)) {
             Text(failure.message(), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
-            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End).focusRing(ButtonDefaults.textShape)) {
                 Text(stringResource(R.string.action_ok))
             }
         }
