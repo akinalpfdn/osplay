@@ -98,18 +98,20 @@ fun HomeScreen(
                 )
             }
             if (state.devices.isEmpty()) {
-                item { SearchingCard() }
+                item { SearchingCard(showsCable = state.showsCable) }
             } else {
                 items(state.devices, key = { it.device.label }) { row -> DeviceCard(row) { onConnect(row.device) } }
             }
-            item {
-                Text(
-                    stringResource(R.string.home_cable),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = Spacing.Medium),
-                )
+            if (state.showsCable) {
+                item {
+                    Text(
+                        stringResource(R.string.home_cable),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = Spacing.Medium),
+                    )
+                }
+                item { CableCard(waiting = state.screen == Screen.WaitingForCable, onWait = onCable, onCancel = onCancelReconnect) }
             }
-            item { CableCard(waiting = state.screen == Screen.WaitingForCable, onWait = onCable, onCancel = onCancelReconnect) }
         }
     }
 }
@@ -180,7 +182,7 @@ private fun CableCard(waiting: Boolean, onWait: () -> Unit, onCancel: () -> Unit
 }
 
 @Composable
-private fun SearchingCard() {
+private fun SearchingCard(showsCable: Boolean) {
     Card(shape = Shapes.Card, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(Spacing.Large)) {
             Box(Modifier.width(Sizes.SymbolColumn), contentAlignment = Alignment.TopCenter) {
@@ -195,7 +197,7 @@ private fun SearchingCard() {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
                 Text(stringResource(R.string.home_searching), style = MaterialTheme.typography.bodyLarge)
                 Text(
-                    stringResource(R.string.home_same_network),
+                    stringResource(if (showsCable) R.string.home_same_network else R.string.home_same_network_tv),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

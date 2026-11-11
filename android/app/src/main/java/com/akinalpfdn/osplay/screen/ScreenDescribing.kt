@@ -12,12 +12,26 @@ interface ScreenDescribing {
     fun monitor(): MonitorDescription?
 }
 
-/** The whole screen in the orientation it is held, in physical pixels. */
-class AndroidScreen(private val context: Context) : ScreenDescribing {
+/** The whole screen in the orientation it is held, in physical pixels; on a TV, the panel's own mode. */
+class AndroidScreen(private val context: Context, private val television: Boolean = context.isTelevision()) :
+    ScreenDescribing {
     override fun monitor(): MonitorDescription? {
         val bounds = context.getSystemService(WindowManager::class.java)?.maximumWindowMetrics?.bounds ?: return null
         val display = context.getSystemService(DisplayManager::class.java)?.getDisplay(Display.DEFAULT_DISPLAY)
         val metrics = context.resources.displayMetrics
+        if (television) {
+            // A TV draws its interface at 1080p or less while the panel and the video plane run at
+            // the display mode (4K on a 4K TV); the stream's SurfaceView goes to the video plane.
+            val mode = display?.mode
+            return describeTelevision(
+                panelWidth = mode?.physicalWidth ?: bounds.width(),
+                panelHeight = mode?.physicalHeight ?: bounds.height(),
+                refreshRate = mode?.refreshRate ?: display?.refreshRate ?: 0f,
+                interfaceWidth = maxOf(bounds.width(), bounds.height()),
+                densityDpi = metrics.densityDpi,
+                name = android.os.Build.MODEL,
+            )
+        }
         return describe(
             widthPixels = bounds.width(),
             heightPixels = bounds.height(),
@@ -33,6 +47,8 @@ class AndroidScreen(private val context: Context) : ScreenDescribing {
         private const val DEFAULT_REFRESH = 60f
         private const val MAX_REFRESH = 120f
         private const val BASELINE_DPI = 160
+        /** A 1080p TV interface at xhdpi, which a desktop shows at 100% on such a TV. */
+        private const val TV_BASELINE_DPI = 320
 
         /** The monitor as the protocol takes it (PROTOCOL.md ViewerMonitors). */
         fun describe(
@@ -52,6 +68,33 @@ class AndroidScreen(private val context: Context) : ScreenDescribing {
                 physicalWidthMillimeters = millimeters(widthPixels, xdpi),
                 physicalHeightMillimeters = millimeters(heightPixels, ydpi),
                 scalePercent = (densityDpi * 100 / BASELINE_DPI).coerceIn(100, 400),
+                name = ProtocolText.name(name),
+            )
+        }
+
+        /**
+         * A TV as the protocol takes it: the panel's mode, in landscape; no physical size, since
+         * TVs report none that can be trusted; and the scale its own interface uses, so a 4K TV gets
+         * a desktop that looks like 1080p (200%) and a 1080p TV one at full size.
+         */
+        fun describeTelevision(
+            panelWidth: Int,
+            panelHeight: Int,
+            refreshRate: Float,
+            interfaceWidth: Int,
+            densityDpi: Int,
+            name: String,
+        ): MonitorDescription {
+            val refresh = if (refreshRate > 0f) refreshRate.coerceAtMost(MAX_REFRESH) else DEFAULT_REFRESH
+            val width = maxOf(panelWidth, panelHeight)
+            val scale = if (interfaceWidth > 0) width * densityDpi * 100 / (interfaceWidth * TV_BASELINE_DPI) else 100
+            return MonitorDescription(
+                widthPixels = width,
+                heightPixels = minOf(panelWidth, panelHeight),
+                refreshMillihertz = (refresh * 1000).roundToInt(),
+                physicalWidthMillimeters = 0,
+                physicalHeightMillimeters = 0,
+                scalePercent = scale.coerceIn(100, 400),
                 name = ProtocolText.name(name),
             )
         }

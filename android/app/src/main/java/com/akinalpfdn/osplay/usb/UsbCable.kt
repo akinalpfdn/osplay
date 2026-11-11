@@ -5,9 +5,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.hardware.usb.UsbAccessory
 import android.hardware.usb.UsbManager
 import androidx.core.content.ContextCompat
+import com.akinalpfdn.osplay.screen.isTelevision
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -43,6 +45,9 @@ interface UsbCabling {
     /** Detached and PermissionGranted, on the main thread; Attached comes through the activity. */
     val events: SharedFlow<CableEvent>
 
+    /** Whether this device can be a USB accessory at all; a TV is a USB host only. */
+    val isAvailable: Boolean get() = true
+
     fun open(): CableOpening
 }
 
@@ -50,6 +55,8 @@ class AndroidUsbCable(private val context: Context) : UsbCabling {
     private val manager = context.getSystemService(UsbManager::class.java)
     private val changes = MutableSharedFlow<CableEvent>(extraBufferCapacity = EVENT_BUFFER)
     override val events: SharedFlow<CableEvent> = changes.asSharedFlow()
+    override val isAvailable: Boolean =
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_USB_ACCESSORY) && !context.isTelevision()
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {

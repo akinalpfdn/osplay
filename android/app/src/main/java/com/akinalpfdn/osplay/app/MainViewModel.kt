@@ -76,6 +76,8 @@ data class UiState(
     val deviceName: String = "",
     val showsStats: Boolean = false,
     val stats: StatsFigures? = null,
+    /** The USB cable row; a TV cannot be a USB accessory. */
+    val showsCable: Boolean = true,
 ) {
     val showsViewer: Boolean get() = screen is Screen.Connecting || screen is Screen.Viewing
 }
@@ -87,7 +89,11 @@ data class UiState(
 class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
     private val trust = TrustCache(dependencies.keyStore)
     private val state = MutableStateFlow(
-        UiState(deviceName = dependencies.settings.deviceName, showsStats = dependencies.settings.showsStatsOverlay),
+        UiState(
+            deviceName = dependencies.settings.deviceName,
+            showsStats = dependencies.settings.showsStatsOverlay,
+            showsCable = dependencies.cable.isAvailable,
+        ),
     )
     val uiState: StateFlow<UiState> = state.asStateFlow()
 
