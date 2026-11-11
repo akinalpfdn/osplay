@@ -7,7 +7,7 @@ DEVPLAN reference: Phase 16 (part TV-03). Depends on: PHASE-026 (TV-01).
 An Android TV or Google TV shows a Mac's or a PC's extra display over the network from the existing Android app.
 
 ## Tasks
-- [ ] Minimum Android version: the app is Android 12+ (minSdk 31) while most TVs run Android 9–11. List what lowering it costs (NSD, binding to a Wi-Fi network without internet, the USB accessory, low-latency decoding) and let the user decide before building.
+- [x] Minimum Android version: stays Android 12 (minSdk 31), user decision 2026-11-11.
 - [ ] TV support in the same APK: leanback launcher entry and banner, touchscreen not required, D-pad focus on every screen, the TV's safe area.
 - [ ] Offers one display at the TV's mode with 0 mm and a TV scale (TV-01); decoder limits from MediaCodec (many TV chips decode H.264 4K only at 30 Hz).
 - [ ] Lifecycle: the screen stays on while viewing; leaving the app ends the session.
@@ -20,3 +20,4 @@ An Android TV or Google TV shows a Mac's or a PC's extra display over the networ
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
+- 2026-11-11 — User decision: Android TV support keeps the app's minimum, Android 12 (minSdk 31). The user's test TV, a Vestel, runs Android 14. TVs sold before Android TV 12 (late 2022) that never got it are left out; lowering it can come later if users ask.
