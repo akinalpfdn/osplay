@@ -692,3 +692,10 @@ choices the plan leaves open are logged here.
 **Why:** `CGVirtualDisplay` needs a size and the Mac host refused 0 mm, so PC → Mac failed for Windows monitors without a size in their EDID; tvOS gives no size at all. The starting resolution follows scale_percent, so the assumed size changes nothing a user sees.
 **Trade-offs:** macOS shows a made-up diagonal for such displays.
 **Revisit if:** macOS starts deriving behaviour from the size that users notice.
+
+## 2026-11-11 — User decision: Android TV before Apple TV, on Android 12 and later
+**Chosen:** Phase 16's Android TV part comes second (TV-02) and Apple TV last (TV-03). Android TV support goes into the existing Android app and keeps its minimum, Android 12 (minSdk 31). TV-01's acceptance is run on the user's Vestel Android TV (Android 14) instead of with the simulated TV.
+**Alternatives:** Apple TV first (simulator only); lowering the minimum for TVs on Android 9–11; closing TV-01 with the simulated TV first.
+**Why:** The user now has an Android TV at hand and will never have an Apple TV, so Android TV is the part that can be verified on hardware, and it verifies the host work too. Most TVs sold since Android TV 12 (late 2022) run 12 or later.
+**Trade-offs:** TVs that stayed on Android 9–11 cannot install Osplay.
+**Revisit if:** Users ask for older TVs.
