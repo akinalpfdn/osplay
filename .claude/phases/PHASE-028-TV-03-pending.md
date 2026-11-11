@@ -1,23 +1,25 @@
-# Phase 028 (TV-03) — Android TV viewer
+# Phase 028 (TV-03) — Apple TV viewer
 Status: PENDING
 
-DEVPLAN reference: Phase 16 (part TV-03). Depends on: PHASE-026 (TV-01).
+DEVPLAN reference: Phase 16 (part TV-03). Depends on: PHASE-027 (TV-02).
 
 ## Goal
-An Android TV or Google TV shows a Mac's or a PC's extra display over the network from the existing Android app.
+An Apple TV shows a Mac's or a PC's extra display over the network, from a tvOS app that is a viewer only, verified in the simulator and shipped as an experimental TestFlight build.
 
 ## Tasks
-- [x] Minimum Android version: stays Android 12 (minSdk 31), user decision 2026-11-11.
-- [ ] TV support in the same APK: leanback launcher entry and banner, touchscreen not required, D-pad focus on every screen, the TV's safe area.
-- [ ] Offers one display at the TV's mode with 0 mm and a TV scale (TV-01); decoder limits from MediaCodec (many TV chips decode H.264 4K only at 30 Hz).
-- [ ] Lifecycle: the screen stays on while viewing; leaving the app ends the session.
-- [ ] Every string in English and Turkish; visual values from the theme.
-- [ ] Tests: view model and focus tests; TESTING.md cases for Android TV.
-- [ ] Docs: README, TESTING, ARCHITECTURE, DECISIONS.
+- [ ] Minimum tvOS version (ask the user); `Package.swift` builds the core and CoreBridge for tvOS; core tests on the tvOS simulator.
+- [ ] `OsplayTV` XcodeGen target on `macos/Shared` (discovery, pairing, key store, decoding, presentation), like the iPad app.
+- [ ] Remote-driven UI: nearby and paired computers, the pairing code shown on the TV, full-screen viewer; the Menu button disconnects; focus engine and the TV's safe area.
+- [ ] Offers one display at the TV's output mode with 0 mm and a TV scale (TV-01); decoder limits from VideoToolbox.
+- [ ] Lifecycle: the screen saver stays off while viewing; leaving the app ends the session and the host removes its virtual display.
+- [ ] Local Network permission and the Bonjour service type; every string in English and Turkish; visual values from the theme.
+- [ ] CI builds and tests the tvOS target.
+- [ ] Distribution: tvOS added to the App Store Connect record, TestFlight build marked experimental (the user has no Apple TV).
+- [ ] Docs: README (Apple TV, TestFlight), BUILDING, TESTING, ARCHITECTURE.
 
 ## Acceptance Criteria
-- [ ] On the user's 4K Android TV (in Eskişehir): Mac → TV and PC → TV over Wi-Fi, at a readable scale and a smooth frame rate.
+- [ ] In the tvOS simulator: Mac → Apple TV and PC → Apple TV show one display; pairing, revoking and reconnecting work; leaving the app leaves no virtual display behind.
+- [ ] The TestFlight build installs (verified by App Store Connect processing; no hardware test).
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
-- 2026-11-11 — User decision: Android TV support keeps the app's minimum, Android 12 (minSdk 31). The user's test TV, a Vestel, runs Android 14. TVs sold before Android TV 12 (late 2022) that never got it are left out; lowering it can come later if users ask.

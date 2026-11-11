@@ -1,5 +1,5 @@
 # Phase 026 (TV-01) — Hosts ready for TV viewers
-Status: ACTIVE
+Status: DONE — code complete; acceptance moved to PHASE-027 (TV-02, Android TV) on the user's Vestel (user decision 2026-11-11)
 
 DEVPLAN reference: Phase 16 (part TV-01). Depends on: Phase 15.
 
@@ -22,3 +22,4 @@ A Mac or a PC extends onto a TV-sized viewer (1080p or 4K, size unknown, watched
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
 - 2026-11-01 — User decision: three TV phases — hosts first (testable without a TV), then Apple TV, then Android TV. The user has no Apple TV and never will; the Android TV (4K) is in Eskişehir and is tested when the user is there.
+- 2026-11-11 — User decision: Android TV comes next (TV-02) and Apple TV last (TV-03). TV-01's acceptance is run on the Vestel Android TV in TV-02 (Mac → TV and PC → TV) instead of with the simulated TV; the simulated TV stays for quick checks.
