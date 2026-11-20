@@ -51,7 +51,7 @@ class AppDependencies(
             WifiPreference(context).start() // for the life of the process
             val television = context.isTelevision()
             val stage = StreamStage { surface, shape, needsKeyframe ->
-                MediaCodecDecoder(surface, shape.width, shape.height, needsKeyframe) { }
+                MediaCodecDecoder(surface, shape.width, shape.height, shape.frameRate, needsKeyframe) { }
             }
             return AppDependencies(
                 keyStore = AndroidKeyStore(context),

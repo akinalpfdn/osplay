@@ -194,7 +194,8 @@ private class CoreViewerSession(
         bitrateKbps: Int,
     ) {
         this.streamId = streamId
-        stage.streamStarted(StreamShape(width, height, cursorMode == Protocol.CURSOR_SEPARATE)) {
+        val frameRate = ((refreshMillihertz + 500) / 1000).takeIf { it > 0 } ?: StreamShape.DEFAULT_FRAME_RATE
+        stage.streamStarted(StreamShape(width, height, cursorMode == Protocol.CURSOR_SEPARATE, frameRate)) {
             withHandle { Native.sessionRequestKeyframe(it, streamId) }
         }
     }

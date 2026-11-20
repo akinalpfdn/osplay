@@ -5,6 +5,7 @@ import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.SystemClock
 import android.util.Log
 import android.view.Surface
 import java.util.ArrayDeque
@@ -43,6 +44,7 @@ class MediaCodecDecoder(
     private val surface: Surface,
     private val width: Int,
     private val height: Int,
+    private val frameRate: Int,
     private val onNeedsKeyframe: () -> Unit,
     private val onFrame: (captureTimeUs: Long) -> Unit,
 ) : VideoDecoding {
@@ -55,6 +57,9 @@ class MediaCodecDecoder(
     private var waitingForKeyframe = true
     private var released = false
     private var nextTimestampUs = 0L
+    private var restartAtMillis = 0L
+    private val feedLater = Runnable { feed() }
+    private var frameUs = 0L
 
     private class AccessUnit(val data: ByteArray, val captureTimeUs: Long)
 
@@ -83,6 +88,14 @@ class MediaCodecDecoder(
     }
 
     private fun feed() {
+        // After a failure the TV's video hardware is released in the background; a codec started
+        // at once may find it still busy.
+        val wait = restartAtMillis - SystemClock.elapsedRealtime()
+        if (codec == null && wait > 0) {
+            handler.removeCallbacks(feedLater)
+            handler.postDelayed(feedLater, wait)
+            return
+        }
         val codec = codec ?: startCodec() ?: return
         while (true) {
             val index: Int
@@ -100,7 +113,7 @@ class MediaCodecDecoder(
                 }
                 buffer.clear()
                 buffer.put(unit.data)
-                val timestamp = if (setup.steadyTimestamps) nextTimestampUs.also { nextTimestampUs += FRAME_US } else unit.captureTimeUs
+                val timestamp = if (setup.steadyTimestamps) nextTimestampUs.also { nextTimestampUs += frameUs } else unit.captureTimeUs
                 codec.queueInputBuffer(index, 0, unit.data.size, timestamp, 0)
             } catch (error: IllegalStateException) {
                 failed()
@@ -112,6 +125,8 @@ class MediaCodecDecoder(
     private fun startCodec(): MediaCodec? {
         val setup = setup
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
+            // TV decoders (MediaTek's) set up their display timing from it and may fail without it.
+            setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
             if (setup.lowLatency) {
                 setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
                 setInteger(MediaFormat.KEY_PRIORITY, 0) // realtime
@@ -127,6 +142,7 @@ class MediaCodecDecoder(
                 created.start()
                 codec = created
                 nextTimestampUs = 0L
+                frameUs = 1_000_000L / frameRate.coerceAtLeast(1)
                 Log.i(TAG, "Decoder ${created.name} started with setup $setup at ${width}x$height")
             }
         } catch (error: Exception) {
@@ -151,6 +167,7 @@ class MediaCodecDecoder(
         }
         Log.w(TAG, "Decoder failed with setup $failedSetup; next $setup")
         stopCodec()
+        restartAtMillis = SystemClock.elapsedRealtime() + RESTART_DELAY_MILLIS
         synchronized(lock) {
             waitingForKeyframe = true
             units.clear()
@@ -161,6 +178,7 @@ class MediaCodecDecoder(
     private val callback = object : MediaCodec.Callback() {
         // The codec is stopped and released from posted work, never inside its own callback.
         override fun onInputBufferAvailable(codec: MediaCodec, index: Int) {
+            if (codec !== this@MediaCodecDecoder.codec) return // a replaced codec's buffer
             synchronized(lock) { freeInputs.addLast(index) }
             handler.post { feed() }
         }
@@ -179,7 +197,8 @@ class MediaCodecDecoder(
 
         override fun onError(codec: MediaCodec, error: MediaCodec.CodecException) {
             Log.w(TAG, "Decoder error ${error.diagnosticInfo} (recoverable ${error.isRecoverable}, transient ${error.isTransient})")
-            handler.post { failed() }
+            // A late report from a codec already replaced must not stop its successor.
+            handler.post { if (codec === this@MediaCodecDecoder.codec) failed() }
         }
 
         override fun onOutputFormatChanged(codec: MediaCodec, format: MediaFormat) = Unit
@@ -187,7 +206,8 @@ class MediaCodecDecoder(
 
     private companion object {
         const val TAG = "OsplayDecoder"
-        const val FRAME_US = 16_667L
+        /** How long a failed codec's hardware gets to come free before the next one starts. */
+        const val RESTART_DELAY_MILLIS = 1_000L
         /** Frames a setup must decode before it counts as working. */
         const val WORKING_FRAMES = 120
 
