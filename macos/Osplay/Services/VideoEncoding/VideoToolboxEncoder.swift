@@ -84,6 +84,9 @@ final class VideoToolboxEncoder: VideoEncoding, @unchecked Sendable {
 
     private var isInvalidated: Bool { lock.withLock { invalidated } }
 
+    /// EXPERIMENT: off to see whether ReferenceBufferCount is what breaks CI's encoder.
+    private static let experimentSetsReferenceFrames = false
+
     // MARK: - Setup
 
     private static func makeSession(
@@ -159,7 +162,7 @@ final class VideoToolboxEncoder: VideoEncoding, @unchecked Sendable {
         }
         // Only with low-latency rate control: a virtual machine's encoder accepts one reference
         // frame and then drops half the frames.
-        if lowLatency && false {  // EXPERIMENT: is ReferenceBufferCount what breaks CI?
+        if lowLatency && Self.experimentSetsReferenceFrames {
             let status = VTSessionSetProperty(
                 session, key: kVTCompressionPropertyKey_ReferenceBufferCount,
                 value: tunables.referenceFrames as CFNumber)
