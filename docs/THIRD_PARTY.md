@@ -11,6 +11,7 @@ build (the phase is listed) and whenever its pinned version changes.
 | [cacophony](https://github.com/haskell-cryptography/cacophony) Noise test vectors | Handshake tests | Unlicense | No — test data | Phase 4 |
 | [noise-c](https://github.com/rweather/noise-c) Noise test vectors | Handshake tests | MIT | No — test data | Phase 4 |
 | [Asio](https://think-async.com/Asio/) 1.38.2 (standalone) | Sockets and timers in `core` | BSL-1.0 | Yes — vendored headers (`core/third_party/asio`) | Phase 5 |
+| [Opus](https://opus-codec.org) 1.5.2 (libopus) | Sound coding, host and viewer | BSD-3-Clause | Yes — vendored source, trimmed (`core/third_party/opus`, see its `README.osplay.md`) | AUD-01 |
 | [WPF-UI](https://github.com/lepoco/wpfui) 4.3.0 | Fluent controls, theme following | MIT | Yes — NuGet assembly | Phase 12 |
 | [.NET](https://github.com/dotnet/runtime) 10 runtime and Windows Desktop | Runtime of the self-contained Windows shell | MIT, with its own third-party notices | Yes — in the installer | Phase 14 |
 | [H.NotifyIcon.Wpf](https://github.com/HavenDV/H.NotifyIcon) 2.4.1 | Windows tray icon | MIT | Yes — NuGet assembly | Phase 0 |
@@ -25,11 +26,14 @@ Where the license texts ship:
 - **Windows installer:** its license page shows Osplay's license, and `licenses\` in the install
   folder holds Osplay's license and the texts of every distributed component above: the files in
   `windows/installer/licenses/` (Virtual Display Driver, UsbDk, WPF-UI, H.NotifyIcon, CommunityToolkit, QRCoder),
-  the vendored Monocypher and Asio licenses, and the .NET SDK's `LICENSE.txt` and
+  the vendored Monocypher, Asio and Opus licenses, and the .NET SDK's `LICENSE.txt` and
   `ThirdPartyNotices.txt`. `scripts/windows/Build-Installer.ps1` stages them.
-- **macOS app:** it contains only Monocypher and Asio, and neither requires a notice in a binary:
-  Osplay uses Monocypher under its CC0-1.0 option, and BSL-1.0 exempts copies in machine-executable
-  form. The source tree keeps both license files.
+- **macOS, iPad, Apple TV and Android apps:** Monocypher and Asio need no notice in a binary
+  (Osplay uses Monocypher under its CC0-1.0 option, and BSL-1.0 exempts copies in
+  machine-executable form). Opus does: its license asks binary redistributions to reproduce the
+  copyright notice, conditions and disclaimer in their documentation or other materials. Every app
+  links the core, so each one ships `core/third_party/opus/COPYING` from AUD-02 (Apple apps) and
+  AUD-04 (Android) on, before a release carries the audio code.
 
 ## Virtual Display Driver redistribution
 

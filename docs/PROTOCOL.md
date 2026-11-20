@@ -1,6 +1,6 @@
 # Osplay wire protocol
 
-Version 1.2. This document is authoritative: `core/src/protocol/` implements it, and
+Version 1.3. This document is authoritative: `core/src/protocol/` implements it, and
 `protocol/tools/generate_fixtures.py` independently encodes the binary fixtures in
 `protocol/fixtures/` from it. Both implementations must agree byte for byte.
 
@@ -54,7 +54,7 @@ Service type `_osplay._tcp`; the SRV record carries the TCP control port. TXT re
 | `id` | device ID: lowercase hex of the first 16 bytes of BLAKE2b-256 over the static public key |
 | `roles` | `host`, `viewer` or `host,viewer` |
 | `os` | `macos`, `windows`, `ipados` or `android` |
-| `pm` | protocol minor version, decimal (`2`); added in 1.2, so a record without it comes from Osplay 0.1 |
+| `pm` | protocol minor version, decimal (`3`); added in 1.2, so a record without it comes from Osplay 0.1 |
 
 Osplay 0.1 (protocol 1.1 and older) refuses the `ipados` and `android` platforms in Hello, so a
 tablet tells the user to update a computer whose record has no `pm` instead of connecting to it.
@@ -97,6 +97,8 @@ messages (4112 with the 16-byte AEAD tag). A control message is:
 | 0x12 | Bye | both | orderly close |
 | 0x13 | MediaSetup | host → viewer | UDP port and session token |
 | 0x14 | RoleSwap | both | reverse the roles of a running session (minor version 1) |
+| 0x15 | AudioConfig | host → viewer | the host sends sound in this format (minor version 3) |
+| 0x16 | AudioStop | host → viewer | no more sound (minor version 3) |
 
 Stream IDs are 0–3. Monitor IDs are 0–255 and chosen by the viewer.
 
@@ -106,7 +108,7 @@ Stream IDs are 0–3. Monitor IDs are 0–255 and chosen by the viewer.
 |-------|------|--------|
 | role | u8 | 1 host, 2 viewer |
 | platform | u8 | 1 macOS, 2 Windows, 3 iPadOS, 4 Android (3 and 4 from minor version 2) |
-| protocol_minor | u8 | minor version of the sender (2) |
+| protocol_minor | u8 | minor version of the sender (3) |
 | reserved | u8 | 0 |
 | device_name | string | 1–64 bytes |
 
@@ -131,7 +133,7 @@ Stream IDs are 0–3. Monitor IDs are 0–255 and chosen by the viewer.
 |-------|------|--------|
 | codecs | u32 | bit 0: H.264 Annex B. Other bits reserved. At least one bit set. |
 | max_streams | u8 | 1–4 |
-| flags | u8 | bit 0: sends a cursor stream; bit 1: renders a cursor stream. Other bits reserved. |
+| flags | u8 | bit 0: sends a cursor stream; bit 1: renders a cursor stream; bit 2: plays audio (minor version 3). Other bits reserved. |
 | max_width | u16 | 320–16384 |
 | max_height | u16 | 240–16384 |
 | max_refresh_hz | u16 | 24–1000 |
@@ -142,6 +144,9 @@ monitor's aspect ratio, the longer side against the longer limit, as for the hos
 setting) and its frame rate at most max_refresh_hz. The virtual display keeps the monitor's
 resolution and refresh rate; the viewer scales the stream up. A TV whose decoder stops at 4K30 thus
 gets a 4K display streamed at 30 fps.
+
+Peers before minor version 3 refuse a Capabilities message with bit 2 set (Error 5), so a side sets
+"plays audio" only when the peer's Hello carried minor version 3 or later.
 
 ### 0x05 ViewerMonitors
 
@@ -281,6 +286,24 @@ Empty body.
 
 See "Role swap" under "Session flow".
 
+### 0x15 AudioConfig
+
+| Field | Type | Values |
+|-------|------|--------|
+| codec | u8 | 1 Opus |
+| channels | u8 | 1 or 2 |
+| frame_duration_us | u16 | 2500, 5000, 10000, 20000, 40000 or 60000 |
+| sample_rate_hz | u32 | 48000 |
+| bitrate_kbps | u16 | 6–510 |
+
+Sent only to a viewer whose Capabilities set "plays audio"; such a viewer receiving it otherwise
+ends the session with Error 5. Sent again when the format changes: the viewer then starts over with
+a new decoder and AudioPacket numbering starts again at 0. See "Audio" under "Session flow".
+
+### 0x16 AudioStop
+
+No fields. The host sends no sound until its next AudioConfig.
+
 ## Media channel (UDP)
 
 A datagram is at most **1200 bytes**. It consists of a header that travels in clear (it is the
@@ -302,6 +325,7 @@ Media header (12 bytes):
 | 0x02 | VideoFragment | host → viewer |
 | 0x03 | CursorPosition | host → viewer |
 | 0x04 | CursorShapeFragment | host → viewer |
+| 0x05 | AudioPacket | host → viewer (minor version 3) |
 
 ### 0x01 UdpHello
 
@@ -359,6 +383,17 @@ sent when it changes and again with every keyframe, so a viewer that joined late
 are not retransmitted: a viewer that keeps receiving visible positions naming a shape it lacks for
 100 ms sends KeyframeRequest (reason 2), which brings the shape again. A shape already delivered
 is not delivered again.
+
+### 0x05 AudioPacket
+
+| Field | Type | Values |
+|-------|------|--------|
+| audio_sequence | u32 | 0 for the first frame after AudioConfig, +1 per frame (wraps) |
+| capture_time_us | u64 | the frame's first sample, on the host's clock |
+| payload | bytes | one Opus packet, 1–1160 bytes |
+
+One encoded frame of the AudioConfig's duration. Audio is never retransmitted; see "Audio" under
+"Session flow".
 
 ## Stream links
 
@@ -455,6 +490,27 @@ display becomes the host and the other one its display.
 
 A peer with protocol minor 0 does not know RoleSwap and ends the session with Error 5 when it
 arrives; Hello tells each side the other's minor version, so the request is not sent to such peers.
+
+### Audio
+
+From minor version 3 the host may send its computer's sound to a viewer that announced "plays
+audio" in Capabilities, once streaming.
+
+1. The host sends **AudioConfig**, then one **AudioPacket** per frame, encoded with Opus from 48 kHz
+   PCM. The reference host sends stereo 10 ms frames at 128 kbps with Opus in its restricted
+   low-delay mode (CELT only).
+2. Audio packets are not retransmitted and not acknowledged: a resent frame would arrive after its
+   turn to play. The viewer conceals a lost frame with the decoder's own loss concealment.
+3. The viewer plays packets in audio_sequence order from a jitter buffer that holds a reserve before
+   it starts: **40 ms**, plus 20 ms each time the reserve runs dry (a frame is concealed three times
+   in a row with nothing newer received), up to 200 ms; every 10 s it lowers the reserve towards the
+   smallest one it needed. A packet older than the one being played is dropped as late.
+4. The viewer's audio device runs on its own clock, so the viewer holds the reserve by playing up
+   to 0.2 % faster or slower (resampling) and drops a burst that exceeds the reserve by more than
+   100 ms.
+5. capture_time_us and the clock offset from Ping/Pong give the viewer the capture-to-playback
+   delay of its sound, comparable with that of the picture.
+6. **AudioStop** ends the sound; a new AudioConfig starts it again.
 
 ### Loss recovery
 

@@ -37,6 +37,8 @@ enum class ControlType : std::uint8_t {
     Bye = 0x12,
     MediaSetup = 0x13,
     RoleSwap = 0x14,
+    AudioConfig = 0x15,
+    AudioStop = 0x16,
 };
 
 enum class Role : std::uint8_t { Host = 1, Viewer = 2 };
@@ -65,10 +67,14 @@ enum class ByeReason : std::uint8_t {
 };
 enum class RoleSwapStep : std::uint8_t { Request = 1, Accept = 2, Refuse = 3 };
 enum class RoleSwapRefusal : std::uint8_t { None = 0, CannotHost = 1, Busy = 2 };
+enum class AudioCodec : std::uint8_t { Opus = 1 };
 
 inline constexpr std::uint32_t kCodecH264AnnexB = 1U << 0U;
 inline constexpr std::uint8_t kCapabilitySendsCursor = 1U << 0U;
 inline constexpr std::uint8_t kCapabilityRendersCursor = 1U << 1U;
+/// Protocol 1.3: the viewer plays the host's sound. Sent only to a peer of 1.3 or later, whose
+/// decoder accepts the bit; older peers refuse unknown flags.
+inline constexpr std::uint8_t kCapabilityPlaysAudio = 1U << 2U;
 
 using SessionToken = std::array<std::uint8_t, kSessionTokenSize>;
 
@@ -242,10 +248,35 @@ struct RoleSwap {
     bool operator==(const RoleSwap&) const = default;
 };
 
+/// Host to viewer (protocol 1.3): the host sends its sound from now on, in this format. Sent again
+/// when the format changes; the viewer then starts over with a new decoder.
+struct AudioConfig {
+    static constexpr ControlType kType = ControlType::AudioConfig;
+    AudioCodec codec = AudioCodec::Opus;
+    std::uint8_t channels = 2;
+    std::uint16_t frame_duration_us = 10'000;
+    std::uint32_t sample_rate_hz = kAudioSampleRate;
+    std::uint16_t bitrate_kbps = 128;
+    bool operator==(const AudioConfig&) const = default;
+};
+
+/// Host to viewer (protocol 1.3): no more sound until the next AudioConfig.
+struct AudioStop {
+    static constexpr ControlType kType = ControlType::AudioStop;
+    bool operator==(const AudioStop&) const = default;
+};
+
+/// Frame durations Opus encodes, in microseconds.
+[[nodiscard]] constexpr bool is_opus_frame_duration(std::uint16_t duration_us) {
+    return duration_us == 2'500 || duration_us == 5'000 || duration_us == 10'000 ||
+           duration_us == 20'000 || duration_us == 40'000 || duration_us == 60'000;
+}
+
 using ControlMessage =
     std::variant<Hello, HandshakeMessage, PairingConfirm, Capabilities, ViewerMonitors,
                  StreamConfig, StreamStart, StreamPause, StreamResume, StreamStop, KeyframeRequest,
-                 Nack, ReceiverReport, Ping, Pong, Heartbeat, PeerError, Bye, MediaSetup, RoleSwap>;
+                 Nack, ReceiverReport, Ping, Pong, Heartbeat, PeerError, Bye, MediaSetup, RoleSwap,
+                 AudioConfig, AudioStop>;
 
 [[nodiscard]] ControlType type_of(const ControlMessage& message);
 

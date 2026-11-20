@@ -11,6 +11,7 @@ Every viewer plays the host's sound with low latency: Android phones, tablets an
 - [ ] iPad, Apple TV and Mac: AVAudioEngine source node fed from CoreBridge.
 - [ ] PC viewer: WASAPI shared-mode render.
 - [ ] Viewers announce that they play audio; a mute switch in each viewer's controls.
+- [ ] Ship the Opus license in the Android app (THIRD_PARTY.md); the Windows installer already stages it.
 - [ ] Tests, TESTING.md cases, docs (README, ARCHITECTURE, DECISIONS).
 
 ## Acceptance Criteria

@@ -55,6 +55,8 @@ struct Side {
     int role_swap_requests = 0;
     std::vector<osplay_role_swap_answer> role_swap_answers;
     std::array<uint8_t, OSPLAY_KEY_SIZE> role_swap_peer{};
+    std::vector<osplay_audio_config> audio_configs;
+    int audio_stops = 0;
 
     size_t frame_count() {
         const std::scoped_lock lock(mutex);
@@ -106,6 +108,12 @@ struct Side {
                 side.role_swap_answers.push_back(answer);
                 side.role_swap_peer = copy;
             });
+        };
+        result.on_audio_config = [](void* context, const osplay_audio_config* config) {
+            update(context, [copy = *config](Side& side) { side.audio_configs.push_back(copy); });
+        };
+        result.on_audio_stopped = [](void* context) {
+            update(context, [](Side& side) { ++side.audio_stops; });
         };
         result.on_peer = [](void* context, const osplay_peer_info* peer) {
             update(context,
@@ -209,9 +217,11 @@ TEST(CapiSession, PairsConfiguresAndStreamsOverLoopback) {
                                  .physical_height_mm = 336,
                                  .scale_percent = 100,
                                  .name = "Studio Display"};
+    osplay_capabilities viewer_capabilities = kCapabilities;
+    viewer_capabilities.flags = OSPLAY_CAPABILITY_PLAYS_AUDIO;
     const osplay_session_config viewer_config{.platform = OSPLAY_PLATFORM_WINDOWS,
                                               .device_name = "C Viewer",
-                                              .capabilities = kCapabilities,
+                                              .capabilities = viewer_capabilities,
                                               .monitors = &monitor,
                                               .monitor_count = 1,
                                               .control_port = 0};
@@ -297,6 +307,44 @@ TEST(CapiSession, PairsConfiguresAndStreamsOverLoopback) {
     bad.length = 10;
     EXPECT_EQ(osplay_session_push_cursor_shape(host, &bad), OSPLAY_ERROR_INVALID_ARGUMENT);
 
+    // Sound: the viewer said it plays it, so the host may start; the viewer reads it back.
+    EXPECT_EQ(host_side.viewer_capabilities.flags, OSPLAY_CAPABILITY_PLAYS_AUDIO);
+    const osplay_audio_config audio{.sample_rate_hz = OSPLAY_AUDIO_SAMPLE_RATE,
+                                    .channels = 2,
+                                    .frame_duration_us = 10'000,
+                                    .bitrate_kbps = 96};
+    osplay_audio_config wrong_rate = audio;
+    wrong_rate.sample_rate_hz = 44'100;
+    EXPECT_EQ(osplay_session_start_audio(host, &wrong_rate), OSPLAY_ERROR_INVALID_ARGUMENT);
+    ASSERT_EQ(osplay_session_start_audio(host, &audio), OSPLAY_OK);
+    ASSERT_TRUE(viewer_side.wait([](Side& side) { return !side.audio_configs.empty(); }));
+    EXPECT_EQ(viewer_side.audio_configs.front().bitrate_kbps, 96U);
+    std::vector<float> tone(std::size_t{480} * 2);
+    for (std::size_t i = 0; i < 480; ++i) {
+        tone[2 * i] = (i / 24) % 2 == 0 ? 0.25F : -0.25F;
+        tone[(2 * i) + 1] = tone[2 * i];
+    }
+    for (int i = 0; i < 20; ++i) {
+        ASSERT_EQ(osplay_session_push_audio(host, tone.data(), 480, 2, osplay_clock_microseconds()),
+                  OSPLAY_OK);
+        std::this_thread::sleep_for(milliseconds(10));
+    }
+    std::vector<float> heard(std::size_t{480} * 2);
+    uint64_t heard_at = 0;
+    const auto sound_give_up = std::chrono::steady_clock::now() + seconds(3);
+    while (heard_at == 0 && std::chrono::steady_clock::now() < sound_give_up) {
+        ASSERT_EQ(osplay_session_read_audio(viewer, heard.data(), 480, 2, &heard_at), OSPLAY_OK);
+        std::this_thread::sleep_for(milliseconds(5));
+    }
+    EXPECT_NE(heard_at, 0U) << "the viewer played the host's sound";
+    EXPECT_EQ(osplay_session_read_audio(host, heard.data(), 480, 2, nullptr),
+              OSPLAY_ERROR_INVALID_STATE)
+        << "a host plays nothing";
+    EXPECT_EQ(osplay_session_push_audio(host, tone.data(), 480, 3, 0),
+              OSPLAY_ERROR_INVALID_ARGUMENT);
+    ASSERT_EQ(osplay_session_stop_audio(host), OSPLAY_OK);
+    EXPECT_TRUE(viewer_side.wait([](Side& side) { return side.audio_stops == 1; }));
+
     // Role swap: refused once, then accepted; the accepted swap closes both sides cleanly.
     EXPECT_EQ(osplay_session_answer_role_swap(host, OSPLAY_ROLE_SWAP_NO_ANSWER),
               OSPLAY_ERROR_INVALID_ARGUMENT);
@@ -368,6 +416,22 @@ TEST(CapiSession, RejectsInvalidArguments) {
     EXPECT_EQ(osplay_session_confirm_pairing(nullptr, 1), OSPLAY_ERROR_INVALID_ARGUMENT);
     EXPECT_EQ(osplay_session_push_access_unit(nullptr, nullptr), OSPLAY_ERROR_INVALID_ARGUMENT);
     osplay_session_destroy(nullptr);
+}
+
+TEST(CapiSession, SoundCallsCheckTheirArguments) {
+    const osplay_audio_config audio{.sample_rate_hz = OSPLAY_AUDIO_SAMPLE_RATE,
+                                    .channels = 2,
+                                    .frame_duration_us = 10'000,
+                                    .bitrate_kbps = 128};
+    std::array<float, 4> samples{};
+    uint64_t capture = 7;
+    EXPECT_EQ(osplay_session_start_audio(nullptr, &audio), OSPLAY_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(osplay_session_push_audio(nullptr, samples.data(), 2, 2, 0),
+              OSPLAY_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(osplay_session_stop_audio(nullptr), OSPLAY_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(osplay_session_read_audio(nullptr, samples.data(), 2, 2, &capture),
+              OSPLAY_ERROR_INVALID_ARGUMENT);
+    EXPECT_EQ(capture, 0U) << "cleared even on failure";
 }
 
 TEST(CapiSession, AUsbViewerListensOnItsPortAndAUsbSessionNeedsOne) {

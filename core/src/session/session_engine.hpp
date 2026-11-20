@@ -9,6 +9,8 @@
 
 #include "crypto/media_crypto.hpp"
 #include "crypto/noise.hpp"
+#include "media/audio_encoder.hpp"
+#include "media/audio_playout.hpp"
 #include "media/cursor.hpp"
 #include "media/packetizer.hpp"
 #include "media/rate_limiter.hpp"
@@ -68,11 +70,27 @@ struct StreamStats {
     std::uint32_t latency_us = 0;
 };
 
+/// Protocol 1.3 sound. Counters are totals since the last AudioConfig.
+struct AudioStats {
+    std::uint32_t bitrate_kbps = 0;
+    /// Viewer: the reserve held against network jitter and its current target.
+    std::uint32_t buffered_us = 0;
+    std::uint32_t target_us = 0;
+    /// Viewer: capture to the platform's latest read, using the measured clock offset; 0 if
+    /// unknown. The platform's own output latency comes on top.
+    std::uint32_t latency_us = 0;
+    std::uint64_t concealed_frames = 0;
+    std::uint64_t late_packets = 0;
+    std::uint64_t underruns = 0;
+};
+
 struct SessionStats {
     std::uint32_t rtt_us = 0;
     std::int64_t clock_offset_us = 0; // peer clock minus local clock
     std::uint64_t datagrams_rejected = 0;
     std::vector<StreamStats> streams;
+    /// Present while the host sends sound (on both sides).
+    std::optional<AudioStats> audio;
 };
 
 /// Callbacks from the engine. They run on the engine's thread and must not block or call back
@@ -109,6 +127,11 @@ public:
     virtual void on_role_swap_answer(RoleSwapAnswer answer, const crypto::Key& peer_static_key) = 0;
     /// Host: encode this stream at this bitrate from now on (adapted from receiver reports).
     virtual void on_bitrate_target(std::uint8_t stream_id, std::uint32_t bitrate_kbps) = 0;
+    /// Viewer: the host sends sound in this format from now on; read it with
+    /// SessionEngine::audio_playout from the audio device's thread.
+    virtual void on_audio_config(const protocol::AudioConfig& config) = 0;
+    /// Viewer: the host stopped sending sound.
+    virtual void on_audio_stopped() = 0;
     virtual void on_log(LogLevel level, std::string_view message) = 0;
 };
 
@@ -164,6 +187,21 @@ public:
     /// Ends one stream for good on both sides (StreamStop); the session stays up.
     [[nodiscard]] Status<Error> stop_stream(std::uint8_t stream_id, TimePoint now);
     [[nodiscard]] Status<Error> resume_stream(std::uint8_t stream_id, TimePoint now);
+    /// Host: sends the computer's sound from now on (Streaming or Paused, protocol 1.3, a viewer
+    /// that plays audio; InvalidState otherwise). Calling it again switches to the new format.
+    [[nodiscard]] Status<Error> start_audio(const protocol::AudioConfig& config, TimePoint now);
+    /// Host: whole sample frames of interleaved PCM in [-1, 1] with `channels` channels; the
+    /// first one was captured at `capture_time_us` (core clock). Encoded and sent frame by frame;
+    /// dropped while no audio runs.
+    [[nodiscard]] Status<Error> push_audio(std::span<const float> samples, std::uint8_t channels,
+                                           std::uint64_t capture_time_us, TimePoint now);
+    /// Host: no more sound (AudioStop).
+    [[nodiscard]] Status<Error> stop_audio(TimePoint now);
+    /// Viewer: where the platform reads the host's sound, from any thread; null on a host. It
+    /// lives as long as the engine.
+    [[nodiscard]] const std::shared_ptr<media::AudioPlayout>& audio_playout() const {
+        return audio_playout_;
+    }
     /// Asks the peer to reverse the roles (Streaming or Paused only, one request at a time).
     [[nodiscard]] Status<Error> request_role_swap(TimePoint now);
     /// Answers on_role_swap_request: Accepted closes the session with Bye (role swap); a refusal
@@ -200,6 +238,11 @@ private:
     void handle_peer_error(const protocol::PeerError& error);
     void handle_role_swap(const protocol::RoleSwap& message, TimePoint now);
     void handle_receiver_report(const protocol::ReceiverReport& report);
+    void handle_audio_config(const protocol::AudioConfig& config, TimePoint now);
+    void handle_audio_stop();
+    /// The flags this side announces: "plays audio" only to a peer that knows it (1.3).
+    [[nodiscard]] protocol::Capabilities announced_capabilities() const;
+    [[nodiscard]] bool plays_audio() const;
     void expire_role_swap(TimePoint now);
     void send(const protocol::ControlMessage& message, TimePoint now);
     void handshake_complete(TimePoint now);
@@ -220,6 +263,8 @@ private:
     void repeat_tails(TimePoint now);
     [[nodiscard]] bool seal_and_send(const protocol::MediaPacket& packet);
     void deliver_fragment(const protocol::VideoFragment& fragment, TimePoint now);
+    void deliver_audio(const protocol::AudioPacket& packet, TimePoint now);
+    [[nodiscard]] std::optional<AudioStats> audio_stats(Microseconds interval);
 
     // Housekeeping
     void send_reports(TimePoint now);
@@ -281,6 +326,11 @@ private:
 
     std::map<std::uint8_t, std::unique_ptr<HostStream>> host_streams_;
     std::map<std::uint8_t, std::unique_ptr<ViewerStream>> viewer_streams_;
+
+    std::unique_ptr<media::AudioEncoder> audio_encoder_; // host, while sound is sent
+    std::uint32_t next_audio_sequence_ = 0;
+    std::shared_ptr<media::AudioPlayout> audio_playout_; // viewer
+    std::uint64_t audio_bytes_in_window_ = 0;
 
     TimePoint connected_at_;
     TimePoint last_sent_;

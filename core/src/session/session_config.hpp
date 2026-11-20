@@ -3,6 +3,7 @@
 // Every tunable of a session in one place (DEVPLAN: "tunables live in one constants file"); the
 // defaults are the shipping values, tests shorten them.
 
+#include "media/audio_playout.hpp"
 #include "protocol/control_messages.hpp"
 #include "session/bitrate_controller.hpp"
 #include "util/time.hpp"
@@ -64,6 +65,8 @@ struct SessionTunables {
     /// Host: when this much is already queued, frames go out at the fraction window again so the
     /// queue drains instead of adding latency without end.
     Microseconds pacing_max_queue{100'000};
+    /// Viewer: the jitter buffer in front of the audio device.
+    media::AudioPlayoutTunables audio;
 };
 
 struct SessionConfig {
@@ -74,6 +77,8 @@ struct SessionConfig {
     /// Viewer: the monitors it lends (ViewerMonitors).
     std::vector<protocol::Monitor> monitors;
     SessionTunables tunables;
+    /// The protocol minor version announced in Hello; tests play older peers with it.
+    std::uint8_t protocol_minor = protocol::kMinorVersion;
 };
 
 } // namespace osplay::session

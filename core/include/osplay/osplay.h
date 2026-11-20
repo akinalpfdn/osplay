@@ -28,8 +28,8 @@ typedef struct osplay_version {
 
 /* Wire protocol constants (docs/PROTOCOL.md). */
 #define OSPLAY_PROTOCOL_VERSION 1
-/* 1.2: the iPadOS and Android platforms and the "pm" TXT key (PROTOCOL.md). */
-#define OSPLAY_PROTOCOL_MINOR 2
+/* 1.2: the iPadOS and Android platforms and the "pm" TXT key; 1.3: audio (PROTOCOL.md). */
+#define OSPLAY_PROTOCOL_MINOR 3
 #define OSPLAY_MAX_CONTROL_MESSAGE_SIZE 4096
 #define OSPLAY_MAX_MEDIA_PLAINTEXT_SIZE 1184
 
@@ -276,10 +276,14 @@ typedef struct osplay_monitor {
     const char* name;
 } osplay_monitor;
 
+/* osplay_capabilities.flags bit (protocol 1.3): this viewer plays the host's sound. The core
+ * announces it only to peers of protocol 1.3 or later. */
+#define OSPLAY_CAPABILITY_PLAYS_AUDIO 4u
+
 typedef struct osplay_capabilities {
     uint32_t codecs; /* OSPLAY_CODEC_* bits */
     uint8_t max_streams;
-    uint8_t flags; /* 0 in protocol v1 */
+    uint8_t flags; /* OSPLAY_CAPABILITY_* bits */
     uint16_t max_width;
     uint16_t max_height;
     uint16_t max_refresh_hz;
@@ -350,12 +354,36 @@ typedef struct osplay_stream_stats {
     uint64_t keyframe_requests;
 } osplay_stream_stats;
 
+/*
+ * Sound (protocol 1.3): Opus at 48 kHz. PCM is interleaved 32-bit float in [-1, 1]; a sample
+ * frame holds one sample per channel.
+ */
+#define OSPLAY_AUDIO_SAMPLE_RATE 48000
+typedef struct osplay_audio_config {
+    uint32_t sample_rate_hz;    /* OSPLAY_AUDIO_SAMPLE_RATE */
+    uint8_t channels;           /* 1 or 2 */
+    uint16_t frame_duration_us; /* 2500, 5000, 10000, 20000, 40000 or 60000 */
+    uint16_t bitrate_kbps;      /* 6–510 */
+} osplay_audio_config;
+/* Counters are totals since the host's latest osplay_session_start_audio. */
+typedef struct osplay_audio_stats {
+    uint32_t bitrate_kbps;
+    uint32_t buffered_us; /* viewer: the reserve held against network jitter */
+    uint32_t target_us;   /* viewer: the reserve it aims for (grows after it ran dry) */
+    /* Viewer: capture to the latest osplay_session_read_audio, using the clock offset; 0 if
+     * unknown. The device's own output latency comes on top. */
+    uint32_t latency_us;
+    uint64_t concealed_frames;
+    uint64_t late_packets;
+    uint64_t underruns;
+} osplay_audio_stats;
 typedef struct osplay_session_stats {
     uint32_t rtt_us;
     int64_t clock_offset_us; /* peer clock minus local clock */
     uint64_t datagrams_rejected;
     const osplay_stream_stats* streams;
     size_t stream_count;
+    const osplay_audio_stats* audio; /* NULL while the host sends no sound */
 } osplay_session_stats;
 
 typedef struct osplay_peer_info {
@@ -420,6 +448,11 @@ typedef struct osplay_session_callbacks {
     /* Host: the link to the viewer changed; encode this stream at `bitrate_kbps` from now on
      * (never above the configured bitrate). */
     void (*on_bitrate_target)(void* context, uint8_t stream_id, uint32_t bitrate_kbps);
+    /* Viewer: the host sends sound in this format from now on; open the audio device and fill it
+     * with osplay_session_read_audio. Comes again when the format changes. */
+    void (*on_audio_config)(void* context, const osplay_audio_config* config);
+    /* Viewer: the host stopped sending sound; close the audio device. */
+    void (*on_audio_stopped)(void* context);
 } osplay_session_callbacks;
 
 typedef struct osplay_session osplay_session;
@@ -593,6 +626,33 @@ osplay_result osplay_session_request_role_swap(osplay_session* session);
 osplay_result osplay_session_answer_role_swap(osplay_session* session,
                                               osplay_role_swap_answer answer);
 
+/*
+ * Host: sends the computer's sound to the viewer from now on, once the session is streaming.
+ * OSPLAY_ERROR_INVALID_STATE when the viewer does not play sound (its capabilities in
+ * on_viewer_monitors lack OSPLAY_CAPABILITY_PLAYS_AUDIO); OSPLAY_ERROR_INVALID_ARGUMENT for a
+ * config outside the ranges above. Calling it again switches to the new format.
+ */
+osplay_result osplay_session_start_audio(osplay_session* session,
+                                         const osplay_audio_config* config);
+/*
+ * Host: `frames` sample frames of `channels` channels (the started config's), the first captured at
+ * `capture_time_us` (osplay_clock_microseconds() time base). Copied and queued; returns without
+ * waiting. Encoded in frames of the config's duration; dropped while no sound is started.
+ */
+osplay_result osplay_session_push_audio(osplay_session* session, const float* samples,
+                                        size_t frames, uint8_t channels, uint64_t capture_time_us);
+/* Host: stops sending sound (the viewer's on_audio_stopped). */
+osplay_result osplay_session_stop_audio(osplay_session* session);
+/*
+ * Viewer: fills `out` with `frames` sample frames of `channels` channels of the host's sound. Call
+ * it from the audio device's own thread, whenever the device wants samples: it never waits for the
+ * network, and the jitter buffer behind it follows the device's clock. It writes silence while no
+ * sound is configured, while the reserve refills after a stall, and when `channels` differs from
+ * the config. Stores the host capture time of the first sample in `out_capture_time_us` (may be
+ * NULL), 0 for silence. Stop the device before osplay_session_destroy.
+ */
+osplay_result osplay_session_read_audio(osplay_session* session, float* out, size_t frames,
+                                        uint8_t channels, uint64_t* out_capture_time_us);
 /*
  * The iPads on a USB cable, followed through usbmuxd on a thread of the watcher's own; callbacks
  * run there and must return quickly. Devices usbmuxd reaches over Wi-Fi are left out. When

@@ -713,3 +713,24 @@ choices the plan leaves open are logged here.
 **Why:** The user's Android TV (MediaTek MT5867) runs a 32-bit system, as many TV chips do; the app did not install there.
 **Trade-offs:** About 2.6 MB more per APK.
 **Revisit if:** Google Play requires splitting by ABI (an app bundle does that by itself).
+
+## 2026-11-20 — Sound is Opus in the core, trimmed libopus vendored
+**Chosen:** The core encodes and decodes sound with libopus 1.5.2, vendored in `core/third_party/opus` with only the float codec (no DNN/DRED/OSCE models, no hand-written SIMD), built by CMake (Windows, Android, tests) and SwiftPM (Apple apps).
+**Alternatives:** Platform codecs (AAC through AudioToolbox, Media Foundation and MediaCodec); uncompressed PCM; libopus with its machine-learning parts; Opus from each platform's package manager.
+**Why:** One implementation on every host and viewer, like the rest of the wire protocol. Opus has built-in loss concealment and 2.5–10 ms frames, where AAC's frames and encoder delay are longer and differ per platform. PCM (1.5 Mbit/s stereo) would cost Wi-Fi airtime the video needs. The ML parts add 17 MB of model data for gains (DRED, deep PLC) that need more delay than a display can spend; the generic C code encodes a 10 ms stereo frame in a fraction of a millisecond.
+**Trade-offs:** About 2 MB more source in the repository and a BSD notice every app must ship (THIRD_PARTY.md). Updates are manual.
+**Revisit if:** Deep packet loss concealment becomes cheap enough for 10 ms frames, or a platform needs SIMD to keep up.
+
+## 2026-11-20 — Audio is CELT-only 10 ms frames without retransmission
+**Chosen:** Hosts send stereo 48 kHz Opus in restricted low-delay mode (CELT only), 10 ms frames at 128 kbps. Packets are never retransmitted; a lost one is concealed by the decoder. "Plays audio" is a Capabilities flag sent only to peers of protocol 1.3 or later.
+**Alternatives:** Opus' audio mode (SILK/hybrid with in-band FEC, 6.5 ms look-ahead); 20 ms frames; NACK-based retransmission like video; sending each frame twice.
+**Why:** Desktop sound is mostly music and video, which CELT carries well at this bitrate, with 2.5 ms of look-ahead. A retransmitted frame arrives after its turn to play unless the reserve grows by an RTT, and the jitter buffer already holds 40 ms. In-band FEC works only in SILK modes. Older peers refuse unknown Capabilities flags, so the flag has to follow the peer's minor version.
+**Trade-offs:** A burst of loss is heard as a short fade instead of being recovered. CELT's concealment is weaker on speech than SILK's.
+**Revisit if:** Field reports show audible gaps on Wi-Fi (then: redundancy of the previous frame, or retransmission with a larger reserve).
+
+## 2026-11-20 — The viewer's audio device pulls from the core's jitter buffer
+**Chosen:** The viewer's platform reads PCM from the core (`osplay_session_read_audio`) on its audio device's own thread. The jitter buffer behind it starts at a 40 ms reserve, grows by 20 ms when the reserve runs dry (to 200 ms), lowers it every 10 s towards the least the network needed, and holds it against clock drift by resampling up to 0.2 % (Catmull-Rom, exact while the reserve is within 8 ms of its target).
+**Alternatives:** The core pushing decoded PCM to a callback on the I/O thread, with each platform keeping its own ring buffer and drift handling; a fixed reserve; dropping or repeating whole frames for drift.
+**Why:** Only the device knows when it needs samples, so a pull keeps the buffer on the device's clock and puts drift handling in one tested place instead of four platforms. Network jitter differs widely between Ethernet, Wi-Fi and Wi-Fi with AWDL, so the reserve adapts instead of being sized for the worst case. Dropping whole frames for drift clicks; 0.2 % of pitch is inaudible and corrects 2 ms per second.
+**Trade-offs:** The device thread takes a mutex shared with the I/O thread (held for microseconds). The adaptive reserve can grow after a single stall and takes 10 s to shrink.
+**Revisit if:** A platform's audio thread shows priority-inversion glitches, or users notice audio running behind the picture.

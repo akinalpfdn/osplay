@@ -48,7 +48,12 @@ Virtual display ─► Capture ─► Encoder ─► core: packetize ──UDP�
   window (`media_crypto`). Randomness comes from the platform through `crypto::RandomSource`.
 - `core/src/media/` splits access units into fragments (`packetizer`), keeps recent frames for
   retransmission (`retransmit_cache`) and rebuilds frames on the viewer (`reassembler`: in-order
-  delivery, NACK, deadline, wait for keyframe).
+  delivery, NACK, deadline, wait for keyframe). Sound (protocol 1.3): the host's PCM becomes 10 ms
+  Opus frames (`audio_encoder`); the viewer's `audio_playout` is a jitter buffer that the platform's
+  audio device reads on its own thread, through `osplay_session_read_audio`, without passing the
+  I/O thread. It conceals lost frames, adapts its reserve (40–200 ms) to the network and resamples
+  by up to 0.2 % to follow the device's clock. libopus is vendored, trimmed, in
+  `core/third_party/opus` and built by CMake and SwiftPM as its own target.
 - `core/src/session/` is the session protocol without I/O (`SessionEngine`): bytes, datagrams,
   time and commands go in; bytes, datagrams and observer callbacks come out. Tests drive it with a
   simulated lossy network and clock. Every tunable is in `session_config.hpp`.

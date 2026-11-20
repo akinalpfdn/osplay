@@ -11,6 +11,7 @@ A Mac that extends onto a display can play its sound there instead of on its own
 - [ ] A per-viewer choice in the menu: play sound on this display (one viewer at a time when several are connected; default off until chosen).
 - [ ] Feed the core's audio API; stop and unmute when the session ends or the choice is turned off.
 - [ ] macOS 14.0–14.1: no tap; the choice is hidden with a note.
+- [ ] Ship the Opus license (`core/third_party/opus/COPYING`) in the Mac, iPad and Apple TV apps and show it with the other notices (THIRD_PARTY.md: binary redistributions must reproduce it; the core in every app links Opus since AUD-01).
 - [ ] Tests (view model, tap lifecycle with a fake), TESTING.md cases, docs.
 
 ## Acceptance Criteria

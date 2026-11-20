@@ -92,6 +92,10 @@ public:
     void on_stream_stopped(std::uint8_t /*stream_id*/) override {}
     void on_role_swap_request(const osplay::crypto::Key& /*key*/) override {}
     void on_bitrate_target(std::uint8_t /*stream_id*/, std::uint32_t /*kbps*/) override {}
+    void on_audio_config(const protocol::AudioConfig& /*config*/) override {
+        update([&] { audio_configured_ = true; });
+    }
+    void on_audio_stopped() override {}
     void on_role_swap_answer(session::RoleSwapAnswer /*answer*/,
                              const osplay::crypto::Key& /*key*/) override {}
     void on_cursor_shape(const osplay::media::CursorShape& /*shape*/) override {}
@@ -128,6 +132,10 @@ public:
         return monitors_;
     }
     int keyframe_requests() const { return keyframe_requests_.load(); }
+    bool wait_for_audio_config(std::chrono::milliseconds timeout) {
+        std::unique_lock lock(mutex_);
+        return changed_.wait_for(lock, timeout, [&] { return audio_configured_; });
+    }
 
 private:
     template <typename Change>
@@ -146,6 +154,7 @@ private:
     std::vector<protocol::Monitor> monitors_;
     std::vector<std::uint32_t> frames_;
     bool intact_ = true;
+    bool audio_configured_ = false;
     std::atomic<int> keyframe_requests_{0};
 };
 
@@ -493,7 +502,8 @@ session::SessionConfig config(protocol::Role role) {
                          .max_height = 4320,
                          .max_refresh_hz = 240},
         .monitors = {},
-        .tunables = {}};
+        .tunables = {},
+        .protocol_minor = protocol::kMinorVersion};
     // Real sockets on a busy machine (CI, sanitizers, parallel tests) deliver late without losing
     // anything: frames wait for their fragments longer than on a network, and more of them may be
     // in flight, so a scheduling delay is not mistaken for loss. Loss handling itself is tested
@@ -502,6 +512,7 @@ session::SessionConfig config(protocol::Role role) {
         std::chrono::duration_cast<osplay::Microseconds>(std::chrono::milliseconds(500));
     config.tunables.max_frames_in_flight = 64;
     if (role == protocol::Role::Viewer) {
+        config.capabilities.flags = protocol::kCapabilityPlaysAudio;
         config.monitors.push_back({.monitor_id = 0,
                                    .width_px = 1920,
                                    .height_px = 1080,
@@ -720,6 +731,39 @@ protected:
         std::this_thread::sleep_for(milliseconds(16));
     }
 
+    /// Starts the sound and pushes `count` 10 ms frames of a tone in real time.
+    void send_sound(std::uint32_t count) {
+        ASSERT_TRUE(host->start_audio(protocol::AudioConfig{}).has_value());
+        ASSERT_TRUE(viewer_observer.wait_for_audio_config(seconds(5)));
+        std::vector<float> chunk(480 * 2);
+        for (std::size_t i = 0; i < 480; ++i) {
+            const auto value = (i / 24) % 2 == 0 ? 0.25F : -0.25F; // 1 kHz square wave
+            chunk[2 * i] = value;
+            chunk[(2 * i) + 1] = value;
+        }
+        for (std::uint32_t i = 0; i < count; ++i) {
+            const auto now = std::chrono::duration_cast<osplay::Microseconds>(
+                std::chrono::steady_clock::now().time_since_epoch());
+            host->push_audio(chunk, 2, static_cast<std::uint64_t>(now.count()));
+            std::this_thread::sleep_for(milliseconds(10));
+        }
+    }
+
+    /// Waits until the viewer received `count` audio packets; then one read must hold sound.
+    bool sound_arrived(std::uint64_t count, milliseconds limit) {
+        const auto playout = viewer->audio_playout();
+        const auto give_up = std::chrono::steady_clock::now() + limit;
+        while (playout->stats().packets < count) {
+            if (std::chrono::steady_clock::now() >= give_up) {
+                return false;
+            }
+            std::this_thread::sleep_for(milliseconds(10));
+        }
+        std::vector<float> out(480 * 2);
+        return playout->read(out, 2, std::chrono::steady_clock::now()) != 0 &&
+               std::ranges::any_of(out, [](float sample) { return sample != 0.0F; });
+    }
+
     osplay::test::SeededRandom host_random{11};
     osplay::test::SeededRandom viewer_random{12};
     SyncObserver host_observer;
@@ -811,6 +855,22 @@ TEST_F(RealSessions, StreamsFramesEndToEndOverLoopback) {
 
     viewer.reset(); // sends Bye
     EXPECT_TRUE(host_observer.wait_for_state(SessionState::Closed, seconds(3)));
+}
+
+TEST_F(RealSessions, CarriesSoundOverUdp) {
+    connect(false);
+    start_streaming();
+    send_sound(50);
+    EXPECT_TRUE(sound_arrived(50, seconds(5)));
+    EXPECT_EQ(viewer->audio_playout()->stats().late_packets, 0U);
+}
+
+TEST_F(RealSessions, CarriesSoundOverAStreamLink) {
+    FakeUsbmuxd usbmuxd;
+    connect_usb(usbmuxd);
+    start_streaming();
+    send_sound(50);
+    EXPECT_TRUE(sound_arrived(50, seconds(5)));
 }
 
 TEST_F(RealSessions, NothingReadableCrossesTheWireAfterTheHandshake) {
