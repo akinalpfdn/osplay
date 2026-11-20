@@ -533,8 +533,8 @@ Each phase is meant to be completed in one Claude Code session. A phase is done 
 **Constraints**: TVs are viewers only and take no input, as everywhere else in Osplay. Network only (Wi-Fi, Ethernet or the PC's own network); Apple TV has no USB. The main value is the directions no OS covers: PC → Apple TV and Mac/PC → Android TV.
 **Depends on**: Phase 15
 **Acceptance criteria**:
-- [ ] Mac → Android TV and PC → Android TV show a readable display in the TV's mode, within its decoder's limits, on the user's Android TV.
-- [ ] Mac → Apple TV and PC → Apple TV work in the tvOS simulator.
+- [x] Mac → Android TV and PC → Android TV show a readable display in the TV's mode, within its decoder's limits, on the user's Android TV.
+- [x] Mac → Apple TV and PC → Apple TV work in the tvOS simulator.
 
 ---
 
