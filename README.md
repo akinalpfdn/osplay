@@ -18,6 +18,12 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/github/downloads/akinalpfdn/osplay/Osplay-Setup.exe?label=Windows&color=0067c0" alt="Windows downloads">
+  <img src="https://img.shields.io/github/downloads/akinalpfdn/osplay/Osplay.dmg?label=macOS&color=111111" alt="macOS downloads">
+  <img src="https://img.shields.io/github/downloads/akinalpfdn/osplay/Osplay.apk?label=Android&color=0b7a43" alt="Android downloads">
+</p>
+
+<p align="center">
   iPad as a display: <a href="https://testflight.apple.com/join/P19BeWpg">join the TestFlight beta</a>
 </p>
 

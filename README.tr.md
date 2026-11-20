@@ -18,6 +18,12 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/github/downloads/akinalpfdn/osplay/Osplay-Setup.exe?label=Windows&color=0067c0" alt="Windows indirmeleri">
+  <img src="https://img.shields.io/github/downloads/akinalpfdn/osplay/Osplay.dmg?label=macOS&color=111111" alt="macOS indirmeleri">
+  <img src="https://img.shields.io/github/downloads/akinalpfdn/osplay/Osplay.apk?label=Android&color=0b7a43" alt="Android indirmeleri">
+</p>
+
+<p align="center">
   iPad'i ekran olarak kullanmak için: <a href="https://testflight.apple.com/join/P19BeWpg">TestFlight betasına katılın</a>
 </p>
 
