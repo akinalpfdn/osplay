@@ -13,11 +13,14 @@ final class VideoToolboxEncoder: VideoEncoding, @unchecked Sendable {
     private let output: EncoderOutput
     private let lock = NSLock()
     private var invalidated = false
+    /// Whether the encoder runs VideoToolbox's low-latency rate control, which real Apple
+    /// silicon encoders have and virtual machines' do not.
+    let usesLowLatencyRateControl: Bool
 
     init(_ configuration: EncoderConfiguration, output: @escaping EncoderOutput) throws(VideoEncoderError) {
         self.output = output
-        session = try Self.makeSession(configuration)
-        try Self.configure(session, configuration)
+        (session, usesLowLatencyRateControl) = try Self.makeSession(configuration)
+        try Self.configure(session, configuration, lowLatency: usesLowLatencyRateControl)
         let status = VTCompressionSessionPrepareToEncodeFrames(session)
         guard status == noErr else {
             VTCompressionSessionInvalidate(session)
@@ -86,19 +89,21 @@ final class VideoToolboxEncoder: VideoEncoding, @unchecked Sendable {
     private static func makeSession(
         _ configuration: EncoderConfiguration
     ) throws(VideoEncoderError)
-        -> VTCompressionSession
+        -> (VTCompressionSession, lowLatency: Bool)
     {
         let lowLatency = [kVTVideoEncoderSpecification_EnableLowLatencyRateControl: kCFBooleanTrue] as CFDictionary
         var created: VTCompressionSession?
         var status = create(configuration, specification: lowLatency, &created)
+        var usesLowLatency = status == noErr
         if status != noErr {
             // Encoders without low-latency rate control (e.g. in virtual machines) still work in
             // realtime mode, with somewhat larger rate-control bursts.
             Log.encoding.notice("Low-latency rate control unavailable (\(status)); using realtime mode")
             status = create(configuration, specification: nil, &created)
+            usesLowLatency = false
         }
         guard status == noErr, let created else { throw .creationFailed(status) }
-        return created
+        return (created, usesLowLatency)
     }
 
     private static func create(
@@ -111,7 +116,7 @@ final class VideoToolboxEncoder: VideoEncoding, @unchecked Sendable {
     }
 
     private static func configure(
-        _ session: VTCompressionSession, _ configuration: EncoderConfiguration
+        _ session: VTCompressionSession, _ configuration: EncoderConfiguration, lowLatency: Bool
     )
         throws(VideoEncoderError)
     {
@@ -141,7 +146,6 @@ final class VideoToolboxEncoder: VideoEncoding, @unchecked Sendable {
             (kVTCompressionPropertyKey_TransferFunction, kCVImageBufferTransferFunction_ITU_R_709_2),
             (kVTCompressionPropertyKey_YCbCrMatrix, kCVImageBufferYCbCrMatrix_ITU_R_709_2),
             (kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality, kCFBooleanTrue),
-            (kVTCompressionPropertyKey_ReferenceBufferCount, tunables.referenceFrames as CFNumber),
             (
                 kVTCompressionPropertyKey_DataRateLimits,
                 [Double(bitsPerSecond) * tunables.peakBitrateFactor / 8, 1.0] as CFArray
@@ -151,6 +155,16 @@ final class VideoToolboxEncoder: VideoEncoding, @unchecked Sendable {
             let status = VTSessionSetProperty(session, key: key, value: value)
             if status != noErr {
                 Log.encoding.info("Encoder ignores \(key as String, privacy: .public): \(status)")
+            }
+        }
+        // Only with low-latency rate control: a virtual machine's encoder accepts one reference
+        // frame and then drops half the frames.
+        if lowLatency {
+            let status = VTSessionSetProperty(
+                session, key: kVTCompressionPropertyKey_ReferenceBufferCount,
+                value: tunables.referenceFrames as CFNumber)
+            if status != noErr {
+                Log.encoding.info("Encoder ignores ReferenceBufferCount: \(status)")
             }
         }
     }
