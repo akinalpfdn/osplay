@@ -73,6 +73,8 @@ struct OsplayApp: App {
                 DeveloperHostTestView(viewModel: developerHostTest)
                 Divider()
                 DeveloperLoopbackView(viewModel: developerLoopback)
+                Divider()
+                SimulatedTVView(connection: connection)
             }
         }
     #endif

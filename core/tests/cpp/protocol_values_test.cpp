@@ -146,6 +146,33 @@ TEST(ProtocolValues, TimingAndSessionMessages) {
                                                 .refusal = protocol::RoleSwapRefusal::CannotHost}));
 }
 
+TEST(ProtocolValues, AudioMessages) {
+    EXPECT_EQ(control("capabilities_plays_audio.bin"),
+              ControlMessage(protocol::Capabilities{.codecs = protocol::kCodecH264AnnexB,
+                                                    .max_streams = 1,
+                                                    .flags = protocol::kCapabilityPlaysAudio,
+                                                    .max_width = 3840,
+                                                    .max_height = 2160,
+                                                    .max_refresh_hz = 60}));
+    EXPECT_EQ(control("audio_config.bin"),
+              ControlMessage(protocol::AudioConfig{.codec = protocol::AudioCodec::Opus,
+                                                   .channels = 2,
+                                                   .frame_duration_us = 10'000,
+                                                   .sample_rate_hz = 48'000,
+                                                   .bitrate_kbps = 128}));
+    EXPECT_EQ(control("audio_stop.bin"), ControlMessage(protocol::AudioStop{}));
+
+    const auto bytes = osplay::test::read_fixture("media/audio_packet.bin");
+    const auto decoded = protocol::decode_media(bytes);
+    ASSERT_TRUE(decoded.has_value());
+    const std::vector<std::uint8_t> opus{0xF8, 0xFF, 0xFE};
+    EXPECT_EQ(decoded.value(),
+              (protocol::MediaPacket{.sequence = 12,
+                                     .body = protocol::AudioPacket{.audio_sequence = 7,
+                                                                   .capture_time_us = 1'000'000,
+                                                                   .payload = opus}}));
+}
+
 TEST(ProtocolValues, MediaPackets) {
     const auto media = [](const std::string& file, const protocol::MediaPacket& expected) {
         const auto bytes = osplay::test::read_fixture("media/" + file);

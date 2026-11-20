@@ -51,6 +51,22 @@ struct VirtualDisplayLenderTests {
         #expect(provider.handles[1].activated.map(\.pixels) == [full])
     }
 
+    @Test("A monitor of unknown size (a TV) gets a display sized from its pixels and scale")
+    func unknownSizeIsDerivedFromPixels() async throws {
+        let provider = FakeVirtualDisplayProvider()
+        let lender = VirtualDisplayLender(provider: provider, arrange: { _ in })
+        let tv = MonitorDescription(
+            id: 0, widthPixels: 3840, heightPixels: 2160, refreshMillihertz: 60_000, physicalWidthMillimeters: 0,
+            physicalHeightMillimeters: 0, scalePercent: 200, name: "TV")
+
+        _ = try await lender.lend([tv], peerID: Data("peer".utf8), hiDPI: .automatic, arrangement: [])
+
+        // 192 dpi at 200%: 3840 px is 508 mm.
+        #expect(provider.createdConfigurations.map(\.physicalSizeMillimeters) == [CGSize(width: 508, height: 286)])
+        #expect(provider.handles[0].activated.map(\.points) == [DisplaySize(width: 1920, height: 1080)])
+        #expect(provider.handles[0].activated.map(\.pixels) == [DisplaySize(width: 3840, height: 2160)])
+    }
+
     @Test("The user's choice for a viewer overrides its scaling")
     func choiceOverridesScaling() async throws {
         let provider = FakeVirtualDisplayProvider()

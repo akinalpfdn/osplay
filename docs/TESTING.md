@@ -107,6 +107,50 @@ other device joins it (Wi-Fi settings, or the camera on the QR code) and is on n
 | W6 | Stays connected | Join a phone and leave it idle for five minutes, then stream to it | Still joined and streams; Event Viewer › WLAN-AutoConfig shows no "Wireless security stopped" for it |
 | W7 | Settings come back | Note the name in Settings › Mobile hotspot, open and close Osplay's network | The hotspot is off and shows your own name again |
 
+## Android TV
+
+The Android app on an Android TV or Google TV with Android 12 or later, installed with
+`adb install` (BUILDING.md) or from Google Play, driven with the TV's remote. Turn the stats
+overlay on in the app's Settings for TV4.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| TV1 | Launcher | Open the TV's apps row | Osplay's blue banner is there; it opens the list of computers with no USB cable section |
+| TV2 | Mac → TV | Choose the Mac with the remote (each row shows a ring when focused) and confirm the code | A Mac display in the TV's mode (3840×2160 on a 4K TV) that looks like 1920×1080 |
+| TV3 | PC → TV | The same with the PC | A virtual monitor in the TV's mode at 200% in Settings › Display (100% on a 1080p TV) |
+| TV4 | Native stream | On the computer set the stream size to Native, then TV2 | The overlay shows close to 60 fps; on a TV whose decoder stops at 4K30 the stream is smaller instead, still near 60 fps |
+| TV5 | Remote | During TV2 press OK, move along the controls, press Back twice | OK shows the controls with the stats button focused; they stay while focused; the first Back hides them, the second ends the session and shows the list |
+| TV6 | Home button | During TV2 press the remote's Home button, wait 10 s, open Osplay again | The display goes away on the computer and comes back when Osplay opens |
+
+## Apple TV (simulator)
+
+The `OsplayTV` scheme in a tvOS simulator on the Mac (BUILDING.md); the arrow keys, Return and
+Escape (Menu) drive the remote. There is no Apple TV to test on, so the decoder, the HDMI output and
+latency on hardware are not covered.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| ATV1 | Mac → Apple TV 4K | Simulator "Apple TV 4K"; the same Mac shares; choose it and confirm the code on both | A 3840×2160 Mac display that looks like 1920×1080 shows in the simulator |
+| ATV2 | PC → Apple TV | The PC shares; choose it in the simulator | A PC virtual monitor at 200% |
+| ATV3 | Apple TV 1080p | Simulator "Apple TV 4K (at 1080p)"; ATV1 | A 1920×1080 display at full size |
+| ATV4 | Remote | During ATV1 press Return, move along the controls, press Escape twice | Return shows the controls and focuses the statistics button; the first Escape hides them, the second ends the session |
+| ATV5 | Wording | Home screen and Settings | They say Apple TV, never iPad; no USB cable section |
+
+## TVs (simulated)
+
+A Debug build of the Mac app poses as a TV when it is used as a display: menu › Developer tools ›
+**Simulated TV**. It offers one monitor of unknown size at 200% instead of its own displays and
+shows the stream full screen on the first one. Turn the stats overlay on (Settings) to read the
+frame rate and bitrate.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| V1 | Mac → 4K TV | Viewer Mac: **4K TV, 60 Hz**. Host Mac extends onto it | A 3840×2160 display on the host that looks like 1920×1080 (crisp HiDPI); the overlay shows about 60 fps |
+| V2 | PC → 4K TV | V1 with the PC as host | A 3840×2160 virtual monitor at 200% in Settings › Display; the overlay as in V1 |
+| V3 | Decoder limit | Viewer Mac: **4K TV, decoder up to 30 Hz**, stream size Native on the host; repeat V1 and V2 | The display stays 3840×2160 at 60 Hz on the host (System Settings › Displays, Settings › Display); the overlay shows about 30 fps and about half V1's bitrate |
+| V4 | 1080p TV | Viewer Mac: **1080p TV**; Mac and PC host | A 1920×1080 display at 200% (looks like 960×540 on the Mac) |
+| V5 | Back to normal | Viewer Mac: **Off**; connect again | The Mac's own displays are offered, at their own sizes and scales |
+
 ## Interruptions
 
 | # | Scenario | Steps | Expected |

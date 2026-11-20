@@ -42,6 +42,9 @@ public:
     [[nodiscard]] virtual win::Expected<std::vector<std::wstring>, DisplayError>
     apply(std::span<const VirtualMonitorConfig> configs,
           std::span<const std::wstring> existing) = 0;
+    /// Sets the monitor's display scale to the step closest to `percent`.
+    [[nodiscard]] virtual win::Status<DisplayError> set_scale(const std::wstring& name,
+                                                              std::uint16_t percent) = 0;
 };
 
 class VirtualDisplayHub {
@@ -56,6 +59,8 @@ public:
     [[nodiscard]] win::Expected<std::vector<std::wstring>, DisplayError>
     create_monitors(const void* owner, std::span<const VirtualMonitorConfig> configs);
     [[nodiscard]] win::Status<DisplayError> remove_monitors(const void* owner);
+    [[nodiscard]] win::Status<DisplayError> set_scale(const std::wstring& name,
+                                                      std::uint16_t percent);
     [[nodiscard]] win::Expected<VirtualMonitorStatus, DisplayError> status();
     /// Devices no owner uses; read without waiting for a create in progress.
     [[nodiscard]] std::size_t free_monitors() const;
@@ -94,6 +99,8 @@ public:
     win::Expected<std::vector<std::wstring>, DisplayError>
     create_monitors(std::span<const VirtualMonitorConfig> configs) override;
     win::Status<DisplayError> remove_monitors() override;
+    win::Status<DisplayError> set_scale(const std::wstring& gdi_name,
+                                        std::uint16_t percent) override;
     win::Expected<VirtualMonitorStatus, DisplayError> status() override;
     [[nodiscard]] std::size_t available_monitors() const override;
 

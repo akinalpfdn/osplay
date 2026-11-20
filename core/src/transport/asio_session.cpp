@@ -1107,6 +1107,30 @@ Status<Error> AsioSession::answer_role_swap(session::RoleSwapAnswer answer) {
         Status<Error>::failure(Error::InvalidState));
 }
 
+Status<Error> AsioSession::start_audio(const protocol::AudioConfig& config) {
+    return impl_->run_sync(
+        [this, config] { return impl_->engine().start_audio(config, Impl::now()); },
+        Status<Error>::failure(Error::InvalidState));
+}
+
+Status<Error> AsioSession::stop_audio() {
+    return impl_->run_sync([this] { return impl_->engine().stop_audio(Impl::now()); },
+                           Status<Error>::failure(Error::InvalidState));
+}
+
+void AsioSession::push_audio(std::span<const float> samples, std::uint8_t channels,
+                             std::uint64_t capture_time_us) {
+    auto copy = std::make_shared<std::vector<float>>(samples.begin(), samples.end());
+    impl_->post([impl = impl_.get(), copy, channels, capture_time_us] {
+        // Fails only for a channel count that does not match the started format.
+        static_cast<void>(impl->engine().push_audio(*copy, channels, capture_time_us, Impl::now()));
+    });
+}
+
+std::shared_ptr<media::AudioPlayout> AsioSession::audio_playout() const {
+    return impl_->engine().audio_playout();
+}
+
 void AsioSession::push_access_unit(const media::AccessUnit& unit) {
     auto bytes = std::make_shared<std::vector<std::uint8_t>>(unit.data.begin(), unit.data.end());
     impl_->post([impl = impl_.get(), unit, bytes] {

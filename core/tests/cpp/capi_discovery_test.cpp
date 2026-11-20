@@ -37,7 +37,7 @@ TEST(Discovery, TheTxtRecordUsesTheDocumentedValues) {
     EXPECT_STREQ(record.device_id, "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf");
     EXPECT_STREQ(record.roles, "host,viewer");
     EXPECT_STREQ(record.os, "windows");
-    EXPECT_STREQ(record.protocol_minor, "2");
+    EXPECT_STREQ(record.protocol_minor, "3");
 }
 
 TEST(Discovery, ARecordReadsBackAsTheSameAdvertisement) {

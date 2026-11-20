@@ -200,6 +200,11 @@ osplay_engine_host* host_of(void* context) {
     return static_cast<osplay_engine_host*>(context);
 }
 
+/// The viewer's decoder limits; none when the core passes no Capabilities.
+osplay_capabilities viewer_limits(const osplay_capabilities* viewer) {
+    return viewer != nullptr ? *viewer : osplay_capabilities{};
+}
+
 osplay_session_callbacks core_callbacks(osplay_engine_host* host) {
     osplay_session_callbacks callbacks{};
     callbacks.context = host;
@@ -244,8 +249,10 @@ osplay_session_callbacks core_callbacks(osplay_engine_host* host) {
             self->callbacks.on_paired(self->callbacks.context, key);
         }
     };
-    callbacks.on_viewer_monitors = [](void* context, const osplay_monitor* monitors, size_t count) {
-        host_of(context)->orchestrator->on_viewer_monitors(std::span(monitors, count));
+    callbacks.on_viewer_monitors = [](void* context, const osplay_monitor* monitors, size_t count,
+                                      const osplay_capabilities* viewer) {
+        host_of(context)->orchestrator->on_viewer_monitors(std::span(monitors, count),
+                                                           viewer_limits(viewer));
     };
     callbacks.on_keyframe_request = [](void* context, uint8_t stream_id) {
         host_of(context)->orchestrator->on_keyframe_request(stream_id);

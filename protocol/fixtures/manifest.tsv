@@ -63,6 +63,15 @@ malformed/role_swap_step_4.bin	control	error	8	step 4
 malformed/role_swap_accept_reason.bin	control	error	8	acceptance with a reason
 malformed/role_swap_refuse_no_reason.bin	control	error	8	refusal without a reason
 malformed/role_swap_truncated.bin	control	error	3	RoleSwap without its reason
+control/capabilities_plays_audio.bin	control	valid	4	Capabilities of a viewer that plays audio
+malformed/capabilities_unknown_flag.bin	control	error	8	flag bit 3
+control/audio_config.bin	control	valid	21	AudioConfig: Opus stereo, 10 ms, 128 kbps
+control/audio_stop.bin	control	valid	22	AudioStop
+malformed/audio_config_44100.bin	control	error	8	44.1 kHz
+malformed/audio_config_three_channels.bin	control	error	8	three channels
+malformed/audio_config_frame_15ms.bin	control	error	8	15 ms frames
+malformed/audio_config_truncated.bin	control	error	3	AudioConfig without its bitrate
+malformed/audio_stop_trailing.bin	control	error	7	AudioStop with a body
 media/udp_hello.bin	media	valid	1	UdpHello
 media/video_keyframe_single.bin	media	valid	2	keyframe with SPS/PPS in one fragment
 media/video_middle_fragment.bin	media	valid	2	full middle fragment of three
@@ -90,3 +99,7 @@ malformed/cursor_shape_zero_width.bin	media	error	8	width 0
 malformed/cursor_shape_hotspot_outside.bin	media	error	8	hotspot x = width
 malformed/cursor_shape_wrong_count.bin	media	error	8	fragment_count 5 for 32x32
 malformed/cursor_shape_wrong_length.bin	media	error	8	last fragment one byte short
+media/audio_packet.bin	media	valid	5	AudioPacket with a 3-byte Opus frame
+media/audio_packet_largest.bin	media	valid	5	AudioPacket with the largest payload
+malformed/audio_packet_empty.bin	media	error	8	AudioPacket without a payload
+malformed/audio_packet_truncated.bin	media	error	3	AudioPacket cut in its capture time

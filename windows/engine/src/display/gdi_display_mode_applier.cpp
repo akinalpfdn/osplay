@@ -1,6 +1,7 @@
 #include "gdi_display_mode_applier.hpp"
 
 #include "../engine_tunables.hpp"
+#include "dpi_scaling.hpp"
 #include "vdd_monitor.hpp"
 
 #include <windows.h>
@@ -85,6 +86,11 @@ Result GdiDisplayModeApplier::apply(std::span<const VirtualMonitorConfig> config
         }
     }
     return names;
+}
+
+win::Status<DisplayError> GdiDisplayModeApplier::set_scale(const std::wstring& name,
+                                                           std::uint16_t percent) {
+    return set_display_scale(name, percent);
 }
 
 } // namespace osplay::engine

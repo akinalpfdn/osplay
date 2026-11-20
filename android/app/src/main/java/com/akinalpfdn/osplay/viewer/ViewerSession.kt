@@ -11,6 +11,7 @@ import com.akinalpfdn.osplay.core.RoleSwapAnswer
 import com.akinalpfdn.osplay.core.SessionListener
 import com.akinalpfdn.osplay.core.SessionState
 import com.akinalpfdn.osplay.core.Trust
+import com.akinalpfdn.osplay.video.DecodingLimits
 import java.util.concurrent.Executors
 
 /** The monitor this device lends to a host (ViewerMonitors). */
@@ -83,8 +84,11 @@ interface ViewerSessionMaking {
     ): Pair<ViewerSessionHandle?, CoreError?>
 }
 
-/** Sessions through the core, showing their stream on [stage]. */
-class CoreViewerSessions(private val stage: StreamStage) : ViewerSessionMaking {
+/** Sessions through the core, showing their stream on [stage], announcing what [limits] gives for the monitor. */
+class CoreViewerSessions(
+    private val stage: StreamStage,
+    private val limits: (MonitorDescription) -> DecodingLimits = { DecodingLimits.Generous },
+) : ViewerSessionMaking {
     override fun start(
         identity: Identity,
         deviceName: String,
@@ -94,6 +98,7 @@ class CoreViewerSessions(private val stage: StreamStage) : ViewerSessionMaking {
         onEvent: (ViewerEvent) -> Unit,
     ): Pair<ViewerSessionHandle?, CoreError?> {
         val session = CoreViewerSession(stage, trust, onEvent)
+        val decoding = limits(monitor)
         val handle = LongArray(1)
         val result = Native.viewerCreate(
             listener = session,
@@ -104,7 +109,7 @@ class CoreViewerSessions(private val stage: StreamStage) : ViewerSessionMaking {
                 monitor.physicalWidthMillimeters, monitor.physicalHeightMillimeters, monitor.scalePercent,
             ),
             monitorName = monitor.name.encodeToByteArray(),
-            capabilities = intArrayOf(MAX_STREAMS, MAX_WIDTH, MAX_HEIGHT, MAX_REFRESH_HZ),
+            capabilities = intArrayOf(MAX_STREAMS, decoding.maxWidth, decoding.maxHeight, decoding.maxRefreshHz),
             host = (target as? SessionTarget.Network)?.host.orEmpty().encodeToByteArray(),
             port = (target as? SessionTarget.Network)?.port ?: 0,
             accessoryFd = (target as? SessionTarget.Cable)?.fd ?: NO_ACCESSORY,
@@ -118,9 +123,6 @@ class CoreViewerSessions(private val stage: StreamStage) : ViewerSessionMaking {
 
     private companion object {
         const val MAX_STREAMS = 1
-        const val MAX_WIDTH = 7680
-        const val MAX_HEIGHT = 4320
-        const val MAX_REFRESH_HZ = 120
         const val NO_ACCESSORY = -1
     }
 }
@@ -192,7 +194,8 @@ private class CoreViewerSession(
         bitrateKbps: Int,
     ) {
         this.streamId = streamId
-        stage.streamStarted(StreamShape(width, height, cursorMode == Protocol.CURSOR_SEPARATE)) {
+        val frameRate = ((refreshMillihertz + 500) / 1000).takeIf { it > 0 } ?: StreamShape.DEFAULT_FRAME_RATE
+        stage.streamStarted(StreamShape(width, height, cursorMode == Protocol.CURSOR_SEPARATE, frameRate)) {
             withHandle { Native.sessionRequestKeyframe(it, streamId) }
         }
     }

@@ -3,6 +3,7 @@
 // Every tunable of a session in one place (DEVPLAN: "tunables live in one constants file"); the
 // defaults are the shipping values, tests shorten them.
 
+#include "media/audio_playout.hpp"
 #include "protocol/control_messages.hpp"
 #include "session/bitrate_controller.hpp"
 #include "util/time.hpp"
@@ -42,6 +43,9 @@ struct SessionTunables {
     std::size_t retransmit_frames = 16;
     std::size_t retransmit_bytes = std::size_t{8} * 1024 * 1024;
     std::size_t max_frames_in_flight = 8;
+    /// Viewer: an incomplete frame is given up a frame interval plus the RTT, at least this,
+    /// after its last fragment arrived.
+    Microseconds reassembly_minimum_rtt{2'000};
     /// Viewer: positions naming a shape it does not have for this long trigger a keyframe
     /// request, which brings the shape again. Covers a shape change still in flight.
     Microseconds missing_cursor_shape_grace{100'000};
@@ -61,6 +65,8 @@ struct SessionTunables {
     /// Host: when this much is already queued, frames go out at the fraction window again so the
     /// queue drains instead of adding latency without end.
     Microseconds pacing_max_queue{100'000};
+    /// Viewer: the jitter buffer in front of the audio device.
+    media::AudioPlayoutTunables audio;
 };
 
 struct SessionConfig {
@@ -71,6 +77,8 @@ struct SessionConfig {
     /// Viewer: the monitors it lends (ViewerMonitors).
     std::vector<protocol::Monitor> monitors;
     SessionTunables tunables;
+    /// The protocol minor version announced in Hello; tests play older peers with it.
+    std::uint8_t protocol_minor = protocol::kMinorVersion;
 };
 
 } // namespace osplay::session

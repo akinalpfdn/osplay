@@ -44,6 +44,10 @@ public:
     [[nodiscard]] virtual win::Expected<std::vector<std::wstring>, DisplayError>
     create_monitors(std::span<const VirtualMonitorConfig> configs) = 0;
     [[nodiscard]] virtual win::Status<DisplayError> remove_monitors() = 0;
+    /// Sets one of this provider's monitors (by GDI name) to the display scale closest to
+    /// `percent`, the viewer's backing scale × 100.
+    [[nodiscard]] virtual win::Status<DisplayError> set_scale(const std::wstring& gdi_name,
+                                                              std::uint16_t percent) = 0;
     [[nodiscard]] virtual win::Expected<VirtualMonitorStatus, DisplayError> status() = 0;
     /// How many monitors create_monitors could make now: the free ones and this provider's own.
     /// Never blocks.

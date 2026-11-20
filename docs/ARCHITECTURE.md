@@ -48,7 +48,12 @@ Virtual display ─► Capture ─► Encoder ─► core: packetize ──UDP�
   window (`media_crypto`). Randomness comes from the platform through `crypto::RandomSource`.
 - `core/src/media/` splits access units into fragments (`packetizer`), keeps recent frames for
   retransmission (`retransmit_cache`) and rebuilds frames on the viewer (`reassembler`: in-order
-  delivery, NACK, deadline, wait for keyframe).
+  delivery, NACK, deadline, wait for keyframe). Sound (protocol 1.3): the host's PCM becomes 10 ms
+  Opus frames (`audio_encoder`); the viewer's `audio_playout` is a jitter buffer that the platform's
+  audio device reads on its own thread, through `osplay_session_read_audio`, without passing the
+  I/O thread. It conceals lost frames, adapts its reserve (40–200 ms) to the network and resamples
+  by up to 0.2 % to follow the device's clock. libopus is vendored, trimmed, in
+  `core/third_party/opus` and built by CMake and SwiftPM as its own target.
 - `core/src/session/` is the session protocol without I/O (`SessionEngine`): bytes, datagrams,
   time and commands go in; bytes, datagrams and observer callbacks come out. Tests drive it with a
   simulated lossy network and clock. Every tunable is in `session_config.hpp`.
@@ -101,8 +106,15 @@ ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─�
   HiDPI resolution, so the capture backing equals the remote monitor's pixels. A session returns its
   own displays when it ends; the other viewers keep theirs.
 - **Stream size.** Each stream is fitted inside the user's stream size setting (720p, 1080p by
-  default, 1440p or Native) with `osplay_fit_stream_size`, so a large monitor is captured from its
-  full-size virtual display and encoded smaller; the bitrate follows the stream's pixels.
+  default, 1440p or Native) and then inside the viewer's decoder limits (its Capabilities, which
+  arrive with its monitors) with `osplay_fit_stream_size`, so a large monitor is captured from its
+  full-size virtual display and encoded smaller; the frame rate stops at the viewer's limit (a TV
+  chip that decodes 4K only at 30 Hz) and the bitrate follows the stream's pixels and frame rate.
+- **Monitors of unknown size.** A monitor that sends 0 mm (a TV, a projector) gets the size its
+  pixels have at 96 dpi × its scale; the starting resolution follows its scale either way.
+- **Simulated TV** (Debug). Menu › Developer tools › Simulated TV makes this Mac, when it is used
+  as a display, offer one 4K or 1080p monitor of unknown size at 200% with a TV's decoder limits
+  (`Features/Developer/SimulatedTV.swift`), to test both hosts without a TV (TESTING.md V1–V5).
 - **Capture** (`Services/ScreenCapture/`). One `SCStream` per display at the stream's pixel size
   and refresh rate, 420v pixel format, BT.709, cursor composited. Only samples with status
   complete or started are frames; an unchanged screen produces nothing and the viewer keeps its
@@ -224,6 +236,22 @@ sample-buffer rendering helpers and the shared tunables — compiled into both a
   installer's self-signed driver package binds to `USB\VID_18D1&PID_2D00`. A device's switch is
   counted until its accessory is opened, and given up after three.
 
+## Apple TV app
+
+The iPad app's code, built for tvOS (`OsplayTV` target, tvOS 18). Only what tvOS lacks or does
+differently is conditional:
+
+- **One monitor at the output mode.** An Apple TV offers its output mode (3840×2160 on a 4K TV)
+  with no physical size and the interface's scale (200% at 4K, 100% at 1080p), as an Android TV
+  does (TV-01).
+- **The remote.** In the viewer, select shows the controls and moves focus onto them; they stay
+  until Menu, and Menu with no controls showing ends the session. Paired computers have row buttons
+  instead of swipe actions, and the USB cable section is gone (an Apple TV has no USB port).
+- **Wording.** The iPad's String Catalog carries Apple TV variations of the strings that name the
+  device, so neither target has keys of its own.
+- **Distribution.** Same bundle identifier as the iPad app: one App Store record, and TestFlight
+  ships both. Checked in the tvOS simulator only; the maintainer has no Apple TV.
+
 ## Android app
 
 Also a viewer only. The C++ core is compiled by the NDK into `libosplay_jni.so` together with a thin
@@ -242,6 +270,14 @@ the JVM once and its callbacks go to a Kotlin `SessionListener`.
 - **Lifecycle.** The activity handles rotation itself, so the session restarts with the new shape
   instead of the activity being recreated; `onStop` ends the session cleanly and `onStart`
   reconnects. The screen stays on and the system bars are hidden while viewing.
+- **Android TV** (`screen/Television.kt`). The same APK has a TV launcher entry and banner and needs
+  no touchscreen. A TV offers its panel's display mode (4K on a 4K TV, whose interface is drawn at
+  1080p while the SurfaceView's video plane runs at the mode), no physical size, and the scale of
+  its own interface (200% on a 4K TV). Its Capabilities are the largest size the H.264 decoder plays
+  at the mode's rate, from the mode down to 720p, then the same at 30 Hz (`video/DecodingLimits.kt`);
+  phones and tablets announce generous limits. Every control shows a focus ring for the remote, and
+  in the viewer OK shows the controls and Back hides them, then ends the session. The USB cable
+  section is hidden: a TV is a USB host only.
 
 ## Discovery and pairing
 
@@ -414,11 +450,15 @@ VDD monitor ─► Desktop Duplication ─► BGRA copy ─► video processor (
 - **Convert and encode** (`src/encode/`). The D3D11 video processor converts BGRA to NV12 at the
   stream size, BT.709 studio range. The virtual monitor keeps the viewer monitor's mode while the
   stream is fitted inside the shell's stream size setting (`max_stream_width/height` in the host
-  config, `osplay_fit_stream_size`), so the processor scales it down. The first
+  config, `osplay_fit_stream_size`) and inside the viewer's decoder limits, frame rate included,
+  so the processor scales it down. The first
   hardware H.264 MFT from `MFTEnumEx` runs in async mode with a DXGI device manager, low-latency
   mode, CBR, no B-frames and an endless GOP; `CODECAPI_AVEncVideoForceKeyFrame` answers keyframe
   requests. Output keyframes get SPS/PPS put in front when the encoder omits them
   (`media/h264_stream.cpp`).
+- **Scale.** Before capture starts, each virtual monitor is set to the Windows display scale
+  closest to the viewer monitor's (`display/dpi_scaling.cpp`, the undocumented CCD requests
+  Settings › Display uses; DECISIONS.md 2026-11-01). A refusal keeps Windows' own choice.
 - **Cursor.** Desktop Duplication reports the pointer apart from the image. Shapes (monochrome,
   colour, masked colour) become premultiplied BGRA (`media/pointer_shape.cpp`; screen-inverting
   pixels become black with a white outline, larger than 256 px are cropped around the hotspot),

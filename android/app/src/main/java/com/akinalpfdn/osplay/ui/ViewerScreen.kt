@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.WindowManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -39,6 +40,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
@@ -63,7 +67,11 @@ import kotlinx.coroutines.delay
 
 private const val CONTROLS_HIDE_MILLIS = 4_000L
 
-/** The computer's display, full screen with the system bars hidden. A tap shows the controls. */
+/**
+ * The computer's display, full screen with the system bars hidden. A tap, or OK on a TV remote,
+ * shows the controls; the remote's focus moves onto them and they stay while it is there. Back
+ * hides them, or ends the session when they are hidden.
+ */
 @Composable
 fun ViewerScreen(
     state: UiState,
@@ -76,21 +84,36 @@ fun ViewerScreen(
     val cursor by stage.cursor.collectAsStateWithLifecycle()
     var tapCount by remember { mutableIntStateOf(0) }
     var showsControls by remember { mutableStateOf(false) }
+    var controlsFocused by remember { mutableStateOf(false) }
+    val stageFocus = remember { FocusRequester() }
+    val controlsFocus = remember { FocusRequester() }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     ImmersiveWhileShown()
     LaunchedEffect(landscape) { onViewport(landscape) }
-    LaunchedEffect(tapCount) {
-        if (tapCount == 0) return@LaunchedEffect
-        showsControls = true
+    // With touch nothing takes focus and these requests do nothing.
+    LaunchedEffect(Unit) { stageFocus.requestFocus() }
+    LaunchedEffect(tapCount) { if (tapCount > 0) showsControls = true }
+    LaunchedEffect(tapCount, controlsFocused) {
+        if (tapCount == 0 || controlsFocused) return@LaunchedEffect
         delay(CONTROLS_HIDE_MILLIS)
         showsControls = false
+        stageFocus.requestFocus()
+    }
+    BackHandler {
+        if (showsControls) {
+            showsControls = false
+            stageFocus.requestFocus()
+        } else {
+            onDisconnect()
+        }
     }
 
     Box(
         Modifier
             .fillMaxSize()
             .background(OsplayColors.ViewerBackground)
+            .focusRequester(stageFocus)
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { tapCount++ },
         contentAlignment = Alignment.Center,
     ) {
@@ -130,13 +153,22 @@ fun ViewerScreen(
             modifier = Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(Spacing.Large),
         ) {
             Row(
-                Modifier.background(OsplayColors.ControlsBackground, Shapes.Controls).padding(Spacing.Small),
+                Modifier
+                    .background(OsplayColors.ControlsBackground, Shapes.Controls)
+                    .padding(Spacing.Small)
+                    .onFocusChanged { controlsFocused = it.hasFocus },
                 horizontalArrangement = Arrangement.spacedBy(Spacing.Small),
             ) {
-                FilledTonalIconToggleButton(checked = state.showsStats, onCheckedChange = onShowsStats) {
+                // Once the controls are on screen, the remote's focus moves onto them.
+                LaunchedEffect(Unit) { controlsFocus.requestFocus() }
+                FilledTonalIconToggleButton(
+                    checked = state.showsStats,
+                    onCheckedChange = onShowsStats,
+                    modifier = Modifier.focusRequester(controlsFocus).focusRing(Shapes.Round),
+                ) {
                     Icon(Icons.Outlined.BarChart, contentDescription = stringResource(R.string.viewer_stats))
                 }
-                IconButton(onClick = onDisconnect) {
+                IconButton(onClick = onDisconnect, modifier = Modifier.focusRing(Shapes.Round)) {
                     Icon(
                         Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.viewer_disconnect),

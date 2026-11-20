@@ -101,6 +101,14 @@ public:
         ++removed;
         return win::Status<DisplayError>::ok();
     }
+    std::vector<std::pair<std::wstring, std::uint16_t>> scales; // every set_scale, in order
+    bool refuse_scale = false;
+    win::Status<DisplayError> set_scale(const std::wstring& gdi_name,
+                                        std::uint16_t percent) override {
+        scales.emplace_back(gdi_name, percent);
+        return refuse_scale ? win::Status<DisplayError>::failure(DisplayError::ModeChangeFailed)
+                            : win::Status<DisplayError>::ok();
+    }
     win::Expected<VirtualMonitorStatus, DisplayError> status() override {
         return VirtualMonitorStatus{};
     }
@@ -271,6 +279,62 @@ TEST(HostOrchestrator, TheStreamIsFittedToTheBoxWhileTheVirtualMonitorKeepsItsMo
     EXPECT_EQ(h.pipelines.started[0].bitrate_kbps,
               HostOrchestrator::stream_for(monitor(4), kBitsPerPixel, {1920, 1080}).bitrate_kbps);
     EXPECT_LT(h.pipelines.started[0].bitrate_kbps, 25'559U) << "less than at the monitor's size";
+}
+
+TEST(HostOrchestrator, EachVirtualMonitorGetsItsViewerMonitorsScale) {
+    Harness h;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    osplay_monitor plain = monitor(2);
+    plain.scale_percent = 100;
+    const std::vector<osplay_monitor> monitors{monitor(1), plain};
+    orchestrator.on_viewer_monitors(monitors);
+    orchestrator.wait_idle();
+
+    const std::vector<std::pair<std::wstring, std::uint16_t>> expected{{L"\\\\.\\DISPLAY10", 200},
+                                                                       {L"\\\\.\\DISPLAY11", 100}};
+    EXPECT_EQ(h.displays.scales, expected);
+}
+
+TEST(HostOrchestrator, ARefusedScaleStillStreams) {
+    Harness h;
+    h.displays.refuse_scale = true;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    const std::vector<osplay_monitor> monitors{monitor(4)};
+    orchestrator.on_viewer_monitors(monitors);
+    orchestrator.wait_idle();
+
+    EXPECT_EQ(h.displays.scales.size(), 1U);
+    EXPECT_EQ(h.pipelines.started.size(), 1U);
+    EXPECT_TRUE(h.observer.streaming.has_value()) << "the monitor keeps the scale Windows chose";
+}
+
+TEST(HostOrchestrator, TheStreamStaysWithinWhatTheViewerDecodes) {
+    Harness h;
+    HostOrchestrator orchestrator(h.core, h.displays, h.pipelines, h.observer);
+    const std::vector<osplay_monitor> monitors{monitor(4)};
+    // A TV-like decoder: 1080p at 30 Hz at most.
+    const osplay_capabilities viewer{.codecs = OSPLAY_CODEC_H264_ANNEX_B,
+                                     .max_streams = 1,
+                                     .flags = 0,
+                                     .max_width = 1920,
+                                     .max_height = 1080,
+                                     .max_refresh_hz = 30};
+    orchestrator.on_viewer_monitors(monitors, viewer);
+    orchestrator.wait_idle();
+
+    ASSERT_EQ(h.displays.created.size(), 1U);
+    EXPECT_EQ(h.displays.created[0].width, 2560U) << "the virtual monitor in the viewer's mode";
+    EXPECT_EQ(h.displays.created[0].refresh_millihertz, 60'000U);
+    ASSERT_EQ(h.core.configured.size(), 1U);
+    EXPECT_EQ(h.core.configured[0].width, 1660U)
+        << "inside 1920 x 1080, the monitor's aspect ratio";
+    EXPECT_EQ(h.core.configured[0].height, 1080U);
+    EXPECT_EQ(h.core.configured[0].refresh_millihertz, 30'000U);
+    EXPECT_EQ(h.core.configured[0].bitrate_kbps,
+              HostOrchestrator::stream_for(monitor(4), kBitsPerPixel, {}, viewer).bitrate_kbps);
+    EXPECT_LT(h.core.configured[0].bitrate_kbps,
+              HostOrchestrator::stream_for(monitor(4), kBitsPerPixel, {1920, 1080}).bitrate_kbps)
+        << "half the frames, so less than 1080p at 60 Hz";
 }
 
 TEST(HostOrchestrator, EveryViewerMonitorGetsItsOwnVirtualMonitorAndStream) {
@@ -497,6 +561,18 @@ TEST(HostOrchestrator, TheQualityPresetScalesTheBitrateWithinItsRange) {
     EXPECT_EQ(HostOrchestrator::stream_for(monitor(), 0.16).bitrate_kbps, 40'894U);
     // Out-of-range presets are clamped to 0.3 bits per pixel.
     EXPECT_EQ(HostOrchestrator::stream_for(monitor(), 1.0).bitrate_kbps, 76'677U);
+}
+
+TEST(HostOrchestrator, A4KTvAt60HzStreamsAtFullSizeBelowTheCeiling) {
+    auto tv = monitor();
+    tv.width_px = 3840;
+    tv.height_px = 2160;
+    const osplay_stream_config stream = HostOrchestrator::stream_for(tv);
+    EXPECT_EQ(stream.width, 3840U);
+    EXPECT_EQ(stream.height, 2160U);
+    EXPECT_EQ(stream.refresh_millihertz, 60'000U);
+    EXPECT_EQ(stream.bitrate_kbps, 49'766U);
+    EXPECT_EQ(HostOrchestrator::stream_for(tv, 0.16).bitrate_kbps, 79'626U);
 }
 
 } // namespace

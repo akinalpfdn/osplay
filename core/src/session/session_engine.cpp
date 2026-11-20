@@ -20,6 +20,8 @@ constexpr std::uint16_t kPeerErrorBusy = 4;
 constexpr std::uint16_t kPeerErrorUnexpected = 5;
 /// The first protocol minor version that knows RoleSwap.
 constexpr std::uint8_t kRoleSwapMinorVersion = 1;
+/// The first protocol minor version that knows audio.
+constexpr std::uint8_t kAudioMinorVersion = 3;
 constexpr std::uint64_t kMicrosPerSecond = 1'000'000;
 constexpr std::uint64_t kMillihertzMicros = 1'000'000'000; // frame interval = this / refresh_mhz
 
@@ -155,7 +157,7 @@ struct SessionEngine::ViewerStream {
                           .frame_interval = Microseconds{static_cast<std::int64_t>(
                               kMillihertzMicros /
                               std::max<std::uint32_t>(stream_config.refresh_millihertz, 1))},
-                          .minimum_rtt = Microseconds{2'000},
+                          .minimum_rtt = tunables.reassembly_minimum_rtt,
                           .max_frames_in_flight = tunables.max_frames_in_flight},
                       adapter),
           keyframe_limiter(tunables.keyframe_request_interval) {}
@@ -208,7 +210,11 @@ SessionEngine::SessionEngine(SessionConfig config, crypto::KeyPair identity,
                              crypto::RandomSource& random, SessionObserver& observer,
                              SessionTransport& transport)
     : config_(std::move(config)), identity_(std::move(identity)), random_(random),
-      observer_(observer), transport_(transport) {}
+      observer_(observer), transport_(transport) {
+    if (config_.role == protocol::Role::Viewer) {
+        audio_playout_ = std::make_shared<media::AudioPlayout>(config_.tunables.audio);
+    }
+}
 
 SessionEngine::~SessionEngine() = default;
 
@@ -240,6 +246,10 @@ void SessionEngine::abort_session(std::optional<Error> reason) {
     }
     closing_ = true;
     transport_.close();
+    audio_encoder_.reset();
+    if (audio_playout_) {
+        audio_playout_->stop(); // the platform's reads turn to silence at once
+    }
     set_state(SessionState::Closed, reason);
 }
 
@@ -287,7 +297,7 @@ void SessionEngine::on_connected(TimePoint now) {
     set_state(SessionState::Handshaking);
     send(protocol::Hello{.role = config_.role,
                          .platform = config_.platform,
-                         .protocol_minor = protocol::kMinorVersion,
+                         .protocol_minor = config_.protocol_minor,
                          .device_name = config_.device_name},
          now);
 }
@@ -361,6 +371,9 @@ bool SessionEngine::is_expected(protocol::ControlType type) const {
         return host && negotiated;
     case ControlType::RoleSwap:
         return state_ == SessionState::Streaming || state_ == SessionState::Paused;
+    case ControlType::AudioConfig:
+    case ControlType::AudioStop:
+        return !host && negotiated && plays_audio();
     case ControlType::Capabilities:
     case ControlType::StreamPause:
     case ControlType::StreamResume:
@@ -385,10 +398,10 @@ void SessionEngine::handle_message(const ControlMessage& message, TimePoint now)
                    [&](const protocol::Hello& m) { handle_hello(m); },
                    [&](const protocol::HandshakeMessage& m) { handle_handshake(m, now); },
                    [&](const protocol::PairingConfirm& m) { handle_pairing_confirm(m, now); },
-                   [&](const protocol::Capabilities& /*m*/) {},
+                   [&](const protocol::Capabilities& m) { peer_capabilities_ = m; },
                    [&](const protocol::ViewerMonitors& m) {
                        monitors_received_ = true;
-                       observer_.on_viewer_monitors(m.monitors);
+                       observer_.on_viewer_monitors(m.monitors, peer_capabilities_);
                    },
                    [&](const protocol::StreamConfig& m) { handle_stream_config(m); },
                    [&](const protocol::MediaSetup& m) { handle_media_setup(m, now); },
@@ -411,6 +424,8 @@ void SessionEngine::handle_message(const ControlMessage& message, TimePoint now)
                        abort_session(reason);
                    },
                    [&](const protocol::RoleSwap& m) { handle_role_swap(m, now); },
+                   [&](const protocol::AudioConfig& m) { handle_audio_config(m, now); },
+                   [&](const protocol::AudioStop& /*m*/) { handle_audio_stop(); },
                    [&](const auto& stream_control) { handle_stream_control(stream_control, now); },
                },
                message);
@@ -542,9 +557,21 @@ void SessionEngine::finish_pairing_if_agreed(TimePoint now) {
     enter_negotiation(now);
 }
 
+protocol::Capabilities SessionEngine::announced_capabilities() const {
+    protocol::Capabilities capabilities = config_.capabilities;
+    if (peer_protocol_minor_ < kAudioMinorVersion) {
+        capabilities.flags &= static_cast<std::uint8_t>(~protocol::kCapabilityPlaysAudio);
+    }
+    return capabilities;
+}
+
+bool SessionEngine::plays_audio() const {
+    return (announced_capabilities().flags & protocol::kCapabilityPlaysAudio) != 0;
+}
+
 void SessionEngine::enter_negotiation(TimePoint now) {
     set_state(SessionState::Negotiating);
-    send(config_.capabilities, now);
+    send(announced_capabilities(), now);
     if (config_.role == protocol::Role::Viewer) {
         send(protocol::ViewerMonitors{.monitors = config_.monitors}, now);
     }
@@ -887,6 +914,122 @@ void SessionEngine::handle_receiver_report(const protocol::ReceiverReport& repor
     }
 }
 
+// --- Audio
+// ----------------------------------------------------------------------------------------
+
+Status<Error> SessionEngine::start_audio(const protocol::AudioConfig& config, TimePoint now) {
+    if (config_.role != protocol::Role::Host || closing_ ||
+        (state_ != SessionState::Streaming && state_ != SessionState::Paused) ||
+        peer_protocol_minor_ < kAudioMinorVersion ||
+        (peer_capabilities_.flags & protocol::kCapabilityPlaysAudio) == 0) {
+        return Status<Error>::failure(Error::InvalidState);
+    }
+    auto encoder = media::AudioEncoder::create(config);
+    if (!encoder) {
+        return Status<Error>::failure(
+            encoder.error() == Error::ValueOutOfRange ? Error::InvalidArgument : encoder.error());
+    }
+    audio_encoder_ = std::move(encoder.value());
+    next_audio_sequence_ = 0;
+    send(config, now);
+    log(LogLevel::Info, "Audio: Opus " + std::to_string(config.channels) + " channels, " +
+                            std::to_string(config.frame_duration_us / 1000) + " ms frames, " +
+                            std::to_string(config.bitrate_kbps) + " kbps");
+    return Status<Error>::ok();
+}
+
+Status<Error> SessionEngine::push_audio(std::span<const float> samples, std::uint8_t channels,
+                                        std::uint64_t capture_time_us, TimePoint now) {
+    static_cast<void>(now);
+    if (config_.role != protocol::Role::Host) {
+        return Status<Error>::failure(Error::InvalidState);
+    }
+    if (!audio_encoder_) {
+        return Status<Error>::ok(); // dropped on purpose: no sound is being sent
+    }
+    if (channels != audio_encoder_->config().channels) {
+        return Status<Error>::failure(Error::InvalidArgument);
+    }
+    return audio_encoder_->push(
+        samples, capture_time_us,
+        [this](std::uint64_t capture, std::span<const std::uint8_t> payload) {
+            audio_bytes_in_window_ += payload.size();
+            const protocol::AudioPacket packet{.audio_sequence = next_audio_sequence_++,
+                                               .capture_time_us = capture,
+                                               .payload = payload};
+            if (!seal_and_send({.sequence = next_sequence_++, .body = packet})) {
+                log(LogLevel::Error, "Could not send an audio packet");
+            }
+        });
+}
+
+Status<Error> SessionEngine::stop_audio(TimePoint now) {
+    if (config_.role != protocol::Role::Host || !audio_encoder_ || closing_ ||
+        state_ == SessionState::Closed) {
+        return Status<Error>::failure(Error::InvalidState);
+    }
+    audio_encoder_.reset();
+    send(protocol::AudioStop{}, now);
+    log(LogLevel::Info, "Audio stopped");
+    return Status<Error>::ok();
+}
+
+void SessionEngine::handle_audio_config(const protocol::AudioConfig& config, TimePoint now) {
+    if (const auto configured = audio_playout_->configure(config); !configured) {
+        fail(configured.error(), kPeerErrorUnexpected, now);
+        return;
+    }
+    log(LogLevel::Info, "Audio: Opus " + std::to_string(config.channels) + " channels, " +
+                            std::to_string(config.frame_duration_us / 1000) + " ms frames, " +
+                            std::to_string(config.bitrate_kbps) + " kbps");
+    observer_.on_audio_config(config);
+}
+
+void SessionEngine::handle_audio_stop() {
+    audio_playout_->stop();
+    log(LogLevel::Info, "Audio stopped");
+    observer_.on_audio_stopped();
+}
+
+void SessionEngine::deliver_audio(const protocol::AudioPacket& packet, TimePoint now) {
+    last_media_received_ = now;
+    audio_bytes_in_window_ += packet.payload.size();
+    audio_playout_->push(packet);
+}
+
+std::optional<AudioStats> SessionEngine::audio_stats(Microseconds interval) {
+    const std::uint32_t bitrate = per_second(audio_bytes_in_window_ * 8, interval) / 1000;
+    audio_bytes_in_window_ = 0;
+    if (audio_encoder_) {
+        return AudioStats{.bitrate_kbps = bitrate,
+                          .buffered_us = 0,
+                          .target_us = 0,
+                          .latency_us = 0,
+                          .concealed_frames = 0,
+                          .late_packets = 0,
+                          .underruns = 0};
+    }
+    if (!audio_playout_ || !audio_playout_->config()) {
+        return std::nullopt;
+    }
+    const media::AudioPlayoutStats playout = audio_playout_->stats();
+    std::uint32_t latency = 0;
+    if (rtt_ && playout.last_capture_time_us != 0) {
+        const std::int64_t host_time =
+            static_cast<std::int64_t>(micros(playout.last_read_at)) + clock_offset_us_;
+        const std::int64_t value =
+            host_time - static_cast<std::int64_t>(playout.last_capture_time_us);
+        latency = value > 0 ? static_cast<std::uint32_t>(value) : 0;
+    }
+    return AudioStats{.bitrate_kbps = bitrate,
+                      .buffered_us = static_cast<std::uint32_t>(playout.buffered.count()),
+                      .target_us = static_cast<std::uint32_t>(playout.target.count()),
+                      .latency_us = latency,
+                      .concealed_frames = playout.concealed_frames,
+                      .late_packets = playout.late_packets,
+                      .underruns = playout.underruns};
+}
+
 void SessionEngine::expire_role_swap(TimePoint now) {
     if (role_swap_requested_at_ &&
         now - *role_swap_requested_at_ >= config_.tunables.role_swap_timeout) {
@@ -1175,6 +1318,10 @@ void SessionEngine::on_datagram(std::span<std::uint8_t> datagram, TimePoint now)
             [&](const protocol::CursorShapeFragment& fragment) {
                 host ? static_cast<void>(++datagrams_rejected_) : deliver_cursor_shape(fragment);
             },
+            [&](const protocol::AudioPacket& packet) {
+                host || !plays_audio() ? static_cast<void>(++datagrams_rejected_)
+                                       : deliver_audio(packet, now);
+            },
         },
         packet.value().body);
 }
@@ -1316,7 +1463,8 @@ void SessionEngine::publish_stats(TimePoint now) {
     SessionStats stats{.rtt_us = rtt_ ? static_cast<std::uint32_t>(rtt_->count()) : 0,
                        .clock_offset_us = clock_offset_us_,
                        .datagrams_rejected = datagrams_rejected_,
-                       .streams = {}};
+                       .streams = {},
+                       .audio = std::nullopt};
     for (auto& [id, stream] : host_streams_) {
         stats.streams.push_back(
             {.stream_id = id,
@@ -1343,8 +1491,18 @@ void SessionEngine::publish_stats(TimePoint now) {
         stream->frames_in_window = 0;
         stream->bytes_in_window = 0;
     }
+    stats.audio = audio_stats(interval);
     if (now >= next_stats_log_) {
         next_stats_log_ = now + config_.tunables.stats_log_interval;
+        if (stats.audio) {
+            log(LogLevel::Info,
+                "Audio: " + std::to_string(stats.audio->bitrate_kbps) + " kbps, reserve " +
+                    std::to_string(stats.audio->buffered_us / 1000) + "/" +
+                    std::to_string(stats.audio->target_us / 1000) + " ms; total concealed " +
+                    std::to_string(stats.audio->concealed_frames) + ", late " +
+                    std::to_string(stats.audio->late_packets) + ", underruns " +
+                    std::to_string(stats.audio->underruns));
+        }
         for (const auto& stream : stats.streams) {
             const auto viewer = viewer_streams_.find(stream.stream_id);
             const std::uint64_t nacks = viewer == viewer_streams_.end()

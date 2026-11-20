@@ -27,6 +27,8 @@ static_assert(OSPLAY_MAX_STRING_BYTES == protocol::kMaxStringBytes);
 static_assert(OSPLAY_MAX_MONITORS == protocol::kMaxMonitors);
 static_assert(OSPLAY_MAX_STREAMS == protocol::kMaxStreams);
 static_assert(OSPLAY_CODEC_H264_ANNEX_B == protocol::kCodecH264AnnexB);
+static_assert(OSPLAY_CAPABILITY_PLAYS_AUDIO == protocol::kCapabilityPlaysAudio);
+static_assert(OSPLAY_AUDIO_SAMPLE_RATE == protocol::kAudioSampleRate);
 static_assert(OSPLAY_PLATFORM_MACOS == static_cast<int>(protocol::Platform::MacOS) &&
               OSPLAY_PLATFORM_WINDOWS == static_cast<int>(protocol::Platform::Windows) &&
               OSPLAY_PLATFORM_IPADOS == static_cast<int>(protocol::Platform::IPadOS) &&
@@ -45,6 +47,21 @@ static_assert(static_cast<int>(OSPLAY_ROLE_SWAP_NO_ANSWER) ==
 
 osplay_result to_result(Error error) {
     return static_cast<osplay_result>(error);
+}
+
+protocol::AudioConfig audio_config_from(const osplay_audio_config& config) {
+    return {.codec = protocol::AudioCodec::Opus,
+            .channels = config.channels,
+            .frame_duration_us = config.frame_duration_us,
+            .sample_rate_hz = config.sample_rate_hz,
+            .bitrate_kbps = config.bitrate_kbps};
+}
+
+osplay_audio_config audio_config_to(const protocol::AudioConfig& config) {
+    return {.sample_rate_hz = config.sample_rate_hz,
+            .channels = config.channels,
+            .frame_duration_us = config.frame_duration_us,
+            .bitrate_kbps = config.bitrate_kbps};
 }
 
 /// Copies a NUL-terminated string if it is valid protocol text.
@@ -165,7 +182,8 @@ std::optional<session::SessionConfig> config_from(const osplay_session_config& c
                                   .device_name = std::move(*device_name),
                                   .capabilities = capabilities,
                                   .monitors = std::move(monitors),
-                                  .tunables = {}};
+                                  .tunables = {},
+                                  .protocol_minor = protocol::kMinorVersion};
 }
 
 osplay_stream_config stream_config_to(const protocol::StreamConfig& config) {
@@ -222,7 +240,8 @@ public:
         }
     }
 
-    void on_viewer_monitors(const std::vector<protocol::Monitor>& monitors) override {
+    void on_viewer_monitors(const std::vector<protocol::Monitor>& monitors,
+                            const protocol::Capabilities& viewer) override {
         if (callbacks_.on_viewer_monitors == nullptr) {
             return;
         }
@@ -238,7 +257,14 @@ public:
                                  .scale_percent = monitor.scale_percent,
                                  .name = monitor.name.c_str()});
         }
-        callbacks_.on_viewer_monitors(callbacks_.context, converted.data(), converted.size());
+        const osplay_capabilities limits{.codecs = viewer.codecs,
+                                         .max_streams = viewer.max_streams,
+                                         .flags = viewer.flags,
+                                         .max_width = viewer.max_width,
+                                         .max_height = viewer.max_height,
+                                         .max_refresh_hz = viewer.max_refresh_hz};
+        callbacks_.on_viewer_monitors(callbacks_.context, converted.data(), converted.size(),
+                                      &limits);
     }
 
     void on_stream_config(const protocol::StreamConfig& config) override {
@@ -283,6 +309,19 @@ public:
     void on_bitrate_target(std::uint8_t stream_id, std::uint32_t bitrate_kbps) override {
         if (callbacks_.on_bitrate_target != nullptr) {
             callbacks_.on_bitrate_target(callbacks_.context, stream_id, bitrate_kbps);
+        }
+    }
+
+    void on_audio_config(const protocol::AudioConfig& config) override {
+        if (callbacks_.on_audio_config != nullptr) {
+            const osplay_audio_config converted = audio_config_to(config);
+            callbacks_.on_audio_config(callbacks_.context, &converted);
+        }
+    }
+
+    void on_audio_stopped() override {
+        if (callbacks_.on_audio_stopped != nullptr) {
+            callbacks_.on_audio_stopped(callbacks_.context);
         }
     }
 
@@ -339,11 +378,22 @@ public:
                                .retransmitted_fragments = stream.retransmitted_fragments,
                                .keyframe_requests = stream.keyframe_requests});
         }
+        std::optional<osplay_audio_stats> audio;
+        if (stats.audio) {
+            audio = osplay_audio_stats{.bitrate_kbps = stats.audio->bitrate_kbps,
+                                       .buffered_us = stats.audio->buffered_us,
+                                       .target_us = stats.audio->target_us,
+                                       .latency_us = stats.audio->latency_us,
+                                       .concealed_frames = stats.audio->concealed_frames,
+                                       .late_packets = stats.audio->late_packets,
+                                       .underruns = stats.audio->underruns};
+        }
         const osplay_session_stats converted{.rtt_us = stats.rtt_us,
                                              .clock_offset_us = stats.clock_offset_us,
                                              .datagrams_rejected = stats.datagrams_rejected,
                                              .streams = streams.data(),
-                                             .stream_count = streams.size()};
+                                             .stream_count = streams.size(),
+                                             .audio = audio ? &*audio : nullptr};
         callbacks_.on_stats(callbacks_.context, &converted);
     }
 
@@ -376,6 +426,8 @@ struct osplay_session {
     osplay::capi::CallbackRandomSource random;
     CallbackObserver observer;
     std::unique_ptr<osplay::transport::AsioSession> session;
+    /// Viewer: read from the audio device's thread without passing through the I/O thread.
+    std::shared_ptr<osplay::media::AudioPlayout> audio;
 };
 
 namespace {
@@ -411,6 +463,7 @@ osplay_result create_session(const osplay_session_config* config, const uint8_t*
         return to_result(created.error());
     }
     handle->session = std::move(created.value());
+    handle->audio = handle->session->audio_playout();
     *out_session = handle.release();
     return OSPLAY_OK;
 }
@@ -820,6 +873,63 @@ osplay_result osplay_session_answer_role_swap(osplay_session* session,
         }
         return to_status_result(
             session->session->answer_role_swap(static_cast<session::RoleSwapAnswer>(answer)));
+    });
+}
+
+osplay_result osplay_session_start_audio(osplay_session* session,
+                                         const osplay_audio_config* config) {
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr || config == nullptr ||
+            !protocol::encode_control(audio_config_from(*config))) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        return to_status_result(session->session->start_audio(audio_config_from(*config)));
+    });
+}
+
+osplay_result osplay_session_push_audio(osplay_session* session, const float* samples,
+                                        size_t frames, uint8_t channels, uint64_t capture_time_us) {
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr || (samples == nullptr && frames > 0) || channels == 0 ||
+            channels > 2) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        if (frames > 0) {
+            session->session->push_audio(std::span(samples, frames * channels), channels,
+                                         capture_time_us);
+        }
+        return OSPLAY_OK;
+    });
+}
+
+osplay_result osplay_session_stop_audio(osplay_session* session) {
+    return guarded([&]() -> osplay_result {
+        if (session == nullptr) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        return to_status_result(session->session->stop_audio());
+    });
+}
+
+osplay_result osplay_session_read_audio(osplay_session* session, float* out, size_t frames,
+                                        uint8_t channels, uint64_t* out_capture_time_us) {
+    return guarded([&]() -> osplay_result {
+        if (out_capture_time_us != nullptr) {
+            *out_capture_time_us = 0;
+        }
+        if (session == nullptr || (out == nullptr && frames > 0) || channels == 0) {
+            return OSPLAY_ERROR_INVALID_ARGUMENT;
+        }
+        const std::span<float> samples(out, frames * channels);
+        if (!session->audio) {
+            std::ranges::fill(samples, 0.0F);
+            return OSPLAY_ERROR_INVALID_STATE; // a host session plays nothing
+        }
+        const std::uint64_t capture = session->audio->read(samples, channels, osplay::Clock::now());
+        if (out_capture_time_us != nullptr) {
+            *out_capture_time_us = capture;
+        }
+        return OSPLAY_OK;
     });
 }
 

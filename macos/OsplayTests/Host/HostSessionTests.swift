@@ -79,6 +79,28 @@ struct HostSessionTests {
         _ = await run.value
     }
 
+    @Test("The stream stays within what the viewer decodes; the virtual display keeps the monitor's mode")
+    func fitsStreamsToTheViewersDecoder() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        let tvDecoder = SessionCapabilities(
+            maximumStreams: 1, maximumWidth: 1920, maximumHeight: 1080, maximumRefreshHz: 30)
+
+        harness.core.emit(.viewerMonitors([monitors[0]], viewer: tvDecoder))
+        try await eventually { harness.captures.captures.count == 1 }
+
+        let stream = try #require(harness.core.configuredStreams.first?.first)
+        #expect(stream.width == 1920 && stream.height == 1080)
+        #expect(stream.refreshMillihertz == 30_000)
+        #expect(stream.bitrateKbps == QualityPreset.high.bitrateKbps(width: 1920, height: 1080, frameRate: 30))
+        #expect(harness.lender.lentMonitors.first?.map(\.widthPixels) == [2560], "display at full size")
+        #expect(harness.lender.lentMonitors.first?.map(\.refreshMillihertz) == [60_000])
+        #expect(harness.encoders.encoders.map(\.configuration.frameRate) == [30])
+        await session.stop()
+        _ = await run.value
+    }
+
     @Test("Pairing reaches the UI and the user's answer reaches the core")
     func pairing() async throws {
         let harness = Harness()

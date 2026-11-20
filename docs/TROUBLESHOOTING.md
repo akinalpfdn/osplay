@@ -119,6 +119,15 @@ to skip the question).
   `%ProgramData%\Osplay\logs\accessory-driver.log`. A policy that blocks adding certificates to the
   machine's Root store prevents this driver.
 
+## An Android TV stays black after connecting
+
+The session runs (the stats overlay counts frames) but the picture stays black. If `adb logcat`
+shows `MI_VIDEO_Start Failed` or `ERROR(0x80001000)` from `OMX.MS.AVC.Decoder`, the TV's video
+driver is stuck, typically after the app was force-stopped while decoding (an `adb install` over a
+running session). Restart the TV fully (Settings › Device Preferences › About › Restart, or
+`adb reboot`); standby is not enough. Osplay retries with a simpler decoder setup meanwhile, and
+every new connection starts with the low-latency one again.
+
 ## No router: the PC's own network
 
 Panel › **No router? Open this PC's network** opens a Wi-Fi network the other device joins with the

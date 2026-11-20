@@ -30,6 +30,7 @@ TOO_LARGE = 10
 
 MAX_VIDEO_PAYLOAD = 1154
 MAX_CURSOR_PAYLOAD = 1155
+MAX_AUDIO_PAYLOAD = 1160
 
 
 def u8(v: int) -> bytes:
@@ -133,6 +134,15 @@ def cursor_shape(width: int, height: int, index: int, count: int | None = None, 
     body = (u8(stream_id) + u32(7) + u16(width) + u16(height) + u16(hotspot[0]) + u16(hotspot[1]) + u16(index)
             + u16(expected_count if count is None else count) + payload)
     return media(0x04, 11, body)
+
+
+def audio_config(channels: int = 2, frame_us: int = 10_000, rate: int = 48_000, kbps: int = 128,
+                 codec: int = 1) -> bytes:
+    return control(0x15, u8(codec) + u8(channels) + u16(frame_us) + u32(rate) + u16(kbps))
+
+
+def audio_packet(sequence: int, payload: bytes) -> bytes:
+    return media(0x05, 12, u32(sequence) + u64(1_000_000) + payload)
 
 
 def annex_b_keyframe() -> bytes:
@@ -256,6 +266,23 @@ def fixtures() -> list[tuple[str, str, str, int, str, bytes]]:
          control(0x14, u8(3) + u8(0))),
         ("malformed/role_swap_truncated.bin", "control", e, TRUNCATED, "RoleSwap without its reason",
          control(0x14, u8(1))),
+        ("control/capabilities_plays_audio.bin", "control", v, 0x04, "Capabilities of a viewer that plays audio",
+         capabilities(1, 1, 0b100, 3840, 2160, 60)),
+        ("malformed/capabilities_unknown_flag.bin", "control", e, VALUE_OUT_OF_RANGE, "flag bit 3",
+         capabilities(1, 1, 0b1000, 3840, 2160, 60)),
+        ("control/audio_config.bin", "control", v, 0x15, "AudioConfig: Opus stereo, 10 ms, 128 kbps",
+         audio_config()),
+        ("control/audio_stop.bin", "control", v, 0x16, "AudioStop", control(0x16)),
+        ("malformed/audio_config_44100.bin", "control", e, VALUE_OUT_OF_RANGE, "44.1 kHz",
+         audio_config(rate=44_100)),
+        ("malformed/audio_config_three_channels.bin", "control", e, VALUE_OUT_OF_RANGE, "three channels",
+         audio_config(channels=3)),
+        ("malformed/audio_config_frame_15ms.bin", "control", e, VALUE_OUT_OF_RANGE, "15 ms frames",
+         audio_config(frame_us=15_000)),
+        ("malformed/audio_config_truncated.bin", "control", e, TRUNCATED, "AudioConfig without its bitrate",
+         control(0x15, u8(1) + u8(2) + u16(10_000) + u32(48_000))),
+        ("malformed/audio_stop_trailing.bin", "control", e, TRAILING_BYTES, "AudioStop with a body",
+         control(0x16, u8(0))),
 
         # Media: valid examples of every packet type.
         ("media/udp_hello.bin", "media", v, 0x01, "UdpHello", media(0x01, 0, TOKEN)),
@@ -308,6 +335,14 @@ def fixtures() -> list[tuple[str, str, str, int, str, bytes]]:
          cursor_shape(32, 32, 0, count=5)),
         ("malformed/cursor_shape_wrong_length.bin", "media", e, VALUE_OUT_OF_RANGE,
          "last fragment one byte short", cursor_shape(32, 32, 3, payload=bytes(630))),
+        ("media/audio_packet.bin", "media", v, 0x05, "AudioPacket with a 3-byte Opus frame",
+         audio_packet(7, bytes([0xF8, 0xFF, 0xFE]))),
+        ("media/audio_packet_largest.bin", "media", v, 0x05, "AudioPacket with the largest payload",
+         audio_packet(0xFFFFFFFF, bytes(i % 251 for i in range(MAX_AUDIO_PAYLOAD)))),
+        ("malformed/audio_packet_empty.bin", "media", e, VALUE_OUT_OF_RANGE, "AudioPacket without a payload",
+         audio_packet(1, b"")),
+        ("malformed/audio_packet_truncated.bin", "media", e, TRUNCATED, "AudioPacket cut in its capture time",
+         media(0x05, 12, u32(1) + u32(0))),
     ]
 
 

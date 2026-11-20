@@ -49,6 +49,8 @@
 - **Pencere değil, gerçek ekran.** macOS ve Windows ek bir monitör görür: yerleştirin, pencereleri
   üzerine sürükleyin, çözünürlüğünü ayarlayın.
 - **Her yön.** Mac → Windows, Windows → Mac, Mac → Mac ve Windows → Windows.
+- **Tablet, telefon ve TV de.** iPad, Android telefon ya da tablet, Android TV ya da yakında Apple TV
+  bir Mac'in ya da PC'nin ek ekranı olabilir.
 - **Bütün monitörleriniz.** Ekran olarak kullanılan bilgisayar bütün ekranlarını sunar (en fazla
   dört) ve bir bilgisayar aynı anda birden çok bilgisayara genişleyebilir.
 - **Yerel ve gizli.** Bulut ve hesap yok. Cihazlar 6 haneli bir kodla bir kez eşleşir, her bağlantı

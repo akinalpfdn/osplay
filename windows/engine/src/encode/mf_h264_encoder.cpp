@@ -13,6 +13,10 @@ using Microsoft::WRL::ComPtr;
 
 /// A GOP this long never ends on its own; keyframes come on request (DEVPLAN).
 constexpr UINT32 kGopSize = 0xFFFFFFFF;
+/// One reference frame: decoders that ignore the stream's "no reordering" hint (TV chips) hold as
+/// many frames as it may reference before showing one, and the last frames of a still screen
+/// never appear.
+constexpr UINT32 kReferenceFrames = 1;
 constexpr std::int64_t kHundredNanosecondsPerSecond = 10'000'000;
 
 /// Every hardware encoder taking NV12 in and producing H.264, in the system's order.
@@ -158,6 +162,8 @@ bool MfH264Encoder::configure(ID3D11Device* device, const StreamSettings& settin
         static_cast<void>(set_codec_value(codec_api_.Get(), CODECAPI_AVEncMPVGOPSize, kGopSize));
         static_cast<void>(
             set_codec_value(codec_api_.Get(), CODECAPI_AVEncMPVDefaultBPictureCount, 0));
+        static_cast<void>(
+            set_codec_value(codec_api_.Get(), CODECAPI_AVEncVideoMaxNumRefFrame, kReferenceFrames));
     }
 
     frame_duration_ = settings.refresh_millihertz == 0

@@ -664,3 +664,73 @@ choices the plan leaves open are logged here.
 **Why:** The user wants a download in the repository before the Play listing exists. Without R8 most of the APK was unused library code (material icons).
 **Trade-offs:** Every committed APK stays in git history (about 4.5 MB each). R8 can break code reached by name: the JNI callbacks are kept by `proguard-rules.pro`; AGP 8.13's R8 warns that it cannot read Kotlin 2.3 metadata, which matters only for kotlin-reflect, not used here. The user opened the 0.1.1 APK and it worked; a full Wi-Fi and cable pass is not recorded.
 **Revisit if:** The app is published on Google Play, or the repository grows uncomfortably from APKs.
+
+## 2026-11-01 — User decision: three TV phases, hosts first
+**Chosen:** DEVPLAN Phase 16 in three parts: TV-01 makes the Mac and PC hosts ready for TV viewers (decoder limits, unknown size, scale, 4K60, a simulated TV in the developer tools), TV-02 an Apple TV app, TV-03 Android TV in the existing Android app.
+**Alternatives:** One phase per TV with the host work inside the first; Android TV before Apple TV.
+**Why:** The user has no Apple TV and never will, and the 4K Android TV is not at hand, so neither TV can be tested now. The host work is shared by both TVs and testable from a Mac viewer posing as a TV. Apple TV is verified in the tvOS simulator only and ships as an experimental TestFlight build.
+**Trade-offs:** Apple TV latency, hardware decoding and HDMI 4K are never measured by the maintainer; they surface only through TestFlight users.
+**Revisit if:** An Apple TV becomes available for testing.
+
+## 2026-11-01 — Hosts honour the viewer's decoder limits
+**Chosen:** The core passes the viewer's Capabilities to the host with its monitors (a new `osplay_capabilities*` in `on_viewer_monitors`); Mac and PC fit each stream inside both the host's stream-size setting and the viewer's max_width × max_height, and cap its frame rate at max_refresh_hz. The virtual display keeps the viewer monitor's resolution and refresh rate; on the PC it no longer takes the stream's rate.
+**Alternatives:** The core clamping StreamConfig itself (the host's encoder and capture would disagree with it); lowering the virtual display's refresh rate with the stream's (the driver's mode list may not have 30 Hz).
+**Why:** Until now the host ignored the limits every viewer already sends. TV chips often decode H.264 4K only at 30 Hz, so a 4K60 stream would fail there.
+**Trade-offs:** Capabilities hold one size and one rate, so a decoder that does 1080p60 or 4K30 must pick one of the two.
+**Revisit if:** The protocol gains per-size decoder limits or a second codec.
+
+## 2026-11-01 — User decision: the PC sets each virtual monitor's scale to the viewer's
+**Chosen:** After creating its virtual monitors, and before capture starts, the Windows host sets each one's display scale to the Windows step closest to the viewer monitor's `scale_percent` (a Retina Mac or a 4K TV at 200%), through `DisplayConfigGetDeviceInfo`/`DisplayConfigSetDeviceInfo` with the undocumented request types -3 and -4 that Settings › Display uses (layout as in the Unlicense windows-DPI-scaling-sample). A refusal leaves the scale Windows chose and the session continues.
+**Alternatives:** Writing `PerMonitorSettings\…\DpiValue` in the registry before the monitor appears (also undocumented, needs the monitor's ID in advance); leaving the scale to Windows and the user.
+**Why:** The Mac host already starts each virtual display at the viewer's scale. On the PC, Windows picked a scale from the driver's fixed EDID, and the same driver device serves different viewers, so a remembered scale was right for one viewer and wrong for the next; a 4K TV would open at an unreadable 100%.
+**Trade-offs:** An undocumented API can change in a Windows update; the code checks the structure sizes and the reported range and falls back to Windows' choice. A scale the user changes by hand is replaced at the next session.
+**Revisit if:** Windows documents a per-monitor scale API, or the requests stop working on a Windows release.
+
+## 2026-11-01 — A viewer monitor of unknown size gets a size from its pixels
+**Chosen:** A monitor that sends 0 mm gets, on a Mac host, the size its pixels have at 96 dpi × scale_percent / 100.
+**Alternatives:** Assuming a typical TV size (a 55-inch panel); refusing the monitor.
+**Why:** `CGVirtualDisplay` needs a size and the Mac host refused 0 mm, so PC → Mac failed for Windows monitors without a size in their EDID; tvOS gives no size at all. The starting resolution follows scale_percent, so the assumed size changes nothing a user sees.
+**Trade-offs:** macOS shows a made-up diagonal for such displays.
+**Revisit if:** macOS starts deriving behaviour from the size that users notice.
+
+## 2026-11-11 — User decision: Android TV before Apple TV, on Android 12 and later
+**Chosen:** Phase 16's Android TV part comes second (TV-02) and Apple TV last (TV-03). Android TV support goes into the existing Android app and keeps its minimum, Android 12 (minSdk 31). TV-01's acceptance is run on the user's Vestel Android TV (Android 14) instead of with the simulated TV.
+**Alternatives:** Apple TV first (simulator only); lowering the minimum for TVs on Android 9–11; closing TV-01 with the simulated TV first.
+**Why:** The user now has an Android TV at hand and will never have an Apple TV, so Android TV is the part that can be verified on hardware, and it verifies the host work too. Most TVs sold since Android TV 12 (late 2022) run 12 or later.
+**Trade-offs:** TVs that stayed on Android 9–11 cannot install Osplay.
+**Revisit if:** Users ask for older TVs.
+
+## 2026-11-20 — Encoders reference one frame
+**Chosen:** The Mac (`kVTCompressionPropertyKey_ReferenceBufferCount`) and PC (`CODECAPI_AVEncVideoMaxNumRefFrame`) encoders reference one frame.
+**Alternatives:** Rewriting the SPS on the viewer to claim a smaller decoder buffer (invalid while the stream may reference 12 frames); viewer-side flushing.
+**Why:** VideoToolbox's default stream declared 12 reference frames and a 12-frame decoder buffer. The Arçelik TV's MediaTek decoder held that many frames before showing one: half a second of lag, and on a still screen the last frames (with the cursor) never appeared. Screen content gains little from more references, and every encoder honours the setting or ignores it harmlessly.
+**Trade-offs:** Slightly larger P-frames for content that would reuse older frames. On the Mac the setting goes only to an encoder with low-latency rate control outside a virtual machine: CI's virtual encoder accepted it and then dropped half the frames, so VMs keep VideoToolbox's default.
+**Revisit if:** Bitrate at equal quality drops noticeably with more references on some encoder, or a real Mac's encoder drops frames with it.
+
+## 2026-11-20 — Android builds for 32-bit ARM too
+**Chosen:** The APK carries `armeabi-v7a` next to `arm64-v8a` and `x86_64`.
+**Alternatives:** 64-bit only, as before.
+**Why:** The user's Android TV (MediaTek MT5867) runs a 32-bit system, as many TV chips do; the app did not install there.
+**Trade-offs:** About 2.6 MB more per APK.
+**Revisit if:** Google Play requires splitting by ABI (an app bundle does that by itself).
+
+## 2026-11-20 — Sound is Opus in the core, trimmed libopus vendored
+**Chosen:** The core encodes and decodes sound with libopus 1.5.2, vendored in `core/third_party/opus` with only the float codec (no DNN/DRED/OSCE models, no hand-written SIMD), built by CMake (Windows, Android, tests) and SwiftPM (Apple apps).
+**Alternatives:** Platform codecs (AAC through AudioToolbox, Media Foundation and MediaCodec); uncompressed PCM; libopus with its machine-learning parts; Opus from each platform's package manager.
+**Why:** One implementation on every host and viewer, like the rest of the wire protocol. Opus has built-in loss concealment and 2.5–10 ms frames, where AAC's frames and encoder delay are longer and differ per platform. PCM (1.5 Mbit/s stereo) would cost Wi-Fi airtime the video needs. The ML parts add 17 MB of model data for gains (DRED, deep PLC) that need more delay than a display can spend; the generic C code encodes a 10 ms stereo frame in a fraction of a millisecond.
+**Trade-offs:** About 2 MB more source in the repository and a BSD notice every app must ship (THIRD_PARTY.md). Updates are manual.
+**Revisit if:** Deep packet loss concealment becomes cheap enough for 10 ms frames, or a platform needs SIMD to keep up.
+
+## 2026-11-20 — Audio is CELT-only 10 ms frames without retransmission
+**Chosen:** Hosts send stereo 48 kHz Opus in restricted low-delay mode (CELT only), 10 ms frames at 128 kbps. Packets are never retransmitted; a lost one is concealed by the decoder. "Plays audio" is a Capabilities flag sent only to peers of protocol 1.3 or later.
+**Alternatives:** Opus' audio mode (SILK/hybrid with in-band FEC, 6.5 ms look-ahead); 20 ms frames; NACK-based retransmission like video; sending each frame twice.
+**Why:** Desktop sound is mostly music and video, which CELT carries well at this bitrate, with 2.5 ms of look-ahead. A retransmitted frame arrives after its turn to play unless the reserve grows by an RTT, and the jitter buffer already holds 40 ms. In-band FEC works only in SILK modes. Older peers refuse unknown Capabilities flags, so the flag has to follow the peer's minor version.
+**Trade-offs:** A burst of loss is heard as a short fade instead of being recovered. CELT's concealment is weaker on speech than SILK's.
+**Revisit if:** Field reports show audible gaps on Wi-Fi (then: redundancy of the previous frame, or retransmission with a larger reserve).
+
+## 2026-11-20 — The viewer's audio device pulls from the core's jitter buffer
+**Chosen:** The viewer's platform reads PCM from the core (`osplay_session_read_audio`) on its audio device's own thread. The jitter buffer behind it starts at a 40 ms reserve, grows by 20 ms when the reserve runs dry (to 200 ms), lowers it every 10 s towards the least the network needed, and holds it against clock drift by resampling up to 0.2 % (Catmull-Rom, exact while the reserve is within 8 ms of its target).
+**Alternatives:** The core pushing decoded PCM to a callback on the I/O thread, with each platform keeping its own ring buffer and drift handling; a fixed reserve; dropping or repeating whole frames for drift.
+**Why:** Only the device knows when it needs samples, so a pull keeps the buffer on the device's clock and puts drift handling in one tested place instead of four platforms. Network jitter differs widely between Ethernet, Wi-Fi and Wi-Fi with AWDL, so the reserve adapts instead of being sized for the worst case. Dropping whole frames for drift clicks; 0.2 % of pitch is inaudible and corrects 2 ms per second.
+**Trade-offs:** The device thread takes a mutex shared with the I/O thread (held for microseconds). The adaptive reserve can grow after a single stall and takes 10 s to shrink.
+**Revisit if:** A platform's audio thread shows priority-inversion glitches, or users notice audio running behind the picture.

@@ -1,6 +1,8 @@
 // Fuzz entry point for the protocol decoders. Properties checked on any input (run under
 // ASan/UBSan): nothing crashes or reads out of bounds, and whatever decodes re-encodes to exactly
-// the same bytes (encoding is canonical). The usbmuxd plist reader only has to survive.
+// the same bytes (encoding is canonical). The usbmuxd plist reader and the audio jitter buffer
+// with its Opus decoder only have to survive.
+#include "media/audio_playout.hpp"
 #include "protocol/constants.hpp"
 #include "protocol/control_messages.hpp"
 #include "protocol/link_record.hpp"
@@ -9,11 +11,13 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <span>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 // NOLINTNEXTLINE(readability-identifier-naming): name required by libFuzzer
@@ -32,6 +36,18 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
         const auto written = osplay::protocol::encode_media(packet.value(), buffer);
         if (!written || !std::ranges::equal(std::span(buffer).first(written.value()), input)) {
             std::abort();
+        }
+        // Any payload a host sends ends up in the viewer's Opus decoder.
+        if (const auto* audio = std::get_if<osplay::protocol::AudioPacket>(&packet.value().body)) {
+            static osplay::media::AudioPlayout playout;
+            static const bool configured = playout.configure({}).has_value();
+            if (configured) {
+                playout.push(*audio);
+                static osplay::TimePoint now;
+                now += std::chrono::milliseconds(10);
+                std::array<float, 960> out{};
+                static_cast<void>(playout.read(out, 2, now));
+            }
         }
     }
 

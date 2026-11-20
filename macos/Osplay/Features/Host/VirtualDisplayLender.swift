@@ -135,8 +135,21 @@ final class VirtualDisplayLender: DisplayLending {
             identity: .derived(peerID: peerID, monitorIndex: Int(monitor.id)),
             pixelSize: DisplaySize(width: monitor.widthPixels, height: monitor.heightPixels),
             refreshRate: monitor.refreshRate,
-            physicalSizeMillimeters: CGSize(
-                width: monitor.physicalWidthMillimeters, height: monitor.physicalHeightMillimeters),
+            physicalSizeMillimeters: Self.physicalSize(of: monitor),
             isHiDPI: isHiDPI)
+    }
+
+    /// The monitor's size, or for one that reports none (0 mm, which the protocol allows: a TV, a
+    /// projector) the size its pixels have at a typical density for its scale. The window server
+    /// needs a size; the starting resolution follows the viewer's scale either way.
+    static func physicalSize(of monitor: MonitorDescription) -> CGSize {
+        if monitor.physicalWidthMillimeters > 0, monitor.physicalHeightMillimeters > 0 {
+            return CGSize(width: monitor.physicalWidthMillimeters, height: monitor.physicalHeightMillimeters)
+        }
+        let dotsPerMillimeter =
+            Tunables.Host.unknownSizeDotsPerInch * Double(max(monitor.scalePercent, 100)) / 100 / 25.4
+        return CGSize(
+            width: (Double(monitor.widthPixels) / dotsPerMillimeter).rounded(),
+            height: (Double(monitor.heightPixels) / dotsPerMillimeter).rounded())
     }
 }
