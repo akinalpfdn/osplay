@@ -158,6 +158,25 @@ style in `Signing.local.xcconfig`, add a line so Xcode makes the iPad's developm
 CODE_SIGN_STYLE[sdk=iphoneos*] = Automatic
 ```
 
+### Apple TV app
+
+The Apple TV app is the `OsplayTV` scheme (tvOS 18 or later): the iPad app's code built for tvOS
+with its own Info.plist and icons, under the iPad app's bundle identifier so both share one App
+Store record. Build it and run it in a tvOS simulator (in Xcode 27 the simulator window lives in
+`DeviceHub`, in Xcode's Applications):
+
+```sh
+cd macos
+xcodebuild -project Osplay.xcodeproj -scheme OsplayTV \
+  -destination 'generic/platform=tvOS Simulator' -derivedDataPath DerivedData build
+xcrun simctl boot "Apple TV 4K (3rd generation)"
+xcrun simctl install booted DerivedData/Build/Products/Debug-appletvsimulator/Osplay.app
+xcrun simctl launch booted com.akinalpfdn.osplay.ipad
+```
+
+The arrow keys and Return drive the simulated remote; Escape is Menu. The icons come from
+`scripts/apple/make_tvos_icons.py`.
+
 The computer it connects to must run Osplay 0.2 or later (protocol 1.2), and the iPad asks once
 for Local Network access.
 

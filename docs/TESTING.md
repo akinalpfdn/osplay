@@ -122,6 +122,20 @@ overlay on in the app's Settings for TV4.
 | TV5 | Remote | During TV2 press OK, move along the controls, press Back twice | OK shows the controls with the stats button focused; they stay while focused; the first Back hides them, the second ends the session and shows the list |
 | TV6 | Home button | During TV2 press the remote's Home button, wait 10 s, open Osplay again | The display goes away on the computer and comes back when Osplay opens |
 
+## Apple TV (simulator)
+
+The `OsplayTV` scheme in a tvOS simulator on the Mac (BUILDING.md); the arrow keys, Return and
+Escape (Menu) drive the remote. There is no Apple TV to test on, so the decoder, the HDMI output and
+latency on hardware are not covered.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| ATV1 | Mac → Apple TV 4K | Simulator "Apple TV 4K"; the same Mac shares; choose it and confirm the code on both | A 3840×2160 Mac display that looks like 1920×1080 shows in the simulator |
+| ATV2 | PC → Apple TV | The PC shares; choose it in the simulator | A PC virtual monitor at 200% |
+| ATV3 | Apple TV 1080p | Simulator "Apple TV 4K (at 1080p)"; ATV1 | A 1920×1080 display at full size |
+| ATV4 | Remote | During ATV1 press Return, move along the controls, press Escape twice | Return shows the controls and focuses the statistics button; the first Escape hides them, the second ends the session |
+| ATV5 | Wording | Home screen and Settings | They say Apple TV, never iPad; no USB cable section |
+
 ## TVs (simulated)
 
 A Debug build of the Mac app poses as a TV when it is used as a display: menu › Developer tools ›

@@ -45,6 +45,8 @@
 - **Real displays, not a window.** macOS and Windows see an extra monitor: arrange it, drag windows onto it,
   set its resolution.
 - **Every direction.** Mac → Windows, Windows → Mac, Mac → Mac and Windows → Windows.
+- **Tablets, phones and TVs too.** An iPad, an Android phone or tablet, an Android TV or an Apple TV
+  (in testing) can be the extra display of a Mac or a PC.
 - **All your monitors.** The computer used as a display lends every screen it has (up to four), and one
   computer can extend onto several others at once.
 - **Local and private.** No cloud, no account. Devices pair once with a 6-digit code, and every

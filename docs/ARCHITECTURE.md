@@ -231,6 +231,22 @@ sample-buffer rendering helpers and the shared tunables — compiled into both a
   installer's self-signed driver package binds to `USB\VID_18D1&PID_2D00`. A device's switch is
   counted until its accessory is opened, and given up after three.
 
+## Apple TV app
+
+The iPad app's code, built for tvOS (`OsplayTV` target, tvOS 18). Only what tvOS lacks or does
+differently is conditional:
+
+- **One monitor at the output mode.** An Apple TV offers its output mode (3840×2160 on a 4K TV)
+  with no physical size and the interface's scale (200% at 4K, 100% at 1080p), as an Android TV
+  does (TV-01).
+- **The remote.** In the viewer, select shows the controls and moves focus onto them; they stay
+  until Menu, and Menu with no controls showing ends the session. Paired computers have row buttons
+  instead of swipe actions, and the USB cable section is gone (an Apple TV has no USB port).
+- **Wording.** The iPad's String Catalog carries Apple TV variations of the strings that name the
+  device, so neither target has keys of its own.
+- **Distribution.** Same bundle identifier as the iPad app: one App Store record, and TestFlight
+  ships both. Checked in the tvOS simulator only; the maintainer has no Apple TV.
+
 ## Android app
 
 Also a viewer only. The C++ core is compiled by the NDK into `libosplay_jni.so` together with a thin
