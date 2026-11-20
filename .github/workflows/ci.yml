@@ -1,9 +1,11 @@
 name: CI
 
+# Development happens on dev without CI; it runs when a release goes from dev into main.
 on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
 
 permissions:
   contents: read
