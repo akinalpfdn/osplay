@@ -41,7 +41,12 @@ enum Theme {
     }
 
     enum Size {
-        static let symbolColumn: CGFloat = 44
+        #if os(tvOS)
+            // tvOS draws symbols and text about twice as large, for viewing from across a room.
+            static let symbolColumn: CGFloat = 88
+        #else
+            static let symbolColumn: CGFloat = 44
+        #endif
     }
 
     enum Symbol {
