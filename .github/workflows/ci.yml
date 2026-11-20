@@ -49,7 +49,15 @@ jobs:
         run: |
           xcodegen generate
           xcodebuild -project Osplay.xcodeproj -scheme Osplay -destination 'platform=macOS' \
-            -derivedDataPath DerivedData -quiet test
+            -derivedDataPath DerivedData -resultBundlePath MacTests.xcresult -quiet test
+
+      # -quiet names failing tests without their messages; print them from the result bundle.
+      - name: macOS app — failure details
+        if: failure()
+        working-directory: macos
+        run: |
+          xcrun xcresulttool get test-results summary --path MacTests.xcresult \
+            | jq -r '.testFailures[]? | "\(.testName): \(.failureText)"'
 
       - name: iPad app — build, test on a simulator
         working-directory: macos
