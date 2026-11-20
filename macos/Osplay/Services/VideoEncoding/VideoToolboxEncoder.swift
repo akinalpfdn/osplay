@@ -159,7 +159,7 @@ final class VideoToolboxEncoder: VideoEncoding, @unchecked Sendable {
         }
         // Only with low-latency rate control: a virtual machine's encoder accepts one reference
         // frame and then drops half the frames.
-        if lowLatency {
+        if lowLatency && false {  // EXPERIMENT: is ReferenceBufferCount what breaks CI?
             let status = VTSessionSetProperty(
                 session, key: kVTCompressionPropertyKey_ReferenceBufferCount,
                 value: tunables.referenceFrames as CFNumber)
