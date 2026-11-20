@@ -1,6 +1,6 @@
 name: CI
 
-# Development happens on dev without CI; it runs when a release goes from dev into main.
+# Phase branches merge into dev without CI; it runs when a release goes from dev into main.
 on:
   push:
     branches: [main]

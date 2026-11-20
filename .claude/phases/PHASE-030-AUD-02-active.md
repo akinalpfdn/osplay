@@ -1,5 +1,5 @@
 # Phase 030 (AUD-02) — Mac host: the Mac's sound on the display
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 17 (part AUD-02). Depends on: PHASE-029 (AUD-01).
 
