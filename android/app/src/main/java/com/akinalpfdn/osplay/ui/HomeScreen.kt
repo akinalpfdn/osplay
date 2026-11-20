@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.Laptop
@@ -33,8 +33,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import com.akinalpfdn.osplay.R
@@ -63,6 +66,10 @@ fun HomeScreen(
     onSettings: () -> Unit,
 ) {
     LaunchedEffect(Unit) { onStart() }
+    // A TV remote starts on the first computer once one is found (with touch nothing takes focus).
+    val firstDevice = remember { FocusRequester() }
+    val hasDevices = state.devices.isNotEmpty()
+    LaunchedEffect(hasDevices) { if (hasDevices) firstDevice.requestFocus() }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -101,7 +108,9 @@ fun HomeScreen(
             if (state.devices.isEmpty()) {
                 item { SearchingCard(showsCable = state.showsCable) }
             } else {
-                items(state.devices, key = { it.device.label }) { row -> DeviceCard(row) { onConnect(row.device) } }
+                itemsIndexed(state.devices, key = { _, row -> row.device.label }) { index, row ->
+                    DeviceCard(row, if (index == 0) Modifier.focusRequester(firstDevice) else Modifier) { onConnect(row.device) }
+                }
             }
             if (state.showsCable) {
                 item {
@@ -118,9 +127,12 @@ fun HomeScreen(
 }
 
 @Composable
-private fun DeviceCard(row: DeviceRow, onClick: () -> Unit) {
+private fun DeviceCard(row: DeviceRow, focus: Modifier, onClick: () -> Unit) {
     val enabled = row.state != DeviceState.Incompatible
-    Card(shape = Shapes.Card, modifier = Modifier.fillMaxWidth().focusRing(Shapes.Card).clickable(enabled = enabled, onClick = onClick)) {
+    Card(
+        shape = Shapes.Card,
+        modifier = Modifier.fillMaxWidth().then(focus).focusRing(Shapes.Card).clickable(enabled = enabled, onClick = onClick),
+    ) {
         Row(Modifier.padding(Spacing.Large), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(Sizes.SymbolColumn), contentAlignment = Alignment.Center) {
                 Icon(

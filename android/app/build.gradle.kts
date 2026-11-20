@@ -16,7 +16,8 @@ android {
         targetSdk = 36
         versionCode = (property("osplayVersionCode") as String).toInt()
         versionName = property("osplayVersion") as String
-        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        // 32-bit ARM for Android TVs: many TV chips (MediaTek MT58xx, MT96xx) run a 32-bit system.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
         externalNativeBuild {
             cmake { arguments += listOf("-DANDROID_STL=c++_static") }
         }
