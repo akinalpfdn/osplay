@@ -536,6 +536,18 @@ Each phase is meant to be completed in one Claude Code session. A phase is done 
 - [x] Mac → Android TV and PC → Android TV show a readable display in the TV's mode, within its decoder's limits, on the user's Android TV.
 - [x] Mac → Apple TV and PC → Apple TV work in the tvOS simulator.
 
+### Phase 17: Sound on the display
+**Goal**: A Mac or a PC that extends onto a display can play its sound there: a TV's speakers, a tablet's, another computer's.
+**Delivers** (four parts, phase files AUD-01…04 — user decision 2026-11-20):
+- AUD-01: an Opus audio stream in the core and protocol 1.3, with a jitter buffer that keeps the sound with the picture.
+- AUD-02: Mac host: the system mix from a Core Audio process tap, muted on the Mac, sent to the chosen display.
+- AUD-03: PC host: after an experiment, a signed virtual speaker (VirtualDrivers/Virtual-Audio-Driver) or WASAPI loopback.
+- AUD-04: every viewer plays it (Android, iPad, Apple TV, Mac, PC).
+**Constraints**: one display plays the sound at a time; older peers keep working without audio; no microphone or other input travels back, as everywhere else in Osplay.
+**Depends on**: Phase 16
+**Acceptance criteria**:
+- [ ] Mac → display and PC → display play the computer's sound on the display, in step with the picture, in every direction.
+
 ---
 
 ## Implementation Guidelines
