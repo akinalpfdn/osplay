@@ -40,6 +40,20 @@ struct VideoToolboxEncoderTests {
         #expect(frames[1].captureTimeMicroseconds == 16_666)
     }
 
+    @Test("The stream references one frame, so a decoder holds no frames back")
+    func referencesOneFrame() throws {
+        let collector = FrameCollector()
+        let encoder = try VideoToolboxEncoder(configuration) { collector.append($0) }
+        let buffer = try makeFrame(width: 640, height: 360, shade: 0)
+        try encoder.encode(buffer, presentationTime: .zero, forceKeyframe: true)
+        encoder.flush()
+        encoder.invalidate()
+
+        let keyframe = try #require(collector.frames.first).get()
+        let sps = try #require(nalUnits(keyframe.data).first { ($0.first ?? 0) & 0x1F == 7 })
+        #expect(try maximumReferenceFrames(sps) == Tunables.Encoding.referenceFrames)
+    }
+
     @Test("An invalidated encoder refuses frames and stays silent")
     func invalidatedEncoderRefusesFrames() throws {
         let collector = FrameCollector()
@@ -102,4 +116,60 @@ private func nalTypes(_ data: Data) -> [UInt8] {
         }
     }
     return types
+}
+
+/// The NAL units of an Annex B buffer, without their start codes.
+private func nalUnits(_ data: Data) -> [Data] {
+    let bytes = [UInt8](data)
+    var starts: [Int] = []
+    var index = 0
+    while index + 3 <= bytes.count {
+        if bytes[index] == 0, bytes[index + 1] == 0, bytes[index + 2] == 1 {
+            starts.append(index + 3)
+            index += 3
+        } else {
+            index += 1
+        }
+    }
+    return starts.enumerated().map { offset, start in
+        var end = offset + 1 < starts.count ? starts[offset + 1] - 3 : bytes.count
+        while end > start, bytes[end - 1] == 0 { end -= 1 }  // the next start code's leading zero
+        return Data(bytes[start..<end])
+    }
+}
+
+private struct SPSParseError: Error {}
+
+/// max_num_ref_frames of a High-profile SPS without scaling matrices (what VideoToolbox writes).
+private func maximumReferenceFrames(_ sps: Data) throws -> Int {
+    var rbsp: [UInt8] = []
+    for byte in sps.dropFirst() {  // the NAL header
+        if byte == 3, rbsp.count >= 2, rbsp[rbsp.count - 1] == 0, rbsp[rbsp.count - 2] == 0 { continue }
+        rbsp.append(byte)
+    }
+    var bit = 24  // profile_idc, constraint flags, level_idc
+    func read(_ count: Int) throws -> Int {
+        var value = 0
+        for _ in 0..<count {
+            guard bit / 8 < rbsp.count else { throw SPSParseError() }
+            value = value << 1 | Int(rbsp[bit / 8] >> (7 - UInt8(bit % 8)) & 1)
+            bit += 1
+        }
+        return value
+    }
+    func exponentialGolomb() throws -> Int {
+        var zeros = 0
+        while try read(1) == 0 { zeros += 1 }
+        return (1 << zeros) - 1 + (try read(zeros))
+    }
+    _ = try exponentialGolomb()  // seq_parameter_set_id
+    guard try exponentialGolomb() == 1 else { throw SPSParseError() }  // chroma_format_idc 4:2:0
+    _ = try exponentialGolomb()  // bit_depth_luma_minus8
+    _ = try exponentialGolomb()  // bit_depth_chroma_minus8
+    _ = try read(1)  // qpprime_y_zero_transform_bypass_flag
+    guard try read(1) == 0 else { throw SPSParseError() }  // seq_scaling_matrix_present_flag
+    _ = try exponentialGolomb()  // log2_max_frame_num_minus4
+    guard try exponentialGolomb() == 0 else { throw SPSParseError() }  // pic_order_cnt_type
+    _ = try exponentialGolomb()  // log2_max_pic_order_cnt_lsb_minus4
+    return try exponentialGolomb()  // max_num_ref_frames
 }

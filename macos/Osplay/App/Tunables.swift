@@ -32,6 +32,10 @@ extension Tunables {
         /// Safety-net keyframe interval in seconds; keyframes normally come on request.
         static let maximumKeyframeInterval = 60.0
         static let profile = H264Profile.high
+        /// Frames a P-frame may reference. VideoToolbox's default (12) makes decoders that ignore
+        /// the stream's "no reordering" hint (TV chips) hold 12 frames before showing one: about
+        /// 200 ms at 60 fps, and the last frames of a still screen (the cursor) never appear.
+        static let referenceFrames = 1
         /// The boxes a stream is fitted into for each stream size setting (DEVPLAN Phase 13c).
         static let streamBox720 = (width: 1280, height: 720)
         static let streamBox1080 = (width: 1920, height: 1080)

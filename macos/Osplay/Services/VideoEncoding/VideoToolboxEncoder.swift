@@ -141,6 +141,7 @@ final class VideoToolboxEncoder: VideoEncoding, @unchecked Sendable {
             (kVTCompressionPropertyKey_TransferFunction, kCVImageBufferTransferFunction_ITU_R_709_2),
             (kVTCompressionPropertyKey_YCbCrMatrix, kCVImageBufferYCbCrMatrix_ITU_R_709_2),
             (kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality, kCFBooleanTrue),
+            (kVTCompressionPropertyKey_ReferenceBufferCount, tunables.referenceFrames as CFNumber),
             (
                 kVTCompressionPropertyKey_DataRateLimits,
                 [Double(bitsPerSecond) * tunables.peakBitrateFactor / 8, 1.0] as CFArray
