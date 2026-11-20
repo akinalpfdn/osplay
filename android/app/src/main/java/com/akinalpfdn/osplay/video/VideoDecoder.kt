@@ -68,14 +68,24 @@ class MediaCodecDecoder(
     private class AccessUnit(val data: ByteArray, val captureTimeUs: Long)
 
     override fun decode(data: ByteArray, keyframe: Boolean, captureTimeUs: Long) {
-        synchronized(lock) {
+        val stillWaiting = synchronized(lock) {
             if (released) return
-            if (waitingForKeyframe) {
-                if (!keyframe) return
-                waitingForKeyframe = false
-                units.clear()
+            if (waitingForKeyframe && !keyframe) {
+                true
+            } else {
+                if (waitingForKeyframe) {
+                    waitingForKeyframe = false
+                    units.clear()
+                }
+                units.addLast(AccessUnit(data, captureTimeUs))
+                false
             }
-            units.addLast(AccessUnit(data, captureTimeUs))
+        }
+        if (stillWaiting) {
+            // The keyframe asked for may have been lost; a still screen sends no other. The core
+            // spaces the requests out.
+            onNeedsKeyframe()
+            return
         }
         handler.post { feed() }
     }
