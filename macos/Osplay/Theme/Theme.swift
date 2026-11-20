@@ -132,6 +132,10 @@ enum Theme {
         static let advanced = "wrench.and.screwdriver"
         static let screenRecording = "rectangle.dashed.badge.record"
         static let localNetwork = "network"
+        /// The Mac's sound plays on that display / stays on the Mac.
+        static let soundOnDisplay = "speaker.wave.2.fill"
+        static let soundOnMac = "speaker.slash"
+        static let systemAudio = "waveform"
         static let disconnect = "xmark.circle"
         static let update = "arrow.down.circle"
     }

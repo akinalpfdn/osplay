@@ -37,6 +37,10 @@ final class ConnectionViewModel {
         let platform: PeerPlatform
         /// The virtual displays it uses; 0 until its streams run.
         var displayCount = 0
+        /// It can play this Mac's sound (protocol 1.3 and a device with audio output).
+        var playsAudio = false
+        /// This Mac's sound plays there instead of on the Mac.
+        var soundOn = false
     }
 
     /// One host session: the one listening for the next viewer, one trying an iPad or waiting on
@@ -274,6 +278,44 @@ final class ConnectionViewModel {
         }
     }
 
+    /// Whether this macOS can send its sound to a display (process taps, macOS 14.2+).
+    var canSendSound: Bool { dependencies.audioCaptures.isAvailable }
+
+    /// Plays this Mac's sound on that viewer's display, muted on the Mac, or brings it back to the
+    /// Mac. One display plays it at a time: turning it on elsewhere turns it off here.
+    func setSound(_ connected: ConnectedViewer, _ on: Bool) {
+        guard let connection = hostConnections.first(where: { $0.viewer?.id == connected.id }) else { return }
+        let others = hostConnections.filter { $0 !== connection && $0.viewer?.soundOn == true }.map(\.session)
+        let permission = dependencies.audioPermission
+        Task { [weak self, session = connection.session] in
+            if on {
+                guard await Self.audioAllowed(permission) else {
+                    self?.error = .soundPermissionDenied
+                    if let url = permission.settingsURL { NSWorkspace.shared.open(url) }
+                    return
+                }
+                for other in others {
+                    // Turning sound off only fails if it was off already.
+                    try? await other.setSound(false)
+                }
+            }
+            do throws(HostSoundError) {
+                try await session.setSound(on)
+            } catch {
+                self?.error = .sound(error)
+            }
+        }
+    }
+
+    /// Asks once; when macOS does not say, the capture itself shows the prompt.
+    static func audioAllowed(_ permission: any AudioCapturePermissionChecking) async -> Bool {
+        switch permission.access {
+        case .granted: return true
+        case .denied: return false
+        case .unknown: return await permission.request() || permission.access != .denied
+        }
+    }
+
     /// Ends the session with this computer only; the others go on.
     func disconnect(_ connected: ConnectedViewer) {
         guard let connection = hostConnections.first(where: { $0.viewer?.id == connected.id }) else { return }
@@ -439,7 +481,8 @@ final class ConnectionViewModel {
                 }
             },
             displays: VirtualDisplayLender(provider: dependencies.virtualDisplays), budget: displayBudget,
-            captures: dependencies.captures, encoders: dependencies.encoders, permissions: dependencies.permissions)
+            captures: dependencies.captures, encoders: dependencies.encoders, permissions: dependencies.permissions,
+            audioCaptures: dependencies.audioCaptures)
         let connection = HostConnection(
             session: session, peer: peer, usbDeviceID: usbDeviceID, accessoryID: accessoryID)
         hostConnections.append(connection)
@@ -650,6 +693,12 @@ final class ConnectionViewModel {
             }
         case .roleSwapAnswered(let answer, let key):
             swapAnswered(answer, peer: key, becoming: .viewing, peerName: connection.viewer?.name ?? "")
+        case .viewerPlaysAudio(let plays):
+            connection.viewer?.playsAudio = plays
+            publishViewers()
+        case .sound(let on):
+            connection.viewer?.soundOn = on
+            publishViewers()
         }
     }
 

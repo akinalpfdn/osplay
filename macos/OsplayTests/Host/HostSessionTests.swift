@@ -21,6 +21,7 @@ struct HostSessionTests {
         let lender = FakeDisplayLender()
         let captures = FakeCaptureFactory()
         let encoders = FakeEncoderFactory()
+        let audio = FakeAudioCaptures()
         let budget = DisplayBudget()
 
         func session(
@@ -30,9 +31,12 @@ struct HostSessionTests {
                 core: core, policy: { HostDisplayPolicy(peerID: Data("peer".utf8), streamSize: streamSize) },
                 displays: lender, budget: budget,
                 captures: captures, encoders: encoders,
-                permissions: permissions)
+                permissions: permissions, audioCaptures: audio)
         }
     }
+
+    private let playsAudio = SessionCapabilities(
+        maximumStreams: 2, maximumWidth: 0, maximumHeight: 0, maximumRefreshHz: 0, playsAudio: true)
 
     @Test("Viewer monitors become virtual displays, streams and running captures")
     func startsStreamsForMonitors() async throws {
@@ -362,6 +366,82 @@ extension HostSessionTests {
         #expect(
             harness.budget.take(upTo: Tunables.VirtualDisplay.maximumTotalCount)
                 == Tunables.VirtualDisplay.maximumTotalCount)
+    }
+
+    @Test("The Mac's sound goes to a viewer that plays it, and comes back when turned off")
+    func sendsTheSoundAndStops() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        let sound = Task {
+            var changes: [Bool] = []
+            for await event in session.events {
+                if case .sound(let on) = event { changes.append(on) }
+                if changes.count == 2 { break }
+            }
+            return changes
+        }
+
+        harness.core.emit(.viewerMonitors([monitors[0]], viewer: playsAudio))
+        try await eventually { harness.captures.captures.count == 1 }
+        try await session.setSound(true)
+        let capture = try #require(harness.audio.captures.first)
+        #expect(capture.isRunning)
+        #expect(harness.core.startedAudio == [Tunables.Audio.format])
+        capture.deliver()
+        #expect(harness.core.pushedAudioSamples == 960)
+
+        try await session.setSound(false)
+        #expect(!capture.isRunning, "the Mac plays its sound again")
+        #expect(harness.core.stoppedAudio == 1)
+        #expect(await sound.value == [true, false])
+        await session.stop()
+        _ = await run.value
+    }
+
+    @Test("A viewer that plays no sound gets none and nothing is captured")
+    func viewerWithoutSound() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        harness.core.emit(.viewerMonitors([monitors[0]]))
+        try await eventually { harness.captures.captures.count == 1 }
+
+        await #expect(throws: HostSoundError.viewerPlaysNoSound) { try await session.setSound(true) }
+        #expect(harness.audio.captures.isEmpty)
+        #expect(harness.core.startedAudio.isEmpty)
+        await session.stop()
+        _ = await run.value
+    }
+
+    @Test("A capture that cannot start leaves the sound on the Mac and tells the viewer")
+    func captureFailure() async throws {
+        let harness = Harness()
+        harness.audio.startError = .failed(status: -50)
+        let session = harness.session()
+        let run = Task { await session.run() }
+        harness.core.emit(.viewerMonitors([monitors[0]], viewer: playsAudio))
+        try await eventually { harness.captures.captures.count == 1 }
+
+        await #expect(throws: HostSoundError.capture(.failed(status: -50))) { try await session.setSound(true) }
+        #expect(harness.core.stoppedAudio == 1, "the viewer closes its audio device")
+        await session.stop()
+        _ = await run.value
+    }
+
+    @Test("Ending the session gives the sound back to the Mac")
+    func sessionEndStopsTheCapture() async throws {
+        let harness = Harness()
+        let session = harness.session()
+        let run = Task { await session.run() }
+        harness.core.emit(.viewerMonitors([monitors[0]], viewer: playsAudio))
+        try await eventually { harness.captures.captures.count == 1 }
+        try await session.setSound(true)
+        let capture = try #require(harness.audio.captures.first)
+
+        await session.stop()
+        _ = await run.value
+        #expect(!capture.isRunning)
     }
 }
 

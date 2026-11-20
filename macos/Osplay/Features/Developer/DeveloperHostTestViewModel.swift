@@ -22,6 +22,9 @@
 
         var streamCount = 2
         var dumpsEnabled = true
+        /// AUD-02 check: the Mac's sound goes to the in-process viewer, which measures its level.
+        private(set) var soundOn = false
+        private(set) var soundLine: SoundLine?
         private(set) var isRunning = false
         private(set) var rows: [StreamRow] = []
         private(set) var errorMessage: String?
@@ -32,6 +35,8 @@
         private let captures: any ScreenCaptureMaking
         private let encoders: any VideoEncoderMaking
         private let permissions: any PermissionChecking
+        private let audioCaptures: any SystemAudioCaptureMaking
+        private let audioPermission: any AudioCapturePermissionChecking
         private let patterns = TestPatternWindows()
         private var session: HostSession?
         private var viewer: CoreSession?
@@ -44,8 +49,11 @@
 
         init(
             provider: any VirtualDisplayProviding, captures: any ScreenCaptureMaking, encoders: any VideoEncoderMaking,
-            permissions: any PermissionChecking
+            permissions: any PermissionChecking, audioCaptures: any SystemAudioCaptureMaking,
+            audioPermission: any AudioCapturePermissionChecking
         ) {
+            self.audioCaptures = audioCaptures
+            self.audioPermission = audioPermission
             self.provider = provider
             self.captures = captures
             self.encoders = encoders
@@ -73,6 +81,20 @@
             Task { [session] in await session?.stop() }
         }
 
+        func setSound(_ on: Bool) {
+            guard let session else { return }
+            Task { [weak self, audioPermission] in
+                if on, audioPermission.access == .unknown {
+                    _ = await audioPermission.request()
+                }
+                do throws(HostSoundError) {
+                    try await session.setSound(on)
+                } catch {
+                    self?.errorMessage = ConnectionError.sound(error).message
+                }
+            }
+        }
+
         func openScreenRecordingSettings() {
             guard let url = permissions.screenRecordingSettingsURL else { return }
             NSWorkspace.shared.open(url)
@@ -85,7 +107,7 @@
         private func startSessions() throws(CoreError) {
             let capabilities = SessionCapabilities(
                 maximumStreams: Tunables.VirtualDisplay.maximumDisplayCount, maximumWidth: 7680, maximumHeight: 4320,
-                maximumRefreshHz: 240)
+                maximumRefreshHz: 240, playsAudio: true)
             let host = try CoreSession.host(
                 device: SessionDevice(
                     identity: try .generate(), name: Tunables.Developer.hostTestDeviceName, capabilities: capabilities),
@@ -97,7 +119,7 @@
             let session = HostSession(
                 core: host, policy: { HostDisplayPolicy(peerID: Tunables.Developer.testPeerID) },
                 displays: VirtualDisplayLender(provider: provider), captures: captures, encoders: encoders,
-                permissions: permissions,
+                permissions: permissions, audioCaptures: audioCaptures,
                 dumpDirectory: dumpsEnabled ? Tunables.Developer.dumpDirectory : nil)
             let probe = ViewerProbe()
             self.session = session
@@ -108,6 +130,8 @@
             lastCaptureSample = nil
             captureRates = [:]
             rows = []
+            soundOn = false
+            soundLine = nil
 
             tasks = [
                 Task { [weak self] in
@@ -134,6 +158,18 @@
                         await self?.refreshRows(captured: session.capturedFrameCounts())
                     }
                 },
+                // Plays the role of the viewer's audio device: 10 ms reads, measuring the level.
+                Task.detached(priority: .userInitiated) {
+                    var buffer = [Float](repeating: 0, count: Tunables.Audio.sampleRate / 100 * 2)
+                    while !Task.isCancelled {
+                        let captured = buffer.withUnsafeMutableBufferPointer {
+                            viewer.readAudio(into: $0, channels: Tunables.Audio.channels)
+                        }
+                        probe.record(level: captured == 0 ? nil : ViewerProbe.level(of: buffer))
+                        // Cancellation ends the loop through the condition above.
+                        try? await Task.sleep(for: .milliseconds(10))
+                    }
+                },
             ]
         }
 
@@ -157,7 +193,9 @@
                 for stream in statistics.streams {
                     bitrates[stream.streamID] = stream.bitrateKbps
                 }
-            case .state, .peer, .pairingCode, .paired, .roleSwapRequested, .roleSwapAnswered:
+            case .sound(let on):
+                soundOn = on
+            case .state, .peer, .pairingCode, .paired, .roleSwapRequested, .roleSwapAnswered, .viewerPlaysAudio:
                 break  // both test sessions trust each other and never swap
             }
         }
@@ -175,6 +213,7 @@
             lastCaptureSample = now
 
             let snapshot = probe.snapshot()
+            soundLine = soundOn ? snapshot.sound : nil
             rows = snapshot.streams.keys.sorted().compactMap { id in
                 guard let stream = snapshot.streams[id] else { return nil }
                 return StreamRow(
@@ -202,6 +241,16 @@
         }
     }
 
+    /// What the in-process viewer hears.
+    struct SoundLine: Equatable {
+        /// Loudest 10 ms read in the last half second, in dBFS; nil while silent.
+        let levelDecibels: Double?
+        let bitrateKbps: Int
+        let reserveMilliseconds: Double
+        let latencyMilliseconds: Double
+        let concealedFrames: UInt64
+    }
+
     /// The in-process viewer's measurements, written from its event task and read by the UI.
     private final class ViewerProbe: @unchecked Sendable {
         // @unchecked: every field is guarded by `lock`.
@@ -209,12 +258,28 @@
             let streams: [UInt8: StreamConfiguration]
             let pacing: [UInt8: PacingMeter.Summary]
             let latencies: [UInt8: Double]
+            let sound: SoundLine?
         }
 
         private let lock = NSLock()
         private var streams: [UInt8: StreamConfiguration] = [:]
         private var meters: [UInt8: PacingMeter] = [:]
         private var latencies: [UInt8: Double] = [:]
+        private var audio: AudioStatistics?
+        private var loudest: Double?
+
+        /// RMS level of interleaved samples in dBFS.
+        static func level(of samples: [Float]) -> Double {
+            let power = samples.reduce(0.0) { $0 + Double($1) * Double($1) } / Double(max(samples.count, 1))
+            return power > 0 ? 10 * log10(power) : -.infinity
+        }
+
+        func record(level: Double?) {
+            lock.withLock {
+                guard let level, level.isFinite else { return }
+                loudest = max(loudest ?? level, level)
+            }
+        }
 
         func handle(_ event: SessionEvent) {
             let arrival = Double(DispatchTime.now().uptimeNanoseconds) / 1_000_000_000
@@ -228,15 +293,25 @@
                     for stream in statistics.streams where stream.latencyMicroseconds > 0 {
                         latencies[stream.streamID] = Double(stream.latencyMicroseconds) / 1000
                     }
+                    audio = statistics.audio
                 default:
                     break
                 }
             }
         }
 
+        /// Also starts the next level window.
         func snapshot() -> Snapshot {
             lock.withLock {
-                Snapshot(streams: streams, pacing: meters.compactMapValues(\.summary), latencies: latencies)
+                let sound = audio.map {
+                    SoundLine(
+                        levelDecibels: loudest, bitrateKbps: $0.bitrateKbps,
+                        reserveMilliseconds: Double($0.bufferedMicroseconds) / 1000,
+                        latencyMilliseconds: Double($0.latencyMicroseconds) / 1000, concealedFrames: $0.concealedFrames)
+                }
+                loudest = nil
+                return Snapshot(
+                    streams: streams, pacing: meters.compactMapValues(\.summary), latencies: latencies, sound: sound)
             }
         }
     }

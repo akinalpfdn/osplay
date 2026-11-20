@@ -30,6 +30,8 @@
   <array>
     <string>_osplay._tcp</string>
   </array>
+  <key>NSAudioCaptureUsageDescription</key>
+  <string>Osplay plays this Mac's sound on the display you choose.</string>
   <key>NSLocalNetworkUsageDescription</key>
   <string>Osplay streams screens between your computers on this network.</string>
   <key>NSHumanReadableCopyright</key>

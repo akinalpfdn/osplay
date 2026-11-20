@@ -43,6 +43,10 @@ scripts/check_ui_tokens.sh
 echo "==> localization"
 python3 scripts/check_localization.py
 
+echo "==> license copies"
+# Apps ship the Opus notice its license requires (docs/THIRD_PARTY.md); the copy must match.
+cmp core/third_party/opus/COPYING macos/Shared/Licenses/Opus-LICENSE.txt
+
 echo "==> protocol fixtures"
 python3 protocol/tools/generate_fixtures.py --check
 

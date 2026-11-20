@@ -134,6 +134,16 @@ ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─�
   `osplay-<time>-stream<N>-<W>x<H>.h264` on a background queue (playable with IINA, VLC, ffplay).
   The debug menu's "Host media test" runs the whole pipeline over loopback into an in-process
   viewer and shows pacing, bitrate and latency per stream.
+- **Sound (AUD-02, macOS 14.2+).** For a viewer that plays sound, the menu row offers "play this
+  Mac's sound on this display", one viewer at a time. `ProcessTapCapture` creates a global stereo
+  Core Audio process tap with `mutedWhenTapped`, so the Mac falls silent while it is tapped, and
+  reads it through a private aggregate device clocked by the default output device (rebuilt when
+  that changes). `AVAudioConverter` turns the tap's format into interleaved 48 kHz stereo; host
+  times become core-clock capture times as for video. `HostSession` pushes the PCM into the core
+  (`startAudio`/`pushAudio`/`stopAudio`), which encodes it. Turning the choice off, or the session
+  ending, destroys the tap and the Mac plays its sound again. The System Audio Recording permission
+  is read and requested through TCC's functions (`SystemAudioPermission`); onboarding offers it as
+  optional.
 
 ## macOS app UI
 
