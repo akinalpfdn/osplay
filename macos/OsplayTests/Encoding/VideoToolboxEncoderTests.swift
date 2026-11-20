@@ -5,7 +5,8 @@ import Testing
 
 @testable import Osplay
 
-@Suite("VideoToolbox encoder")
+// Serialized: a virtual machine's encoder (CI) drops frames with several sessions open at once.
+@Suite("VideoToolbox encoder", .serialized)
 struct VideoToolboxEncoderTests {
     private let configuration = EncoderConfiguration(
         width: 640, height: 360, frameRate: 60, bitrateKbps: 2_000, profile: .high)
