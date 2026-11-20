@@ -210,14 +210,19 @@ runs on Android 12 or later, on phones, tablets and Android TVs; the computer it
 run Osplay 0.2 or later.
 
 An Android TV has no USB debugging cable; install over the network instead. On the TV: Settings ›
-Device Preferences › About, select Build seven times, then Settings › Device Preferences ›
-Developer options › turn on USB debugging (and Network debugging where the TV lists it). Then, with
-the TV's address from Settings › Network:
+Device Preferences › About, select Build seven times, then Developer options › Wireless debugging ›
+on. Pair once with **Pair device with pairing code** (each code works once, while its dialog is
+open), then connect to the address and port shown on the Wireless debugging screen; the port changes
+when the TV restarts, and `adb mdns services` lists it:
 
 ```sh
-adb connect <TV address>:5555      # the TV asks once whether to allow this computer
+adb pair <TV address>:<pairing port> <pairing code>
+adb connect <TV address>:<port>
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+Installing over a running session force-stops the app mid-decode, which leaves some TVs' video
+driver unable to start a decoder (TROUBLESHOOTING.md); end the session first.
 
 ## Windows
 

@@ -13,7 +13,7 @@ An Android TV or Google TV shows a Mac's or a PC's extra display over the networ
 - [ ] Lifecycle: the screen stays on while viewing; leaving the app ends the session.
 - [x] Every string in English and Turkish; visual values from the theme.
 - [x] Tests: monitor description and decoder-limit tests (TelevisionTest); TESTING.md TV1–TV6. Focus behaviour is checked on the TV (TV5), not by a UI test.
-- [ ] Docs: README, TESTING, ARCHITECTURE, DECISIONS.
+- [x] Docs: TESTING (TV1–TV6), ARCHITECTURE, BUILDING (wireless debugging), TROUBLESHOOTING (stuck TV video driver), DECISIONS. README waits for the Apple TV part (one README change for both TVs).
 
 ## Acceptance Criteria
 - [ ] On the user's Vestel Android TV (Android 14): Mac → TV and PC → TV over Wi-Fi, at a readable scale and a smooth frame rate.
@@ -23,3 +23,5 @@ An Android TV or Google TV shows a Mac's or a PC's extra display over the networ
 (append as you go; full entries go to DECISIONS.md)
 - 2026-11-11 — User decision: Android TV support keeps the app's minimum, Android 12 (minSdk 31). The user's test TV, a Vestel, runs Android 14. TVs sold before Android TV 12 (late 2022) that never got it are left out; lowering it can come later if users ask.
 - 2026-11-11 — A TV's Capabilities name the largest size its decoder plays at the mode's rate, then at 30 Hz: one size and rate is all Capabilities hold, and a 4K30 limit would also hold the default 1080p stream to 30 fps. Phones and tablets keep generous limits, since some phone decoders report odd panel sizes as unsupported although they play them.
+- 2026-11-20 — User decision: Apple TV (TV-03) is built on this branch too and Phase 16 goes out as one PR; it is checked in the tvOS simulator on the MacBook only.
+- 2026-11-20 — Mac → Arçelik TV (MT5867, 1080p, 32-bit) works smoothly at 55–60 fps, latency 3 ms on the overlay. Fixed on the way: VideoToolbox referenced 12 frames and the TV decoder held that many (half a second of lag, the cursor vanished on a still screen) — Mac and PC encoders now reference one; a lost first keyframe left the viewer black; a failure dropped low latency for the rest of the process. Force-stopping the app mid-decode (adb install) jams the TV's video driver until a real reboot.

@@ -699,3 +699,17 @@ choices the plan leaves open are logged here.
 **Why:** The user now has an Android TV at hand and will never have an Apple TV, so Android TV is the part that can be verified on hardware, and it verifies the host work too. Most TVs sold since Android TV 12 (late 2022) run 12 or later.
 **Trade-offs:** TVs that stayed on Android 9–11 cannot install Osplay.
 **Revisit if:** Users ask for older TVs.
+
+## 2026-11-20 — Encoders reference one frame
+**Chosen:** The Mac (`kVTCompressionPropertyKey_ReferenceBufferCount`) and PC (`CODECAPI_AVEncVideoMaxNumRefFrame`) encoders reference one frame.
+**Alternatives:** Rewriting the SPS on the viewer to claim a smaller decoder buffer (invalid while the stream may reference 12 frames); viewer-side flushing.
+**Why:** VideoToolbox's default stream declared 12 reference frames and a 12-frame decoder buffer. The Arçelik TV's MediaTek decoder held that many frames before showing one: half a second of lag, and on a still screen the last frames (with the cursor) never appeared. Screen content gains little from more references, and every encoder honours the setting or ignores it harmlessly.
+**Trade-offs:** Slightly larger P-frames for content that would reuse older frames.
+**Revisit if:** Bitrate at equal quality drops noticeably with more references on some encoder.
+
+## 2026-11-20 — Android builds for 32-bit ARM too
+**Chosen:** The APK carries `armeabi-v7a` next to `arm64-v8a` and `x86_64`.
+**Alternatives:** 64-bit only, as before.
+**Why:** The user's Android TV (MediaTek MT5867) runs a 32-bit system, as many TV chips do; the app did not install there.
+**Trade-offs:** About 2.6 MB more per APK.
+**Revisit if:** Google Play requires splitting by ABI (an app bundle does that by itself).
