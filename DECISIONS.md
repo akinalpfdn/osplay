@@ -704,8 +704,8 @@ choices the plan leaves open are logged here.
 **Chosen:** The Mac (`kVTCompressionPropertyKey_ReferenceBufferCount`) and PC (`CODECAPI_AVEncVideoMaxNumRefFrame`) encoders reference one frame.
 **Alternatives:** Rewriting the SPS on the viewer to claim a smaller decoder buffer (invalid while the stream may reference 12 frames); viewer-side flushing.
 **Why:** VideoToolbox's default stream declared 12 reference frames and a 12-frame decoder buffer. The Arçelik TV's MediaTek decoder held that many frames before showing one: half a second of lag, and on a still screen the last frames (with the cursor) never appeared. Screen content gains little from more references, and every encoder honours the setting or ignores it harmlessly.
-**Trade-offs:** Slightly larger P-frames for content that would reuse older frames.
-**Revisit if:** Bitrate at equal quality drops noticeably with more references on some encoder.
+**Trade-offs:** Slightly larger P-frames for content that would reuse older frames. On the Mac the setting goes only to an encoder with low-latency rate control outside a virtual machine: CI's virtual encoder accepted it and then dropped half the frames, so VMs keep VideoToolbox's default.
+**Revisit if:** Bitrate at equal quality drops noticeably with more references on some encoder, or a real Mac's encoder drops frames with it.
 
 ## 2026-11-20 — Android builds for 32-bit ARM too
 **Chosen:** The APK carries `armeabi-v7a` next to `arm64-v8a` and `x86_64`.

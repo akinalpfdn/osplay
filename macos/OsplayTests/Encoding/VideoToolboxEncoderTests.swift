@@ -5,8 +5,7 @@ import Testing
 
 @testable import Osplay
 
-// Serialized: a virtual machine's encoder (CI) drops frames with several sessions open at once.
-@Suite("VideoToolbox encoder", .serialized)
+@Suite("VideoToolbox encoder")
 struct VideoToolboxEncoderTests {
     private let configuration = EncoderConfiguration(
         width: 640, height: 360, frameRate: 60, bitrateKbps: 2_000, profile: .high)
@@ -45,8 +44,8 @@ struct VideoToolboxEncoderTests {
     func referencesOneFrame() throws {
         let collector = FrameCollector()
         let encoder = try VideoToolboxEncoder(configuration) { collector.append($0) }
-        // Virtual machines' encoders (CI) lack low-latency rate control and keep their default.
-        guard encoder.usesLowLatencyRateControl else { return }
+        // Without low-latency rate control, or in a virtual machine (CI), the encoder keeps its default.
+        guard encoder.usesLowLatencyRateControl, !VideoToolboxEncoder.isVirtualMachine else { return }
         let buffer = try makeFrame(width: 640, height: 360, shade: 0)
         try encoder.encode(buffer, presentationTime: .zero, forceKeyframe: true)
         encoder.flush()

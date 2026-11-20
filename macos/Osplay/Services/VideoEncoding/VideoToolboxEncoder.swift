@@ -13,8 +13,7 @@ final class VideoToolboxEncoder: VideoEncoding, @unchecked Sendable {
     private let output: EncoderOutput
     private let lock = NSLock()
     private var invalidated = false
-    /// Whether the encoder runs VideoToolbox's low-latency rate control, which real Apple
-    /// silicon encoders have and virtual machines' do not.
+    /// Whether the encoder runs VideoToolbox's low-latency rate control.
     let usesLowLatencyRateControl: Bool
 
     init(_ configuration: EncoderConfiguration, output: @escaping EncoderOutput) throws(VideoEncoderError) {
@@ -84,8 +83,13 @@ final class VideoToolboxEncoder: VideoEncoding, @unchecked Sendable {
 
     private var isInvalidated: Bool { lock.withLock { invalidated } }
 
-    /// EXPERIMENT: off to see whether ReferenceBufferCount is what breaks CI's encoder.
-    private static let experimentSetsReferenceFrames = false
+    /// Whether this Mac is a virtual machine, whose encoder (CI's) accepts one reference frame and
+    /// then drops half the frames.
+    static var isVirtualMachine: Bool {
+        var present: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        return sysctlbyname("kern.hv_vmm_present", &present, &size, nil, 0) == 0 && present == 1
+    }
 
     // MARK: - Setup
 
@@ -160,9 +164,8 @@ final class VideoToolboxEncoder: VideoEncoding, @unchecked Sendable {
                 Log.encoding.info("Encoder ignores \(key as String, privacy: .public): \(status)")
             }
         }
-        // Only with low-latency rate control: a virtual machine's encoder accepts one reference
-        // frame and then drops half the frames.
-        if lowLatency && Self.experimentSetsReferenceFrames {
+        // Only on real Apple silicon encoders, which have low-latency rate control and honour it.
+        if lowLatency && !isVirtualMachine {
             let status = VTSessionSetProperty(
                 session, key: kVTCompressionPropertyKey_ReferenceBufferCount,
                 value: tunables.referenceFrames as CFNumber)
