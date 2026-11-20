@@ -85,6 +85,7 @@ targets:
         PRODUCT_NAME: Osplay
         INFOPLIST_FILE: OsplayTV/Resources/Info.plist
         TARGETED_DEVICE_FAMILY: "3"
+        ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
   OsplayPadTests:
     type: bundle.unit-test
     platform: iOS

@@ -66,6 +66,13 @@ jobs:
           xcodebuild -project Osplay.xcodeproj -scheme OsplayPad -destination "platform=iOS Simulator,id=$simulator" \
             -derivedDataPath DerivedData -quiet test
 
+      # The iPad app's code built for Apple TV; its logic is tested by the iPad step above.
+      - name: Apple TV app — build for the simulator
+        working-directory: macos
+        run: |
+          xcodebuild -project Osplay.xcodeproj -scheme OsplayTV -destination "generic/platform=tvOS Simulator" \
+            -derivedDataPath DerivedData -quiet build
+
   android:
     name: Android
     runs-on: ubuntu-24.04
