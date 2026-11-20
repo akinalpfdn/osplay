@@ -15,7 +15,9 @@ A Mac that extends onto a display can play its sound there instead of on its own
 - [ ] Tests (view model, tap lifecycle with a fake), TESTING.md cases, docs.
 
 ## Acceptance Criteria
-- [ ] Mac → Android TV and Mac → PC: sound plays on the display, not on the Mac, in step with the picture; turning it off brings it back to the Mac.
+- [ ] On the Mac (automated tests and a check on the developer's Mac): with the choice on, the tap captures the system mix, the Mac goes silent and the host sends audio (stats show the audio bitrate); turning it off or ending the session brings the sound back to the Mac.
+- [ ] Hardware, run together with AUD-04 (user decision 2026-11-20): Mac → Android TV and Mac → PC play the sound on the display, not on the Mac, in step with the picture.
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
+- 2026-11-20 — User decision: AUD-02 closes on automated tests and a Mac-side check; the listening test on Android TV and PC runs after AUD-04, when the viewers play sound.
