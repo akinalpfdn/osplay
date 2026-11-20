@@ -19,9 +19,10 @@ interface VideoDecoding {
 }
 
 /**
- * How much of the low-latency setup a decoder gets. Some TV decoders (MediaTek's OMX.MS.AVC.Decoder)
- * fail within a second with the full setup; after each failure the next setup drops one more
- * thing, and the one that works is kept for the rest of the process.
+ * How much of the low-latency setup a decoder gets. After each failure the next setup drops one more
+ * thing, for decoders that reject part of it. Every stream starts again with the full setup: a TV
+ * whose video hardware was busy for a while (MediaTek's OMX.MS.AVC.Decoder after a forced stop)
+ * fails with every setup, and keeping the simplest one would cost the low latency afterwards.
  */
 enum class DecoderSetup(
     val surfaceColorFormat: Boolean,
@@ -57,6 +58,9 @@ class MediaCodecDecoder(
     private var waitingForKeyframe = true
     private var released = false
     private var nextTimestampUs = 0L
+    private var setup = DecoderSetup.Full
+    private var setupWorks = false
+    private var decodedFrames = 0
     private var restartAtMillis = 0L
     private val feedLater = Runnable { feed() }
     private var frameUs = 0L
@@ -210,10 +214,5 @@ class MediaCodecDecoder(
         const val RESTART_DELAY_MILLIS = 1_000L
         /** Frames a setup must decode before it counts as working. */
         const val WORKING_FRAMES = 120
-
-        /** Shared by every decoder of the process: a TV that needs a simpler setup keeps it. */
-        @Volatile var setup = DecoderSetup.Full
-        @Volatile var setupWorks = false
-        @Volatile var decodedFrames = 0
     }
 }
