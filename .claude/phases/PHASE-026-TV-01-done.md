@@ -16,8 +16,8 @@ A Mac or a PC extends onto a TV-sized viewer (1080p or 4K, size unknown, watched
 - [x] Docs: PROTOCOL (what hosts do with Capabilities and 0 mm), ARCHITECTURE, DECISIONS.
 
 ## Acceptance Criteria
-- [ ] Mac → simulated 4K TV and PC → simulated 4K TV: a 3840×2160 virtual display at a readable scale, the stream inside the simulated decoder limits.
-- [ ] Existing viewers (Mac, PC, iPad, Android) behave as before.
+- [x] Mac → simulated 4K TV and PC → simulated 4K TV: a 3840×2160 virtual display at a readable scale, the stream inside the simulated decoder limits. (Covered on real devices in TV-02: Mac → Arçelik Android TV, PC → Android, Mac and PC → Apple TV 4K simulator.)
+- [x] Existing viewers (Mac, PC, iPad, Android) behave as before. (Unit tests and CI; PC → S23 in TV-02.)
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
