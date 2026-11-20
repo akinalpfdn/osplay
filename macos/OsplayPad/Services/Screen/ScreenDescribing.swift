@@ -15,11 +15,32 @@ struct SceneScreen: ScreenDescribing {
             return nil
         }
         let screen = scene.screen
-        return Self.monitor(
-            nativePixels: screen.nativeBounds.size,
-            landscape: scene.effectiveGeometry.interfaceOrientation.isLandscape,
-            scale: screen.nativeScale, maximumFramesPerSecond: screen.maximumFramesPerSecond,
-            name: UIDevice.current.model)
+        #if os(tvOS)
+            return Self.television(
+                outputPixels: screen.nativeBounds.size, scale: screen.nativeScale,
+                maximumFramesPerSecond: screen.maximumFramesPerSecond, name: UIDevice.current.model)
+        #else
+            return Self.monitor(
+                nativePixels: screen.nativeBounds.size,
+                landscape: scene.effectiveGeometry.interfaceOrientation.isLandscape,
+                scale: screen.nativeScale, maximumFramesPerSecond: screen.maximumFramesPerSecond,
+                name: UIDevice.current.model)
+        #endif
+    }
+
+    /// An Apple TV as the protocol takes it (TV-01): its output mode (3840×2160 for a 4K TV), no
+    /// physical size, since a TV reports none, and the scale of its interface, so a 4K TV gets a
+    /// desktop that looks like 1080p (200%) and a 1080p TV one at full size.
+    nonisolated static func television(
+        outputPixels: CGSize, scale: CGFloat, maximumFramesPerSecond: Int, name: String
+    ) -> MonitorDescription {
+        let refresh = maximumFramesPerSecond > 0 ? Double(maximumFramesPerSecond) : Tunables.Viewer.defaultRefreshRate
+        return MonitorDescription(
+            id: 0, widthPixels: Int(max(outputPixels.width, outputPixels.height)),
+            heightPixels: Int(min(outputPixels.width, outputPixels.height)),
+            refreshMillihertz: UInt32((refresh * 1000).rounded()), physicalWidthMillimeters: 0,
+            physicalHeightMillimeters: 0, scalePercent: min(max(Int((scale * 100).rounded()), 100), 400),
+            name: ProtocolText.name(name))
     }
 
     /// `nativePixels` is the portrait size iPadOS reports; the monitor takes the held orientation.

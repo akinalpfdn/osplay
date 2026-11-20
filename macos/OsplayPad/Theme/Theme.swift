@@ -26,8 +26,14 @@ enum Theme {
         static let secondary = Color.secondary
         static let error = Color.red
         static let warning = Color.orange
-        static let card = Color(.secondarySystemGroupedBackground)
-        static let background = Color(.systemGroupedBackground)
+        #if os(tvOS)
+            // tvOS draws its own backdrop; cards are a light veil over it.
+            static let card = Color.primary.opacity(0.08)
+            static let background = Color.clear
+        #else
+            static let card = Color(.secondarySystemGroupedBackground)
+            static let background = Color(.systemGroupedBackground)
+        #endif
     }
 
     enum Radius {

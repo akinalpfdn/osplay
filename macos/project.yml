@@ -4,6 +4,7 @@ options:
   deploymentTarget:
     macOS: "14.0"
     iOS: "18.0"
+    tvOS: "18.0"
   developmentLanguage: en
   createIntermediateGroups: true
   generateEmptyDirectories: false
@@ -61,6 +62,29 @@ targets:
         INFOPLIST_FILE: OsplayPad/Resources/Info.plist
         TARGETED_DEVICE_FAMILY: "2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  # The Apple TV app: the iPad app's code (same bundle identifier, so one App Store record and
+  # universal purchase), built for tvOS with its own Info.plist.
+  OsplayTV:
+    type: application
+    platform: tvOS
+    sources:
+      - path: OsplayPad
+        excludes:
+          - "Resources/Info.plist"
+          - "Resources/Assets.xcassets"
+      - path: Shared
+      - path: OsplayTV
+        excludes:
+          - "Resources/Info.plist"
+    dependencies:
+      - package: OsplayCore
+        product: CoreBridge
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.akinalpfdn.osplay.ipad
+        PRODUCT_NAME: Osplay
+        INFOPLIST_FILE: OsplayTV/Resources/Info.plist
+        TARGETED_DEVICE_FAMILY: "3"
   OsplayPadTests:
     type: bundle.unit-test
     platform: iOS
@@ -113,6 +137,10 @@ schemes:
       gatherCoverageData: true
       targets:
         - OsplayPadTests
+  OsplayTV:
+    build:
+      targets:
+        OsplayTV: all
   Osplay:
     build:
       targets:
