@@ -21,7 +21,8 @@ struct OsplayApp: App {
         _connection = State(initialValue: connection)
         let onboardingModel = OnboardingViewModel(
             permissions: dependencies.permissions, localNetworkCheck: BonjourLocalNetworkCheck(),
-            settings: dependencies.settings)
+            settings: dependencies.settings, audioPermission: dependencies.audioPermission,
+            offersSystemAudio: dependencies.audioCaptures.isAvailable)
         let onboarding = OnboardingWindow(viewModel: onboardingModel)
         self.onboarding = onboarding
         _settings = State(
@@ -39,7 +40,8 @@ struct OsplayApp: App {
             _developerHostTest = State(
                 initialValue: DeveloperHostTestViewModel(
                     provider: dependencies.virtualDisplays, captures: dependencies.captures,
-                    encoders: dependencies.encoders, permissions: dependencies.permissions))
+                    encoders: dependencies.encoders, permissions: dependencies.permissions,
+                    audioCaptures: dependencies.audioCaptures, audioPermission: dependencies.audioPermission))
             _developerLoopback = State(initialValue: DeveloperLoopbackViewModel(dependencies: dependencies))
         #endif
     }

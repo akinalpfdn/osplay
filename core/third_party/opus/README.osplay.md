@@ -17,4 +17,6 @@ hand-written SIMD and assembly (`arm/`, `x86/`, `mips/`), the fixed-point build,
 ambisonics, tests and demos. Osplay compiles it with `OPUS_BUILD` and `USE_ALLOCA` (plus
 `HAVE_LRINT` and `HAVE_LRINTF` outside MSVC) in `core/CMakeLists.txt` and `Package.swift`.
 
-To update: download the new release, check its checksum, and copy the same lists again.
+To update: download the new release, check its checksum, and copy the same lists again. The
+Apple apps ship `COPYING` as `macos/Shared/Licenses/Opus-LICENSE.txt` (`scripts/lint.sh` checks the
+copy).

@@ -227,7 +227,9 @@ private struct SharingSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
             ForEach(connection.viewers) { viewer in
-                ViewerRow(viewer: viewer) { connection.disconnect(viewer) }
+                ViewerRow(
+                    viewer: viewer, canSendSound: connection.canSendSound,
+                    setSound: { connection.setSound(viewer, $0) }, disconnect: { connection.disconnect(viewer) })
             }
             WaitingRow(isFirst: connection.viewers.isEmpty, hasDisplaysLeft: connection.hasDisplaysLeft)
             if connection.canSwapRoles {
@@ -253,9 +255,12 @@ private struct SharingSection: View {
     }
 }
 
-/// A computer this Mac extends onto, with its own Disconnect (DECISIONS.md, 2026-10-25).
+/// A computer this Mac extends onto, with its own Disconnect (DECISIONS.md, 2026-10-25) and, when
+/// it plays sound, the choice to play this Mac's sound there (AUD-02).
 private struct ViewerRow: View {
     let viewer: ConnectionViewModel.ConnectedViewer
+    let canSendSound: Bool
+    let setSound: (Bool) -> Void
     let disconnect: () -> Void
 
     var body: some View {
@@ -277,8 +282,33 @@ private struct ViewerRow: View {
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    if viewer.soundOn {
+                        Text("menu.sound.playing")
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Theme.Colors.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else if viewer.playsAudio && !canSendSound {
+                        Text("menu.sound.needsNewerMacOS")
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Theme.Colors.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 Spacer(minLength: 0)
+                if viewer.playsAudio && canSendSound && viewer.displayCount > 0 {
+                    Button {
+                        setSound(!viewer.soundOn)
+                    } label: {
+                        Label(
+                            viewer.soundOn ? "menu.sound.backToMac" : "menu.sound.toDisplay",
+                            systemImage: viewer.soundOn ? Theme.Symbol.soundOnDisplay : Theme.Symbol.soundOnMac)
+                    }
+                    .labelStyle(.iconOnly)
+                    .font(Theme.Typography.symbol)
+                    .foregroundStyle(viewer.soundOn ? Theme.Colors.accent : Theme.Colors.secondary)
+                    .buttonStyle(.borderless)
+                    .help(Text(viewer.soundOn ? "menu.sound.backToMac" : "menu.sound.toDisplay"))
+                }
                 Button(action: disconnect) {
                     Label("connection.disconnect", systemImage: Theme.Symbol.disconnect)
                 }

@@ -151,6 +151,20 @@ frame rate and bitrate.
 | V4 | 1080p TV | Viewer Mac: **1080p TV**; Mac and PC host | A 1920×1080 display at 200% (looks like 960×540 on the Mac) |
 | V5 | Back to normal | Viewer Mac: **Off**; connect again | The Mac's own displays are offered, at their own sizes and scales |
 
+## Sound
+
+The Mac sends its sound to a display (AUD-02). Until the viewers play it (AUD-04) the Mac side is
+checked with a Debug build: menu › Developer tools › **Host media test**, which streams to a viewer
+inside the same app and shows what that viewer hears.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| S1 | Permission | Fresh install: onboarding › System Audio Recording › Allow | macOS asks once; the row shows a check mark. Osplay works without it; only sound needs it |
+| S2 | Sound to the test viewer | Host media test › Start, then **Send this Mac's sound to the test viewer**; play music | The Mac falls silent; the sound line shows a level (for example −20 dB), about 130 kbps and a 40–60 ms reserve |
+| S3 | Sound back | S2, turn the switch off (or Stop) | The music plays on the Mac again within a second |
+| S4 | Output change | S2, plug in or pick other headphones as output | The Mac stays silent and the level line keeps moving |
+| S5 | Older macOS | On macOS 14.0–14.1, connect a viewer that plays sound | No sound button; the row says sound on the display needs macOS 14.2 |
+
 ## Interruptions
 
 | # | Scenario | Steps | Expected |

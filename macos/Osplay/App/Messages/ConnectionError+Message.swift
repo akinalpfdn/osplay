@@ -19,6 +19,10 @@ enum ConnectionError: Error, Equatable, Sendable {
     case roleSwapUnsupported
     /// After a swap the other computer did not appear as a host in time.
     case roleSwapPeerNotFound
+    /// The Mac's sound could not go to the display; the session goes on.
+    case sound(HostSoundError)
+    /// System Audio Recording is not allowed for Osplay.
+    case soundPermissionDenied
 }
 
 extension ConnectionError {
@@ -56,6 +60,15 @@ extension ConnectionError {
             String(localized: "error.swap.unsupported")
         case .roleSwapPeerNotFound:
             String(localized: "error.swap.notFound")
+        case .sound(let error):
+            switch error {
+            case .viewerPlaysNoSound: String(localized: "error.sound.viewerPlaysNoSound")
+            case .capture(.unavailable): String(localized: "error.sound.unavailable")
+            case .capture(.failed(let status)): String(localized: "error.sound.capture \(Int(status))")
+            case .session(let error): error.sessionMessage
+            }
+        case .soundPermissionDenied:
+            String(localized: "error.sound.permission")
         }
     }
 

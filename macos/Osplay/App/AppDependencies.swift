@@ -14,6 +14,8 @@ final class AppDependencies {
     let usbDevices: any USBDeviceWatching
     let androidAccessories: any AndroidAccessoryWatching
     let pairingPrompt: any PairingPrompting
+    let audioCaptures: any SystemAudioCaptureMaking
+    let audioPermission: any AudioCapturePermissionChecking
     let settings: AppSettings
 
     init(
@@ -30,8 +32,12 @@ final class AppDependencies {
         usbDevices: any USBDeviceWatching = CoreUSBDevices(),
         androidAccessories: any AndroidAccessoryWatching = IOKitAndroidAccessories(),
         pairingPrompt: (any PairingPrompting)? = nil,
+        audioCaptures: any SystemAudioCaptureMaking = ProcessTapCaptureFactory(),
+        audioPermission: any AudioCapturePermissionChecking = SystemAudioPermission(),
         settings: AppSettings? = nil
     ) {
+        self.audioCaptures = audioCaptures
+        self.audioPermission = audioPermission
         self.virtualDisplays = virtualDisplays
         self.captures = captures
         self.encoders = encoders

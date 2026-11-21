@@ -460,6 +460,40 @@
         }
       }
     },
+    "developer.hostTest.sound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send this Mac's sound to the test viewer"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Mac'in sesini test izleyicisine gönder"
+          }
+        }
+      }
+    },
+    "developer.hostTest.soundLine %@ %lld %@ %@ %llu" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sound: level %1$@ dB, %2$lld kbps, reserve %3$@ ms, latency %4$@ ms, concealed %5$llu"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ses: seviye %1$@ dB, %2$lld kbps, tampon %3$@ ms, gecikme %4$@ ms, gizlenen %5$llu"
+          }
+        }
+      }
+    },
     "developer.hostTest.start" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1412,6 +1446,74 @@
         }
       }
     },
+    "error.sound.capture %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Mac's sound could not be captured (error %lld). The sound stays on the Mac."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Mac'in sesi alınamadı (hata %lld). Ses Mac'te çalmaya devam ediyor."
+          }
+        }
+      }
+    },
+    "error.sound.permission" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Osplay in System Settings > Privacy & Security > Screen & System Audio Recording, then try again."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sistem Ayarları > Gizlilik ve Güvenlik > Ekran ve Sistem Sesi Kaydı bölümünde Osplay'e izin verin, sonra yeniden deneyin."
+          }
+        }
+      }
+    },
+    "error.sound.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sound on the display needs macOS 14.2 or later."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sesin ekranda çalması için macOS 14.2 veya sonrası gerekir."
+          }
+        }
+      }
+    },
+    "error.sound.viewerPlaysNoSound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This display does not play sound. Update Osplay on it."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu ekran ses çalmıyor. Oradaki Osplay'i güncelleyin."
+          }
+        }
+      }
+    },
     "error.swap.busy" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2104,6 +2206,74 @@
         }
       }
     },
+    "menu.sound.backToMac" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play the sound on this Mac again"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sesi yeniden bu Mac'te çal"
+          }
+        }
+      }
+    },
+    "menu.sound.needsNewerMacOS" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sound on the display needs macOS 14.2 or later"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sesin ekranda çalması için macOS 14.2 veya sonrası gerekir"
+          }
+        }
+      }
+    },
+    "menu.sound.playing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sound plays on this display"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ses bu ekranda çalıyor"
+          }
+        }
+      }
+    },
+    "menu.sound.toDisplay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play this Mac's sound on this display"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Mac'in sesini bu ekranda çal"
+          }
+        }
+      }
+    },
     "menu.status.idle" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2355,6 +2525,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bir kez verin; daha sonra Sistem Ayarları'ndan değiştirebilirsiniz."
+          }
+        }
+      }
+    },
+    "onboarding.systemAudio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System Audio Recording (optional)"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sistem Sesi Kaydı (isteğe bağlı)"
+          }
+        }
+      }
+    },
+    "onboarding.systemAudio.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lets a display play this Mac's sound instead of the Mac. Needed only for sound."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bir ekranın bu Mac'in sesini Mac yerine çalmasını sağlar. Yalnız ses için gerekir."
           }
         }
       }
