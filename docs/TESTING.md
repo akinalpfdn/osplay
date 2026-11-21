@@ -164,6 +164,9 @@ inside the same app and shows what that viewer hears.
 | S3 | Sound back | S2, turn the switch off (or Stop) | The music plays on the Mac again within a second |
 | S4 | Output change | S2, plug in or pick other headphones as output | The Mac stays silent and the level line keeps moving |
 | S5 | Older macOS | On macOS 14.0–14.1, connect a viewer that plays sound | No sound button; the row says sound on the display needs macOS 14.2 |
+| S6 | Mac → PC | UC1; on the Mac, press the speaker button in the PC's row; play music on the Mac | The Mac falls silent and the music plays from the PC's speakers, in step with the picture |
+| S7 | PC speakers change | S6, unplug or switch the PC's default output | The sound continues on the new default output within a second |
+| S8 | Sound back | S6, press the button again, or disconnect | The music plays on the Mac again; the PC releases its speakers |
 
 ## Interruptions
 

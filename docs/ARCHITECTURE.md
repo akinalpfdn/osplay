@@ -516,6 +516,12 @@ core ─► access unit ─► decode thread: MF H.264 decoder (D3D11, NV12) ─
   without it frames go straight into the swap chain as before.
 - **Debug tool.** `OsplayViewerTest.exe` lists the monitors, views a remote host by address or runs
   a loopback with the Windows host pipeline (BUILDING.md).
+- **Sound (AUD-04).** The viewer announces that it plays sound. On AudioConfig, `ViewerAudio` opens
+  a `WasapiAudioOutput`: shared mode on the default render device, event driven with a 20 ms buffer,
+  in the host's 48 kHz float format with Windows converting rate and channels. Its thread (MMCSS
+  "Pro Audio") pulls PCM from the core with `osplay_session_read_audio`; a lost device is opened
+  again on the new default after half a second. AudioStop, the session's end and
+  `osplay_engine_viewer_destroy` close it, the last one before the core session goes.
 
 ## Windows app UI
 

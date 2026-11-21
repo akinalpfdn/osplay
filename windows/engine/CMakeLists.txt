@@ -1,5 +1,6 @@
 # Platform-independent engine logic, linked into the DLL and its tests.
 add_library(osplay_engine_logic STATIC
+    src/audio/viewer_audio.cpp
     src/discovery/txt_mapping.cpp
     src/display/dpi_scale.cpp
     src/display/virtual_display_hub.cpp
@@ -23,6 +24,7 @@ if(WIN32)
         src/capi/engine_capi.cpp
         src/capi/host_capi.cpp
         src/capi/viewer_capi.cpp
+        src/audio/wasapi_audio_output.cpp
         src/capture/duplication_pipeline.cpp
         src/capture/dxgi_output.cpp
         src/decode/mf_h264_decoder.cpp
@@ -51,7 +53,7 @@ if(WIN32)
     target_link_libraries(osplay_engine
         PUBLIC osplay::core
         PRIVATE osplay_engine_logic osplay::win_platform osplay::warnings user32 gdi32 ole32 bcrypt d3d11 d2d1 dwrite dxgi
-            mfplat mfuuid propsys winmm wmcodecdspuuid shcore
+            mfplat mfuuid propsys winmm wmcodecdspuuid shcore avrt
             crypt32 dnsapi shell32 cfgmgr32 winusb)
     set_target_properties(osplay_engine PROPERTIES
         OUTPUT_NAME OsplayEngine
@@ -61,6 +63,7 @@ endif()
 if(OSPLAY_CORE_BUILD_TESTS)
     add_executable(osplay_engine_tests
         tests/dpi_scale_test.cpp
+        tests/viewer_audio_test.cpp
         tests/frame_pacer_test.cpp
         tests/h264_stream_test.cpp
         tests/virtual_display_hub_test.cpp

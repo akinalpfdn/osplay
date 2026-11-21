@@ -20,4 +20,5 @@ Every viewer plays the host's sound with low latency: Android phones, tablets an
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
 - 2026-11-21 — User decision: AUD-04 comes before AUD-03, starting with the PC viewer, so Mac → PC can be heard on a real monitor first. AUD-03 (PC host) follows.
+- 2026-11-21 — PC viewer first without a shell change: the engine always announces sound, the Mac's button decides; a PC-side switch comes with the other viewers' controls.
 
