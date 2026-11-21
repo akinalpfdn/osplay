@@ -1,5 +1,5 @@
 # Phase 032 (AUD-04) — Viewers play the sound
-Status: PENDING
+Status: ACTIVE
 
 DEVPLAN reference: Phase 17 (part AUD-04). Depends on: PHASE-029 (AUD-01).
 
@@ -19,3 +19,5 @@ Every viewer plays the host's sound with low latency: Android phones, tablets an
 
 ## Decisions Made This Phase
 (append as you go; full entries go to DECISIONS.md)
+- 2026-11-21 — User decision: AUD-04 comes before AUD-03, starting with the PC viewer, so Mac → PC can be heard on a real monitor first. AUD-03 (PC host) follows.
+
