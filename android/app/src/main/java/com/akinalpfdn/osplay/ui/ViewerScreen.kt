@@ -62,7 +62,6 @@ import com.akinalpfdn.osplay.ui.theme.Shapes
 import com.akinalpfdn.osplay.ui.theme.Spacing
 import com.akinalpfdn.osplay.viewer.StatsFigures
 import com.akinalpfdn.osplay.viewer.StreamStage
-import java.util.Locale
 import kotlinx.coroutines.delay
 
 private const val CONTROLS_HIDE_MILLIS = 4_000L
@@ -202,12 +201,14 @@ private fun Waiting(screen: Screen) {
 
 @Composable
 private fun StatsLabel(figures: StatsFigures, modifier: Modifier) {
+    // The configuration's locale, so a language change reformats the numbers at once.
+    val locale = LocalConfiguration.current.locales[0]
     val stream = stringResource(
         R.string.stats_overlay,
         figures.framesPerSecond,
-        String.format(Locale.getDefault(), "%.1f", figures.bitrateKbps / 1000.0),
+        String.format(locale, "%.1f", figures.bitrateKbps / 1000.0),
         figures.roundTripMilliseconds,
-        String.format(Locale.getDefault(), "%.1f", figures.lossPercent),
+        String.format(locale, "%.1f", figures.lossPercent),
         figures.latencyMilliseconds?.toString() ?: "–",
     )
     // While sound plays, a second line: "sound: reserve 40 ms · latency 55 ms · gaps 0 · concealed 0".
