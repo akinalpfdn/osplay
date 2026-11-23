@@ -55,6 +55,13 @@ public partial class App : Application, IDisposable
         _trayIconTheme = new TrayIconTheme(_trayIcon);
         _trayIcon.ForceCreate(enablesEfficiencyMode: false);
         _instance.OnShowRequested(() => Dispatcher.BeginInvoke(ShowPanel));
+        if (!settings.HasShownPanel)
+        {
+            // Once, after the first launch: a new tray icon often sits hidden in the overflow, and
+            // people did not notice Osplay had started (user decision 2026-11-23).
+            settings.HasShownPanel = true;
+            _ = Dispatcher.BeginInvoke(ShowPanel);
+        }
 
         _ = StartAsync(updates);
     }
