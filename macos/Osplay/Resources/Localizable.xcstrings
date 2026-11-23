@@ -3752,6 +3752,23 @@
           }
         }
       }
+    },
+    "stats.overlaySound %@ %@ %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sound: reserve %1$@ ms · latency %2$@ ms · gaps %3$lld · concealed %4$lld"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ses: yedek %1$@ ms · gecikme %2$@ ms · boşluk %3$lld · gizlenen %4$lld"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

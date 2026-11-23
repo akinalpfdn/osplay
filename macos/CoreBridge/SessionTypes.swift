@@ -363,6 +363,12 @@ public struct AudioFormat: Sendable, Equatable {
         self.bitrateKbps = bitrateKbps
     }
 
+    init(_ raw: osplay_audio_config) {
+        self.init(
+            channels: Int(raw.channels), frameDurationMicroseconds: Int(raw.frame_duration_us),
+            bitrateKbps: Int(raw.bitrate_kbps))
+    }
+
     var raw: osplay_audio_config {
         osplay_audio_config(
             sample_rate_hz: UInt32(OSPLAY_AUDIO_SAMPLE_RATE), channels: UInt8(clamping: channels),
@@ -461,6 +467,11 @@ public enum SessionEvent: Sendable {
     case roleSwapAnswered(RoleSwapAnswer, peerPublicKey: [UInt8])
     /// Host: encode this stream at this bitrate from now on (adapted to the link).
     case bitrateTarget(streamID: UInt8, kbps: Int)
+    /// Viewer: the host sends sound in this format from now on; open the audio output and fill it
+    /// with `readAudio`. Comes again when the format changes.
+    case audioConfiguration(AudioFormat)
+    /// Viewer: the host stopped sending sound; close the audio output.
+    case audioStopped
 }
 
 /// The outcome of a role swap request.

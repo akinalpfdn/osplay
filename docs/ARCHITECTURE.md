@@ -203,6 +203,13 @@ core cursor shape/position ─► main actor ─► cursor layer above the video
   on the main run loop, which no frame work touches, so it works even when frames stop.
 - **Power.** While a stream is visible, an `IOPMAssertion` prevents display sleep and a
   latency-critical activity disables App Nap.
+- **Sound (AUD-04).** The Mac, iPad and Apple TV viewers announce that they play sound and share
+  `Shared/Media/AudioOutput.swift`: on AudioConfig an `AVAudioEngine` source node pulls PCM from
+  the core with `readAudio` on the render thread, in chunks of 1024 frames split into the node's
+  channel buffers, on the default output. A configuration change (another output device) restarts
+  the engine; iPad and Apple TV use the `.playback` session with a 5 ms buffer and restart after
+  an interruption. The output stops before the core session goes. The stats overlay adds a sound
+  line under the first stream.
 - **Debug loopback.** The menu's "Viewer loopback" hosts a 1920×1080 virtual display and views
   it on the same Mac (window or full screen), with corruption injection and a frame freeze.
 

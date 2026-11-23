@@ -167,6 +167,9 @@ inside the same app and shows what that viewer hears.
 | S6 | Mac → PC | UC1; on the Mac, press the speaker button in the PC's row; play music on the Mac | The Mac falls silent and the music plays from the PC's speakers, in step with the picture |
 | S7 | PC speakers change | S6, unplug or switch the PC's default output | The sound continues on the new default output within a second |
 | S8 | Sound back | S6, press the button again, or disconnect | The music plays on the Mac again; the PC releases its speakers |
+| S9 | Mac → Mac, iPad, Apple TV | Connect a second Mac, the iPad or the Apple TV as a display; press the speaker button in its row; play music | The music plays on that device, in step with the picture; the stats overlay shows a sound line |
+| S10 | iPad interruption | S9 on the iPad, start and end a FaceTime call or Siri | The sound comes back on its own after the interruption |
+| S11 | Mac viewer output change | S9 on a Mac, switch its output (headphones, display speakers) | The sound continues on the new output within a second |
 
 ## Interruptions
 

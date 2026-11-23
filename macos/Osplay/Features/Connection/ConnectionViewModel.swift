@@ -243,6 +243,7 @@ final class ConnectionViewModel {
             core: core, decoders: dependencies.decoders, presenters: dependencies.presenters,
             power: dependencies.power,
             target: { stream in places[stream.monitorID].map(PresentationTarget.fullScreen) },
+            audioOutputs: dependencies.audioOutputs,
             showsStats: { [settings = dependencies.settings] in await MainActor.run { settings.showsStatsOverlay } })
         viewer = session
         viewerPeer = peer
@@ -1089,7 +1090,7 @@ final class ConnectionViewModel {
             capabilities: SessionCapabilities(
                 maximumStreams: maximumStreams, maximumWidth: Tunables.Connection.maximumWidth,
                 maximumHeight: Tunables.Connection.maximumHeight,
-                maximumRefreshHz: Tunables.Connection.maximumRefreshHz))
+                maximumRefreshHz: Tunables.Connection.maximumRefreshHz, playsAudio: true))
     }
 
     /// Keeps where the viewer's displays sit, so Settings shows them and the next connection reuses it.

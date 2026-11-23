@@ -748,3 +748,10 @@ choices the plan leaves open are logged here.
 **Why:** The reserve was half of the delay. At 20 ms only one 10 ms frame is left as slack, so a single reordered or 10 ms late packet is concealed every time, and concealment does not grow the reserve (core tests showed it). 30 ms keeps one frame of jitter without concealment.
 **Trade-offs:** On Wi-Fi the reserve runs dry once or twice more before it settles; each time is a short audible gap.
 **Revisit if:** Listening tests on Wi-Fi show more gaps than before, or users still hear the sound behind the picture.
+
+## 2026-11-23 — Apple viewers play sound through an AVAudioEngine source node
+**Chosen:** Mac, iPad and Apple TV share one output: an `AVAudioSourceNode` whose render block reads interleaved PCM from the core (`readAudio`) and splits it into the node's channel buffers, connected to the engine's main mixer on the default output. The engine is restarted after a configuration change; iPad and Apple TV set the `.playback` category with a 5 ms preferred buffer and restart after an interruption ends.
+**Alternatives:** An `AVAudioPlayerNode` fed with scheduled buffers; a raw AudioUnit (RemoteIO / HAL output) with its own render callback.
+**Why:** A pull keeps the jitter buffer on the device's clock, like the PC's WASAPI thread, so drift handling stays in the core. Scheduling player buffers would push from another thread and add a queue. A source node is a render callback with AVAudioEngine handling device and format changes, and the same code builds for macOS, iOS and tvOS.
+**Trade-offs:** The main mixer may add a buffer of its own; the render block takes the core's audio mutex (held for microseconds).
+**Revisit if:** Measured latency on Apple viewers is clearly above the PC's, or the render thread shows glitches.

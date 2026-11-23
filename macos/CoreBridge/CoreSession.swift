@@ -381,6 +381,13 @@ private final class CallbackBox: Sendable {
         callbacks.on_bitrate_target = { context, streamID, kbps in
             CallbackBox.from(context)?.continuation.yield(.bitrateTarget(streamID: streamID, kbps: Int(kbps)))
         }
+        callbacks.on_audio_config = { context, config in
+            guard let config = config?.pointee else { return }
+            CallbackBox.from(context)?.continuation.yield(.audioConfiguration(AudioFormat(config)))
+        }
+        callbacks.on_audio_stopped = { context in
+            CallbackBox.from(context)?.continuation.yield(.audioStopped)
+        }
         callbacks.on_log = { context, level, message in
             let text = message.map { String(cString: $0) } ?? ""
             CallbackBox.from(context)?.continuation.yield(.log(SessionLogLevel(level), text))

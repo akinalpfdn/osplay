@@ -129,6 +129,8 @@ actor HostSession {
                 pipelines[streamID]?.requestKeyframe()
             case .bitrateTarget(let streamID, let kbps):
                 pipelines[streamID]?.setBitrate(kbps: kbps)
+            case .audioConfiguration, .audioStopped:
+                break  // viewer-only
             case .streamStopped(let streamID):
                 await stopStream(streamID)
             case .state(let state, let reason):

@@ -12,6 +12,8 @@ protocol ViewerCoreSession: AnyObject, Sendable {
     func stopStream(_ streamID: UInt8) throws(CoreError)
     func pauseStream(_ streamID: UInt8) throws(CoreError)
     func resumeStream(_ streamID: UInt8) throws(CoreError)
+    /// The host's sound, interleaved, for the audio output's thread; returns the capture time.
+    func readAudio(into buffer: UnsafeMutableBufferPointer<Float>, channels: Int) -> UInt64
     func close()
     func closeForSleep()
 }
@@ -44,6 +46,9 @@ actor ViewerSession {
     private let decoders: any VideoDecoderMaking
     private let presenters: any FramePresenterMaking
     private let power: any PowerAssertionManaging
+    /// Nil where the viewer plays no sound (the debug loopback).
+    private let audioOutputs: (any AudioOutputMaking)?
+    private var audioOutput: (any AudioOutput)?
     /// Where a stream is shown; nil for a monitor this Mac did not offer, which the host then stops.
     private let target: @Sendable (StreamConfiguration) -> PresentationTarget?
     /// Read with every statistics update, so the setting applies at once.
@@ -57,9 +62,10 @@ actor ViewerSession {
     init(
         core: any ViewerCoreSession, decoders: any VideoDecoderMaking, presenters: any FramePresenterMaking,
         power: any PowerAssertionManaging, target: @escaping @Sendable (StreamConfiguration) -> PresentationTarget?,
-        showsStats: @escaping @Sendable () async -> Bool = { false }
+        audioOutputs: (any AudioOutputMaking)? = nil, showsStats: @escaping @Sendable () async -> Bool = { false }
     ) {
         self.showsStats = showsStats
+        self.audioOutputs = audioOutputs
         self.core = core
         self.decoders = decoders
         self.presenters = presenters
@@ -116,6 +122,10 @@ actor ViewerSession {
                 eventSink.yield(.roleSwapRequested(peerPublicKey: key))
             case .roleSwapAnswered(let answer, let key):
                 eventSink.yield(.roleSwapAnswered(answer, peerPublicKey: key))
+            case .audioConfiguration(let format):
+                playSound(format)
+            case .audioStopped:
+                stopSound()
             case .viewerMonitors, .keyframeRequested, .bitrateTarget:
                 break  // host-only
             }
@@ -128,10 +138,15 @@ actor ViewerSession {
         let shows = await showsStats()
         guard shows || overlaysShown else { return }
         overlaysShown = shows
+        // The sound belongs to no display: its line goes under the first stream's figures.
+        let first = statistics.streams.map(\.streamID).min()
         for stream in statistics.streams {
             guard let presenter = streams[stream.streamID]?.presenter else { continue }
             await presenter.showStats(
-                shows ? StatsFigures(stream: stream, roundTripMicroseconds: statistics.roundTripMicroseconds) : nil)
+                shows
+                    ? StatsFigures(
+                        stream: stream, roundTripMicroseconds: statistics.roundTripMicroseconds,
+                        audio: stream.streamID == first ? statistics.audio : nil) : nil)
         }
     }
 
@@ -243,6 +258,23 @@ actor ViewerSession {
         eventSink.yield(.streamAdded(stream))
     }
 
+    /// Opens the output for the host's sound, which reads it from the core on its own thread.
+    private func playSound(_ format: AudioFormat) {
+        stopSound()
+        guard let audioOutputs else { return }
+        audioOutput = audioOutputs.makeOutput(format: format) { [core] samples, channels in
+            _ = core.readAudio(into: samples, channels: channels)
+        }
+        if audioOutput == nil {
+            Log.viewer.error("The host's sound cannot play: no audio output")
+        }
+    }
+
+    private func stopSound() {
+        audioOutput?.stop()
+        audioOutput = nil
+    }
+
     private func stopOnHost(_ streamID: UInt8) {
         do throws(CoreError) {
             try core.stopStream(streamID)
@@ -271,6 +303,7 @@ actor ViewerSession {
     }
 
     private func tearDown() async {
+        stopSound()  // before the core session goes: the output reads from it
         let entries = streams.keys.sorted().compactMap { streams[$0] }
         streams.removeAll()
         for entry in entries {

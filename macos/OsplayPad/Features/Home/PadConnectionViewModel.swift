@@ -200,7 +200,7 @@ final class PadConnectionViewModel {
     private func run(_ core: CoreSession, peer: SessionPeer, monitor: MonitorDescription, viaCable: Bool) {
         let session = ViewerSession(
             core: core, decoders: dependencies.decoders, presenters: dependencies.presenters,
-            power: dependencies.power, target: { _ in .screen },
+            power: dependencies.power, target: { _ in .screen }, audioOutputs: dependencies.audioOutputs,
             showsStats: { [settings] in await MainActor.run { settings.showsStatsOverlay } })
         viewer = session
         viewerPeer = peer
@@ -400,7 +400,8 @@ final class PadConnectionViewModel {
             identity: identity, name: settings.protocolDeviceName,
             capabilities: SessionCapabilities(
                 maximumStreams: Tunables.Pad.maximumStreams, maximumWidth: Tunables.Pad.maximumWidth,
-                maximumHeight: Tunables.Pad.maximumHeight, maximumRefreshHz: Tunables.Pad.maximumRefreshHz))
+                maximumHeight: Tunables.Pad.maximumHeight, maximumRefreshHz: Tunables.Pad.maximumRefreshHz,
+                playsAudio: true))
     }
 
     private func update(_ change: () throws(KeyStoreError) -> Void) {
