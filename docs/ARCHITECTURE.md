@@ -51,7 +51,7 @@ Virtual display ─► Capture ─► Encoder ─► core: packetize ──UDP�
   delivery, NACK, deadline, wait for keyframe). Sound (protocol 1.3): the host's PCM becomes 10 ms
   Opus frames (`audio_encoder`); the viewer's `audio_playout` is a jitter buffer that the platform's
   audio device reads on its own thread, through `osplay_session_read_audio`, without passing the
-  I/O thread. It conceals lost frames, adapts its reserve (40–200 ms) to the network and resamples
+  I/O thread. It conceals lost frames, adapts its reserve (30–200 ms) to the network and resamples
   by up to 0.2 % to follow the device's clock. libopus is vendored, trimmed, in
   `core/third_party/opus` and built by CMake and SwiftPM as its own target.
 - `core/src/session/` is the session protocol without I/O (`SessionEngine`): bytes, datagrams,
@@ -517,7 +517,7 @@ core ─► access unit ─► decode thread: MF H.264 decoder (D3D11, NV12) ─
 - **Debug tool.** `OsplayViewerTest.exe` lists the monitors, views a remote host by address or runs
   a loopback with the Windows host pipeline (BUILDING.md).
 - **Sound (AUD-04).** The viewer announces that it plays sound. On AudioConfig, `ViewerAudio` opens
-  a `WasapiAudioOutput`: shared mode on the default render device, event driven with a 20 ms buffer,
+  a `WasapiAudioOutput`: shared mode on the default render device, event driven with a 10 ms buffer,
   in the host's 48 kHz float format with Windows converting rate and channels. Its thread (MMCSS
   "Pro Audio") pulls PCM from the core with `osplay_session_read_audio`; a lost device is opened
   again on the new default after half a second. AudioStop, the session's end and

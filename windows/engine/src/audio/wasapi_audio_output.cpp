@@ -20,8 +20,8 @@ namespace {
 
 using Microsoft::WRL::ComPtr;
 
-/// The device buffer: about two of the host's 10 ms frames.
-constexpr REFERENCE_TIME kBufferDuration = 200'000; // 100 ns units
+/// The device buffer: one of the host's 10 ms frames, the shared engine's usual period.
+constexpr REFERENCE_TIME kBufferDuration = 100'000; // 100 ns units
 /// Without an event for this long the device is checked anyway (it may have gone).
 constexpr DWORD kWaitMilliseconds = 200;
 /// A lost or missing device is tried again after this pause.

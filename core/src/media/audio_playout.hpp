@@ -30,7 +30,7 @@ namespace osplay::media {
 
 struct AudioPlayoutTunables {
     /// Audio held before playing starts, and the least the reserve is lowered to.
-    Microseconds target_delay{40'000};
+    Microseconds target_delay{30'000};
     Microseconds max_target_delay{200'000};
     /// The reserve grows by this each time it ran dry.
     Microseconds target_step{20'000};

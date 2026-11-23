@@ -741,3 +741,10 @@ choices the plan leaves open are logged here.
 **Why:** The user wants the sound on the display instead of the Mac; only the tap's muted mode does that without a driver. macOS has no public call that reads or asks for the AudioCapture permission without capturing, and a denied tap delivers silence instead of an error, so the app could not tell the user why the TV stays silent. The app already depends on private API for virtual displays.
 **Trade-offs:** TCC's functions are private and may change; then the status reads unknown and the first capture shows the prompt. Every app's sound goes to the display, including notifications.
 **Revisit if:** Apple adds a public AudioCapture authorization API, or users ask to keep some apps on the Mac.
+
+## 2026-11-23 — The viewer's sound reserve starts at 30 ms; the PC's device buffer is 10 ms
+**Chosen:** User decision after the first Mac → PC listening test (reserve 50 ms, 60 ms capture to device, about 90–100 ms to the ear): the jitter buffer's least reserve drops from 40 to 30 ms, and the WASAPI buffer from 20 to 10 ms. The reserve still grows by 20 ms after it runs dry.
+**Alternatives:** A 20 ms reserve; only the smaller device buffer; a "low latency / smooth sound" setting.
+**Why:** The reserve was half of the delay. At 20 ms only one 10 ms frame is left as slack, so a single reordered or 10 ms late packet is concealed every time, and concealment does not grow the reserve (core tests showed it). 30 ms keeps one frame of jitter without concealment.
+**Trade-offs:** On Wi-Fi the reserve runs dry once or twice more before it settles; each time is a short audible gap.
+**Revisit if:** Listening tests on Wi-Fi show more gaps than before, or users still hear the sound behind the picture.
