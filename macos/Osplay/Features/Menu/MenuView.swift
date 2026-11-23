@@ -385,6 +385,9 @@ private struct ViewingSection: View {
                     Spacer()
                     Button("connection.disconnect") { connection.disconnect() }
                 }
+                if connection.receivesSound {
+                    ViewerSoundRow(connection: connection)
+                }
                 SwapRow(connection: connection, hotkey: swapHotkey)
             }
         }
@@ -502,6 +505,34 @@ private struct DisplayTile: View {
 }
 
 /// Reverses the roles of the running session, by button or by the swap hotkey.
+/// While viewing: the other computer's sound plays on this Mac; the button mutes it here at once.
+private struct ViewerSoundRow: View {
+    let connection: ConnectionViewModel
+
+    var body: some View {
+        let muted = connection.soundMuted
+        HStack(alignment: .top) {
+            Text(muted ? "menu.viewerSound.muted" : "menu.viewerSound.playing")
+                .font(Theme.Typography.caption)
+                .foregroundStyle(Theme.Colors.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer()
+            Button {
+                connection.setSoundMuted(!muted)
+            } label: {
+                Label(
+                    muted ? "menu.viewerSound.unmute" : "menu.viewerSound.mute",
+                    systemImage: muted ? Theme.Symbol.viewerSoundMuted : Theme.Symbol.viewerSoundOn)
+            }
+            .labelStyle(.iconOnly)
+            .font(Theme.Typography.symbol)
+            .foregroundStyle(muted ? Theme.Colors.secondary : Theme.Colors.accent)
+            .buttonStyle(.borderless)
+            .help(Text(muted ? "menu.viewerSound.unmute" : "menu.viewerSound.mute"))
+        }
+    }
+}
+
 private struct SwapRow: View {
     let connection: ConnectionViewModel
     let hotkey: Hotkey

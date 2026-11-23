@@ -37,6 +37,10 @@
     <string name="viewer_waiting">Görüntü bekleniyor…</string>
     <string name="stats_overlay">%1$d fps · %2$s Mbit/sn · RTT %3$d ms · kayıp %%%4$s · gecikme %5$s ms</string>
     <string name="stats_overlay_sound">ses: yedek %1$d ms · gecikme %2$s ms · boşluk %3$d · gizlenen %4$d</string>
+    <string name="viewer_mute">Sessize al</string>
+    <string name="viewer_unmute">Sesi aç</string>
+    <string name="settings_plays_sound">Bilgisayarın sesini çal</string>
+    <string name="settings_plays_sound_footer">Mac veya PC sesini bu cihaza gönderebilir. Kapalıyken bu cihaz için ses seçeneği sunulmaz. Bir sonraki bağlantıdan itibaren geçerli olur.</string>
     <string name="error_key_store_damaged">Osplay\'in saklanan anahtarları bozuk. Android ayarlarından Osplay\'in depolamasını temizleyip yeniden eşleşin.</string>
     <string name="error_key_store_identity">Osplay cihaz anahtarını oluşturamadı.</string>
     <string name="error_key_store_system">Android\'in anahtar deposu Osplay\'in anahtarını reddetti (%1$s).</string>

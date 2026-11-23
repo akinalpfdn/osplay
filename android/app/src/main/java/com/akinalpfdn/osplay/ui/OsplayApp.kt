@@ -15,11 +15,14 @@ fun OsplayApp(viewModel: MainViewModel, stage: StreamStage) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showsSettings by remember { mutableStateOf(false) }
     when {
-        state.showsViewer -> ViewerScreen(state, stage, viewModel::disconnect, viewModel::setShowsStats, viewModel::viewportChanged)
+        state.showsViewer -> ViewerScreen(
+            state, stage, viewModel::disconnect, viewModel::setShowsStats, viewModel::setSoundMuted, viewModel::viewportChanged,
+        )
         showsSettings -> SettingsScreen(
             state = state,
             onName = viewModel::setDeviceName,
             onStats = viewModel::setShowsStats,
+            onPlaysSound = viewModel::setPlaysSound,
             onRevoke = viewModel::revoke,
             onRemove = viewModel::remove,
             onClose = { showsSettings = false },

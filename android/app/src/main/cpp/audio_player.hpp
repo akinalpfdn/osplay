@@ -31,6 +31,9 @@ public:
     /// Closes the output; the host sends no sound now.
     void stop();
 
+    /// Plays silence while the sound keeps being read (the viewer's live mute), or plays it again.
+    void set_muted(bool muted) { muted_.store(muted); }
+
     /// Closes the output for good and ends the reopening thread; call before the session goes.
     void shutdown();
 
@@ -44,6 +47,7 @@ private:
     void reopen_loop();
 
     std::atomic<osplay_session*> session_{nullptr};
+    std::atomic<bool> muted_{false};
     std::mutex mutex_;
     std::condition_variable wake_;
     AAudioStream* stream_ = nullptr;

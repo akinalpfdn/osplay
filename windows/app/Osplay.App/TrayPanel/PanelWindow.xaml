@@ -234,7 +234,10 @@
         <WrapPanel Margin="{StaticResource Osplay.Thickness.SectionGap}">
           <ui:Button Margin="{StaticResource Osplay.Thickness.ButtonGap}" Command="{Binding Connection.ToggleViewerCommand}"
                      Content="{x:Static res:Strings.ViewerHideShow}" />
-          <ui:Button Command="{Binding Connection.DisconnectCommand}" Content="{x:Static res:Strings.TrayDisconnect}" />
+          <ui:Button Margin="{StaticResource Osplay.Thickness.ButtonGap}" Command="{Binding Connection.DisconnectCommand}"
+                     Content="{x:Static res:Strings.TrayDisconnect}" />
+          <ui:Button Command="{Binding Connection.ToggleSoundMutedCommand}" Content="{Binding Connection.SoundToggleText}"
+                     Visibility="{Binding Connection.ReceivesSound, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}" />
         </WrapPanel>
         <TextBlock Margin="{StaticResource Osplay.Thickness.ItemGap}" Text="{Binding Connection.HotkeyHint}"
                    Style="{StaticResource Osplay.Text.Caption}" />

@@ -15,6 +15,7 @@
 #include <osplay/osplay.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <memory>
 #include <mutex>
@@ -105,6 +106,11 @@ private:
     osplay_session* session_ = nullptr;
 };
 
+/// What this viewer announces beyond decoding: sound, when the user lets it play.
+std::uint8_t capability_flags(const osplay_engine_viewer_config& config) {
+    return config.plays_sound != 0 ? static_cast<std::uint8_t>(OSPLAY_CAPABILITY_PLAYS_AUDIO) : 0;
+}
+
 std::vector<OfferedMonitor> offered_monitors() {
     return osplay::engine::offer_monitors(osplay::engine::active_physical_monitors());
 }
@@ -140,6 +146,7 @@ struct osplay_engine_viewer final : private osplay::engine::ViewerObserver,
     /// The host's sound (AUD-04): opened by AudioConfig, read from the core on WASAPI's thread.
     osplay::engine::WasapiAudioOutputs audio_outputs;
     osplay::engine::ViewerAudio audio;
+    std::atomic<bool> muted{false}; ///< the live mute: read, then silence
 
     /// Guards `active`: the UI thread reaches the orchestrator only while it exists.
     std::mutex active_mutex;
@@ -155,9 +162,19 @@ struct osplay_engine_viewer final : private osplay::engine::ViewerObserver,
 
     osplay::engine::ViewerObserver& observer() { return *this; }
 
+    /// Tells the shell the host sends sound now, or stopped.
+    void sound_changed(bool playing) const {
+        if (callbacks.on_sound != nullptr) {
+            callbacks.on_sound(callbacks.context, playing ? 1 : 0);
+        }
+    }
+
 private:
     void read(std::span<float> out, std::uint8_t channels) override {
         port.read_audio(out, channels);
+        if (muted.load()) {
+            std::ranges::fill(out, 0.0F);
+        }
     }
     void on_visibility(bool visible) override {
         presentation->set_display_required(visible);
@@ -232,8 +249,13 @@ osplay_session_callbacks core_callbacks(osplay_engine_viewer* viewer) {
             self->callbacks.on_log(self->callbacks.context, OSPLAY_LOG_WARNING,
                                    "Audio output could not be opened; the sound stays off");
         }
+        self->sound_changed(true);
     };
-    callbacks.on_audio_stopped = [](void* context) { viewer_of(context)->audio.stop(); };
+    callbacks.on_audio_stopped = [](void* context) {
+        auto* self = viewer_of(context);
+        self->audio.stop();
+        self->sound_changed(false);
+    };
     callbacks.on_stats = [](void* context, const osplay_session_stats* stats) {
         auto* self = viewer_of(context);
         if (self->callbacks.on_stats != nullptr) {
@@ -400,7 +422,7 @@ osplay_engine_result osplay_engine_viewer_start(const osplay_engine_viewer_confi
             .capabilities = {.codecs = OSPLAY_CODEC_H264_ANNEX_B,
                              .max_streams = static_cast<std::uint8_t>(
                                  std::min<std::size_t>(descriptions.size(), kMaxViewerStreams)),
-                             .flags = OSPLAY_CAPABILITY_PLAYS_AUDIO,
+                             .flags = capability_flags(*config),
                              .max_width = 7680,
                              .max_height = 4320,
                              .max_refresh_hz = 240},
@@ -457,6 +479,16 @@ osplay_engine_result osplay_engine_viewer_set_visible(osplay_engine_viewer* view
             return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
         }
         viewer->orchestrator->set_visible(visible == 1);
+        return OSPLAY_ENGINE_OK;
+    });
+}
+
+osplay_engine_result osplay_engine_viewer_set_muted(osplay_engine_viewer* viewer, uint8_t muted) {
+    return guarded([&] {
+        if (viewer == nullptr || muted > 1) {
+            return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
+        }
+        viewer->muted.store(muted == 1);
         return OSPLAY_ENGINE_OK;
     });
 }

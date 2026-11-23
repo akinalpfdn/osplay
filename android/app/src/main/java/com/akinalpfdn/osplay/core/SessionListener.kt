@@ -42,4 +42,7 @@ interface SessionListener {
     fun onStreamStopped(streamId: Int)
 
     fun onRoleSwapRequest(publicKey: ByteArray)
+
+    /** The host sends sound now (true) or stopped (false); it plays from the native layer. */
+    fun onSound(playing: Boolean)
 }

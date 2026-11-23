@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.VolumeOff
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.CircularProgressIndicator
@@ -77,6 +79,7 @@ fun ViewerScreen(
     stage: StreamStage,
     onDisconnect: () -> Unit,
     onShowsStats: (Boolean) -> Unit,
+    onSoundMuted: (Boolean) -> Unit,
     onViewport: (Boolean) -> Unit,
 ) {
     val stream by stage.stream.collectAsStateWithLifecycle()
@@ -166,6 +169,16 @@ fun ViewerScreen(
                     modifier = Modifier.focusRequester(controlsFocus).focusRing(Shapes.Round),
                 ) {
                     Icon(Icons.Outlined.BarChart, contentDescription = stringResource(R.string.viewer_stats))
+                }
+                if (state.receivesSound) {
+                    // Mutes the computer's sound here at once; it keeps coming, so it is back at once too.
+                    IconButton(onClick = { onSoundMuted(!state.soundMuted) }, modifier = Modifier.focusRing(Shapes.Round)) {
+                        Icon(
+                            if (state.soundMuted) Icons.AutoMirrored.Outlined.VolumeOff else Icons.AutoMirrored.Outlined.VolumeUp,
+                            contentDescription = stringResource(if (state.soundMuted) R.string.viewer_unmute else R.string.viewer_mute),
+                            tint = OsplayColors.OnViewer,
+                        )
+                    }
                 }
                 IconButton(onClick = onDisconnect, modifier = Modifier.focusRing(Shapes.Round)) {
                     Icon(

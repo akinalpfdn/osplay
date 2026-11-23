@@ -209,7 +209,8 @@ core cursor shape/position ─► main actor ─► cursor layer above the video
   channel buffers, on the default output. A configuration change (another output device) restarts
   the engine; iPad and Apple TV use the `.playback` session with a 5 ms buffer and restart after
   an interruption. The output stops before the core session goes. The stats overlay adds a sound
-  line under the first stream.
+  line under the first stream. While sound plays, the menu offers a live mute, and Settings has
+  "Play the other computer's sound" (iPad and Apple TV: the viewer controls and Settings).
 - **Debug loopback.** The menu's "Viewer loopback" hosts a 1920×1080 virtual display and views
   it on the same Mac (window or full screen), with corruption injection and a frame freeze.
 
@@ -288,7 +289,8 @@ the JVM once and its callbacks go to a Kotlin `SessionListener`.
   sound never passes through Kotlin. The device buffer is two bursts. When the output is lost
   (headphones pulled, HDMI changed) a thread of the player reopens it on the new default after
   200 ms. The player shuts down before the session is destroyed. The stats overlay adds a sound
-  line, and the app ships the Opus license as `assets/licenses/Opus-LICENSE.txt`.
+  line, and the app ships the Opus license as `assets/licenses/Opus-LICENSE.txt`. The viewer
+  controls offer a live mute while sound plays, and Settings has "Play the computer's sound".
 - **Keys** (`storage/`). The identity's secret key is encrypted with an AES key that stays in the
   Android Keystore; paired computers are JSON in app-private preferences.
 - **Lifecycle.** The activity handles rotation itself, so the session restarts with the new shape
@@ -530,12 +532,15 @@ core ─► access unit ─► decode thread: MF H.264 decoder (D3D11, NV12) ─
   without it frames go straight into the swap chain as before.
 - **Debug tool.** `OsplayViewerTest.exe` lists the monitors, views a remote host by address or runs
   a loopback with the Windows host pipeline (BUILDING.md).
-- **Sound (AUD-04).** The viewer announces that it plays sound. On AudioConfig, `ViewerAudio` opens
+- **Sound (AUD-04).** The viewer announces sound when the shell's "Play the other computer's sound"
+  setting is on (`plays_sound` in the viewer config). On AudioConfig, `ViewerAudio` opens
   a `WasapiAudioOutput`: shared mode on the default render device, event driven with a 10 ms buffer,
   in the host's 48 kHz float format with Windows converting rate and channels. Its thread (MMCSS
   "Pro Audio") pulls PCM from the core with `osplay_session_read_audio`; a lost device is opened
   again on the new default after half a second. AudioStop, the session's end and
-  `osplay_engine_viewer_destroy` close it, the last one before the core session goes.
+  `osplay_engine_viewer_destroy` close it, the last one before the core session goes. `on_sound`
+  tells the shell while sound plays, so the tray panel offers a live mute
+  (`osplay_engine_viewer_set_muted`: the sound keeps being read and plays as silence).
 
 ## Windows app UI
 

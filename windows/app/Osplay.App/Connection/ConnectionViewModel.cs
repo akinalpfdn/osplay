@@ -114,6 +114,18 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isViewerVisible = true;
 
+    /// <summary>While viewing: the other computer sends its sound to this PC.</summary>
+    [ObservableProperty]
+    private bool _receivesSound;
+
+    /// <summary>While viewing: the sound plays as silence here; kept for the next session.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SoundToggleText))]
+    private bool _isSoundMuted;
+
+    /// <summary>The tray button that mutes the other computer's sound here or plays it again.</summary>
+    public string SoundToggleText => IsSoundMuted ? Localization.Strings.ViewerSoundUnmute : Localization.Strings.ViewerSoundMute;
+
     [ObservableProperty]
     private bool _isBusy;
 
@@ -346,6 +358,17 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         if (_viewer is not null)
         {
             await _viewer.SetVisibleAsync(!IsViewerVisible).ConfigureAwait(true);
+        }
+    }
+
+    /// <summary>Silences the other computer's sound on this PC while viewing, or plays it again.</summary>
+    [RelayCommand]
+    private async Task ToggleSoundMutedAsync()
+    {
+        IsSoundMuted = !IsSoundMuted;
+        if (_viewer is not null)
+        {
+            await _viewer.SetMutedAsync(IsSoundMuted).ConfigureAwait(true);
         }
     }
 
@@ -713,7 +736,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             }
             ErrorMessage = null;
             HotkeyGesture hotkey = _settings.ViewerHotkey;
-            var options = new ViewerOptions(_deviceName, device.Address, device.Port, offered, hotkey.Modifiers, hotkey.VirtualKey);
+            var options = new ViewerOptions(
+                _deviceName, device.Address, device.Port, offered, hotkey.Modifiers, hotkey.VirtualKey, _settings.PlaysSound);
             (EngineResult started, EngineViewer? viewer) = await EngineViewer.StartAsync(_dispatcher, options).ConfigureAwait(true);
             if (viewer is null)
             {
@@ -728,6 +752,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             viewer.MonitorsChanged += () => _resumesAfterClose = true;
             viewer.VisibilityChanged += visible => IsViewerVisible = visible;
             viewer.Statistics += OnStatistics;
+            viewer.SoundChanged += playing => ReceivesSound = playing;
+            await viewer.SetMutedAsync(IsSoundMuted).ConfigureAwait(true);
             IsViewerVisible = true;
             IsSessionActive = true;
             ViewerStarted?.Invoke();
@@ -1082,6 +1108,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             _resumesAfterClose = false;
             _figures = [];
             _audioFigures = null;
+            ReceivesSound = false;
             IsSessionActive = false;
             IsStreaming = false;
             CanSwapRoles = false;
@@ -1307,6 +1334,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         _viewer = null;
         _figures = [];
         _audioFigures = null;
+        ReceivesSound = false;
         IsSessionActive = false;
         if (browser is not null)
         {

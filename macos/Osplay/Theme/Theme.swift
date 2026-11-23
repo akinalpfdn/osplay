@@ -136,6 +136,9 @@ enum Theme {
         static let soundOnDisplay = "speaker.wave.2.fill"
         static let soundOnMac = "speaker.slash"
         static let systemAudio = "waveform"
+        /// While viewing: the other computer's sound plays here / is muted here.
+        static let viewerSoundOn = "speaker.wave.2.fill"
+        static let viewerSoundMuted = "speaker.slash.fill"
         static let disconnect = "xmark.circle"
         static let update = "arrow.down.circle"
     }

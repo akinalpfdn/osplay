@@ -171,6 +171,8 @@ inside the same app and shows what that viewer hears.
 | S10 | iPad interruption | S9 on the iPad, start and end a FaceTime call or Siri | The sound comes back on its own after the interruption |
 | S12 | Mac → Android | Connect the phone or the Android TV as a display; press the speaker button in its row; play music | The music plays on the device, in step with the picture; with its stats overlay on, a sound line shows |
 | S13 | Android output change | S12 on the phone, plug in or pull headphones (or switch Bluetooth) | The sound continues on the new output within a second |
+| S14 | Mute on the display | S6, S9 or S12; on the device that shows the display, press its mute control (PC tray panel, Mac menu, iPad/Apple TV/phone viewer controls), then press it again | The sound stops on that device at once and comes back at once; the other computer stays silent meanwhile |
+| S15 | Sound turned off on the display | On the display device, turn off "Play the other computer's sound" (Settings); connect | The sharing computer shows no speaker button for that device |
 | S11 | Mac viewer output change | S9 on a Mac, switch its output (headphones, display speakers) | The sound continues on the new output within a second |
 
 ## Interruptions

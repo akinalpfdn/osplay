@@ -106,9 +106,11 @@ aaudio_data_callback_result_t AudioPlayer::on_data(AAudioStream* stream, void* u
     const int32_t channels = AAudioStream_getChannelCount(stream);
     auto* out = static_cast<float*>(data);
     osplay_session* session = self->session_.load();
-    if (session == nullptr ||
+    const bool read =
+        session != nullptr &&
         osplay_session_read_audio(session, out, static_cast<size_t>(frames),
-                                  static_cast<uint8_t>(channels), nullptr) != OSPLAY_OK) {
+                                  static_cast<uint8_t>(channels), nullptr) == OSPLAY_OK;
+    if (!read || self->muted_.load()) {
         std::fill(out, out + (static_cast<size_t>(frames) * static_cast<size_t>(channels)), 0.0F);
     }
     return AAUDIO_CALLBACK_RESULT_CONTINUE;

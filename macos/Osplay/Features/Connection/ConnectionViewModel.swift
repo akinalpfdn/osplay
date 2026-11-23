@@ -142,6 +142,10 @@ final class ConnectionViewModel {
     private var hotkey: HotkeyRegistration?
     private var swapHotkey: HotkeyRegistration?
     private(set) var swapHotkeyUnavailable = false
+    /// While viewing: the other computer sends its sound to this Mac.
+    private(set) var receivesSound = false
+    /// While viewing: this Mac plays the other computer's sound as silence; kept for the next session.
+    private(set) var soundMuted = false
     private var pendingSwap: PendingSwap?
     /// Viewing after a swap: connects to this device as soon as Bonjour finds it.
     private var autoConnectDeviceID: String?
@@ -245,6 +249,7 @@ final class ConnectionViewModel {
             target: { stream in places[stream.monitorID].map(PresentationTarget.fullScreen) },
             audioOutputs: dependencies.audioOutputs,
             showsStats: { [settings = dependencies.settings] in await MainActor.run { settings.showsStatsOverlay } })
+        session.setMuted(soundMuted)
         viewer = session
         viewerPeer = peer
         viewerPairingOwner = UUID()
@@ -281,6 +286,12 @@ final class ConnectionViewModel {
 
     /// Whether this macOS can send its sound to a display (process taps, macOS 14.2+).
     var canSendSound: Bool { dependencies.audioCaptures.isAvailable }
+
+    /// Silences the other computer's sound on this Mac while viewing, or plays it again.
+    func setSoundMuted(_ muted: Bool) {
+        soundMuted = muted
+        viewer?.setMuted(muted)
+    }
 
     /// Plays this Mac's sound on that viewer's display, muted on the Mac, or brings it back to the
     /// Mac. One display plays it at a time: turning it on elsewhere turns it off here.
@@ -810,6 +821,8 @@ final class ConnectionViewModel {
             storePairing(key, name: peerName)
         case .state(let state):
             if state == .streaming { viewerConnected() }
+        case .sound(let on):
+            receivesSound = on
         case .streamAdded, .visibility, .statistics:
             break
         case .roleSwapRequested(let key):
@@ -831,6 +844,7 @@ final class ConnectionViewModel {
         viewerTasks.forEach { $0.cancel() }
         viewerTasks = []
         viewer = nil
+        receivesSound = false
         dropPairing(owner: viewerPairingOwner)
         status = .idle
         let host = viewedHost
@@ -1090,7 +1104,8 @@ final class ConnectionViewModel {
             capabilities: SessionCapabilities(
                 maximumStreams: maximumStreams, maximumWidth: Tunables.Connection.maximumWidth,
                 maximumHeight: Tunables.Connection.maximumHeight,
-                maximumRefreshHz: Tunables.Connection.maximumRefreshHz, playsAudio: true))
+                maximumRefreshHz: Tunables.Connection.maximumRefreshHz,
+                playsAudio: dependencies.settings.playsSound))
     }
 
     /// Keeps where the viewer's displays sit, so Settings shows them and the next connection reuses it.

@@ -42,6 +42,10 @@ final class PadConnectionViewModel {
     private(set) var peers: [TrustedPeer] = []
     /// The stream's view while viewing.
     private(set) var stage: PadPresenterView?
+    /// While viewing: the computer sends its sound to this device.
+    private(set) var receivesSound = false
+    /// While viewing: the computer's sound plays as silence here; kept for the next session.
+    private(set) var soundMuted = false
 
     var isViewerShown: Bool {
         switch status {
@@ -202,6 +206,7 @@ final class PadConnectionViewModel {
             core: core, decoders: dependencies.decoders, presenters: dependencies.presenters,
             power: dependencies.power, target: { _ in .screen }, audioOutputs: dependencies.audioOutputs,
             showsStats: { [settings] in await MainActor.run { settings.showsStatsOverlay } })
+        session.setMuted(soundMuted)
         viewer = session
         viewerPeer = peer
         offeredMonitor = monitor
@@ -218,6 +223,12 @@ final class PadConnectionViewModel {
                 }
             },
         ]
+    }
+
+    /// Silences the computer's sound on this device while viewing, or plays it again.
+    func setSoundMuted(_ muted: Bool) {
+        soundMuted = muted
+        viewer?.setMuted(muted)
     }
 
     /// Ends the session; nothing reconnects.
@@ -297,6 +308,8 @@ final class PadConnectionViewModel {
         case .roleSwapRequested:
             // An iPad cannot extend onto the computer.
             Task { await session.answerRoleSwap(.cannotHost) }
+        case .sound(let on):
+            receivesSound = on
         case .streamAdded, .visibility, .statistics, .roleSwapAnswered:
             break
         }
@@ -319,6 +332,7 @@ final class PadConnectionViewModel {
         viewerTasks = []
         viewer = nil
         stage = nil
+        receivesSound = false
         pairing = nil
         pairingAnswer = nil
         offeredMonitor = nil
@@ -401,7 +415,7 @@ final class PadConnectionViewModel {
             capabilities: SessionCapabilities(
                 maximumStreams: Tunables.Pad.maximumStreams, maximumWidth: Tunables.Pad.maximumWidth,
                 maximumHeight: Tunables.Pad.maximumHeight, maximumRefreshHz: Tunables.Pad.maximumRefreshHz,
-                playsAudio: true))
+                playsAudio: settings.playsSound))
     }
 
     private func update(_ change: () throws(KeyStoreError) -> Void) {

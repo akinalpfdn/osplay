@@ -50,6 +50,10 @@ public sealed partial class AppSettings : ObservableObject
     [ObservableProperty]
     private string _pcNetworkPassword = string.Empty;
 
+    /// <summary>While viewing, this PC plays the other computer's sound; off, it does not announce sound.</summary>
+    [ObservableProperty]
+    private bool _playsSound = true;
+
     /// <summary>Monitors not offered to hosts, by <see cref="MonitorKey"/>.</summary>
     [ObservableProperty]
     private IReadOnlyList<string> _excludedMonitors = [];
@@ -110,6 +114,7 @@ public sealed partial class AppSettings : ObservableObject
                 : new HotkeyGesture(stored.SwapModifiers, stored.SwapKey);
             PcNetworkName = stored.PcNetworkName ?? string.Empty;
             PcNetworkPassword = stored.PcNetworkPassword ?? string.Empty;
+            PlaysSound = stored.PlaysSound;
         }
         finally
         {
@@ -122,7 +127,8 @@ public sealed partial class AppSettings : ObservableObject
         var stored = new Stored(
             Quality, ViewerHotkey.Modifiers, ViewerHotkey.VirtualKey, ShowsStatsOverlay, ChecksForUpdates, LastUpdateCheck,
             [.. ExcludedMonitors], SwapHotkey.Modifiers, SwapHotkey.VirtualKey,
-            StatsHotkey.Modifiers, StatsHotkey.VirtualKey, StreamSize, PcNetworkName, PcNetworkPassword);
+            StatsHotkey.Modifiers, StatsHotkey.VirtualKey, StreamSize, PcNetworkName, PcNetworkPassword,
+            PlaysSound);
         try
         {
             _ = Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
@@ -139,5 +145,5 @@ public sealed partial class AppSettings : ObservableObject
         DateTimeOffset? LastUpdateCheck, List<string>? ExcludedMonitors,
         uint SwapModifiers = 0, uint SwapKey = 0, uint StatsModifiers = 0, uint StatsKey = 0,
         StreamSizePreset StreamSize = StreamSizePreset.Hd1080, string? PcNetworkName = null,
-        string? PcNetworkPassword = null);
+        string? PcNetworkPassword = null, bool PlaysSound = true);
 }

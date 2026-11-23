@@ -21,6 +21,11 @@ struct SettingsView: View {
                     Toggle("pad.settings.stats", isOn: Bindable(connection.settings).showsStatsOverlay)
                 }
                 Section {
+                    Toggle("pad.settings.playsSound", isOn: Bindable(connection.settings).playsSound)
+                } footer: {
+                    Text("pad.settings.playsSoundFooter")
+                }
+                Section {
                     if connection.peers.isEmpty {
                         Text("pad.settings.noPaired")
                             .foregroundStyle(Theme.Colors.secondary)

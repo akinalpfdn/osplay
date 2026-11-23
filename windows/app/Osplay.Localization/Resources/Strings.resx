@@ -315,6 +315,18 @@
   <data name="StatsOverlaySound" xml:space="preserve">
     <value>sound: reserve {0} ms · latency {1} ms · gaps {2} · concealed {3}</value>
   </data>
+  <data name="ViewerSoundMute" xml:space="preserve">
+    <value>Mute sound here</value>
+  </data>
+  <data name="ViewerSoundUnmute" xml:space="preserve">
+    <value>Play sound here</value>
+  </data>
+  <data name="SettingsPlaysSound" xml:space="preserve">
+    <value>Play the other computer's sound</value>
+  </data>
+  <data name="SettingsPlaysSoundDetail" xml:space="preserve">
+    <value>While this PC is a display, the other Mac or PC can send its sound here. Off: it offers no sound for this PC. Applies from the next connection.</value>
+  </data>
   <data name="StatsUnknown" xml:space="preserve">
     <value>–</value>
   </data>

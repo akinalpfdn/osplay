@@ -329,7 +329,7 @@ internal sealed unsafe class EngineHost : EngineSession
 /// <summary>Where and how a viewer session runs.</summary>
 internal sealed record ViewerOptions(
     string DeviceName, string Address, ushort Port, IReadOnlyList<byte> MonitorIds, uint HotkeyModifiers,
-    uint HotkeyKey);
+    uint HotkeyKey, bool PlaysSound);
 
 /// <summary>Windows shows a remote screen on its monitors.</summary>
 internal sealed unsafe class EngineViewer : EngineSession
@@ -349,6 +349,9 @@ internal sealed unsafe class EngineViewer : EngineSession
 
     /// <summary>An offered monitor changed its mode; the session closes so it can start over.</summary>
     public event Action? MonitorsChanged;
+
+    /// <summary>The host sends sound now (true) or stopped (false).</summary>
+    public event Action<bool>? SoundChanged;
 
     public static Task<(EngineResult Result, EngineViewer? Viewer)> StartAsync(
         Dispatcher dispatcher, ViewerOptions options)
@@ -373,6 +376,7 @@ internal sealed unsafe class EngineViewer : EngineSession
                         MonitorIdCount = (nuint)monitors.Length,
                         HotkeyModifiers = options.HotkeyModifiers,
                         HotkeyKey = options.HotkeyKey,
+                        PlaysSound = options.PlaysSound ? (byte)1 : (byte)0,
                     };
                     var callbacks = new NativeViewerCallbacks
                     {
@@ -389,6 +393,7 @@ internal sealed unsafe class EngineViewer : EngineSession
                         OnRoleSwapRequest = &OnRoleSwapRequest,
                         OnRoleSwapAnswer = &OnRoleSwapAnswer,
                         OnMonitorsChanged = &OnMonitorsChanged,
+                        OnSound = &OnSound,
                     };
                     nint handle;
                     EngineResult result = NativeMethods.ViewerStart(&config, &callbacks, &handle);
@@ -435,6 +440,15 @@ internal sealed unsafe class EngineViewer : EngineSession
         }
     });
 
+    /// <summary>Plays the host's sound as silence here, at once, or plays it again.</summary>
+    public Task SetMutedAsync(bool muted) => Native.Run(() =>
+    {
+        if (Handle != 0)
+        {
+            _ = NativeMethods.ViewerSetMuted(Handle, muted ? (byte)1 : (byte)0);
+        }
+    });
+
     /// <summary>Draws one line in the stream's corner; empty hides it.</summary>
     public Task SetOverlayAsync(byte streamId, string text) => Native.Run(() =>
     {
@@ -476,6 +490,13 @@ internal sealed unsafe class EngineViewer : EngineSession
         var self = (EngineViewer)From(context);
         Log.Write(LogLevel.Info, "An offered monitor changed its mode; connecting again");
         self.Post(() => self.MonitorsChanged?.Invoke());
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnSound(nint context, byte playing)
+    {
+        var self = (EngineViewer)From(context);
+        self.Post(() => self.SoundChanged?.Invoke(playing == 1));
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]

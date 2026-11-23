@@ -3769,6 +3769,108 @@
           }
         }
       }
+    },
+    "menu.viewerSound.playing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The other computer's sound plays on this Mac."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diğer bilgisayarın sesi bu Mac'te çalıyor."
+          }
+        }
+      }
+    },
+    "menu.viewerSound.muted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The other computer's sound is muted on this Mac."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diğer bilgisayarın sesi bu Mac'te sessize alındı."
+          }
+        }
+      }
+    },
+    "menu.viewerSound.mute" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mute here"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Burada sessize al"
+          }
+        }
+      }
+    },
+    "menu.viewerSound.unmute" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play here"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Burada çal"
+          }
+        }
+      }
+    },
+    "settings.playsSound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play the other computer's sound"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diğer bilgisayarın sesini çal"
+          }
+        }
+      }
+    },
+    "settings.playsSound.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "While this Mac is a display, the other Mac or PC can send its sound here. Off: it offers no sound for this Mac. Applies from the next connection."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Mac ekran olarak kullanılırken diğer Mac veya PC sesini buraya gönderebilir. Kapalıyken bu Mac için ses seçeneği sunulmaz. Bir sonraki bağlantıdan itibaren geçerli olur."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

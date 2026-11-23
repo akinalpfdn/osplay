@@ -762,3 +762,10 @@ choices the plan leaves open are logged here.
 **Why:** A data callback pulls on the device's clock like the PC and Apple outputs, so drift stays in the core, and keeping the sound in C++ avoids JNI calls and garbage collection on the audio path. The app's minSdk is 31, so AAudio is always there and Oboe's OpenSL ES fallback buys nothing for a new dependency. Exclusive mode fails or steals the device from other apps on many phones and TVs.
 **Trade-offs:** No audio focus: other apps' music keeps playing alongside. Bluetooth outputs add their own latency, which the overlay does not show.
 **Revisit if:** Users hear other apps over the host's sound, or a device's AAudio low-latency path glitches.
+
+## 2026-11-23 — A viewer mutes the host's sound by playing silence, not by stopping it
+**Chosen:** User decision: every viewer has a live mute in its viewing controls and a setting "Play the other computer's sound". The live mute keeps reading the sound from the core and writes silence to the output; the setting decides whether the viewer announces sound (capabilities flag), so with it off the host offers no sound button. Changing the setting applies from the next connection.
+**Alternatives:** A protocol message asking the host to stop sending; closing the output while muted; a setting only, or a mute only.
+**Why:** Reading on keeps the jitter buffer drained and on the device's clock, so unmuting is instant and the reserve does not jump; a new message would need protocol 1.4 for something the viewer can do alone. The host keeps the sound off its own speakers while a display has it, which is what the host's button means; the display's mute only quiets that display.
+**Trade-offs:** A muted viewer still receives about 130 kbit/s of sound. The host is not told about the mute, so its own speakers stay silent until its button is pressed.
+**Revisit if:** Users expect the display's mute to bring the sound back to the host.

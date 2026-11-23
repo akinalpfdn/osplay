@@ -88,6 +88,9 @@ sealed interface ViewerEvent {
     class Seen(val publicKey: ByteArray) : ViewerEvent
 
     data class Statistics(val figures: StatsFigures?) : ViewerEvent
+
+    /** The host sends sound now (true) or stopped (false). */
+    data class Sound(val playing: Boolean) : ViewerEvent
 }
 
 /** A running viewer session, as the view model sees it; a fake in tests. */
@@ -99,6 +102,9 @@ interface ViewerSessionHandle {
 
     /** Ends the session telling the host this device is going away for a while. */
     fun stopForSleep()
+
+    /** Plays the host's sound as silence here, at once, or plays it again. */
+    fun setMuted(muted: Boolean)
 }
 
 /** Where a session runs. */
@@ -117,6 +123,7 @@ interface ViewerSessionMaking {
         deviceName: String,
         monitor: MonitorDescription,
         target: SessionTarget,
+        playsSound: Boolean,
         trust: (ByteArray) -> Trust,
         onEvent: (ViewerEvent) -> Unit,
     ): Pair<ViewerSessionHandle?, CoreError?>
@@ -132,6 +139,7 @@ class CoreViewerSessions(
         deviceName: String,
         monitor: MonitorDescription,
         target: SessionTarget,
+        playsSound: Boolean,
         trust: (ByteArray) -> Trust,
         onEvent: (ViewerEvent) -> Unit,
     ): Pair<ViewerSessionHandle?, CoreError?> {
@@ -147,7 +155,9 @@ class CoreViewerSessions(
                 monitor.physicalWidthMillimeters, monitor.physicalHeightMillimeters, monitor.scalePercent,
             ),
             monitorName = monitor.name.encodeToByteArray(),
-            capabilities = intArrayOf(MAX_STREAMS, decoding.maxWidth, decoding.maxHeight, decoding.maxRefreshHz),
+            capabilities = intArrayOf(
+                MAX_STREAMS, decoding.maxWidth, decoding.maxHeight, decoding.maxRefreshHz, if (playsSound) 1 else 0,
+            ),
             host = (target as? SessionTarget.Network)?.host.orEmpty().encodeToByteArray(),
             port = (target as? SessionTarget.Network)?.port ?: 0,
             accessoryFd = (target as? SessionTarget.Cable)?.fd ?: NO_ACCESSORY,
@@ -197,6 +207,10 @@ private class CoreViewerSession(
     override fun stop() = withHandle { Native.sessionClose(it) }
 
     override fun stopForSleep() = withHandle { Native.sessionCloseForSleep(it) }
+
+    override fun setMuted(muted: Boolean) = withHandle { Native.sessionSetMuted(it, muted) }
+
+    override fun onSound(playing: Boolean) = post(ViewerEvent.Sound(playing))
 
     override fun onState(state: Int, reason: Int) {
         val sessionState = SessionState.of(state)

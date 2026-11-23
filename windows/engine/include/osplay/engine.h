@@ -340,6 +340,8 @@ typedef struct osplay_engine_viewer_config {
     /* Hide/show hotkey: RegisterHotKey MOD_* bits and a virtual-key code; 0 and 0: default. */
     uint32_t hotkey_modifiers;
     uint32_t hotkey_key;
+    /* 1: announce that this PC plays the host's sound, so the host offers it; 0: no sound. */
+    uint8_t plays_sound;
 } osplay_engine_viewer_config;
 
 /* Callbacks run on engine threads and must return quickly; they must not call
@@ -370,6 +372,8 @@ typedef struct osplay_engine_viewer_callbacks {
     /* An offered monitor changed its mode (resolution, refresh rate, scaling): the session is
      * closing so the shell can connect again with the new mode. */
     void (*on_monitors_changed)(void* context);
+    /* The host sends sound now (1) or stopped (0); it plays on the default output. */
+    void (*on_sound)(void* context, uint8_t playing);
 } osplay_engine_viewer_callbacks;
 
 typedef struct osplay_engine_stream_figures {
@@ -394,6 +398,10 @@ osplay_engine_viewer_confirm_pairing(osplay_engine_viewer* viewer, uint8_t accep
 /* Hides (0) or shows (1) every stream, like the hotkey. */
 OSPLAY_ENGINE_API osplay_engine_result
 osplay_engine_viewer_set_visible(osplay_engine_viewer* viewer, uint8_t visible);
+
+/* The viewer's live mute (`muted` is 0 or 1): the sound keeps being read and plays as silence. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_set_muted(osplay_engine_viewer* viewer,
+                                                                      uint8_t muted);
 
 /* Presentation figures of every running stream; `capacity` must be at least OSPLAY_MAX_STREAMS. */
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_stream_stats(

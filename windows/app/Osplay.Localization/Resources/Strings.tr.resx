@@ -315,6 +315,18 @@
   <data name="StatsOverlaySound" xml:space="preserve">
     <value>ses: yedek {0} ms · gecikme {1} ms · boşluk {2} · gizlenen {3}</value>
   </data>
+  <data name="ViewerSoundMute" xml:space="preserve">
+    <value>Sesi burada kapat</value>
+  </data>
+  <data name="ViewerSoundUnmute" xml:space="preserve">
+    <value>Sesi burada çal</value>
+  </data>
+  <data name="SettingsPlaysSound" xml:space="preserve">
+    <value>Diğer bilgisayarın sesini çal</value>
+  </data>
+  <data name="SettingsPlaysSoundDetail" xml:space="preserve">
+    <value>Bu PC ekran olarak kullanılırken diğer Mac veya PC sesini buraya gönderebilir. Kapalıyken bu PC için ses seçeneği sunulmaz. Bir sonraki bağlantıdan itibaren geçerli olur.</value>
+  </data>
   <data name="StatsUnknown" xml:space="preserve">
     <value>–</value>
   </data>

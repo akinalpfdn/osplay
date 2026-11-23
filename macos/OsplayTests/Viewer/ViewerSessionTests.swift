@@ -210,6 +210,41 @@ struct ViewerSessionTests {
         #expect(outputs.outputs[1].isStopped)
     }
 
+    @Test("Muting plays silence at once while the sound keeps being read, and the session reports the sound")
+    func mutesAndReportsTheSound() async throws {
+        let harness = Harness()
+        let outputs = FakeAudioOutputs()
+        let session = ViewerSession(
+            core: harness.core, decoders: harness.decoders, presenters: harness.presenters, power: harness.power,
+            target: { _ in .fullScreen(1) }, audioOutputs: outputs)
+        let run = Task { await session.run() }
+        let reports = Task {
+            var sound: [Bool] = []
+            for await event in session.events {
+                if case .sound(let on) = event { sound.append(on) }
+            }
+            return sound
+        }
+
+        harness.core.emit(
+            .audioConfiguration(AudioFormat(channels: 2, frameDurationMicroseconds: 10_000, bitrateKbps: 128)))
+        try await eventually { outputs.outputs.count == 1 }
+        let output = try #require(outputs.outputs.first)
+        var samples = [Float](repeating: 1, count: 960)
+        session.setMuted(true)
+        samples.withUnsafeMutableBufferPointer { output.fill($0, 2) }
+        #expect(samples.allSatisfy { $0 == 0 }, "muted: silence")
+        session.setMuted(false)
+        samples.withUnsafeMutableBufferPointer { output.fill($0, 2) }
+        #expect(samples.allSatisfy { $0 == 0.25 }, "unmuted: the host's sound again")
+
+        harness.core.emit(.audioStopped)
+        try await eventually { output.isStopped }
+        await session.stop()
+        _ = await run.value
+        #expect(await reports.value == [true, false])
+    }
+
     @Test("A session closed with an error reports it")
     func reportsErrors() async {
         let harness = Harness()

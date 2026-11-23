@@ -219,6 +219,7 @@ internal struct NativeViewerConfig
     public nuint MonitorIdCount;
     public uint HotkeyModifiers;
     public uint HotkeyKey;
+    public byte PlaysSound;
 }
 
 /// <summary>osplay_engine_viewer_callbacks.</summary>
@@ -238,6 +239,7 @@ internal unsafe struct NativeViewerCallbacks
     public delegate* unmanaged[Cdecl]<nint, byte*, void> OnRoleSwapRequest;
     public delegate* unmanaged[Cdecl]<nint, RoleSwapAnswer, byte*, void> OnRoleSwapAnswer;
     public delegate* unmanaged[Cdecl]<nint, void> OnMonitorsChanged;
+    public delegate* unmanaged[Cdecl]<nint, byte, void> OnSound;
 }
 
 /// <summary>osplay_stream_stats.</summary>

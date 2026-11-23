@@ -1277,6 +1277,98 @@
           }
         }
       }
+    },
+    "pad.viewer.mute": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mute"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessize al"
+          }
+        }
+      }
+    },
+    "pad.viewer.unmute": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unmute"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sesi aç"
+          }
+        }
+      }
+    },
+    "pad.settings.playsSound": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play the computer's sound"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilgisayarın sesini çal"
+          }
+        }
+      }
+    },
+    "pad.settings.playsSoundFooter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "The Mac or PC can send its sound to this Apple TV. Off: it offers no sound for this Apple TV. Applies from the next connection."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "The Mac or PC can send its sound to this iPad. Off: it offers no sound for this iPad. Applies from the next connection."
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Mac veya PC sesini bu Apple TV'ye gönderebilir. Kapalıyken bu Apple TV için ses seçeneği sunulmaz. Bir sonraki bağlantıdan itibaren geçerli olur."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Mac veya PC sesini bu iPad'e gönderebilir. Kapalıyken bu iPad için ses seçeneği sunulmaz. Bir sonraki bağlantıdan itibaren geçerli olur."
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "version": "1.0"

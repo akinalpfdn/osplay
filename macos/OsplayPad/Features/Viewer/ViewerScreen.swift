@@ -12,6 +12,7 @@ struct ViewerScreen: View {
 
     private enum Control: Hashable {
         case statistics
+        case sound
         case disconnect
     }
 
@@ -63,6 +64,10 @@ struct ViewerScreen: View {
         HStack(spacing: Theme.Spacing.medium) {
             statisticsControl
                 .focused($focusedControl, equals: .statistics)
+            if connection.receivesSound {
+                soundControl
+                    .focused($focusedControl, equals: .sound)
+            }
             Button(role: .destructive, action: connection.disconnect) {
                 Label("pad.viewer.disconnect", systemImage: Theme.Symbol.disconnect)
             }
@@ -87,6 +92,17 @@ struct ViewerScreen: View {
             }
             .toggleStyle(.button)
         #endif
+    }
+
+    /// Mutes the computer's sound here at once, or plays it again.
+    private var soundControl: some View {
+        Button {
+            connection.setSoundMuted(!connection.soundMuted)
+        } label: {
+            Label(
+                connection.soundMuted ? "pad.viewer.unmute" : "pad.viewer.mute",
+                systemImage: connection.soundMuted ? Theme.Symbol.soundMuted : Theme.Symbol.soundOn)
+        }
     }
 
     private var waitingText: String {

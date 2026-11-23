@@ -105,6 +105,10 @@ internal static unsafe partial class NativeMethods
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult ViewerSetVisible(nint viewer, byte visible);
 
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_set_muted")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial EngineResult ViewerSetMuted(nint viewer, byte muted);
+
     [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_stop")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult ViewerStop(nint viewer);

@@ -38,6 +38,8 @@ actor ViewerSession {
         case roleSwapRequested(peerPublicKey: [UInt8])
         /// The answer to `requestRoleSwap`; after `.accepted` the session closes.
         case roleSwapAnswered(RoleSwapAnswer, peerPublicKey: [UInt8])
+        /// The host sends sound now (true) or stopped (false).
+        case sound(Bool)
     }
 
     nonisolated let events: AsyncStream<Event>
@@ -49,6 +51,7 @@ actor ViewerSession {
     /// Nil where the viewer plays no sound (the debug loopback).
     private let audioOutputs: (any AudioOutputMaking)?
     private var audioOutput: (any AudioOutput)?
+    private let mute = MuteSwitch()
     /// Where a stream is shown; nil for a monitor this Mac did not offer, which the host then stops.
     private let target: @Sendable (StreamConfiguration) -> PresentationTarget?
     /// Read with every statistics update, so the setting applies at once.
@@ -258,21 +261,30 @@ actor ViewerSession {
         eventSink.yield(.streamAdded(stream))
     }
 
+    /// Silences the host's sound on this device, or plays it again; it applies at once.
+    nonisolated func setMuted(_ muted: Bool) {
+        mute.isMuted = muted
+    }
+
     /// Opens the output for the host's sound, which reads it from the core on its own thread.
     private func playSound(_ format: AudioFormat) {
         stopSound()
         guard let audioOutputs else { return }
-        audioOutput = audioOutputs.makeOutput(format: format) { [core] samples, channels in
+        audioOutput = audioOutputs.makeOutput(format: format) { [core, mute] samples, channels in
             _ = core.readAudio(into: samples, channels: channels)
+            if mute.isMuted { samples.update(repeating: 0) }
         }
         if audioOutput == nil {
             Log.viewer.error("The host's sound cannot play: no audio output")
         }
+        eventSink.yield(.sound(true))
     }
 
     private func stopSound() {
-        audioOutput?.stop()
+        guard let output = audioOutput else { return }
+        output.stop()
         audioOutput = nil
+        eventSink.yield(.sound(false))
     }
 
     private func stopOnHost(_ streamID: UInt8) {

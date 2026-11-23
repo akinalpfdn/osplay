@@ -5,6 +5,18 @@ import Foundation
 /// Fills interleaved 32-bit float PCM, `channels` per frame, on the audio output's thread.
 typealias AudioFill = @Sendable (_ samples: UnsafeMutableBufferPointer<Float>, _ channels: Int) -> Void
 
+/// The viewer's live mute: the sound keeps being read, so the jitter buffer stays drained and the
+/// sound comes back at once, but the output plays silence.
+final class MuteSwitch: @unchecked Sendable {
+    private let lock = NSLock()
+    private var muted = false
+
+    var isMuted: Bool {
+        get { lock.withLock { muted } }
+        set { lock.withLock { muted = newValue } }
+    }
+}
+
 /// Plays the host's sound until stopped.
 protocol AudioOutput: AnyObject, Sendable {
     func stop()

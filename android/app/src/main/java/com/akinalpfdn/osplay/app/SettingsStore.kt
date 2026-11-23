@@ -7,6 +7,9 @@ import android.provider.Settings
 interface SettingsStoring {
     var deviceName: String
     var showsStatsOverlay: Boolean
+
+    /** Plays the computer's sound; off, this device does not announce sound. */
+    var playsSound: Boolean
 }
 
 /** App-private preferences; the default name is the one the user gave the device in Android. */
@@ -21,11 +24,16 @@ class SettingsStore(private val context: Context) : SettingsStoring {
         get() = preferences.getBoolean(STATS, false)
         set(value) = preferences.edit().putBoolean(STATS, value).apply()
 
+    override var playsSound: Boolean
+        get() = preferences.getBoolean(PLAYS_SOUND, true)
+        set(value) = preferences.edit().putBoolean(PLAYS_SOUND, value).apply()
+
     private fun systemName(): String =
         Settings.Global.getString(context.contentResolver, Settings.Global.DEVICE_NAME) ?: android.os.Build.MODEL
 
     private companion object {
         const val DEVICE_NAME = "deviceName"
         const val STATS = "showsStatsOverlay"
+        const val PLAYS_SOUND = "playsSound"
     }
 }
