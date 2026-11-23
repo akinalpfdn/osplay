@@ -327,6 +327,15 @@
   <data name="SettingsPlaysSoundDetail" xml:space="preserve">
     <value>Bu PC ekran olarak kullanılırken diğer Mac veya PC sesini buraya gönderebilir. Kapalıyken bu PC için ses seçeneği sunulmaz. Bir sonraki bağlantıdan itibaren geçerli olur.</value>
   </data>
+  <data name="SharingSoundToDisplay" xml:space="preserve">
+    <value>Bu PC'nin sesini bu ekranda çal</value>
+  </data>
+  <data name="SharingSoundBack" xml:space="preserve">
+    <value>Sesi yeniden bu PC'de çal</value>
+  </data>
+  <data name="ErrorSoundUnavailable" xml:space="preserve">
+    <value>Bu PC'nin sesi gönderilemedi: ekran ses çalmıyor ya da hoparlör kaydedilemiyor.</value>
+  </data>
   <data name="StatsUnknown" xml:space="preserve">
     <value>–</value>
   </data>

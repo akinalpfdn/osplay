@@ -201,6 +201,9 @@ internal sealed unsafe class EngineHost : EngineSession
     /// <summary>The virtual monitors stream; the argument is how many this viewer got.</summary>
     public event Action<uint>? Streaming;
 
+    /// <summary>The viewer plays sound (true) or not, once it offered its monitors.</summary>
+    public event Action<bool>? ViewerPlaysAudio;
+
     /// <summary>The iPad on the USB cable this session reaches; null for one listening on the network.</summary>
     public uint? UsbDeviceId { get; private set; }
 
@@ -268,6 +271,7 @@ internal sealed unsafe class EngineHost : EngineSession
                     OnPeer = &OnPeer,
                     OnRoleSwapRequest = &OnRoleSwapRequest,
                     OnRoleSwapAnswer = &OnRoleSwapAnswer,
+                    OnViewerPlaysAudio = &OnViewerPlaysAudio,
                 };
                 nint handle;
                 EngineResult result = (created.UsbDeviceId, created.AccessoryId) switch
@@ -309,7 +313,21 @@ internal sealed unsafe class EngineHost : EngineSession
         }
     });
 
+    /// <summary>
+    /// Sends this PC's sound to the viewer, muting the PC's speakers meanwhile, or stops; one
+    /// session has the sound at a time (the engine takes it from another).
+    /// </summary>
+    public Task<EngineResult> SetSoundAsync(bool on) => Native.Run(() =>
+        Handle == 0 ? EngineResult.InvalidArgument : NativeMethods.HostSetSound(Handle, on ? (byte)1 : (byte)0));
+
     protected override void Destroy(nint handle) => NativeMethods.HostDestroy(handle);
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnViewerPlaysAudio(nint context, byte plays)
+    {
+        var self = (EngineHost)From(context);
+        self.Post(() => self.ViewerPlaysAudio?.Invoke(plays == 1));
+    }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void OnStreaming(nint context, uint displayCount, int left, int top, int right, int bottom)

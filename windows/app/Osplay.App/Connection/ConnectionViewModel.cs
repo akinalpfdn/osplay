@@ -249,6 +249,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             ErrorMessage = Localization.Strings.ErrorEngineMissing;
             return;
         }
+        // Speakers an earlier Osplay muted for a display and could not give back play again.
+        await Native.Run(NativeMethods.RestoreSpeakers).ConfigureAwait(true);
         await RefreshPeersAsync().ConfigureAwait(true);
         await RefreshMonitorsAsync().ConfigureAwait(true);
         await CheckHealthAsync().ConfigureAwait(true);
@@ -457,6 +459,13 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         Attach(host);
         host.PeerArrived += (platform, name) => OnViewerArrived(entry, platform, name);
         host.Streaming += count => OnHostStreaming(entry, count);
+        host.ViewerPlaysAudio += plays =>
+        {
+            if (entry.Viewer is not null)
+            {
+                entry.Viewer.PlaysAudio = plays;
+            }
+        };
         UpdateSharingStatus();
     }
 
@@ -611,10 +620,31 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     {
         entry.Viewer = new ViewerItem(
             name, platform == Platform.MacOS, platform is Platform.IPadOS or Platform.Android,
-            new AsyncRelayCommand(entry.Host.StopAsync));
+            new AsyncRelayCommand(entry.Host.StopAsync), new AsyncRelayCommand(() => ToggleSoundAsync(entry)));
         Viewers.Add(entry.Viewer);
         UpdateSharingStatus();
         _ = ListenAsync(); // the next computer can connect while this one pairs and streams
+    }
+
+    /// <summary>One display has this PC's sound at a time, as on the Mac; the engine moves it.</summary>
+    private async Task ToggleSoundAsync(HostEntry entry)
+    {
+        if (entry.Viewer is not { } viewer)
+        {
+            return;
+        }
+        bool on = !viewer.SoundOn;
+        EngineResult result = await entry.Host.SetSoundAsync(on).ConfigureAwait(true);
+        if (result != EngineResult.Ok)
+        {
+            ErrorMessage = ErrorMessages.For(result);
+            viewer.SoundOn = false;
+            return;
+        }
+        foreach (ViewerItem other in Viewers)
+        {
+            other.SoundOn = on && ReferenceEquals(other, viewer);
+        }
     }
 
     private void OnHostStreaming(HostEntry entry, uint displayCount)

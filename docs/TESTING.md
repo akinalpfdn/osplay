@@ -174,6 +174,10 @@ inside the same app and shows what that viewer hears.
 | S14 | Mute on the display | S6, S9 or S12; on the device that shows the display, press its mute control (PC tray panel, Mac menu, iPad/Apple TV/phone viewer controls), then press it again | The sound stops on that device at once and comes back at once; the other computer stays silent meanwhile |
 | S15 | Sound turned off on the display | On the display device, turn off "Play the other computer's sound" (Settings); connect | The sharing computer shows no speaker button for that device |
 | S16 | Mac volume keys | S6, S9 or S12; on the sharing Mac press the volume keys, then mute | The sound on the display gets quieter and louder with the Mac's volume, and stops on mute; the display's own volume still works on top |
+| S17 | PC → display | Share from the PC to the Mac (or iPad, phone); in the panel row press the speaker button; play music on the PC | The PC's speakers fall silent and the music plays on the display, in step with the picture |
+| S18 | PC volume and mute keys | S17, change the PC's volume, then press the mute key twice | The display's sound follows the volume; the first mute press silences the display (the PC stays silent), the second brings it back |
+| S19 | Sound back to the PC | S17, press the speaker button again, or disconnect | The music plays on the PC again with its mute as before |
+| S20 | Crash while sending | S17, end Osplay in Task Manager, start it again | Right after the start the PC's speakers play again |
 | S11 | Mac viewer output change | S9 on a Mac, switch its output (headphones, display speakers) | The sound continues on the new output within a second |
 
 ## Interruptions

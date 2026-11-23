@@ -143,6 +143,24 @@
                            AutomationProperties.Name="{x:Static res:Strings.TrayDisconnect}">
                   <ui:SymbolIcon Symbol="DismissCircle24" FontSize="{StaticResource Osplay.FontSize.Icon}" />
                 </ui:Button>
+                <ui:Button DockPanel.Dock="Right" Appearance="Transparent" VerticalAlignment="Top"
+                           Command="{Binding ToggleSoundCommand}"
+                           ToolTip="{Binding SoundToggleText}"
+                           AutomationProperties.Name="{Binding SoundToggleText}"
+                           Visibility="{Binding PlaysAudio, Converter={StaticResource Osplay.Converter.BooleanToVisibility}}">
+                  <ui:SymbolIcon FontSize="{StaticResource Osplay.FontSize.Icon}">
+                    <ui:SymbolIcon.Style>
+                      <Style TargetType="ui:SymbolIcon">
+                        <Setter Property="Symbol" Value="SpeakerMute24" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding SoundOn}" Value="True">
+                            <Setter Property="Symbol" Value="Speaker224" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </ui:SymbolIcon.Style>
+                  </ui:SymbolIcon>
+                </ui:Button>
                 <ui:SymbolIcon DockPanel.Dock="Left" Margin="{StaticResource Osplay.Thickness.IconGap}"
                                FontSize="{StaticResource Osplay.FontSize.Icon}" VerticalAlignment="Top">
                   <ui:SymbolIcon.Style>

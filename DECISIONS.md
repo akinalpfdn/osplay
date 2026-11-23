@@ -776,3 +776,10 @@ choices the plan leaves open are logged here.
 **Why:** The process tap captures the mix before the device's volume, so without this the volume keys did nothing to the display. Scaling before encoding needs no protocol change and works with every viewer.
 **Trade-offs:** At very low volumes the encoder spends its bits on a quiet signal; a volume step is applied at once, without a ramp.
 **Revisit if:** Volume changes click audibly, or users want the two volumes independent.
+
+## 2026-11-24 — The PC sends its sound through WASAPI loopback with its speakers muted
+**Chosen:** User decision after the experiment (OsplayAudioTest on the user's PC): WASAPI loopback of the default speakers, with the endpoint muted while a display has the sound. Loopback keeps the full level while muted and follows the endpoint's volume, so the volume keys work on the display without extra code. The mute key would unmute the speakers; an `IAudioEndpointVolumeCallback` catches changes that are not Osplay's (an event-context GUID marks Osplay's own), mutes the speakers again and toggles the display's sound. The user's own mute is restored on stop; a marker file lets the next start unmute speakers left muted by a crash.
+**Alternatives:** A virtual audio driver set as the default device; process loopback (Windows 10 2004+) without muting; loopback with the sound on both the PC and the display.
+**Why:** No driver to sign, install and remove, and it matches the Mac's process tap with mutedWhenTapped. Process loopback cannot silence the speakers either.
+**Trade-offs:** A mute-key press can let a moment of sound out of the speakers before they are muted again. Windows' volume mixer still shows the speakers muted while sending. A crash leaves the speakers muted until Osplay starts again.
+**Revisit if:** Users notice the moment of sound on the mute key, or loopback misses sound on some drivers (exclusive-mode apps are not in the loopback mix).

@@ -32,6 +32,7 @@ internal enum EngineResult
     KeyStoreDamaged = 22,
     DiscoveryUnavailable = 23,
     PeerTooOld = 24,
+    SoundUnavailable = 25,
 }
 
 /// <summary>osplay_role_swap_answer.</summary>
@@ -205,6 +206,7 @@ internal unsafe struct NativeHostCallbacks
     public delegate* unmanaged[Cdecl]<nint, Platform, byte*, void> OnPeer;
     public delegate* unmanaged[Cdecl]<nint, byte*, void> OnRoleSwapRequest;
     public delegate* unmanaged[Cdecl]<nint, RoleSwapAnswer, byte*, void> OnRoleSwapAnswer;
+    public delegate* unmanaged[Cdecl]<nint, byte, void> OnViewerPlaysAudio;
 }
 
 /// <summary>osplay_engine_viewer_config.</summary>

@@ -1,5 +1,6 @@
 # Platform-independent engine logic, linked into the DLL and its tests.
 add_library(osplay_engine_logic STATIC
+    src/audio/host_sound.cpp
     src/audio/viewer_audio.cpp
     src/discovery/txt_mapping.cpp
     src/display/dpi_scale.cpp
@@ -25,6 +26,7 @@ if(WIN32)
         src/capi/host_capi.cpp
         src/capi/viewer_capi.cpp
         src/audio/wasapi_audio_output.cpp
+        src/audio/wasapi_system_sound.cpp
         src/capture/duplication_pipeline.cpp
         src/capture/dxgi_output.cpp
         src/decode/mf_h264_decoder.cpp
@@ -63,6 +65,7 @@ endif()
 if(OSPLAY_CORE_BUILD_TESTS)
     add_executable(osplay_engine_tests
         tests/dpi_scale_test.cpp
+        tests/host_sound_test.cpp
         tests/viewer_audio_test.cpp
         tests/frame_pacer_test.cpp
         tests/h264_stream_test.cpp

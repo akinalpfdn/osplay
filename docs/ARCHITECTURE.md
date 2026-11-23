@@ -494,6 +494,17 @@ VDD monitor ─► Desktop Duplication ─► BGRA copy ─► video processor (
   hotspot in stream pixels.
 - **Clocks.** Capture times come from `LastPresentTime` (QPC) and are converted to the core's clock
   by their age.
+- **Sound (AUD-03).** For a viewer that plays sound, the panel row offers a speaker button
+  (`osplay_engine_host_set_sound`); one display has the sound at a time. `WasapiSystemSound`
+  records the default speakers through WASAPI loopback (48 kHz stereo converted by Windows, or the
+  mix format converted by `StereoResampler`), which keeps the full level while the endpoint is
+  muted and already follows its volume, so the volume keys work on the display. The speakers are
+  muted while recording; the mute key, which would unmute them, is caught through
+  `IAudioEndpointVolumeCallback`, undone, and mutes the display's sound instead (`HostSound`).
+  A new default output is recorded after 300 ms. A marker file
+  (`%LOCALAPPDATA%\Osplay\speakers-muted`) names speakers Osplay muted, and
+  `osplay_engine_restore_speakers` unmutes them at the next start after a crash.
+  `OsplayAudioTest.exe` measures the loopback level normally, muted and at 10 % volume.
 - **Debug tool.** `OsplayHostTest.exe` runs a host session with an in-process core viewer, a moving
   pattern on the virtual monitor and a per-second report (BUILDING.md).
 
