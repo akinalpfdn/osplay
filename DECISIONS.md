@@ -769,3 +769,10 @@ choices the plan leaves open are logged here.
 **Why:** Reading on keeps the jitter buffer drained and on the device's clock, so unmuting is instant and the reserve does not jump; a new message would need protocol 1.4 for something the viewer can do alone. The host keeps the sound off its own speakers while a display has it, which is what the host's button means; the display's mute only quiets that display.
 **Trade-offs:** A muted viewer still receives about 130 kbit/s of sound. The host is not told about the mute, so its own speakers stay silent until its button is pressed.
 **Revisit if:** Users expect the display's mute to bring the sound back to the host.
+
+## 2026-11-23 — The sharing Mac's volume applies to the sound it sends
+**Chosen:** User decision: like a TV over HDMI, both the sharing computer's volume and the display's own volume change what the display plays. The Mac reads the default output's mute and volume (`kAudioDevicePropertyVolumeDecibels`, else the virtual main volume scalar), follows changes with property listeners, and scales the tapped samples before they are encoded. An output without a volume control sends the sound unchanged.
+**Alternatives:** Only the display's volume; sending the volume as a protocol message for the viewer to apply.
+**Why:** The process tap captures the mix before the device's volume, so without this the volume keys did nothing to the display. Scaling before encoding needs no protocol change and works with every viewer.
+**Trade-offs:** At very low volumes the encoder spends its bits on a quiet signal; a volume step is applied at once, without a ramp.
+**Revisit if:** Volume changes click audibly, or users want the two volumes independent.

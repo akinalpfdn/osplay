@@ -1,4 +1,5 @@
 import AVFoundation
+import Accelerate
 import AudioToolbox
 import CoreAudio
 import Foundation
@@ -39,6 +40,7 @@ final class ProcessTapCapture: SystemAudioCapturing, @unchecked Sendable {
     private var procID: AudioDeviceIOProcID?
     private var running = false
     private var outputListener: AudioObjectPropertyListenerBlock?
+    private var volume: OutputVolume?
 
     init(output: @escaping SystemAudioOutput) {
         self.output = output
@@ -79,7 +81,7 @@ final class ProcessTapCapture: SystemAudioCapturing, @unchecked Sendable {
         description.muteBehavior = .mutedWhenTapped
         try check(AudioHardwareCreateProcessTap(description, &tapID))
         let tapFormat = try Self.tapFormat(tapID)
-        let outputUID = try Self.defaultOutputUID()
+        let (outputDevice, outputUID) = try Self.defaultOutput()
         let aggregate: [String: Any] = [
             kAudioAggregateDeviceNameKey: "Osplay",
             kAudioAggregateDeviceUIDKey: UUID().uuidString,
@@ -94,10 +96,12 @@ final class ProcessTapCapture: SystemAudioCapturing, @unchecked Sendable {
         ]
         try check(AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &aggregateID))
         let converter = try TapConverter(input: tapFormat)
+        let volume = OutputVolume(device: outputDevice, queue: queue)
+        self.volume = volume
         let output = output
         try check(
             AudioDeviceCreateIOProcIDWithBlock(&procID, aggregateID, queue) { _, input, inputTime, _, _ in
-                converter.convert(input, capturedAt: inputTime.pointee, output: output)
+                converter.convert(input, capturedAt: inputTime.pointee, gain: volume.gain, output: output)
             })
         try check(AudioDeviceStart(aggregateID, procID))
         Log.audio.info(
@@ -105,6 +109,8 @@ final class ProcessTapCapture: SystemAudioCapturing, @unchecked Sendable {
     }
 
     private func tearDown() {
+        volume?.stop()
+        volume = nil
         if aggregateID != kAudioObjectUnknown, let procID {
             AudioDeviceStop(aggregateID, procID)
             AudioDeviceDestroyIOProcID(aggregateID, procID)
@@ -169,7 +175,7 @@ final class ProcessTapCapture: SystemAudioCapturing, @unchecked Sendable {
         return format
     }
 
-    private static func defaultOutputUID() throws(AudioCaptureError) -> String {
+    private static func defaultOutput() throws(AudioCaptureError) -> (device: AudioObjectID, uid: String) {
         var address = defaultOutputAddress
         var device = AudioObjectID(kAudioObjectUnknown)
         var size = UInt32(MemoryLayout<AudioObjectID>.size)
@@ -179,7 +185,7 @@ final class ProcessTapCapture: SystemAudioCapturing, @unchecked Sendable {
         size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
         try check(AudioObjectGetPropertyData(device, &address, 0, nil, &size, &uid))
         guard let uid else { throw .failed(status: kAudioHardwareUnspecifiedError) }
-        return uid.takeRetainedValue() as String
+        return (device, uid.takeRetainedValue() as String)
     }
 }
 
@@ -210,7 +216,11 @@ private final class TapConverter: @unchecked Sendable {
         self.outputBuffer = outputBuffer
     }
 
-    func convert(_ list: UnsafePointer<AudioBufferList>, capturedAt time: AudioTimeStamp, output: SystemAudioOutput) {
+    /// `gain` is the Mac's output volume (OutputVolume), applied after conversion.
+    func convert(
+        _ list: UnsafePointer<AudioBufferList>, capturedAt time: AudioTimeStamp, gain: Float,
+        output: SystemAudioOutput
+    ) {
         guard let input = AVAudioPCMBuffer(pcmFormat: inputFormat, bufferListNoCopy: list, deallocator: nil),
             input.frameLength > 0
         else { return }
@@ -230,6 +240,10 @@ private final class TapConverter: @unchecked Sendable {
             return
         }
         let count = Int(outputBuffer.frameLength) * Tunables.Audio.channels
+        if gain != 1 {
+            var scale = gain
+            vDSP_vsmul(samples, 1, &scale, samples, 1, vDSP_Length(count))
+        }
         output(UnsafeBufferPointer(start: samples, count: count), Self.coreMicroseconds(time))
     }
 

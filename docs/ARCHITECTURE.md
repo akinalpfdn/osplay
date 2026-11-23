@@ -143,7 +143,9 @@ ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─�
   (`startAudio`/`pushAudio`/`stopAudio`), which encodes it. Turning the choice off, or the session
   ending, destroys the tap and the Mac plays its sound again. The System Audio Recording permission
   is read and requested through TCC's functions (`SystemAudioPermission`); onboarding offers it as
-  optional.
+  optional. The tap captures the mix before the output device's volume, so `OutputVolume` reads
+  the default output's mute and volume (decibels, else its scalar) and follows their changes; the
+  captured samples are scaled by it, and the volume keys work on the display as over HDMI.
 
 ## macOS app UI
 

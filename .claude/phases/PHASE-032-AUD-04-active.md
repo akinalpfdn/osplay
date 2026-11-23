@@ -24,3 +24,4 @@ Every viewer plays the host's sound with low latency: Android phones, tablets an
 - 2026-11-21 — PC viewer first without a shell change: the engine always announces sound, the Mac's button decides; a PC-side switch comes with the other viewers' controls.
 - 2026-11-23 — User decision: Apple viewers (Mac, iPad, Apple TV) next, then Android. One shared `AVAudioEngine` output for all three; the overlay shows a sound line like the PC.
 - 2026-11-23 — User decision: each viewer gets both a live mute in its viewing controls (the sound keeps coming and is read, the device plays silence) and a setting "Play the computer's sound" (off: the viewer does not announce sound, so the host offers no button).
+- 2026-11-23 — User decision: the sharing Mac's volume keys and mute change the sound sent to a display too, like HDMI; done in AUD-04 for the Mac, the PC host follows in AUD-03.
