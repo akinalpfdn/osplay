@@ -263,6 +263,20 @@ internal unsafe struct NativeSessionStats
     public ulong DatagramsRejected;
     public NativeStreamStats* Streams;
     public nuint StreamCount;
+    public NativeAudioStats* Audio;
+}
+
+/// <summary>osplay_audio_stats.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeAudioStats
+{
+    public uint BitrateKbps;
+    public uint BufferedMicroseconds;
+    public uint TargetMicroseconds;
+    public uint LatencyMicroseconds;
+    public ulong ConcealedFrames;
+    public ulong LatePackets;
+    public ulong Underruns;
 }
 
 /// <summary>osplay_engine_monitor.</summary>

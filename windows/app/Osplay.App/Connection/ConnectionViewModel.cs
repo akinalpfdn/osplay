@@ -46,6 +46,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private EngineViewer? _viewer;
     private string _peerName = string.Empty;
     private IReadOnlyList<StreamFigures> _figures = [];
+    private AudioFigures? _audioFigures;
     private PendingSwap? _pendingSwap;
     private string? _autoConnectDeviceId;
     private CancellationTokenSource? _autoConnectTimeout;
@@ -743,9 +744,10 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void OnStatistics(IReadOnlyList<StreamFigures> figures)
+    private void OnStatistics(IReadOnlyList<StreamFigures> figures, AudioFigures? audio)
     {
         _figures = figures;
+        _audioFigures = audio;
         if (_settings.ShowsStatsOverlay)
         {
             _ = ShowOverlayAsync();
@@ -759,26 +761,42 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         {
             return;
         }
-        foreach (StreamFigures stream in _figures)
+        for (int i = 0; i < _figures.Count; i++)
         {
-            string text = _settings.ShowsStatsOverlay ? OverlayText(stream) : string.Empty;
+            StreamFigures stream = _figures[i];
+            // The sound belongs to no display: its line goes under the first one's figures.
+            AudioFigures? audio = i == 0 ? _audioFigures : null;
+            string text = _settings.ShowsStatsOverlay ? OverlayText(stream, audio) : string.Empty;
             await viewer.SetOverlayAsync(stream.StreamId, text).ConfigureAwait(true);
         }
     }
 
-    /// <summary>"60 fps · 22.1 Mbit/s · RTT 4 ms · loss 0.0% · latency 12 ms", like the Mac's overlay.</summary>
-    private static string OverlayText(StreamFigures stream)
+    /// <summary>
+    /// "60 fps · 22.1 Mbit/s · RTT 4 ms · loss 0.0% · latency 12 ms", like the Mac's overlay, and while
+    /// sound plays a second line: "sound: reserve 40 ms · latency 55 ms · gaps 0 · concealed 0".
+    /// </summary>
+    private static string OverlayText(StreamFigures stream, AudioFigures? audio)
     {
         CultureInfo culture = CultureInfo.CurrentCulture;
-        string latency = stream.LatencyMicroseconds > 0
-            ? (stream.LatencyMicroseconds / 1000.0).ToString("F0", culture)
-            : Localization.Strings.StatsUnknown;
-        return LocalizedText.Format(
+        string text = LocalizedText.Format(
             Localization.Strings.StatsOverlay, stream.FramesPerSecond,
             (stream.BitrateKbps / 1000.0).ToString("F1", culture),
             (stream.RoundTripMicroseconds / 1000.0).ToString("F0", culture),
-            (stream.LossPermille / 10.0).ToString("F1", culture), latency);
+            (stream.LossPermille / 10.0).ToString("F1", culture), Milliseconds(stream.LatencyMicroseconds, culture));
+        if (audio is null)
+        {
+            return text;
+        }
+        string sound = LocalizedText.Format(
+            Localization.Strings.StatsOverlaySound, (audio.BufferedMicroseconds / 1000.0).ToString("F0", culture),
+            Milliseconds(audio.LatencyMicroseconds, culture), audio.Underruns, audio.ConcealedFrames);
+        return text + "\n" + sound;
     }
+
+    /// <summary>Microseconds as whole milliseconds, or the unknown mark for 0.</summary>
+    private static string Milliseconds(uint microseconds, CultureInfo culture) => microseconds > 0
+        ? (microseconds / 1000.0).ToString("F0", culture)
+        : Localization.Strings.StatsUnknown;
 
     // --- Shared ---------------------------------------------------------------------------------
 
@@ -1063,6 +1081,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             _viewedHost = null;
             _resumesAfterClose = false;
             _figures = [];
+            _audioFigures = null;
             IsSessionActive = false;
             IsStreaming = false;
             CanSwapRoles = false;
@@ -1287,6 +1306,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         Viewers.Clear();
         _viewer = null;
         _figures = [];
+        _audioFigures = null;
         IsSessionActive = false;
         if (browser is not null)
         {

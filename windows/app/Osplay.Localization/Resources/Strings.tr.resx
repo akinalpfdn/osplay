@@ -312,6 +312,9 @@
   <data name="StatsOverlay" xml:space="preserve">
     <value>{0} fps · {1} Mbit/sn · RTT {2} ms · kayıp %{3} · gecikme {4} ms</value>
   </data>
+  <data name="StatsOverlaySound" xml:space="preserve">
+    <value>ses: yedek {0} ms · gecikme {1} ms · boşluk {2} · gizlenen {3}</value>
+  </data>
   <data name="StatsUnknown" xml:space="preserve">
     <value>–</value>
   </data>

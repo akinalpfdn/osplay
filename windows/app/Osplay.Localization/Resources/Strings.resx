@@ -312,6 +312,9 @@
   <data name="StatsOverlay" xml:space="preserve">
     <value>{0} fps · {1} Mbit/s · RTT {2} ms · loss {3}% · latency {4} ms</value>
   </data>
+  <data name="StatsOverlaySound" xml:space="preserve">
+    <value>sound: reserve {0} ms · latency {1} ms · gaps {2} · concealed {3}</value>
+  </data>
   <data name="StatsUnknown" xml:space="preserve">
     <value>–</value>
   </data>

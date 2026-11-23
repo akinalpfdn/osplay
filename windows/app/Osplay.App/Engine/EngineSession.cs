@@ -11,6 +11,10 @@ internal sealed record StreamFigures(
     byte StreamId, uint FramesPerSecond, uint BitrateKbps, uint RoundTripMicroseconds, ushort LossPermille,
     uint LatencyMicroseconds);
 
+/// <summary>The host's sound on this viewer: the reserve held against jitter and its gaps so far.</summary>
+internal sealed record AudioFigures(
+    uint BufferedMicroseconds, uint LatencyMicroseconds, ulong ConcealedFrames, ulong Underruns);
+
 /// <summary>
 /// One host or viewer session in the engine, started with the stored identity (the engine answers
 /// trust and stores pairings). Every native call runs through <see cref="Native"/>; events arrive
@@ -340,8 +344,8 @@ internal sealed unsafe class EngineViewer : EngineSession
     /// <summary>The streams were hidden (false) or shown (true), by the hotkey or by the shell.</summary>
     public event Action<bool>? VisibilityChanged;
 
-    /// <summary>The figures of every stream, about once a second.</summary>
-    public event Action<IReadOnlyList<StreamFigures>>? Statistics;
+    /// <summary>The figures of every stream and of the sound (null while none plays), about once a second.</summary>
+    public event Action<IReadOnlyList<StreamFigures>, AudioFigures?>? Statistics;
 
     /// <summary>An offered monitor changed its mode; the session closes so it can start over.</summary>
     public event Action? MonitorsChanged;
@@ -493,6 +497,11 @@ internal sealed unsafe class EngineViewer : EngineSession
                 stream.StreamId, stream.FramesPerSecond, stream.BitrateKbps, stats->RoundTripMicroseconds,
                 stream.LossPermille, stream.LatencyMicroseconds));
         }
-        self.Post(() => self.Statistics?.Invoke(figures));
+        AudioFigures? audio = stats->Audio == null
+            ? null
+            : new AudioFigures(
+                stats->Audio->BufferedMicroseconds, stats->Audio->LatencyMicroseconds,
+                stats->Audio->ConcealedFrames, stats->Audio->Underruns);
+        self.Post(() => self.Statistics?.Invoke(figures, audio));
     }
 }
