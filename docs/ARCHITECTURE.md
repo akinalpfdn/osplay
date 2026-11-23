@@ -282,6 +282,13 @@ the JVM once and its callbacks go to a Kotlin `SessionListener`.
   mode decodes onto a SurfaceView and renders every frame at once. The stage starts the decoder
   when both the surface and the stream exist; after a codec error it starts over at the next
   keyframe and asks the host for one. Windows hosts' separate cursor is drawn above the video.
+- **Sound (AUD-04)** (`cpp/audio_player.cpp`). The viewer announces that it plays sound. On
+  AudioConfig the JNI bridge opens an AAudio output stream (shared, low-latency, float, 48 kHz,
+  media usage) whose data callback pulls PCM from the core with `osplay_session_read_audio`; the
+  sound never passes through Kotlin. The device buffer is two bursts. When the output is lost
+  (headphones pulled, HDMI changed) a thread of the player reopens it on the new default after
+  200 ms. The player shuts down before the session is destroyed. The stats overlay adds a sound
+  line, and the app ships the Opus license as `assets/licenses/Opus-LICENSE.txt`.
 - **Keys** (`storage/`). The identity's secret key is encrypted with an AES key that stays in the
   Android Keystore; paired computers are JSON in app-private preferences.
 - **Lifecycle.** The activity handles rotation itself, so the session restarts with the new shape

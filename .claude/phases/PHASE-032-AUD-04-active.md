@@ -7,11 +7,11 @@ DEVPLAN reference: Phase 17 (part AUD-04). Depends on: PHASE-029 (AUD-01).
 Every viewer plays the host's sound with low latency: Android phones, tablets and TVs, iPad, Apple TV, Mac and PC.
 
 ## Tasks
-- [ ] Android: AAudio (low-latency output) fed from the core's jitter buffer; JNI.
+- [x] Android: AAudio (low-latency output) fed from the core's jitter buffer; JNI.
 - [x] iPad, Apple TV and Mac: AVAudioEngine source node fed from CoreBridge.
 - [x] PC viewer: WASAPI shared-mode render.
 - [ ] Viewers announce that they play audio; a mute switch in each viewer's controls.
-- [ ] Ship the Opus license in the Android app (THIRD_PARTY.md); the Windows installer already stages it.
+- [x] Ship the Opus license in the Android app (THIRD_PARTY.md); the Windows installer already stages it.
 - [ ] Tests, TESTING.md cases, docs (README, ARCHITECTURE, DECISIONS).
 
 ## Acceptance Criteria

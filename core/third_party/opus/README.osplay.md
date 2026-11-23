@@ -18,5 +18,5 @@ ambisonics, tests and demos. Osplay compiles it with `OPUS_BUILD` and `USE_ALLOC
 `HAVE_LRINT` and `HAVE_LRINTF` outside MSVC) in `core/CMakeLists.txt` and `Package.swift`.
 
 To update: download the new release, check its checksum, and copy the same lists again. The
-Apple apps ship `COPYING` as `macos/Shared/Licenses/Opus-LICENSE.txt` (`scripts/lint.sh` checks the
-copy).
+Apple apps ship `COPYING` as `macos/Shared/Licenses/Opus-LICENSE.txt` and the Android app as
+`android/app/src/main/assets/licenses/Opus-LICENSE.txt` (`scripts/lint.sh` checks both copies).

@@ -169,6 +169,8 @@ inside the same app and shows what that viewer hears.
 | S8 | Sound back | S6, press the button again, or disconnect | The music plays on the Mac again; the PC releases its speakers |
 | S9 | Mac → Mac, iPad, Apple TV | Connect a second Mac, the iPad or the Apple TV as a display; press the speaker button in its row; play music | The music plays on that device, in step with the picture; with the stats overlay on in that device's settings, it shows a sound line |
 | S10 | iPad interruption | S9 on the iPad, start and end a FaceTime call or Siri | The sound comes back on its own after the interruption |
+| S12 | Mac → Android | Connect the phone or the Android TV as a display; press the speaker button in its row; play music | The music plays on the device, in step with the picture; with its stats overlay on, a sound line shows |
+| S13 | Android output change | S12 on the phone, plug in or pull headphones (or switch Bluetooth) | The sound continues on the new output within a second |
 | S11 | Mac viewer output change | S9 on a Mac, switch its output (headphones, display speakers) | The sound continues on the new output within a second |
 
 ## Interruptions

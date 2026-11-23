@@ -755,3 +755,10 @@ choices the plan leaves open are logged here.
 **Why:** A pull keeps the jitter buffer on the device's clock, like the PC's WASAPI thread, so drift handling stays in the core. Scheduling player buffers would push from another thread and add a queue. A source node is a render callback with AVAudioEngine handling device and format changes, and the same code builds for macOS, iOS and tvOS.
 **Trade-offs:** The main mixer may add a buffer of its own; the render block takes the core's audio mutex (held for microseconds).
 **Revisit if:** Measured latency on Apple viewers is clearly above the PC's, or the render thread shows glitches.
+
+## 2026-11-23 — Android plays sound in the JNI layer through AAudio
+**Chosen:** The JNI bridge owns an `AudioPlayer`: an AAudio output stream (shared mode, low-latency performance mode, float, 48 kHz, two bursts of buffer) whose data callback calls `osplay_session_read_audio`. A lost output is reopened by the player's own thread, since AAudio forbids closing a stream inside its error callback. Kotlin only gets the sound's figures with the stats.
+**Alternatives:** `AudioTrack` written from a Kotlin thread; Oboe (Google's C++ wrapper over AAudio/OpenSL ES); exclusive sharing mode.
+**Why:** A data callback pulls on the device's clock like the PC and Apple outputs, so drift stays in the core, and keeping the sound in C++ avoids JNI calls and garbage collection on the audio path. The app's minSdk is 31, so AAudio is always there and Oboe's OpenSL ES fallback buys nothing for a new dependency. Exclusive mode fails or steals the device from other apps on many phones and TVs.
+**Trade-offs:** No audio focus: other apps' music keeps playing alongside. Bluetooth outputs add their own latency, which the overlay does not show.
+**Revisit if:** Users hear other apps over the host's sound, or a device's AAudio low-latency path glitches.

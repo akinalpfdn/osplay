@@ -46,6 +46,7 @@ python3 scripts/check_localization.py
 echo "==> license copies"
 # Apps ship the Opus notice its license requires (docs/THIRD_PARTY.md); the copy must match.
 cmp core/third_party/opus/COPYING macos/Shared/Licenses/Opus-LICENSE.txt
+cmp core/third_party/opus/COPYING android/app/src/main/assets/licenses/Opus-LICENSE.txt
 
 echo "==> protocol fixtures"
 python3 protocol/tools/generate_fixtures.py --check

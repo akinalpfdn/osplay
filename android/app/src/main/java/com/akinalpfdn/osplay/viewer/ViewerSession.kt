@@ -35,6 +35,44 @@ data class StatsFigures(
     val lossPercent: Double,
     /** Capture to delivery; null until the clocks are compared. */
     val latencyMilliseconds: Int?,
+    /** The host's sound; null while none plays. */
+    val sound: SoundFigures? = null,
+) {
+    companion object {
+        private const val STREAM_FIELDS = 5
+        private const val SOUND_FIELDS = 4
+
+        /** The first stream's figures from the core's stats arrays (see SessionListener.onStats). */
+        fun from(rttUs: Int, streams: IntArray, audio: IntArray): StatsFigures? {
+            if (streams.size < STREAM_FIELDS) return null
+            return StatsFigures(
+                framesPerSecond = streams[1],
+                bitrateKbps = streams[2],
+                roundTripMilliseconds = rttUs / 1000,
+                lossPercent = streams[3] / 10.0,
+                latencyMilliseconds = streams[4].takeIf { it > 0 }?.div(1000),
+                sound = if (audio.size >= SOUND_FIELDS) {
+                    SoundFigures(
+                        reserveMilliseconds = audio[0] / 1000,
+                        latencyMilliseconds = audio[1].takeIf { it > 0 }?.div(1000),
+                        gaps = audio[2],
+                        concealedFrames = audio[3],
+                    )
+                } else {
+                    null
+                },
+            )
+        }
+    }
+}
+
+/** The host's sound on this device: the reserve held against jitter and its gaps so far. */
+data class SoundFigures(
+    val reserveMilliseconds: Int,
+    /** Capture to the output; null until the clocks are compared. */
+    val latencyMilliseconds: Int?,
+    val gaps: Int,
+    val concealedFrames: Int,
 )
 
 /** What a session reports, on the main thread. */
@@ -204,19 +242,8 @@ private class CoreViewerSession(
         stage.decode(data, keyframe, captureTimeUs)
     }
 
-    override fun onStats(rttUs: Int, streams: IntArray) {
-        val figures = if (streams.size >= STATS_FIELDS) {
-            StatsFigures(
-                framesPerSecond = streams[1],
-                bitrateKbps = streams[2],
-                roundTripMilliseconds = rttUs / 1000,
-                lossPercent = streams[3] / 10.0,
-                latencyMilliseconds = streams[4].takeIf { it > 0 }?.div(1000),
-            )
-        } else {
-            null
-        }
-        post(ViewerEvent.Statistics(figures))
+    override fun onStats(rttUs: Int, streams: IntArray, audio: IntArray) {
+        post(ViewerEvent.Statistics(StatsFigures.from(rttUs, streams, audio)))
     }
 
     override fun onLog(level: Int, message: ByteArray) {
@@ -240,7 +267,6 @@ private class CoreViewerSession(
 
     private companion object {
         const val TAG = "Osplay"
-        const val STATS_FIELDS = 5
         const val LOG_WARNING = 3
         val destroyer = Executors.newSingleThreadExecutor()
     }

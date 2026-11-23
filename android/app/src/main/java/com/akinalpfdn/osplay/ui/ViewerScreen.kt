@@ -202,15 +202,26 @@ private fun Waiting(screen: Screen) {
 
 @Composable
 private fun StatsLabel(figures: StatsFigures, modifier: Modifier) {
-    Text(
+    val stream = stringResource(
+        R.string.stats_overlay,
+        figures.framesPerSecond,
+        String.format(Locale.getDefault(), "%.1f", figures.bitrateKbps / 1000.0),
+        figures.roundTripMilliseconds,
+        String.format(Locale.getDefault(), "%.1f", figures.lossPercent),
+        figures.latencyMilliseconds?.toString() ?: "–",
+    )
+    // While sound plays, a second line: "sound: reserve 40 ms · latency 55 ms · gaps 0 · concealed 0".
+    val sound = figures.sound?.let {
         stringResource(
-            R.string.stats_overlay,
-            figures.framesPerSecond,
-            String.format(Locale.getDefault(), "%.1f", figures.bitrateKbps / 1000.0),
-            figures.roundTripMilliseconds,
-            String.format(Locale.getDefault(), "%.1f", figures.lossPercent),
-            figures.latencyMilliseconds?.toString() ?: "–",
-        ),
+            R.string.stats_overlay_sound,
+            it.reserveMilliseconds,
+            it.latencyMilliseconds?.toString() ?: "–",
+            it.gaps,
+            it.concealedFrames,
+        )
+    }
+    Text(
+        if (sound == null) stream else "$stream\n$sound",
         style = OsplayText.Stats,
         color = OsplayColors.OnViewer,
         modifier = modifier.background(OsplayColors.StatsBackground, Shapes.Stats).padding(Spacing.Small),
