@@ -193,6 +193,21 @@ private func check(_ status: OSStatus) throws(AudioCaptureError) {
     guard status == noErr else { throw .failed(status: status) }
 }
 
+/// The tap's buffer, handed to the converter once. Newer SDKs mark the converter's input block
+/// `@Sendable`; it runs synchronously inside `convert`, on the tap's queue.
+private final class PendingInput: @unchecked Sendable {
+    private var buffer: AVAudioPCMBuffer?
+
+    init(_ buffer: AVAudioPCMBuffer) {
+        self.buffer = buffer
+    }
+
+    func take() -> AVAudioPCMBuffer? {
+        defer { buffer = nil }
+        return buffer
+    }
+}
+
 /// Converts the tap's format (the output device's rate, often non-interleaved) to the protocol's
 /// interleaved 48 kHz stereo, and host times to the core clock.
 private final class TapConverter: @unchecked Sendable {
@@ -225,16 +240,15 @@ private final class TapConverter: @unchecked Sendable {
             input.frameLength > 0
         else { return }
         outputBuffer.frameLength = 0
-        var supplied = false
+        let pending = PendingInput(input)
         var error: NSError?
         let status = converter.convert(to: outputBuffer, error: &error) { _, inputStatus in
-            if supplied {
+            guard let buffer = pending.take() else {
                 inputStatus.pointee = .noDataNow
                 return nil
             }
-            supplied = true
             inputStatus.pointee = .haveData
-            return input
+            return buffer
         }
         guard status != .error, outputBuffer.frameLength > 0, let samples = outputBuffer.floatChannelData?[0] else {
             return
