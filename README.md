@@ -51,6 +51,9 @@
 - **Every direction.** Mac → Windows, Windows → Mac, Mac → Mac and Windows → Windows.
 - **Tablets, phones and TVs too.** An iPad, an Android phone or tablet, an Android TV or, soon, an Apple TV
   can be the extra display of a Mac or a PC.
+- **Sound on the display.** The computer that extends can play its sound there: a TV's speakers, a
+  tablet's or another computer's. Its own speakers go quiet meanwhile, and the volume keys work on both
+  sides, as with an HDMI cable.
 - **All your monitors.** The computer used as a display lends every screen it has (up to four), and one
   computer can extend onto several others at once.
 - **Local and private.** No cloud, no account. Devices pair once with a 6-digit code, and every
@@ -118,8 +121,9 @@ shared C++ core handles discovery, pairing, encryption and the protocol for both
 1. Download [`Osplay.dmg`](https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay.dmg),
    open it and drag Osplay to Applications.
 2. Start Osplay; it lives in the menu bar.
-3. Allow **Local Network** access so the two computers can find each other, and **Screen Recording**
-   when you extend this Mac.
+3. Allow **Local Network** access so the two computers can find each other, **Screen Recording**
+   when you extend this Mac, and **System Audio Recording** to play this Mac's sound on a display
+   (macOS 14.2 or later).
 
 ### Windows
 
