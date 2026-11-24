@@ -60,6 +60,11 @@ private struct GeneralSettings: View {
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Colors.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            Toggle("settings.playsSound", isOn: Bindable(viewModel.settings).playsSound)
+            Text("settings.playsSound.description")
+                .font(Theme.Typography.caption)
+                .foregroundStyle(Theme.Colors.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             LabeledContent("settings.permissions") {
                 Button("settings.permissions.open", action: viewModel.openPermissions)
             }

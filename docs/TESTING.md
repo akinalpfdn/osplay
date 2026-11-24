@@ -151,6 +151,35 @@ frame rate and bitrate.
 | V4 | 1080p TV | Viewer Mac: **1080p TV**; Mac and PC host | A 1920×1080 display at 200% (looks like 960×540 on the Mac) |
 | V5 | Back to normal | Viewer Mac: **Off**; connect again | The Mac's own displays are offered, at their own sizes and scales |
 
+## Sound
+
+The Mac sends its sound to a display (AUD-02). Until the viewers play it (AUD-04) the Mac side is
+checked with a Debug build: menu › Developer tools › **Host media test**, which streams to a viewer
+inside the same app and shows what that viewer hears.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| S1 | Permission | Fresh install: onboarding › System Audio Recording › Allow | macOS asks once; the row shows a check mark. Osplay works without it; only sound needs it |
+| S2 | Sound to the test viewer | Host media test › Start, then **Send this Mac's sound to the test viewer**; play music | The Mac falls silent; the sound line shows a level (for example −20 dB), about 130 kbps and a 30–50 ms reserve |
+| S3 | Sound back | S2, turn the switch off (or Stop) | The music plays on the Mac again within a second |
+| S4 | Output change | S2, plug in or pick other headphones as output | The Mac stays silent and the level line keeps moving |
+| S5 | Older macOS | On macOS 14.0–14.1, connect a viewer that plays sound | No sound button; the row says sound on the display needs macOS 14.2 |
+| S6 | Mac → PC | UC1; on the Mac, press the speaker button in the PC's row; play music on the Mac | The Mac falls silent and the music plays from the PC's speakers, in step with the picture |
+| S7 | PC speakers change | S6, unplug or switch the PC's default output | The sound continues on the new default output within a second |
+| S8 | Sound back | S6, press the button again, or disconnect | The music plays on the Mac again; the PC releases its speakers |
+| S9 | Mac → Mac, iPad, Apple TV | Connect a second Mac, the iPad or the Apple TV as a display; press the speaker button in its row; play music | The music plays on that device, in step with the picture; with the stats overlay on in that device's settings, it shows a sound line |
+| S10 | iPad interruption | S9 on the iPad, start and end a FaceTime call or Siri | The sound comes back on its own after the interruption |
+| S12 | Mac → Android | Connect the phone or the Android TV as a display; press the speaker button in its row; play music | The music plays on the device, in step with the picture; with its stats overlay on, a sound line shows |
+| S13 | Android output change | S12 on the phone, plug in or pull headphones (or switch Bluetooth) | The sound continues on the new output within a second |
+| S14 | Mute on the display | S6, S9 or S12; on the device that shows the display, press its mute control (PC tray panel, Mac menu, iPad/Apple TV/phone viewer controls), then press it again | The sound stops on that device at once and comes back at once; the other computer stays silent meanwhile |
+| S15 | Sound turned off on the display | On the display device, turn off "Play the other computer's sound" (Settings); connect | The sharing computer shows no speaker button for that device |
+| S16 | Mac volume keys | S6, S9 or S12; on the sharing Mac press the volume keys, then mute | The sound on the display gets quieter and louder with the Mac's volume, and stops on mute; the display's own volume still works on top |
+| S17 | PC → display | Share from the PC to the Mac (or iPad, phone); in the panel row press the speaker button; play music on the PC | The PC's speakers fall silent and the music plays on the display, in step with the picture |
+| S18 | PC volume and mute keys | S17, change the PC's volume, then press the mute key twice | The display's sound follows the volume; the first mute press silences the display (the PC stays silent), the second brings it back |
+| S19 | Sound back to the PC | S17, press the speaker button again, or disconnect | The music plays on the PC again with its mute as before |
+| S20 | Crash while sending | S17, end Osplay in Task Manager, start it again | Right after the start the PC's speakers play again |
+| S11 | Mac viewer output change | S9 on a Mac, switch its output (headphones, display speakers) | The sound continues on the new output within a second |
+
 ## Interruptions
 
 | # | Scenario | Steps | Expected |

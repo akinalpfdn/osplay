@@ -22,6 +22,7 @@ struct AppSettingsTests {
         #expect(settings.streamSize == .hd1080)
         #expect(settings.viewerHotkey == Tunables.Viewer.toggleHotkey)
         #expect(!settings.showsStatsOverlay)
+        #expect(settings.playsSound, "a Mac plays the other computer's sound unless the user turns it off")
         #expect(settings.hiDPIChoice(for: "abc") == .automatic)
     }
 

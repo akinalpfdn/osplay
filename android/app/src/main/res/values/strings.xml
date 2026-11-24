@@ -37,6 +37,11 @@
     <string name="viewer_stats">Statistics</string>
     <string name="viewer_waiting">Waiting for the picture…</string>
     <string name="stats_overlay">%1$d fps · %2$s Mbit/s · RTT %3$d ms · loss %4$s%% · latency %5$s ms</string>
+    <string name="stats_overlay_sound">sound: reserve %1$d ms · latency %2$s ms · gaps %3$d · concealed %4$d</string>
+    <string name="viewer_mute">Mute</string>
+    <string name="viewer_unmute">Unmute</string>
+    <string name="settings_plays_sound">Play the computer\'s sound</string>
+    <string name="settings_plays_sound_footer">The Mac or PC can send its sound to this device. Off: it offers no sound for this device. Applies from the next connection.</string>
     <string name="error_key_store_damaged">Osplay\'s stored keys are damaged. Clear Osplay\'s storage in Android settings and pair again.</string>
     <string name="error_key_store_identity">Osplay could not create its device key.</string>
     <string name="error_key_store_system">Android\'s key store refused Osplay\'s key (%1$s).</string>

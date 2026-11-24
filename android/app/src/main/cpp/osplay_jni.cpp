@@ -1,6 +1,8 @@
 // JNI bridge between the Android app (com.akinalpfdn.osplay.core.Native) and the shared core's C
 // API (core/include/osplay/osplay.h). Text crosses as UTF-8 byte arrays: JNI's modified UTF-8 would
 // change names with characters outside the BMP.
+#include "audio_player.hpp"
+
 #include <osplay/osplay.h>
 
 #include <android/log.h>
@@ -112,7 +114,10 @@ struct Viewer {
     jmethodID on_cursor_position = nullptr;
     jmethodID on_stream_stopped = nullptr;
     jmethodID on_role_swap_request = nullptr;
+    jmethodID on_sound = nullptr;
     osplay_session* session = nullptr;
+    /// The host's sound; it reads from the session on AAudio's thread.
+    osplay::android::AudioPlayer audio;
 };
 
 Viewer* viewer_of(void* context) {
@@ -137,6 +142,9 @@ void call_void(Viewer* viewer, jmethodID method, const char* name, Args... args)
 
 void on_state(void* context, osplay_session_state state, osplay_result reason) {
     Viewer* viewer = viewer_of(context);
+    if (state == OSPLAY_SESSION_CLOSED) {
+        viewer->audio.stop(); // the speakers are released with the session
+    }
     call_void(viewer, viewer->on_state, "onState", static_cast<jint>(state),
               static_cast<jint>(reason));
 }
@@ -238,7 +246,22 @@ void on_stats(void* context, const osplay_session_stats* stats) {
         return;
     }
     env->SetIntArrayRegion(streams, 0, static_cast<jsize>(fields.size()), fields.data());
-    call_void(viewer, viewer->on_stats, "onStats", static_cast<jint>(stats->rtt_us), streams);
+    // The sound, empty while none plays: reserve (µs), latency (µs), underruns, concealed frames.
+    std::vector<jint> sound;
+    if (stats->audio != nullptr) {
+        const osplay_audio_stats& audio = *stats->audio;
+        sound = {static_cast<jint>(audio.buffered_us), static_cast<jint>(audio.latency_us),
+                 static_cast<jint>(audio.underruns), static_cast<jint>(audio.concealed_frames)};
+    }
+    jintArray audio = env->NewIntArray(static_cast<jsize>(sound.size()));
+    if (audio == nullptr) {
+        env->DeleteLocalRef(streams);
+        return;
+    }
+    env->SetIntArrayRegion(audio, 0, static_cast<jsize>(sound.size()), sound.data());
+    call_void(viewer, viewer->on_stats, "onStats", static_cast<jint>(stats->rtt_us), streams,
+              audio);
+    env->DeleteLocalRef(audio);
     env->DeleteLocalRef(streams);
 }
 
@@ -280,6 +303,20 @@ void on_stream_stopped(void* context, uint8_t stream_id) {
     call_void(viewer, viewer->on_stream_stopped, "onStreamStopped", static_cast<jint>(stream_id));
 }
 
+void on_audio_config(void* context, const osplay_audio_config* config) {
+    Viewer* viewer = viewer_of(context);
+    if (!viewer->audio.configure(*config)) {
+        __android_log_print(ANDROID_LOG_ERROR, kLogTag, "The host's sound cannot play: no output");
+    }
+    call_void(viewer, viewer->on_sound, "onSound", static_cast<jboolean>(JNI_TRUE));
+}
+
+void on_audio_stopped(void* context) {
+    Viewer* viewer = viewer_of(context);
+    viewer->audio.stop();
+    call_void(viewer, viewer->on_sound, "onSound", static_cast<jboolean>(JNI_FALSE));
+}
+
 void on_role_swap_request(void* context, const uint8_t* key) {
     Viewer* viewer = viewer_of(context);
     JNIEnv* env = attached_env();
@@ -303,12 +340,13 @@ bool find_methods(JNIEnv* env, jobject listener, Viewer& viewer) {
     viewer.on_paired = method("onPaired", "([B)V");
     viewer.on_stream_config = method("onStreamConfig", "(IIIIIII)V");
     viewer.on_access_unit = method("onAccessUnit", "(IZZJ[B)V");
-    viewer.on_stats = method("onStats", "(I[I)V");
+    viewer.on_stats = method("onStats", "(I[I[I)V");
     viewer.on_log = method("onLog", "(I[B)V");
     viewer.on_cursor_shape = method("onCursorShape", "(IIIIII[B)V");
     viewer.on_cursor_position = method("onCursorPosition", "(IZIII)V");
     viewer.on_stream_stopped = method("onStreamStopped", "(I)V");
     viewer.on_role_swap_request = method("onRoleSwapRequest", "([B)V");
+    viewer.on_sound = method("onSound", "(Z)V");
     env->DeleteLocalRef(type);
     const bool found = viewer.on_state != nullptr && viewer.on_peer != nullptr &&
                        viewer.on_trust_query != nullptr && viewer.on_pairing_code != nullptr &&
@@ -317,7 +355,7 @@ bool find_methods(JNIEnv* env, jobject listener, Viewer& viewer) {
                        viewer.on_log != nullptr && viewer.on_cursor_shape != nullptr &&
                        viewer.on_cursor_position != nullptr &&
                        viewer.on_stream_stopped != nullptr &&
-                       viewer.on_role_swap_request != nullptr;
+                       viewer.on_role_swap_request != nullptr && viewer.on_sound != nullptr;
     if (!found) {
         clear_exception(env, "GetMethodID");
     }
@@ -414,16 +452,16 @@ JNIEXPORT jintArray JNICALL Java_com_akinalpfdn_osplay_core_Native_advertisement
 }
 
 /// monitor: width, height, refresh (mHz), physical width and height (mm), scale (%);
-/// capabilities: max streams, max width, max height, max refresh (Hz). With accessory_fd >= 0 the
-/// session runs on that USB accessory (the core owns and closes it) instead of host and port. The
-/// handle goes into out_handle[0].
+/// capabilities: max streams, max width, max height, max refresh (Hz), plays sound (0 or 1). With
+/// accessory_fd >= 0 the session runs on that USB accessory (the core owns and closes it) instead
+/// of host and port. The handle goes into out_handle[0].
 JNIEXPORT jint JNICALL Java_com_akinalpfdn_osplay_core_Native_viewerCreate(
     JNIEnv* env, jobject /*self*/, jobject listener, jbyteArray device_name, jbyteArray secret_key,
     jintArray monitor, jbyteArray monitor_name, jintArray capabilities, jbyteArray host, jint port,
     jint accessory_fd, jlongArray out_handle) {
     const bool on_cable = accessory_fd >= 0;
     if (listener == nullptr || env->GetArrayLength(monitor) != 6 ||
-        env->GetArrayLength(capabilities) != 4 || env->GetArrayLength(out_handle) != 1) {
+        env->GetArrayLength(capabilities) != 5 || env->GetArrayLength(out_handle) != 1) {
         if (on_cable) {
             close(accessory_fd);
         }
@@ -431,7 +469,7 @@ JNIEXPORT jint JNICALL Java_com_akinalpfdn_osplay_core_Native_viewerCreate(
     }
     std::array<jint, 6> m{};
     env->GetIntArrayRegion(monitor, 0, m.size(), m.data());
-    std::array<jint, 4> c{};
+    std::array<jint, 5> c{};
     env->GetIntArrayRegion(capabilities, 0, c.size(), c.data());
     const std::string name = from_text(env, device_name);
     const std::string monitor_text = from_text(env, monitor_name);
@@ -467,7 +505,8 @@ JNIEXPORT jint JNICALL Java_com_akinalpfdn_osplay_core_Native_viewerCreate(
         .device_name = name.c_str(),
         .capabilities = {.codecs = OSPLAY_CODEC_H264_ANNEX_B,
                          .max_streams = static_cast<uint8_t>(c[0]),
-                         .flags = 0,
+                         .flags =
+                             static_cast<uint8_t>(c[4] != 0 ? OSPLAY_CAPABILITY_PLAYS_AUDIO : 0U),
                          .max_width = static_cast<uint16_t>(c[1]),
                          .max_height = static_cast<uint16_t>(c[2]),
                          .max_refresh_hz = static_cast<uint16_t>(c[3])},
@@ -492,8 +531,8 @@ JNIEXPORT jint JNICALL Java_com_akinalpfdn_osplay_core_Native_viewerCreate(
                                              .on_role_swap_request = on_role_swap_request,
                                              .on_role_swap_answer = nullptr,
                                              .on_bitrate_target = nullptr,
-                                             .on_audio_config = nullptr,
-                                             .on_audio_stopped = nullptr};
+                                             .on_audio_config = on_audio_config,
+                                             .on_audio_stopped = on_audio_stopped};
     const osplay_result created =
         on_cable ? osplay_viewer_session_create_accessory(
                        &config, secret.data(), &kRandom, &callbacks, accessory_fd, &viewer->session)
@@ -506,6 +545,7 @@ JNIEXPORT jint JNICALL Java_com_akinalpfdn_osplay_core_Native_viewerCreate(
         delete viewer;
         return result(created);
     }
+    viewer->audio.attach(viewer->session);
     const jlong handle = reinterpret_cast<jlong>(viewer);
     env->SetLongArrayRegion(out_handle, 0, 1, &handle);
     return result(OSPLAY_OK);
@@ -544,6 +584,13 @@ JNIEXPORT jint JNICALL Java_com_akinalpfdn_osplay_core_Native_sessionAnswerRoleS
                                                   static_cast<osplay_role_swap_answer>(answer)));
 }
 
+JNIEXPORT void JNICALL Java_com_akinalpfdn_osplay_core_Native_sessionSetMuted(JNIEnv* /*env*/,
+                                                                              jobject /*self*/,
+                                                                              jlong handle,
+                                                                              jboolean muted) {
+    viewer_of(handle)->audio.set_muted(muted == JNI_TRUE);
+}
+
 JNIEXPORT jint JNICALL Java_com_akinalpfdn_osplay_core_Native_sessionClose(JNIEnv* /*env*/,
                                                                            jobject /*self*/,
                                                                            jlong handle) {
@@ -564,6 +611,9 @@ JNIEXPORT void JNICALL Java_com_akinalpfdn_osplay_core_Native_sessionDestroy(JNI
     if (viewer == nullptr) {
         return;
     }
+    // The audio thread reads from the session: it stops first, and a late AudioConfig from the
+    // I/O thread opens nothing.
+    viewer->audio.shutdown();
     osplay_session_destroy(viewer->session);
     env->DeleteGlobalRef(viewer->listener);
     delete viewer;

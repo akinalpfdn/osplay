@@ -27,8 +27,11 @@ interface SessionListener {
 
     fun onAccessUnit(streamId: Int, keyframe: Boolean, codecConfig: Boolean, captureTimeUs: Long, data: ByteArray)
 
-    /** Per stream: id, frames per second, bitrate (kbit/s), loss (permille), latency (µs). */
-    fun onStats(rttUs: Int, streams: IntArray)
+    /**
+     * Per stream: id, frames per second, bitrate (kbit/s), loss (permille), latency (µs). [audio] is
+     * empty while no sound plays, else reserve (µs), latency (µs), underruns, concealed frames.
+     */
+    fun onStats(rttUs: Int, streams: IntArray, audio: IntArray)
 
     fun onLog(level: Int, message: ByteArray)
 
@@ -39,4 +42,7 @@ interface SessionListener {
     fun onStreamStopped(streamId: Int)
 
     fun onRoleSwapRequest(publicKey: ByteArray)
+
+    /** The host sends sound now (true) or stopped (false); it plays from the native layer. */
+    fun onSound(playing: Boolean)
 }

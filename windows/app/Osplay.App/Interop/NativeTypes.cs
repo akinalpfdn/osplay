@@ -32,6 +32,7 @@ internal enum EngineResult
     KeyStoreDamaged = 22,
     DiscoveryUnavailable = 23,
     PeerTooOld = 24,
+    SoundUnavailable = 25,
 }
 
 /// <summary>osplay_role_swap_answer.</summary>
@@ -205,6 +206,7 @@ internal unsafe struct NativeHostCallbacks
     public delegate* unmanaged[Cdecl]<nint, Platform, byte*, void> OnPeer;
     public delegate* unmanaged[Cdecl]<nint, byte*, void> OnRoleSwapRequest;
     public delegate* unmanaged[Cdecl]<nint, RoleSwapAnswer, byte*, void> OnRoleSwapAnswer;
+    public delegate* unmanaged[Cdecl]<nint, byte, void> OnViewerPlaysAudio;
 }
 
 /// <summary>osplay_engine_viewer_config.</summary>
@@ -219,6 +221,7 @@ internal struct NativeViewerConfig
     public nuint MonitorIdCount;
     public uint HotkeyModifiers;
     public uint HotkeyKey;
+    public byte PlaysSound;
 }
 
 /// <summary>osplay_engine_viewer_callbacks.</summary>
@@ -238,6 +241,7 @@ internal unsafe struct NativeViewerCallbacks
     public delegate* unmanaged[Cdecl]<nint, byte*, void> OnRoleSwapRequest;
     public delegate* unmanaged[Cdecl]<nint, RoleSwapAnswer, byte*, void> OnRoleSwapAnswer;
     public delegate* unmanaged[Cdecl]<nint, void> OnMonitorsChanged;
+    public delegate* unmanaged[Cdecl]<nint, byte, void> OnSound;
 }
 
 /// <summary>osplay_stream_stats.</summary>
@@ -263,6 +267,20 @@ internal unsafe struct NativeSessionStats
     public ulong DatagramsRejected;
     public NativeStreamStats* Streams;
     public nuint StreamCount;
+    public NativeAudioStats* Audio;
+}
+
+/// <summary>osplay_audio_stats.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeAudioStats
+{
+    public uint BitrateKbps;
+    public uint BufferedMicroseconds;
+    public uint TargetMicroseconds;
+    public uint LatencyMicroseconds;
+    public ulong ConcealedFrames;
+    public ulong LatePackets;
+    public ulong Underruns;
 }
 
 /// <summary>osplay_engine_monitor.</summary>

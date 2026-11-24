@@ -312,6 +312,30 @@
   <data name="StatsOverlay" xml:space="preserve">
     <value>{0} fps · {1} Mbit/sn · RTT {2} ms · kayıp %{3} · gecikme {4} ms</value>
   </data>
+  <data name="StatsOverlaySound" xml:space="preserve">
+    <value>ses: yedek {0} ms · gecikme {1} ms · boşluk {2} · gizlenen {3}</value>
+  </data>
+  <data name="ViewerSoundMute" xml:space="preserve">
+    <value>Sesi burada kapat</value>
+  </data>
+  <data name="ViewerSoundUnmute" xml:space="preserve">
+    <value>Sesi burada çal</value>
+  </data>
+  <data name="SettingsPlaysSound" xml:space="preserve">
+    <value>Diğer bilgisayarın sesini çal</value>
+  </data>
+  <data name="SettingsPlaysSoundDetail" xml:space="preserve">
+    <value>Bu PC ekran olarak kullanılırken diğer Mac veya PC sesini buraya gönderebilir. Kapalıyken bu PC için ses seçeneği sunulmaz. Bir sonraki bağlantıdan itibaren geçerli olur.</value>
+  </data>
+  <data name="SharingSoundToDisplay" xml:space="preserve">
+    <value>Bu PC'nin sesini bu ekranda çal</value>
+  </data>
+  <data name="SharingSoundBack" xml:space="preserve">
+    <value>Sesi yeniden bu PC'de çal</value>
+  </data>
+  <data name="ErrorSoundUnavailable" xml:space="preserve">
+    <value>Bu PC'nin sesi gönderilemedi: ekran ses çalmıyor ya da hoparlör kaydedilemiyor.</value>
+  </data>
   <data name="StatsUnknown" xml:space="preserve">
     <value>–</value>
   </data>

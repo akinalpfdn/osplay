@@ -51,7 +51,7 @@ Virtual display ─► Capture ─► Encoder ─► core: packetize ──UDP�
   delivery, NACK, deadline, wait for keyframe). Sound (protocol 1.3): the host's PCM becomes 10 ms
   Opus frames (`audio_encoder`); the viewer's `audio_playout` is a jitter buffer that the platform's
   audio device reads on its own thread, through `osplay_session_read_audio`, without passing the
-  I/O thread. It conceals lost frames, adapts its reserve (40–200 ms) to the network and resamples
+  I/O thread. It conceals lost frames, adapts its reserve (30–200 ms) to the network and resamples
   by up to 0.2 % to follow the device's clock. libopus is vendored, trimmed, in
   `core/third_party/opus` and built by CMake and SwiftPM as its own target.
 - `core/src/session/` is the session protocol without I/O (`SessionEngine`): bytes, datagrams,
@@ -134,6 +134,18 @@ ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─�
   `osplay-<time>-stream<N>-<W>x<H>.h264` on a background queue (playable with IINA, VLC, ffplay).
   The debug menu's "Host media test" runs the whole pipeline over loopback into an in-process
   viewer and shows pacing, bitrate and latency per stream.
+- **Sound (AUD-02, macOS 14.2+).** For a viewer that plays sound, the menu row offers "play this
+  Mac's sound on this display", one viewer at a time. `ProcessTapCapture` creates a global stereo
+  Core Audio process tap with `mutedWhenTapped`, so the Mac falls silent while it is tapped, and
+  reads it through a private aggregate device clocked by the default output device (rebuilt when
+  that changes). `AVAudioConverter` turns the tap's format into interleaved 48 kHz stereo; host
+  times become core-clock capture times as for video. `HostSession` pushes the PCM into the core
+  (`startAudio`/`pushAudio`/`stopAudio`), which encodes it. Turning the choice off, or the session
+  ending, destroys the tap and the Mac plays its sound again. The System Audio Recording permission
+  is read and requested through TCC's functions (`SystemAudioPermission`); onboarding offers it as
+  optional. The tap captures the mix before the output device's volume, so `OutputVolume` reads
+  the default output's mute and volume (decibels, else its scalar) and follows their changes; the
+  captured samples are scaled by it, and the volume keys work on the display as over HDMI.
 
 ## macOS app UI
 
@@ -193,6 +205,14 @@ core cursor shape/position ─► main actor ─► cursor layer above the video
   on the main run loop, which no frame work touches, so it works even when frames stop.
 - **Power.** While a stream is visible, an `IOPMAssertion` prevents display sleep and a
   latency-critical activity disables App Nap.
+- **Sound (AUD-04).** The Mac, iPad and Apple TV viewers announce that they play sound and share
+  `Shared/Media/AudioOutput.swift`: on AudioConfig an `AVAudioEngine` source node pulls PCM from
+  the core with `readAudio` on the render thread, in chunks of 1024 frames split into the node's
+  channel buffers, on the default output. A configuration change (another output device) restarts
+  the engine; iPad and Apple TV use the `.playback` session with a 5 ms buffer and restart after
+  an interruption. The output stops before the core session goes. The stats overlay adds a sound
+  line under the first stream. While sound plays, the menu offers a live mute, and Settings has
+  "Play the other computer's sound" (iPad and Apple TV: the viewer controls and Settings).
 - **Debug loopback.** The menu's "Viewer loopback" hosts a 1920×1080 virtual display and views
   it on the same Mac (window or full screen), with corruption injection and a frame freeze.
 
@@ -265,6 +285,14 @@ the JVM once and its callbacks go to a Kotlin `SessionListener`.
   mode decodes onto a SurfaceView and renders every frame at once. The stage starts the decoder
   when both the surface and the stream exist; after a codec error it starts over at the next
   keyframe and asks the host for one. Windows hosts' separate cursor is drawn above the video.
+- **Sound (AUD-04)** (`cpp/audio_player.cpp`). The viewer announces that it plays sound. On
+  AudioConfig the JNI bridge opens an AAudio output stream (shared, low-latency, float, 48 kHz,
+  media usage) whose data callback pulls PCM from the core with `osplay_session_read_audio`; the
+  sound never passes through Kotlin. The device buffer is two bursts. When the output is lost
+  (headphones pulled, HDMI changed) a thread of the player reopens it on the new default after
+  200 ms. The player shuts down before the session is destroyed. The stats overlay adds a sound
+  line, and the app ships the Opus license as `assets/licenses/Opus-LICENSE.txt`. The viewer
+  controls offer a live mute while sound plays, and Settings has "Play the computer's sound".
 - **Keys** (`storage/`). The identity's secret key is encrypted with an AES key that stays in the
   Android Keystore; paired computers are JSON in app-private preferences.
 - **Lifecycle.** The activity handles rotation itself, so the session restarts with the new shape
@@ -466,6 +494,17 @@ VDD monitor ─► Desktop Duplication ─► BGRA copy ─► video processor (
   hotspot in stream pixels.
 - **Clocks.** Capture times come from `LastPresentTime` (QPC) and are converted to the core's clock
   by their age.
+- **Sound (AUD-03).** For a viewer that plays sound, the panel row offers a speaker button
+  (`osplay_engine_host_set_sound`); one display has the sound at a time. `WasapiSystemSound`
+  records the default speakers through WASAPI loopback (48 kHz stereo converted by Windows, or the
+  mix format converted by `StereoResampler`), which keeps the full level while the endpoint is
+  muted and already follows its volume, so the volume keys work on the display. The speakers are
+  muted while recording; the mute key, which would unmute them, is caught through
+  `IAudioEndpointVolumeCallback`, undone, and mutes the display's sound instead (`HostSound`).
+  A new default output is recorded after 300 ms. A marker file
+  (`%LOCALAPPDATA%\Osplay\speakers-muted`) names speakers Osplay muted, and
+  `osplay_engine_restore_speakers` unmutes them at the next start after a crash.
+  `OsplayAudioTest.exe` measures the loopback level normally, muted and at 10 % volume.
 - **Debug tool.** `OsplayHostTest.exe` runs a host session with an in-process core viewer, a moving
   pattern on the virtual monitor and a per-second report (BUILDING.md).
 
@@ -506,6 +545,15 @@ core ─► access unit ─► decode thread: MF H.264 decoder (D3D11, NV12) ─
   without it frames go straight into the swap chain as before.
 - **Debug tool.** `OsplayViewerTest.exe` lists the monitors, views a remote host by address or runs
   a loopback with the Windows host pipeline (BUILDING.md).
+- **Sound (AUD-04).** The viewer announces sound when the shell's "Play the other computer's sound"
+  setting is on (`plays_sound` in the viewer config). On AudioConfig, `ViewerAudio` opens
+  a `WasapiAudioOutput`: shared mode on the default render device, event driven with a 10 ms buffer,
+  in the host's 48 kHz float format with Windows converting rate and channels. Its thread (MMCSS
+  "Pro Audio") pulls PCM from the core with `osplay_session_read_audio`; a lost device is opened
+  again on the new default after half a second. AudioStop, the session's end and
+  `osplay_engine_viewer_destroy` close it, the last one before the core session goes. `on_sound`
+  tells the shell while sound plays, so the tray panel offers a live mute
+  (`osplay_engine_viewer_set_muted`: the sound keeps being read and plays as silence).
 
 ## Windows app UI
 

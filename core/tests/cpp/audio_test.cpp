@@ -146,8 +146,8 @@ TEST(AudioPlayout, WaitsForItsReserveThenPlaysTheToneBack) {
         player.playout.push(packets[i].view());
         player.now += milliseconds(10);
         player.read();
-        if (i < 3) {
-            EXPECT_FALSE(player.started) << "40 ms reserve first, packet " << i;
+        if (i < 2) {
+            EXPECT_FALSE(player.started) << "30 ms reserve first, packet " << i;
         }
     }
     EXPECT_TRUE(player.started);
@@ -236,7 +236,7 @@ TEST(AudioPlayout, AStallRefillsALargerReserveAndPlaysOn) {
     }
     const auto stats = player.playout.stats();
     EXPECT_EQ(stats.underruns, 1U);
-    EXPECT_EQ(stats.target, Microseconds{60'000}) << "40 ms + one 20 ms step";
+    EXPECT_EQ(stats.target, Microseconds{50'000}) << "30 ms + one 20 ms step";
     EXPECT_GT(stats.late_packets + stats.dropped_packets, 0U);
     EXPECT_TRUE(stats.playing) << "sound came back";
 }
@@ -253,7 +253,7 @@ TEST(AudioPlayout, ACalmNetworkLowersTheReserveAgain) {
     }
     const auto stats = player.playout.stats();
     EXPECT_GE(stats.underruns, 1U);
-    EXPECT_EQ(stats.target, Microseconds{40'000}) << "back to the least reserve";
+    EXPECT_EQ(stats.target, Microseconds{30'000}) << "back to the least reserve";
 }
 
 /// The device's clock runs `ppm` parts per million faster (positive) or slower than the host's.

@@ -46,6 +46,27 @@ final class FakeHostCore: HostCoreSession, @unchecked Sendable {
         pushed.append(unit)
     }
 
+    private var audioStarts: [AudioFormat] = []
+    private var audioSamples = 0
+    private var audioStops = 0
+    var audioStartError: CoreError?
+    var startedAudio: [AudioFormat] { lock.withLock { audioStarts } }
+    var pushedAudioSamples: Int { lock.withLock { audioSamples } }
+    var stoppedAudio: Int { lock.withLock { audioStops } }
+
+    func startAudio(_ format: AudioFormat) throws(CoreError) {
+        if let audioStartError { throw audioStartError }
+        lock.withLock { audioStarts.append(format) }
+    }
+
+    func pushAudio(
+        _ samples: UnsafeBufferPointer<Float>, channels: Int, captureTimeMicroseconds: UInt64
+    ) throws(CoreError) {
+        lock.withLock { audioSamples += samples.count }
+    }
+
+    func stopAudio() throws(CoreError) { lock.withLock { audioStops += 1 } }
+
     func closeForSleep() { close() }
 
     private var refused = false
@@ -199,6 +220,53 @@ final class FakeEncoderFactory: VideoEncoderMaking, @unchecked Sendable {
     }
 
     var encoders: [FakeEncoder] { lock.withLock { made } }
+}
+
+/// A system audio capture that stands still until the test delivers samples.
+final class FakeAudioCapture: SystemAudioCapturing, @unchecked Sendable {
+    private let output: SystemAudioOutput
+    private let lock = NSLock()
+    private var running = false
+    var startError: AudioCaptureError?
+
+    init(output: @escaping SystemAudioOutput) { self.output = output }
+
+    var isRunning: Bool { lock.withLock { running } }
+
+    func start() throws(AudioCaptureError) {
+        if let startError { throw startError }
+        lock.withLock { running = true }
+    }
+
+    func stop() { lock.withLock { running = false } }
+
+    /// Delivers 10 ms of stereo silence, as the tap would.
+    func deliver() {
+        let samples = [Float](repeating: 0, count: 960)
+        samples.withUnsafeBufferPointer { output($0, 1_000_000) }
+    }
+}
+
+final class FakeAudioCaptures: SystemAudioCaptureMaking, @unchecked Sendable {
+    private let lock = NSLock()
+    private var made: [FakeAudioCapture] = []
+    var isAvailable = true
+    var startError: AudioCaptureError?
+
+    func makeCapture(output: @escaping SystemAudioOutput) -> any SystemAudioCapturing {
+        let capture = FakeAudioCapture(output: output)
+        capture.startError = startError
+        lock.withLock { made.append(capture) }
+        return capture
+    }
+
+    var captures: [FakeAudioCapture] { lock.withLock { made } }
+}
+
+struct FakeAudioPermission: AudioCapturePermissionChecking {
+    var access: AudioCaptureAccess = .granted
+    func request() async -> Bool { access == .granted }
+    var settingsURL: URL? { nil }
 }
 
 struct FakePermissions: PermissionChecking {

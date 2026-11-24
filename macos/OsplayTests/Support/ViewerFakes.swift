@@ -39,6 +39,12 @@ final class FakeViewerCore: ViewerCoreSession, @unchecked Sendable {
 
     func closeForSleep() { close() }
 
+    /// A steady 0.25 in every sample, so a test can tell the host's sound from silence.
+    func readAudio(into buffer: UnsafeMutableBufferPointer<Float>, channels: Int) -> UInt64 {
+        buffer.update(repeating: 0.25)
+        return 1
+    }
+
     func close() {
         let first = lock.withLock {
             defer { closed = true }
@@ -173,4 +179,32 @@ func makeViewerPixelBuffer() -> CVPixelBuffer {
     CVPixelBufferCreate(nil, 16, 16, kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, nil, &buffer)
     guard let buffer else { fatalError("CVPixelBufferCreate failed for a 16×16 test buffer") }
     return buffer
+}
+
+/// Records the outputs a viewer opens; `fill` reads like the audio thread would.
+final class FakeAudioOutputs: AudioOutputMaking, @unchecked Sendable {
+    final class Output: AudioOutput, @unchecked Sendable {
+        let format: AudioFormat
+        let fill: AudioFill
+        private let lock = NSLock()
+        private var isStoppedValue = false
+        var isStopped: Bool { lock.withLock { isStoppedValue } }
+
+        init(format: AudioFormat, fill: @escaping AudioFill) {
+            self.format = format
+            self.fill = fill
+        }
+
+        func stop() { lock.withLock { isStoppedValue = true } }
+    }
+
+    private let lock = NSLock()
+    private var made: [Output] = []
+    var outputs: [Output] { lock.withLock { made } }
+
+    func makeOutput(format: AudioFormat, fill: @escaping AudioFill) -> (any AudioOutput)? {
+        let output = Output(format: format, fill: fill)
+        lock.withLock { made.append(output) }
+        return output
+    }
 }

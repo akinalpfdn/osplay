@@ -42,6 +42,7 @@ fun SettingsScreen(
     state: UiState,
     onName: (String) -> Unit,
     onStats: (Boolean) -> Unit,
+    onPlaysSound: (Boolean) -> Unit,
     onRevoke: (TrustedPeer) -> Unit,
     onRemove: (TrustedPeer) -> Unit,
     onClose: () -> Unit,
@@ -78,6 +79,19 @@ fun SettingsScreen(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.settings_stats), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     Switch(checked = state.showsStats, onCheckedChange = onStats, modifier = Modifier.focusRing(Shapes.Controls))
+                }
+            }
+            item {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_plays_sound), style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            stringResource(R.string.settings_plays_sound_footer),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = state.playsSound, onCheckedChange = onPlaysSound, modifier = Modifier.focusRing(Shapes.Controls))
                 }
             }
             item {

@@ -57,6 +57,7 @@ class DeviceStateTest {
             settings = object : SettingsStoring {
                 override var deviceName = "Tablet"
                 override var showsStatsOverlay = false
+                    override var playsSound = true
             },
             stage = StreamStage { _, _, _ -> error("no decoder in this test") },
             sessions = object : ViewerSessionMaking {
@@ -65,6 +66,7 @@ class DeviceStateTest {
                     deviceName: String,
                     monitor: MonitorDescription,
                     target: SessionTarget,
+                    playsSound: Boolean,
                     trust: (ByteArray) -> Trust,
                     onEvent: (ViewerEvent) -> Unit,
                 ): Pair<ViewerSessionHandle?, CoreError?> = null to CoreError.Internal

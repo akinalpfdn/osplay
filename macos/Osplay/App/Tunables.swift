@@ -119,6 +119,21 @@ extension Tunables {
         static let displayLookupInterval: Duration = .milliseconds(100)
     }
 
+    /// The sound a Mac host sends (AUD-02): stereo Opus in 10 ms frames, as the core recommends
+    /// (DECISIONS.md, 2026-11-20).
+    enum Audio {
+        static let sampleRate = AudioFormat.sampleRate
+        static let channels = 2
+        static let frameDurationMicroseconds = 10_000
+        static let bitrateKbps = 128
+        /// Room for one tap buffer after conversion; taps deliver a few hundred to a few thousand frames.
+        static let conversionCapacityFrames: UInt32 = 16_384
+        static var format: AudioFormat {
+            AudioFormat(
+                channels: channels, frameDurationMicroseconds: frameDurationMicroseconds, bitrateKbps: bitrateKbps)
+        }
+    }
+
     #if DEBUG
         enum Developer {
             /// Peer ID for test displays, so their arrangement persists between debug sessions.

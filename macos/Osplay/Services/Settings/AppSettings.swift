@@ -49,6 +49,12 @@ final class AppSettings {
         didSet { defaults.set(hasCompletedOnboarding, forKey: Key.onboarding) }
     }
 
+    /// While viewing, this Mac plays the other computer's sound when that computer sends it. Off:
+    /// this Mac does not announce sound, so the other computer offers no sound button.
+    var playsSound: Bool {
+        didSet { defaults.set(playsSound, forKey: Key.playsSound) }
+    }
+
     /// The menu opened by itself once, after the first launch, to show where Osplay lives.
     var hasShownMenu: Bool {
         didSet { defaults.set(hasShownMenu, forKey: Key.shownMenu) }
@@ -77,6 +83,7 @@ final class AppSettings {
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
         lastUpdateCheck = defaults.object(forKey: Key.lastUpdateCheck) as? Date
         hasCompletedOnboarding = defaults.bool(forKey: Key.onboarding)
+        playsSound = defaults.object(forKey: Key.playsSound) as? Bool ?? true
         hasShownMenu = defaults.bool(forKey: Key.shownMenu)
         excludedDisplays = Self.load(Set<String>.self, from: defaults, forKey: Key.excludedDisplays) ?? []
         hiDPIChoices = Self.load([String: HiDPIChoice].self, from: defaults, forKey: Key.hiDPIChoices) ?? [:]
@@ -129,6 +136,7 @@ final class AppSettings {
         static let statsOverlay = "showsStatsOverlay"
         static let hiDPIChoices = "hiDPIChoices"
         static let onboarding = "hasCompletedOnboarding"
+        static let playsSound = "playsSound"
         static let shownMenu = "hasShownMenu"
         static let arrangements = "displayArrangements"
         static let excludedDisplays = "excludedViewerDisplays"

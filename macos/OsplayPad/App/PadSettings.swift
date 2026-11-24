@@ -18,10 +18,17 @@ final class PadSettings {
         didSet { defaults.set(showsStatsOverlay, forKey: Tunables.Pad.statsOverlayKey) }
     }
 
+    /// Plays the computer's sound when it sends it. Off: the iPad does not announce sound, so the
+    /// computer offers no sound button.
+    var playsSound: Bool {
+        didSet { defaults.set(playsSound, forKey: Tunables.Pad.playsSoundKey) }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         deviceName = defaults.string(forKey: Tunables.Pad.deviceNameKey) ?? UIDevice.current.name
         showsStatsOverlay = defaults.bool(forKey: Tunables.Pad.statsOverlayKey)
+        playsSound = defaults.object(forKey: Tunables.Pad.playsSoundKey) as? Bool ?? true
     }
 
     /// The name as the protocol carries it, never empty.

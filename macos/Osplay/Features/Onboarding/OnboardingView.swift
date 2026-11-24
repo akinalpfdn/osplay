@@ -22,6 +22,13 @@ struct OnboardingView: View {
                 symbol: Theme.Symbol.localNetwork, title: "onboarding.localNetwork",
                 detail: "onboarding.localNetwork.detail", granted: viewModel.localNetwork == .allowed,
                 action: "onboarding.openSettings", perform: viewModel.openLocalNetworkSettings)
+            if viewModel.offersSystemAudio {
+                PermissionRow(
+                    symbol: Theme.Symbol.systemAudio, title: "onboarding.systemAudio",
+                    detail: "onboarding.systemAudio.detail", granted: viewModel.systemAudio == .granted,
+                    action: viewModel.systemAudio == .denied ? "onboarding.openSettings" : "onboarding.allow",
+                    perform: viewModel.allowSystemAudio)
+            }
             HStack {
                 Spacer()
                 Button(viewModel.isComplete ? "onboarding.done" : "onboarding.later") {

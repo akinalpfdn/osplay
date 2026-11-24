@@ -1,3 +1,5 @@
+#include "../audio/viewer_audio.hpp"
+#include "../audio/wasapi_audio_output.hpp"
 #include "../engine_tunables.hpp"
 #include "../media/precision_timer_scope.hpp"
 #include "../present/presentation_thread.hpp"
@@ -13,6 +15,7 @@
 #include <osplay/osplay.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <memory>
 #include <mutex>
@@ -64,6 +67,15 @@ public:
         return session_ == nullptr ? OSPLAY_ERROR_INVALID_STATE
                                    : osplay_session_answer_role_swap(session_, answer);
     }
+    /// The host's sound, for the audio output's thread; silence once the session is detached.
+    void read_audio(std::span<float> out, std::uint8_t channels) {
+        const std::scoped_lock lock(mutex_);
+        if (session_ == nullptr ||
+            osplay_session_read_audio(session_, out.data(), out.size() / channels, channels,
+                                      nullptr) != OSPLAY_OK) {
+            std::ranges::fill(out, 0.0F);
+        }
+    }
     [[nodiscard]] osplay_result confirm_pairing(std::uint8_t accepted) {
         const std::scoped_lock lock(mutex_);
         return session_ == nullptr ? OSPLAY_ERROR_INVALID_STATE
@@ -94,15 +106,27 @@ private:
     osplay_session* session_ = nullptr;
 };
 
+/// What this viewer announces beyond decoding: sound, when the user lets it play.
+std::uint8_t capability_flags(const osplay_engine_viewer_config& config) {
+    return config.plays_sound != 0 ? static_cast<std::uint8_t>(OSPLAY_CAPABILITY_PLAYS_AUDIO) : 0;
+}
+
 std::vector<OfferedMonitor> offered_monitors() {
     return osplay::engine::offer_monitors(osplay::engine::active_physical_monitors());
 }
 
 } // namespace
 
-struct osplay_engine_viewer final : private osplay::engine::ViewerObserver {
+struct osplay_engine_viewer final : private osplay::engine::ViewerObserver,
+                                    private osplay::engine::AudioSource {
     explicit osplay_engine_viewer(const osplay_engine_viewer_callbacks& shell_callbacks)
-        : callbacks(shell_callbacks) {}
+        : callbacks(shell_callbacks),
+          audio_outputs([this](osplay_log_level level, const std::string& message) {
+              if (callbacks.on_log != nullptr) {
+                  callbacks.on_log(callbacks.context, level, message.c_str());
+              }
+          }),
+          audio(audio_outputs, *this) {}
     ~osplay_engine_viewer() override = default;
     osplay_engine_viewer(const osplay_engine_viewer&) = delete;
     osplay_engine_viewer& operator=(const osplay_engine_viewer&) = delete;
@@ -119,6 +143,10 @@ struct osplay_engine_viewer final : private osplay::engine::ViewerObserver {
     std::unique_ptr<osplay::engine::ViewerOrchestrator> orchestrator;
     osplay_session* session = nullptr;
     osplay::engine::SessionTrust trust; ///< answers trust when started with the stored identity
+    /// The host's sound (AUD-04): opened by AudioConfig, read from the core on WASAPI's thread.
+    osplay::engine::WasapiAudioOutputs audio_outputs;
+    osplay::engine::ViewerAudio audio;
+    std::atomic<bool> muted{false}; ///< the live mute: read, then silence
 
     /// Guards `active`: the UI thread reaches the orchestrator only while it exists.
     std::mutex active_mutex;
@@ -134,7 +162,20 @@ struct osplay_engine_viewer final : private osplay::engine::ViewerObserver {
 
     osplay::engine::ViewerObserver& observer() { return *this; }
 
+    /// Tells the shell the host sends sound now, or stopped.
+    void sound_changed(bool playing) const {
+        if (callbacks.on_sound != nullptr) {
+            callbacks.on_sound(callbacks.context, playing ? 1 : 0);
+        }
+    }
+
 private:
+    void read(std::span<float> out, std::uint8_t channels) override {
+        port.read_audio(out, channels);
+        if (muted.load()) {
+            std::ranges::fill(out, 0.0F);
+        }
+    }
     void on_visibility(bool visible) override {
         presentation->set_display_required(visible);
         if (callbacks.on_visibility != nullptr) {
@@ -161,6 +202,7 @@ osplay_session_callbacks core_callbacks(osplay_engine_viewer* viewer) {
         auto* self = viewer_of(context);
         if (state == OSPLAY_SESSION_CLOSED) {
             self->orchestrator->on_session_closed();
+            self->audio.stop(); // the speakers are released with the session
         }
         self->callbacks.on_state(self->callbacks.context, state, reason);
     };
@@ -200,6 +242,19 @@ osplay_session_callbacks core_callbacks(osplay_engine_viewer* viewer) {
     };
     callbacks.on_stream_stopped = [](void* context, uint8_t stream_id) {
         viewer_of(context)->orchestrator->on_stream_stopped(stream_id);
+    };
+    callbacks.on_audio_config = [](void* context, const osplay_audio_config* config) {
+        auto* self = viewer_of(context);
+        if (!self->audio.configure(*config) && self->callbacks.on_log != nullptr) {
+            self->callbacks.on_log(self->callbacks.context, OSPLAY_LOG_WARNING,
+                                   "Audio output could not be opened; the sound stays off");
+        }
+        self->sound_changed(true);
+    };
+    callbacks.on_audio_stopped = [](void* context) {
+        auto* self = viewer_of(context);
+        self->audio.stop();
+        self->sound_changed(false);
     };
     callbacks.on_stats = [](void* context, const osplay_session_stats* stats) {
         auto* self = viewer_of(context);
@@ -367,7 +422,7 @@ osplay_engine_result osplay_engine_viewer_start(const osplay_engine_viewer_confi
             .capabilities = {.codecs = OSPLAY_CODEC_H264_ANNEX_B,
                              .max_streams = static_cast<std::uint8_t>(
                                  std::min<std::size_t>(descriptions.size(), kMaxViewerStreams)),
-                             .flags = 0,
+                             .flags = capability_flags(*config),
                              .max_width = 7680,
                              .max_height = 4320,
                              .max_refresh_hz = 240},
@@ -424,6 +479,16 @@ osplay_engine_result osplay_engine_viewer_set_visible(osplay_engine_viewer* view
             return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
         }
         viewer->orchestrator->set_visible(visible == 1);
+        return OSPLAY_ENGINE_OK;
+    });
+}
+
+osplay_engine_result osplay_engine_viewer_set_muted(osplay_engine_viewer* viewer, uint8_t muted) {
+    return guarded([&] {
+        if (viewer == nullptr || muted > 1) {
+            return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
+        }
+        viewer->muted.store(muted == 1);
         return OSPLAY_ENGINE_OK;
     });
 }
@@ -514,7 +579,11 @@ void osplay_engine_viewer_destroy(osplay_engine_viewer* viewer) {
     static_cast<void>(guarded([&] {
         // Order matters: no core callbacks into a dead orchestrator, no UI events into it either,
         // and the windows close on the UI thread before it stops.
-        osplay_session_destroy(owned->port.detach()); // joins the core's I/O thread
+        // The audio thread reads through the port: it stops first, and a late AudioConfig from the
+        // I/O thread opens nothing.
+        osplay_session* session = owned->port.detach();
+        owned->audio.shutdown();
+        osplay_session_destroy(session); // joins the core's I/O thread
         {
             const std::scoped_lock lock(owned->active_mutex);
             owned->active = nullptr;

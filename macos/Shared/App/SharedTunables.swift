@@ -3,6 +3,14 @@ import Foundation
 /// Tunable values shared by the macOS and iPad apps; each app adds its own in an extension.
 /// Protocol constants live in `core`, not here.
 enum Tunables {
+    /// The host's sound on this device's output (AUD-04).
+    enum Playback {
+        /// Frames read from the core at a time inside one render call; larger calls loop.
+        static let chunkFrames = 1_024
+        /// iPad and Apple TV: the output buffer asked for, in seconds (the system may round it).
+        static let preferredBufferDuration = 0.005
+    }
+
     enum Viewer {
         /// Refresh rate offered for a display that reports none (built-in panels report 0 Hz).
         static let defaultRefreshRate = 60.0

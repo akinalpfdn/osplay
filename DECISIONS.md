@@ -735,6 +735,55 @@ choices the plan leaves open are logged here.
 **Trade-offs:** The device thread takes a mutex shared with the I/O thread (held for microseconds). The adaptive reserve can grow after a single stall and takes 10 s to shrink.
 **Revisit if:** A platform's audio thread shows priority-inversion glitches, or users notice audio running behind the picture.
 
+## 2026-11-20 — The Mac host taps the whole mix and mutes it while tapped
+**Chosen:** A global stereo Core Audio process tap (`CATapDescription(stereoGlobalTapButExcludeProcesses: [])`, `muteBehavior = .mutedWhenTapped`) read through a private aggregate device on the default output device, rebuilt when the default output changes. The System Audio Recording permission is read and requested through TCC's `TCCAccessPreflight`/`TCCAccessRequest` (dlsym), offered as optional in onboarding and asked again when the user turns sound on for a display.
+**Alternatives:** ScreenCaptureKit audio (keeps playing on the Mac, tied to a display capture); a Core Audio HAL plug-in as a real output device (installer, admin rights); asking for the permission only by starting a capture.
+**Why:** The user wants the sound on the display instead of the Mac; only the tap's muted mode does that without a driver. macOS has no public call that reads or asks for the AudioCapture permission without capturing, and a denied tap delivers silence instead of an error, so the app could not tell the user why the TV stays silent. The app already depends on private API for virtual displays.
+**Trade-offs:** TCC's functions are private and may change; then the status reads unknown and the first capture shows the prompt. Every app's sound goes to the display, including notifications.
+**Revisit if:** Apple adds a public AudioCapture authorization API, or users ask to keep some apps on the Mac.
+
+## 2026-11-23 — The viewer's sound reserve starts at 30 ms; the PC's device buffer is 10 ms
+**Chosen:** User decision after the first Mac → PC listening test (reserve 50 ms, 60 ms capture to device, about 90–100 ms to the ear): the jitter buffer's least reserve drops from 40 to 30 ms, and the WASAPI buffer from 20 to 10 ms. The reserve still grows by 20 ms after it runs dry.
+**Alternatives:** A 20 ms reserve; only the smaller device buffer; a "low latency / smooth sound" setting.
+**Why:** The reserve was half of the delay. At 20 ms only one 10 ms frame is left as slack, so a single reordered or 10 ms late packet is concealed every time, and concealment does not grow the reserve (core tests showed it). 30 ms keeps one frame of jitter without concealment.
+**Trade-offs:** On Wi-Fi the reserve runs dry once or twice more before it settles; each time is a short audible gap.
+**Revisit if:** Listening tests on Wi-Fi show more gaps than before, or users still hear the sound behind the picture.
+
+## 2026-11-23 — Apple viewers play sound through an AVAudioEngine source node
+**Chosen:** Mac, iPad and Apple TV share one output: an `AVAudioSourceNode` whose render block reads interleaved PCM from the core (`readAudio`) and splits it into the node's channel buffers, connected to the engine's main mixer on the default output. The engine is restarted after a configuration change; iPad and Apple TV set the `.playback` category with a 5 ms preferred buffer and restart after an interruption ends.
+**Alternatives:** An `AVAudioPlayerNode` fed with scheduled buffers; a raw AudioUnit (RemoteIO / HAL output) with its own render callback.
+**Why:** A pull keeps the jitter buffer on the device's clock, like the PC's WASAPI thread, so drift handling stays in the core. Scheduling player buffers would push from another thread and add a queue. A source node is a render callback with AVAudioEngine handling device and format changes, and the same code builds for macOS, iOS and tvOS.
+**Trade-offs:** The main mixer may add a buffer of its own; the render block takes the core's audio mutex (held for microseconds).
+**Revisit if:** Measured latency on Apple viewers is clearly above the PC's, or the render thread shows glitches.
+
+## 2026-11-23 — Android plays sound in the JNI layer through AAudio
+**Chosen:** The JNI bridge owns an `AudioPlayer`: an AAudio output stream (shared mode, low-latency performance mode, float, 48 kHz, two bursts of buffer) whose data callback calls `osplay_session_read_audio`. A lost output is reopened by the player's own thread, since AAudio forbids closing a stream inside its error callback. Kotlin only gets the sound's figures with the stats.
+**Alternatives:** `AudioTrack` written from a Kotlin thread; Oboe (Google's C++ wrapper over AAudio/OpenSL ES); exclusive sharing mode.
+**Why:** A data callback pulls on the device's clock like the PC and Apple outputs, so drift stays in the core, and keeping the sound in C++ avoids JNI calls and garbage collection on the audio path. The app's minSdk is 31, so AAudio is always there and Oboe's OpenSL ES fallback buys nothing for a new dependency. Exclusive mode fails or steals the device from other apps on many phones and TVs.
+**Trade-offs:** No audio focus: other apps' music keeps playing alongside. Bluetooth outputs add their own latency, which the overlay does not show.
+**Revisit if:** Users hear other apps over the host's sound, or a device's AAudio low-latency path glitches.
+
+## 2026-11-23 — A viewer mutes the host's sound by playing silence, not by stopping it
+**Chosen:** User decision: every viewer has a live mute in its viewing controls and a setting "Play the other computer's sound". The live mute keeps reading the sound from the core and writes silence to the output; the setting decides whether the viewer announces sound (capabilities flag), so with it off the host offers no sound button. Changing the setting applies from the next connection.
+**Alternatives:** A protocol message asking the host to stop sending; closing the output while muted; a setting only, or a mute only.
+**Why:** Reading on keeps the jitter buffer drained and on the device's clock, so unmuting is instant and the reserve does not jump; a new message would need protocol 1.4 for something the viewer can do alone. The host keeps the sound off its own speakers while a display has it, which is what the host's button means; the display's mute only quiets that display.
+**Trade-offs:** A muted viewer still receives about 130 kbit/s of sound. The host is not told about the mute, so its own speakers stay silent until its button is pressed.
+**Revisit if:** Users expect the display's mute to bring the sound back to the host.
+
+## 2026-11-23 — The sharing Mac's volume applies to the sound it sends
+**Chosen:** User decision: like a TV over HDMI, both the sharing computer's volume and the display's own volume change what the display plays. The Mac reads the default output's mute and volume (`kAudioDevicePropertyVolumeDecibels`, else the virtual main volume scalar), follows changes with property listeners, and scales the tapped samples before they are encoded. An output without a volume control sends the sound unchanged.
+**Alternatives:** Only the display's volume; sending the volume as a protocol message for the viewer to apply.
+**Why:** The process tap captures the mix before the device's volume, so without this the volume keys did nothing to the display. Scaling before encoding needs no protocol change and works with every viewer.
+**Trade-offs:** At very low volumes the encoder spends its bits on a quiet signal; a volume step is applied at once, without a ramp.
+**Revisit if:** Volume changes click audibly, or users want the two volumes independent.
+
+## 2026-11-24 — The PC sends its sound through WASAPI loopback with its speakers muted
+**Chosen:** User decision after the experiment (OsplayAudioTest on the user's PC): WASAPI loopback of the default speakers, with the endpoint muted while a display has the sound. Loopback keeps the full level while muted and follows the endpoint's volume, so the volume keys work on the display without extra code. The mute key would unmute the speakers; an `IAudioEndpointVolumeCallback` catches changes that are not Osplay's (an event-context GUID marks Osplay's own), mutes the speakers again and toggles the display's sound. The user's own mute is restored on stop; a marker file lets the next start unmute speakers left muted by a crash.
+**Alternatives:** A virtual audio driver set as the default device; process loopback (Windows 10 2004+) without muting; loopback with the sound on both the PC and the display.
+**Why:** No driver to sign, install and remove, and it matches the Mac's process tap with mutedWhenTapped. Process loopback cannot silence the speakers either.
+**Trade-offs:** A mute-key press can let a moment of sound out of the speakers before they are muted again. Windows' volume mixer still shows the speakers muted while sending. A crash leaves the speakers muted until Osplay starts again.
+**Revisit if:** Users notice the moment of sound on the mute key, or loopback misses sound on some drivers (exclusive-mode apps are not in the loopback mix).
+
 ## 2026-11-23 — The menu and the tray panel open by themselves after the first launch
 **Chosen:** User decision: after installing, people did not notice Osplay had started. The Mac menu bar window and the Windows tray panel open once by themselves at the first launch (on the Mac after the permissions window closes, which would otherwise take focus and close the menu), and whenever Osplay is opened again while it runs (Windows already did this; the Mac now does it through `applicationShouldHandleReopen`). SwiftUI's `MenuBarExtra` has no call to open its window, so the Mac clicks its own status item's button (`NSStatusBarButton.performClick`), retrying until the icon exists.
 **Alternatives:** Opening only at the first launch; at every launch except at login; a notification pointing at the icon; replacing `MenuBarExtra` with an own `NSStatusItem` and panel.

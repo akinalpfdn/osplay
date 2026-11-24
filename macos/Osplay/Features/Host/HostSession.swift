@@ -10,6 +10,10 @@ protocol HostCoreSession: AnyObject, Sendable {
     func answerRoleSwap(_ answer: RoleSwapAnswer) throws(CoreError)
     func configureStreams(_ streams: [StreamConfiguration]) throws(CoreError)
     func push(_ unit: AccessUnit) throws(CoreError)
+    func startAudio(_ format: AudioFormat) throws(CoreError)
+    func pushAudio(
+        _ samples: UnsafeBufferPointer<Float>, channels: Int, captureTimeMicroseconds: UInt64) throws(CoreError)
+    func stopAudio() throws(CoreError)
     func close()
     func closeForSleep()
     func refuseBusy()
@@ -40,6 +44,14 @@ enum HostSessionError: Error, Equatable, Sendable {
     case session(CoreError)
 }
 
+/// Why the Mac's sound could not go to the viewer; the session itself goes on.
+enum HostSoundError: Error, Equatable, Sendable {
+    /// The viewer plays no sound (an older Osplay, or a device without audio output).
+    case viewerPlaysNoSound
+    case capture(AudioCaptureError)
+    case session(CoreError)
+}
+
 /// Owns one host session: the core session, the virtual displays standing in for the viewer's
 /// monitors, and a capture → encode pipeline per display (DEVPLAN Architecture, `Features/Host`).
 actor HostSession {
@@ -58,6 +70,10 @@ actor HostSession {
         case roleSwapRequested(peerPublicKey: [UInt8])
         /// The answer to `requestRoleSwap`; after `.accepted` the session closes.
         case roleSwapAnswered(RoleSwapAnswer, peerPublicKey: [UInt8])
+        /// Whether the viewer can play this Mac's sound; known with its monitors.
+        case viewerPlaysAudio(Bool)
+        /// The Mac's sound goes to this viewer (true) or stays on the Mac (false).
+        case sound(Bool)
     }
 
     nonisolated let events: AsyncStream<Event>
@@ -67,6 +83,9 @@ actor HostSession {
     private let captures: any ScreenCaptureMaking
     private let encoders: any VideoEncoderMaking
     private let permissions: any PermissionChecking
+    private let audioCaptures: any SystemAudioCaptureMaking
+    private var audioCapture: (any SystemAudioCapturing)?
+    private var viewerPlaysAudio = false
     private let policy: @Sendable () async -> HostDisplayPolicy
     private let budget: DisplayBudget
     private let dump: StreamDump?
@@ -79,8 +98,9 @@ actor HostSession {
         core: any HostCoreSession, policy: @escaping @Sendable () async -> HostDisplayPolicy,
         displays: any DisplayLending, budget: DisplayBudget = DisplayBudget(),
         captures: any ScreenCaptureMaking, encoders: any VideoEncoderMaking, permissions: any PermissionChecking,
-        dumpDirectory: URL? = nil
+        audioCaptures: any SystemAudioCaptureMaking = ProcessTapCaptureFactory(), dumpDirectory: URL? = nil
     ) {
+        self.audioCaptures = audioCaptures
         self.core = core
         self.policy = policy
         self.displays = displays
@@ -102,16 +122,21 @@ actor HostSession {
         for await event in core.events {
             switch event {
             case .viewerMonitors(let monitors, let viewer):
+                viewerPlaysAudio = viewer.playsAudio
+                eventSink.yield(.viewerPlaysAudio(viewer.playsAudio))
                 await startStreams(for: monitors, viewer: viewer)
             case .keyframeRequested(let streamID):
                 pipelines[streamID]?.requestKeyframe()
             case .bitrateTarget(let streamID, let kbps):
                 pipelines[streamID]?.setBitrate(kbps: kbps)
+            case .audioConfiguration, .audioStopped:
+                break  // viewer-only
             case .streamStopped(let streamID):
                 await stopStream(streamID)
             case .state(let state, let reason):
                 eventSink.yield(.state(state))
                 if state == .closed {
+                    stopSound()
                     await stopStreams()
                     core.close()  // releases the core session also after closeForSleep
                     // A viewer leaving or going to sleep is a normal end for a host.
@@ -143,8 +168,50 @@ actor HostSession {
                 break  // viewer-only
             }
         }
+        stopSound()
         await stopStreams()
         return failure
+    }
+
+    /// Sends this Mac's sound to the viewer, muted on the Mac (true), or plays it on the Mac again
+    /// (false). The session must be streaming.
+    func setSound(_ on: Bool) throws(HostSoundError) {
+        guard on else {
+            guard audioCapture != nil else { return }
+            stopSound()
+            do throws(CoreError) {
+                try core.stopAudio()
+            } catch {
+                Log.audio.info("Audio stop not sent: \(String(describing: error), privacy: .public)")
+            }
+            eventSink.yield(.sound(false))
+            return
+        }
+        guard audioCapture == nil else { return }
+        guard viewerPlaysAudio else { throw .viewerPlaysNoSound }
+        do throws(CoreError) {
+            try core.startAudio(Tunables.Audio.format)
+        } catch {
+            throw .session(error)
+        }
+        let core = core
+        let capture = audioCaptures.makeCapture { samples, captureTime in
+            // Fails only once the session is closing; the sound is then of no use.
+            try? core.pushAudio(samples, channels: Tunables.Audio.channels, captureTimeMicroseconds: captureTime)
+        }
+        do throws(AudioCaptureError) {
+            try capture.start()
+        } catch {
+            try? core.stopAudio()  // best effort: the viewer then closes its audio device
+            throw .capture(error)
+        }
+        audioCapture = capture
+        eventSink.yield(.sound(true))
+    }
+
+    private func stopSound() {
+        audioCapture?.stop()
+        audioCapture = nil
     }
 
     /// Ends the session with Bye; `run` returns once the core reports `.closed`.

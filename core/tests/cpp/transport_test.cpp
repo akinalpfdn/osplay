@@ -5,6 +5,7 @@
 #include "session_simulation.hpp"
 #include "transport/asio_session.hpp"
 #include "transport/byte_pipe.hpp"
+#include "transport/endpoint_order.hpp"
 #include "transport/traffic_class.hpp"
 #include "transport/usbmux.hpp"
 
@@ -1074,6 +1075,25 @@ TEST(RealSessionsConnect, AUsbHostEndsWhenUsbmuxdIsMissing) {
     ASSERT_TRUE(host.has_value());
     EXPECT_TRUE(observer.wait_for_state(SessionState::Closed, seconds(3)));
     EXPECT_EQ(observer.close_reason(), Error::NetworkError);
+}
+
+TEST(EndpointOrder, TriesIPv4BeforeIPv6AndKeepsTheResolversOrderWithinEach) {
+    using asio::ip::make_address;
+    using asio::ip::tcp;
+    std::vector<tcp::endpoint> endpoints{
+        {make_address("fe80::643b:f89b:2fc3:de5c"), 4000},
+        {make_address("192.168.1.10"), 4000},
+        {make_address("::1"), 4000},
+        {make_address("10.0.0.1"), 4000},
+    };
+    osplay::transport::prefer_ipv4(endpoints);
+    const std::vector<tcp::endpoint> expected{
+        {make_address("192.168.1.10"), 4000},
+        {make_address("10.0.0.1"), 4000},
+        {make_address("fe80::643b:f89b:2fc3:de5c"), 4000},
+        {make_address("::1"), 4000},
+    };
+    EXPECT_EQ(endpoints, expected);
 }
 
 } // namespace

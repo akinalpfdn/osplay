@@ -29,8 +29,11 @@ struct StatsFigures: Equatable, Sendable {
     let lossPercent: Double
     /// Capture to delivery; nil until the clocks are compared.
     let latencyMilliseconds: Double?
+    /// The host's sound, on one stream's overlay only.
+    let audio: AudioStatistics?
 
-    init(stream: StreamStatistics, roundTripMicroseconds: Int) {
+    init(stream: StreamStatistics, roundTripMicroseconds: Int, audio: AudioStatistics? = nil) {
+        self.audio = audio
         framesPerSecond = stream.framesPerSecond
         bitrateKbps = stream.bitrateKbps
         roundTripMilliseconds = Double(roundTripMicroseconds) / 1000
@@ -40,8 +43,20 @@ struct StatsFigures: Equatable, Sendable {
 }
 
 extension StatsFigures {
-    /// One line: "60 fps · 22.1 Mbit/s · RTT 4 ms · loss 0.0% · latency 12 ms".
+    /// "60 fps · 22.1 Mbit/s · RTT 4 ms · loss 0.0% · latency 12 ms", and while sound plays a second
+    /// line: "sound: reserve 40 ms · latency 55 ms · gaps 0 · concealed 0".
     var overlayText: String {
+        guard let audio else { return streamLine }
+        let reserve = (Double(audio.bufferedMicroseconds) / 1000).formatted(.number.precision(.fractionLength(0)))
+        let latency =
+            audio.latencyMicroseconds > 0
+            ? (Double(audio.latencyMicroseconds) / 1000).formatted(.number.precision(.fractionLength(0))) : "–"
+        let sound = String(
+            localized: "stats.overlaySound \(reserve) \(latency) \(Int(audio.underruns)) \(Int(audio.concealedFrames))")
+        return streamLine + "\n" + sound
+    }
+
+    private var streamLine: String {
         let bitrate = (Double(bitrateKbps) / 1000).formatted(.number.precision(.fractionLength(1)))
         let roundTrip = roundTripMilliseconds.formatted(.number.precision(.fractionLength(0)))
         let loss = lossPercent.formatted(.number.precision(.fractionLength(1)))

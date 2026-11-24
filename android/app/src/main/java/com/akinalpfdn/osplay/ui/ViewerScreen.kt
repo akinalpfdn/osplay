@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.VolumeOff
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.CircularProgressIndicator
@@ -62,7 +64,6 @@ import com.akinalpfdn.osplay.ui.theme.Shapes
 import com.akinalpfdn.osplay.ui.theme.Spacing
 import com.akinalpfdn.osplay.viewer.StatsFigures
 import com.akinalpfdn.osplay.viewer.StreamStage
-import java.util.Locale
 import kotlinx.coroutines.delay
 
 private const val CONTROLS_HIDE_MILLIS = 4_000L
@@ -78,6 +79,7 @@ fun ViewerScreen(
     stage: StreamStage,
     onDisconnect: () -> Unit,
     onShowsStats: (Boolean) -> Unit,
+    onSoundMuted: (Boolean) -> Unit,
     onViewport: (Boolean) -> Unit,
 ) {
     val stream by stage.stream.collectAsStateWithLifecycle()
@@ -168,6 +170,16 @@ fun ViewerScreen(
                 ) {
                     Icon(Icons.Outlined.BarChart, contentDescription = stringResource(R.string.viewer_stats))
                 }
+                if (state.receivesSound) {
+                    // Mutes the computer's sound here at once; it keeps coming, so it is back at once too.
+                    IconButton(onClick = { onSoundMuted(!state.soundMuted) }, modifier = Modifier.focusRing(Shapes.Round)) {
+                        Icon(
+                            if (state.soundMuted) Icons.AutoMirrored.Outlined.VolumeOff else Icons.AutoMirrored.Outlined.VolumeUp,
+                            contentDescription = stringResource(if (state.soundMuted) R.string.viewer_unmute else R.string.viewer_mute),
+                            tint = OsplayColors.OnViewer,
+                        )
+                    }
+                }
                 IconButton(onClick = onDisconnect, modifier = Modifier.focusRing(Shapes.Round)) {
                     Icon(
                         Icons.Outlined.Close,
@@ -202,15 +214,28 @@ private fun Waiting(screen: Screen) {
 
 @Composable
 private fun StatsLabel(figures: StatsFigures, modifier: Modifier) {
-    Text(
+    // The configuration's locale, so a language change reformats the numbers at once.
+    val locale = LocalConfiguration.current.locales[0]
+    val stream = stringResource(
+        R.string.stats_overlay,
+        figures.framesPerSecond,
+        String.format(locale, "%.1f", figures.bitrateKbps / 1000.0),
+        figures.roundTripMilliseconds,
+        String.format(locale, "%.1f", figures.lossPercent),
+        figures.latencyMilliseconds?.toString() ?: "–",
+    )
+    // While sound plays, a second line: "sound: reserve 40 ms · latency 55 ms · gaps 0 · concealed 0".
+    val sound = figures.sound?.let {
         stringResource(
-            R.string.stats_overlay,
-            figures.framesPerSecond,
-            String.format(Locale.getDefault(), "%.1f", figures.bitrateKbps / 1000.0),
-            figures.roundTripMilliseconds,
-            String.format(Locale.getDefault(), "%.1f", figures.lossPercent),
-            figures.latencyMilliseconds?.toString() ?: "–",
-        ),
+            R.string.stats_overlay_sound,
+            it.reserveMilliseconds,
+            it.latencyMilliseconds?.toString() ?: "–",
+            it.gaps,
+            it.concealedFrames,
+        )
+    }
+    Text(
+        if (sound == null) stream else "$stream\n$sound",
         style = OsplayText.Stats,
         color = OsplayColors.OnViewer,
         modifier = modifier.background(OsplayColors.StatsBackground, Shapes.Stats).padding(Spacing.Small),

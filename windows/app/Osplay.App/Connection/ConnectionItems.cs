@@ -27,7 +27,8 @@ public sealed class DeviceItem(string name, string detail, bool isCompatible, IR
 }
 
 /// <summary>A computer this PC extends onto: one row in the panel (DECISIONS.md, 2026-10-25).</summary>
-public sealed partial class ViewerItem(string name, bool isMac, bool isTablet, IRelayCommand disconnect) : ObservableObject
+public sealed partial class ViewerItem(
+    string name, bool isMac, bool isTablet, IRelayCommand disconnect, IRelayCommand toggleSound) : ObservableObject
 {
     public string Name { get; } = name;
 
@@ -37,6 +38,20 @@ public sealed partial class ViewerItem(string name, bool isMac, bool isTablet, I
     public bool IsTablet { get; } = isTablet;
 
     public IRelayCommand DisconnectCommand { get; } = disconnect;
+
+    /// <summary>Sends this PC's sound to the device, or brings it back to the PC.</summary>
+    public IRelayCommand ToggleSoundCommand { get; } = toggleSound;
+
+    /// <summary>The device plays sound, so the row offers the speaker button.</summary>
+    [ObservableProperty]
+    private bool _playsAudio;
+
+    /// <summary>This PC's sound plays on the device (the PC's speakers are muted meanwhile).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SoundToggleText))]
+    private bool _soundOn;
+
+    public string SoundToggleText => SoundOn ? Localization.Strings.SharingSoundBack : Localization.Strings.SharingSoundToDisplay;
 
     /// <summary>"2 displays", or "Connecting…" until its streams run.</summary>
     [ObservableProperty]

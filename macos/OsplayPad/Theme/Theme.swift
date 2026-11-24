@@ -56,6 +56,9 @@ enum Theme {
         static let settings = "gearshape"
         static let disconnect = "xmark"
         static let statistics = "chart.bar.xaxis"
+        /// The computer's sound plays here / is muted here.
+        static let soundOn = "speaker.wave.2.fill"
+        static let soundMuted = "speaker.slash.fill"
         static let searching = "dot.radiowaves.left.and.right"
         static let update = "arrow.triangle.2.circlepath"
         static let cable = "cable.connector"

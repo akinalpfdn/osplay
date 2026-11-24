@@ -33,7 +33,7 @@ claude-ground rules live in `~/.claude/rules/` and load automatically — no imp
 - Language rules and `frontend.md` load when Claude reads a matching file (`paths:` frontmatter).
 
 ## Project-Specific Constraints
-- Development happens on `dev`, pushed directly, without CI (user decision 2026-11-20). `main` only receives releases: a PR from `dev` into `main`, where CI runs. Before pushing to `dev`, run the checks locally: `scripts/lint.sh`, the core tests, `swift test`, and builds of what changed.
+- One branch per DEVPLAN phase, branched from `dev` and merged into `dev` through a PR, without CI (user decision 2026-11-20). `main` only receives releases: a PR from `dev` into `main`, where CI runs. Before pushing, run the checks locally: `scripts/lint.sh`, the core tests, `swift test`, and builds of what changed.
 - Identifier prefix: `com.akinalpfdn.osplay`.
 - Every user-facing string is localized (English + Turkish); `core` and the engine return error codes, never text.
 - Every visual value comes from the platform theme source.

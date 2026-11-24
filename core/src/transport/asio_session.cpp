@@ -4,6 +4,7 @@
 #include "protocol/link_record.hpp"
 #include "transport/aoa.hpp"
 #include "transport/byte_pipe.hpp"
+#include "transport/endpoint_order.hpp"
 #include "transport/traffic_class.hpp"
 #include "transport/usbmux.hpp"
 
@@ -12,7 +13,6 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wshorten-64-to-32"
 #endif
-#include <asio/connect.hpp>
 #include <asio/executor_work_guard.hpp>
 #include <asio/io_context.hpp>
 #include <asio/ip/tcp.hpp>
@@ -44,6 +44,7 @@
 #include <string>
 #include <thread>
 #include <utility>
+#include <vector>
 
 namespace osplay::transport {
 
@@ -261,7 +262,8 @@ public:
 #ifndef _WIN32
           local_(io_),
 #endif
-          media_(io_), resolver_(io_), timer_(io_), connect_timer_(io_), options_(options),
+          media_(io_), resolver_(io_), timer_(io_), connect_timer_(io_), attempt_timer_(io_),
+          options_(options),
           engine_(std::move(config), std::move(identity), random, observer, *this) {
     }
 
@@ -319,37 +321,72 @@ public:
         start_connect_timer(connect_timeout);
         resolver_.async_resolve(
             host, std::to_string(port),
-            [this](const asio::error_code& error, const tcp::resolver::results_type& results) {
+            [this, connect_timeout](const asio::error_code& error,
+                                    const tcp::resolver::results_type& results) {
                 if (connect_timed_out_) {
                     return; // already reported
                 }
-                if (error) {
+                if (error || results.empty()) {
                     connect_timer_.cancel();
                     engine_.on_transport_closed(Error::NetworkError);
                     return;
                 }
-                asio::async_connect(
-                    control_, results,
-                    [this](const asio::error_code& connect_error, const tcp::endpoint& endpoint) {
-                        if (connect_timed_out_) {
-                            return; // already reported
-                        }
-                        connected_ = true;
-                        connect_timer_.cancel();
-                        if (connect_error) {
-                            engine_.on_transport_closed(Error::NetworkError);
-                            return;
-                        }
-                        asio::error_code open_error;
-                        const bool v4 = endpoint.protocol() == tcp::v4();
-                        if (!open_udp(v4 ? udp::v4() : udp::v6(), open_error)) {
-                            engine_.on_transport_closed(Error::NetworkError);
-                            return;
-                        }
-                        on_control_connected();
-                    });
+                order_endpoints(results, connect_timeout);
+                connect_to(0);
             });
         start_thread();
+    }
+
+    /// IPv4 first (prefer_ipv4), each address with its share of the timeout, so one that drops
+    /// connections cannot hold the others back.
+    void order_endpoints(const tcp::resolver::results_type& results, Microseconds connect_timeout) {
+        endpoints_.clear();
+        for (const auto& entry : results) {
+            endpoints_.push_back(entry.endpoint());
+        }
+        prefer_ipv4(endpoints_);
+        attempt_timeout_ = connect_timeout / static_cast<std::int64_t>(endpoints_.size());
+    }
+
+    void connect_to(std::size_t index) {
+        if (closed_ || connect_timed_out_) {
+            return;
+        }
+        if (index >= endpoints_.size()) {
+            connect_timer_.cancel();
+            engine_.on_transport_closed(Error::NetworkError);
+            return;
+        }
+        asio::error_code ignored;
+        control_.close(ignored);
+        attempt_timer_.expires_after(attempt_timeout_);
+        attempt_timer_.async_wait([this](const asio::error_code& error) {
+            if (!error) {
+                asio::error_code closing;
+                control_.close(closing); // aborts this attempt; its handler tries the next address
+            }
+        });
+        const tcp::endpoint endpoint = endpoints_[index];
+        control_.async_connect(endpoint,
+                               [this, index, endpoint](const asio::error_code& connect_error) {
+                                   attempt_timer_.cancel();
+                                   if (closed_ || connect_timed_out_) {
+                                       return; // already reported
+                                   }
+                                   if (connect_error) {
+                                       connect_to(index + 1);
+                                       return;
+                                   }
+                                   connected_ = true;
+                                   connect_timer_.cancel();
+                                   asio::error_code open_error;
+                                   const bool v4 = endpoint.protocol() == tcp::v4();
+                                   if (!open_udp(v4 ? udp::v4() : udp::v6(), open_error)) {
+                                       engine_.on_transport_closed(Error::NetworkError);
+                                       return;
+                                   }
+                                   on_control_connected();
+                               });
     }
 
     /// Stream link, viewer: listens on the loopback port, where usbmuxd delivers the host's
@@ -558,6 +595,7 @@ public:
         media_.close(ignored);
         timer_.cancel();
         connect_timer_.cancel();
+        attempt_timer_.cancel();
         resolver_.cancel();
         // Let queued control data (Error, Bye) leave before the FIN; media is no longer wanted.
         drop_queued_media();
@@ -925,9 +963,12 @@ private:
     udp::socket media_;
     tcp::resolver resolver_;
     asio::steady_timer timer_;
-    asio::steady_timer connect_timer_; // viewer: until the TCP connection is up
-    bool connected_ = false;           // I/O thread only
-    bool connect_timed_out_ = false;   // I/O thread only
+    asio::steady_timer connect_timer_;     // viewer: until the TCP connection is up
+    asio::steady_timer attempt_timer_;     // viewer: one address's share of the connect timeout
+    std::vector<tcp::endpoint> endpoints_; // viewer: the host's addresses, IPv4 first
+    Microseconds attempt_timeout_{};
+    bool connected_ = false;         // I/O thread only
+    bool connect_timed_out_ = false; // I/O thread only
     std::array<std::uint8_t, kReadBufferBytes> read_buffer_{};
     std::array<std::uint8_t, protocol::kMaxDatagramSize + 1> datagram_buffer_{};
     udp::endpoint datagram_source_;

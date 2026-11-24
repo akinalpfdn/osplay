@@ -1,5 +1,5 @@
 # Phase 029 (AUD-01) — Audio stream in the core
-Status: ACTIVE
+Status: DONE
 
 DEVPLAN reference: Phase 17 (part AUD-01). Depends on: Phase 16.
 

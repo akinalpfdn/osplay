@@ -67,4 +67,9 @@ inline constexpr std::uint32_t kAccessoryProbeDelayMilliseconds = 1000;
 /// mode when no app opens the accessory within 10 s, and is then switched again.
 inline constexpr int kAccessorySwitchAttempts = 3;
 
+/// The PC's sound to a display (AUD-03), as the Mac sends it: Opus stereo in 10 ms frames.
+inline constexpr std::uint8_t kSoundChannels = 2;
+inline constexpr std::uint16_t kSoundFrameUs = 10'000;
+inline constexpr std::uint16_t kSoundBitrateKbps = 128;
+
 } // namespace osplay::engine

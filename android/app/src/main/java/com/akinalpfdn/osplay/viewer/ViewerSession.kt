@@ -35,6 +35,44 @@ data class StatsFigures(
     val lossPercent: Double,
     /** Capture to delivery; null until the clocks are compared. */
     val latencyMilliseconds: Int?,
+    /** The host's sound; null while none plays. */
+    val sound: SoundFigures? = null,
+) {
+    companion object {
+        private const val STREAM_FIELDS = 5
+        private const val SOUND_FIELDS = 4
+
+        /** The first stream's figures from the core's stats arrays (see SessionListener.onStats). */
+        fun from(rttUs: Int, streams: IntArray, audio: IntArray): StatsFigures? {
+            if (streams.size < STREAM_FIELDS) return null
+            return StatsFigures(
+                framesPerSecond = streams[1],
+                bitrateKbps = streams[2],
+                roundTripMilliseconds = rttUs / 1000,
+                lossPercent = streams[3] / 10.0,
+                latencyMilliseconds = streams[4].takeIf { it > 0 }?.div(1000),
+                sound = if (audio.size >= SOUND_FIELDS) {
+                    SoundFigures(
+                        reserveMilliseconds = audio[0] / 1000,
+                        latencyMilliseconds = audio[1].takeIf { it > 0 }?.div(1000),
+                        gaps = audio[2],
+                        concealedFrames = audio[3],
+                    )
+                } else {
+                    null
+                },
+            )
+        }
+    }
+}
+
+/** The host's sound on this device: the reserve held against jitter and its gaps so far. */
+data class SoundFigures(
+    val reserveMilliseconds: Int,
+    /** Capture to the output; null until the clocks are compared. */
+    val latencyMilliseconds: Int?,
+    val gaps: Int,
+    val concealedFrames: Int,
 )
 
 /** What a session reports, on the main thread. */
@@ -50,6 +88,9 @@ sealed interface ViewerEvent {
     class Seen(val publicKey: ByteArray) : ViewerEvent
 
     data class Statistics(val figures: StatsFigures?) : ViewerEvent
+
+    /** The host sends sound now (true) or stopped (false). */
+    data class Sound(val playing: Boolean) : ViewerEvent
 }
 
 /** A running viewer session, as the view model sees it; a fake in tests. */
@@ -61,6 +102,9 @@ interface ViewerSessionHandle {
 
     /** Ends the session telling the host this device is going away for a while. */
     fun stopForSleep()
+
+    /** Plays the host's sound as silence here, at once, or plays it again. */
+    fun setMuted(muted: Boolean)
 }
 
 /** Where a session runs. */
@@ -79,6 +123,7 @@ interface ViewerSessionMaking {
         deviceName: String,
         monitor: MonitorDescription,
         target: SessionTarget,
+        playsSound: Boolean,
         trust: (ByteArray) -> Trust,
         onEvent: (ViewerEvent) -> Unit,
     ): Pair<ViewerSessionHandle?, CoreError?>
@@ -94,6 +139,7 @@ class CoreViewerSessions(
         deviceName: String,
         monitor: MonitorDescription,
         target: SessionTarget,
+        playsSound: Boolean,
         trust: (ByteArray) -> Trust,
         onEvent: (ViewerEvent) -> Unit,
     ): Pair<ViewerSessionHandle?, CoreError?> {
@@ -109,7 +155,9 @@ class CoreViewerSessions(
                 monitor.physicalWidthMillimeters, monitor.physicalHeightMillimeters, monitor.scalePercent,
             ),
             monitorName = monitor.name.encodeToByteArray(),
-            capabilities = intArrayOf(MAX_STREAMS, decoding.maxWidth, decoding.maxHeight, decoding.maxRefreshHz),
+            capabilities = intArrayOf(
+                MAX_STREAMS, decoding.maxWidth, decoding.maxHeight, decoding.maxRefreshHz, if (playsSound) 1 else 0,
+            ),
             host = (target as? SessionTarget.Network)?.host.orEmpty().encodeToByteArray(),
             port = (target as? SessionTarget.Network)?.port ?: 0,
             accessoryFd = (target as? SessionTarget.Cable)?.fd ?: NO_ACCESSORY,
@@ -160,6 +208,10 @@ private class CoreViewerSession(
 
     override fun stopForSleep() = withHandle { Native.sessionCloseForSleep(it) }
 
+    override fun setMuted(muted: Boolean) = withHandle { Native.sessionSetMuted(it, muted) }
+
+    override fun onSound(playing: Boolean) = post(ViewerEvent.Sound(playing))
+
     override fun onState(state: Int, reason: Int) {
         val sessionState = SessionState.of(state)
         if (sessionState == SessionState.Streaming) peerKey?.let { post(ViewerEvent.Seen(it)) }
@@ -204,19 +256,8 @@ private class CoreViewerSession(
         stage.decode(data, keyframe, captureTimeUs)
     }
 
-    override fun onStats(rttUs: Int, streams: IntArray) {
-        val figures = if (streams.size >= STATS_FIELDS) {
-            StatsFigures(
-                framesPerSecond = streams[1],
-                bitrateKbps = streams[2],
-                roundTripMilliseconds = rttUs / 1000,
-                lossPercent = streams[3] / 10.0,
-                latencyMilliseconds = streams[4].takeIf { it > 0 }?.div(1000),
-            )
-        } else {
-            null
-        }
-        post(ViewerEvent.Statistics(figures))
+    override fun onStats(rttUs: Int, streams: IntArray, audio: IntArray) {
+        post(ViewerEvent.Statistics(StatsFigures.from(rttUs, streams, audio)))
     }
 
     override fun onLog(level: Int, message: ByteArray) {
@@ -240,7 +281,6 @@ private class CoreViewerSession(
 
     private companion object {
         const val TAG = "Osplay"
-        const val STATS_FIELDS = 5
         const val LOG_WARNING = 3
         val destroyer = Executors.newSingleThreadExecutor()
     }
