@@ -67,6 +67,12 @@ Check validate(const CursorShapeFragment& m) {
     return ok();
 }
 
+Check validate(const AudioPacket& m) {
+    return !m.payload.empty() && m.payload.size() <= kMaxAudioPayload
+               ? ok()
+               : fail(Error::ValueOutOfRange);
+}
+
 Decoded read_udp_hello(Reader& r) {
     UdpHello m;
     std::span<const std::uint8_t> token;
@@ -111,6 +117,15 @@ Decoded read_cursor_shape(Reader& r) {
     return m;
 }
 
+Decoded read_audio(Reader& r) {
+    AudioPacket m;
+    if (!r.u32(m.audio_sequence) || !r.u64(m.capture_time_us) ||
+        !r.bytes(r.remaining(), m.payload)) {
+        return decode_failure(Error::Truncated);
+    }
+    return m;
+}
+
 Decoded read_body(std::uint8_t type, Reader& r) {
     switch (static_cast<MediaType>(type)) {
     case MediaType::UdpHello:
@@ -121,6 +136,8 @@ Decoded read_body(std::uint8_t type, Reader& r) {
         return read_cursor_position(r);
     case MediaType::CursorShapeFragment:
         return read_cursor_shape(r);
+    case MediaType::AudioPacket:
+        return read_audio(r);
     }
     return decode_failure(Error::UnknownType);
 }
@@ -156,6 +173,11 @@ void write_body(Writer& w, const MediaBody& body) {
                        w.u16(m.fragment_count);
                        w.bytes(m.payload);
                    },
+                   [&](const AudioPacket& m) {
+                       w.u32(m.audio_sequence);
+                       w.u64(m.capture_time_us);
+                       w.bytes(m.payload);
+                   },
                },
                body);
 }
@@ -172,6 +194,11 @@ bool CursorShapeFragment::operator==(const CursorShapeFragment& other) const {
     return stream_id == other.stream_id && shape_id == other.shape_id && width == other.width &&
            height == other.height && hotspot_x == other.hotspot_x && hotspot_y == other.hotspot_y &&
            fragment_index == other.fragment_index && fragment_count == other.fragment_count &&
+           std::ranges::equal(payload, other.payload);
+}
+
+bool AudioPacket::operator==(const AudioPacket& other) const {
+    return audio_sequence == other.audio_sequence && capture_time_us == other.capture_time_us &&
            std::ranges::equal(payload, other.payload);
 }
 

@@ -5,13 +5,28 @@ import PackageDescription
 // the CMake build in core/ is the reference build and must list the same sources.
 let package = Package(
     name: "OsplayCore",
-    platforms: [.macOS(.v14), .iOS(.v18)],
+    platforms: [.macOS(.v14), .iOS(.v18), .tvOS(.v18)],
     products: [
         .library(name: "CoreBridge", targets: ["CoreBridge"])
     ],
     targets: [
+        // libopus with the same settings as core/CMakeLists.txt (core/third_party/opus).
+        .target(
+            name: "OsplayOpus",
+            path: "core/third_party/opus",
+            exclude: ["COPYING", "AUTHORS", "README.osplay.md"],
+            sources: ["celt", "silk", "src"],
+            publicHeadersPath: "include",
+            cSettings: [
+                .headerSearchPath("celt"), .headerSearchPath("silk"),
+                .headerSearchPath("silk/float"), .headerSearchPath("src"),
+                .define("OPUS_BUILD"), .define("USE_ALLOCA"), .define("HAVE_LRINT"),
+                .define("HAVE_LRINTF"),
+            ]
+        ),
         .target(
             name: "OsplayCore",
+            dependencies: ["OsplayOpus"],
             path: "core",
             sources: ["src", "third_party/monocypher/monocypher.c"],
             publicHeadersPath: "include",

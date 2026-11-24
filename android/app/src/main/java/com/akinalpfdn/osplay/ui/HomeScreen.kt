@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.Laptop
@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TabletAndroid
 import androidx.compose.material.icons.outlined.Usb
 import androidx.compose.material.icons.outlined.WifiFind
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,8 +33,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import com.akinalpfdn.osplay.R
@@ -62,12 +66,16 @@ fun HomeScreen(
     onSettings: () -> Unit,
 ) {
     LaunchedEffect(Unit) { onStart() }
+    // A TV remote starts on the first computer once one is found (with touch nothing takes focus).
+    val firstDevice = remember { FocusRequester() }
+    val hasDevices = state.devices.isNotEmpty()
+    LaunchedEffect(hasDevices) { if (hasDevices) firstDevice.requestFocus() }
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
-                    IconButton(onClick = onSettings) {
+                    IconButton(onClick = onSettings, modifier = Modifier.focusRing(Shapes.Round)) {
                         Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.action_settings))
                     }
                 },
@@ -98,26 +106,33 @@ fun HomeScreen(
                 )
             }
             if (state.devices.isEmpty()) {
-                item { SearchingCard() }
+                item { SearchingCard(showsCable = state.showsCable) }
             } else {
-                items(state.devices, key = { it.device.label }) { row -> DeviceCard(row) { onConnect(row.device) } }
+                itemsIndexed(state.devices, key = { _, row -> row.device.label }) { index, row ->
+                    DeviceCard(row, if (index == 0) Modifier.focusRequester(firstDevice) else Modifier) { onConnect(row.device) }
+                }
             }
-            item {
-                Text(
-                    stringResource(R.string.home_cable),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = Spacing.Medium),
-                )
+            if (state.showsCable) {
+                item {
+                    Text(
+                        stringResource(R.string.home_cable),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = Spacing.Medium),
+                    )
+                }
+                item { CableCard(waiting = state.screen == Screen.WaitingForCable, onWait = onCable, onCancel = onCancelReconnect) }
             }
-            item { CableCard(waiting = state.screen == Screen.WaitingForCable, onWait = onCable, onCancel = onCancelReconnect) }
         }
     }
 }
 
 @Composable
-private fun DeviceCard(row: DeviceRow, onClick: () -> Unit) {
+private fun DeviceCard(row: DeviceRow, focus: Modifier, onClick: () -> Unit) {
     val enabled = row.state != DeviceState.Incompatible
-    Card(shape = Shapes.Card, modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick)) {
+    Card(
+        shape = Shapes.Card,
+        modifier = Modifier.fillMaxWidth().then(focus).focusRing(Shapes.Card).clickable(enabled = enabled, onClick = onClick),
+    ) {
         Row(Modifier.padding(Spacing.Large), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(Sizes.SymbolColumn), contentAlignment = Alignment.Center) {
                 Icon(
@@ -146,7 +161,7 @@ private fun DeviceCard(row: DeviceRow, onClick: () -> Unit) {
 
 @Composable
 private fun CableCard(waiting: Boolean, onWait: () -> Unit, onCancel: () -> Unit) {
-    Card(shape = Shapes.Card, modifier = Modifier.fillMaxWidth().clickable(enabled = !waiting, onClick = onWait)) {
+    Card(shape = Shapes.Card, modifier = Modifier.fillMaxWidth().focusRing(Shapes.Card).clickable(enabled = !waiting, onClick = onWait)) {
         Row(Modifier.padding(Spacing.Large), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(Sizes.SymbolColumn), contentAlignment = Alignment.Center) {
                 if (waiting) {
@@ -173,14 +188,16 @@ private fun CableCard(waiting: Boolean, onWait: () -> Unit, onCancel: () -> Unit
                 )
             }
             if (waiting) {
-                TextButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) }
+                TextButton(onClick = onCancel, modifier = Modifier.focusRing(ButtonDefaults.textShape)) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SearchingCard() {
+private fun SearchingCard(showsCable: Boolean) {
     Card(shape = Shapes.Card, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(Spacing.Large)) {
             Box(Modifier.width(Sizes.SymbolColumn), contentAlignment = Alignment.TopCenter) {
@@ -195,7 +212,7 @@ private fun SearchingCard() {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
                 Text(stringResource(R.string.home_searching), style = MaterialTheme.typography.bodyLarge)
                 Text(
-                    stringResource(R.string.home_same_network),
+                    stringResource(if (showsCable) R.string.home_same_network else R.string.home_same_network_tv),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -217,7 +234,9 @@ private fun ReconnectingCard(peer: String, onCancel: () -> Unit) {
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) }
+            TextButton(onClick = onCancel, modifier = Modifier.focusRing(ButtonDefaults.textShape)) {
+                Text(stringResource(R.string.action_cancel))
+            }
         }
     }
 }
@@ -227,7 +246,7 @@ private fun FailureCard(failure: Failure, onDismiss: () -> Unit) {
     Card(shape = Shapes.Card, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(Spacing.Large)) {
             Text(failure.message(), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
-            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End).focusRing(ButtonDefaults.textShape)) {
                 Text(stringResource(R.string.action_ok))
             }
         }

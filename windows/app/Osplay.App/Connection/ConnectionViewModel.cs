@@ -46,6 +46,7 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     private EngineViewer? _viewer;
     private string _peerName = string.Empty;
     private IReadOnlyList<StreamFigures> _figures = [];
+    private AudioFigures? _audioFigures;
     private PendingSwap? _pendingSwap;
     private string? _autoConnectDeviceId;
     private CancellationTokenSource? _autoConnectTimeout;
@@ -112,6 +113,18 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     /// <summary>Viewer streams are on screen (the hotkey or the tray hides them).</summary>
     [ObservableProperty]
     private bool _isViewerVisible = true;
+
+    /// <summary>While viewing: the other computer sends its sound to this PC.</summary>
+    [ObservableProperty]
+    private bool _receivesSound;
+
+    /// <summary>While viewing: the sound plays as silence here; kept for the next session.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SoundToggleText))]
+    private bool _isSoundMuted;
+
+    /// <summary>The tray button that mutes the other computer's sound here or plays it again.</summary>
+    public string SoundToggleText => IsSoundMuted ? Localization.Strings.ViewerSoundUnmute : Localization.Strings.ViewerSoundMute;
 
     [ObservableProperty]
     private bool _isBusy;
@@ -236,6 +249,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             ErrorMessage = Localization.Strings.ErrorEngineMissing;
             return;
         }
+        // Speakers an earlier Osplay muted for a display and could not give back play again.
+        await Native.Run(NativeMethods.RestoreSpeakers).ConfigureAwait(true);
         await RefreshPeersAsync().ConfigureAwait(true);
         await RefreshMonitorsAsync().ConfigureAwait(true);
         await CheckHealthAsync().ConfigureAwait(true);
@@ -348,6 +363,17 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Silences the other computer's sound on this PC while viewing, or plays it again.</summary>
+    [RelayCommand]
+    private async Task ToggleSoundMutedAsync()
+    {
+        IsSoundMuted = !IsSoundMuted;
+        if (_viewer is not null)
+        {
+            await _viewer.SetMutedAsync(IsSoundMuted).ConfigureAwait(true);
+        }
+    }
+
     [RelayCommand]
     private Task RefreshMonitorsAsync() => LoadMonitorsAsync();
 
@@ -433,6 +459,13 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         Attach(host);
         host.PeerArrived += (platform, name) => OnViewerArrived(entry, platform, name);
         host.Streaming += count => OnHostStreaming(entry, count);
+        host.ViewerPlaysAudio += plays =>
+        {
+            if (entry.Viewer is not null)
+            {
+                entry.Viewer.PlaysAudio = plays;
+            }
+        };
         UpdateSharingStatus();
     }
 
@@ -587,10 +620,31 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
     {
         entry.Viewer = new ViewerItem(
             name, platform == Platform.MacOS, platform is Platform.IPadOS or Platform.Android,
-            new AsyncRelayCommand(entry.Host.StopAsync));
+            new AsyncRelayCommand(entry.Host.StopAsync), new AsyncRelayCommand(() => ToggleSoundAsync(entry)));
         Viewers.Add(entry.Viewer);
         UpdateSharingStatus();
         _ = ListenAsync(); // the next computer can connect while this one pairs and streams
+    }
+
+    /// <summary>One display has this PC's sound at a time, as on the Mac; the engine moves it.</summary>
+    private async Task ToggleSoundAsync(HostEntry entry)
+    {
+        if (entry.Viewer is not { } viewer)
+        {
+            return;
+        }
+        bool on = !viewer.SoundOn;
+        EngineResult result = await entry.Host.SetSoundAsync(on).ConfigureAwait(true);
+        if (result != EngineResult.Ok)
+        {
+            ErrorMessage = ErrorMessages.For(result);
+            viewer.SoundOn = false;
+            return;
+        }
+        foreach (ViewerItem other in Viewers)
+        {
+            other.SoundOn = on && ReferenceEquals(other, viewer);
+        }
     }
 
     private void OnHostStreaming(HostEntry entry, uint displayCount)
@@ -712,7 +766,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             }
             ErrorMessage = null;
             HotkeyGesture hotkey = _settings.ViewerHotkey;
-            var options = new ViewerOptions(_deviceName, device.Address, device.Port, offered, hotkey.Modifiers, hotkey.VirtualKey);
+            var options = new ViewerOptions(
+                _deviceName, device.Address, device.Port, offered, hotkey.Modifiers, hotkey.VirtualKey, _settings.PlaysSound);
             (EngineResult started, EngineViewer? viewer) = await EngineViewer.StartAsync(_dispatcher, options).ConfigureAwait(true);
             if (viewer is null)
             {
@@ -727,6 +782,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             viewer.MonitorsChanged += () => _resumesAfterClose = true;
             viewer.VisibilityChanged += visible => IsViewerVisible = visible;
             viewer.Statistics += OnStatistics;
+            viewer.SoundChanged += playing => ReceivesSound = playing;
+            await viewer.SetMutedAsync(IsSoundMuted).ConfigureAwait(true);
             IsViewerVisible = true;
             IsSessionActive = true;
             ViewerStarted?.Invoke();
@@ -743,9 +800,10 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void OnStatistics(IReadOnlyList<StreamFigures> figures)
+    private void OnStatistics(IReadOnlyList<StreamFigures> figures, AudioFigures? audio)
     {
         _figures = figures;
+        _audioFigures = audio;
         if (_settings.ShowsStatsOverlay)
         {
             _ = ShowOverlayAsync();
@@ -759,26 +817,42 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         {
             return;
         }
-        foreach (StreamFigures stream in _figures)
+        for (int i = 0; i < _figures.Count; i++)
         {
-            string text = _settings.ShowsStatsOverlay ? OverlayText(stream) : string.Empty;
+            StreamFigures stream = _figures[i];
+            // The sound belongs to no display: its line goes under the first one's figures.
+            AudioFigures? audio = i == 0 ? _audioFigures : null;
+            string text = _settings.ShowsStatsOverlay ? OverlayText(stream, audio) : string.Empty;
             await viewer.SetOverlayAsync(stream.StreamId, text).ConfigureAwait(true);
         }
     }
 
-    /// <summary>"60 fps · 22.1 Mbit/s · RTT 4 ms · loss 0.0% · latency 12 ms", like the Mac's overlay.</summary>
-    private static string OverlayText(StreamFigures stream)
+    /// <summary>
+    /// "60 fps · 22.1 Mbit/s · RTT 4 ms · loss 0.0% · latency 12 ms", like the Mac's overlay, and while
+    /// sound plays a second line: "sound: reserve 40 ms · latency 55 ms · gaps 0 · concealed 0".
+    /// </summary>
+    private static string OverlayText(StreamFigures stream, AudioFigures? audio)
     {
         CultureInfo culture = CultureInfo.CurrentCulture;
-        string latency = stream.LatencyMicroseconds > 0
-            ? (stream.LatencyMicroseconds / 1000.0).ToString("F0", culture)
-            : Localization.Strings.StatsUnknown;
-        return LocalizedText.Format(
+        string text = LocalizedText.Format(
             Localization.Strings.StatsOverlay, stream.FramesPerSecond,
             (stream.BitrateKbps / 1000.0).ToString("F1", culture),
             (stream.RoundTripMicroseconds / 1000.0).ToString("F0", culture),
-            (stream.LossPermille / 10.0).ToString("F1", culture), latency);
+            (stream.LossPermille / 10.0).ToString("F1", culture), Milliseconds(stream.LatencyMicroseconds, culture));
+        if (audio is null)
+        {
+            return text;
+        }
+        string sound = LocalizedText.Format(
+            Localization.Strings.StatsOverlaySound, (audio.BufferedMicroseconds / 1000.0).ToString("F0", culture),
+            Milliseconds(audio.LatencyMicroseconds, culture), audio.Underruns, audio.ConcealedFrames);
+        return text + "\n" + sound;
     }
+
+    /// <summary>Microseconds as whole milliseconds, or the unknown mark for 0.</summary>
+    private static string Milliseconds(uint microseconds, CultureInfo culture) => microseconds > 0
+        ? (microseconds / 1000.0).ToString("F0", culture)
+        : Localization.Strings.StatsUnknown;
 
     // --- Shared ---------------------------------------------------------------------------------
 
@@ -1063,6 +1137,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
             _viewedHost = null;
             _resumesAfterClose = false;
             _figures = [];
+            _audioFigures = null;
+            ReceivesSound = false;
             IsSessionActive = false;
             IsStreaming = false;
             CanSwapRoles = false;
@@ -1287,6 +1363,8 @@ public sealed partial class ConnectionViewModel : ObservableObject, IDisposable
         Viewers.Clear();
         _viewer = null;
         _figures = [];
+        _audioFigures = null;
+        ReceivesSound = false;
         IsSessionActive = false;
         if (browser is not null)
         {

@@ -1,11 +1,20 @@
 import SwiftUI
 import UIKit
 
-/// The computer's display, full screen. A tap shows the controls for a few seconds.
+/// The computer's display, full screen. A tap shows the controls for a few seconds. On Apple TV the
+/// remote's select button shows them and moves focus onto them, where they stay; Menu hides them,
+/// or ends the session when they are hidden.
 struct ViewerScreen: View {
     @Bindable var connection: PadConnectionViewModel
     @State private var showsControls = false
     @State private var hideTask: Task<Void, Never>?
+    @FocusState private var focusedControl: Control?
+
+    private enum Control: Hashable {
+        case statistics
+        case sound
+        case disconnect
+    }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -28,30 +37,72 @@ struct ViewerScreen: View {
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture { revealControls() }
+        #if os(tvOS)
+            .focusable(!showsControls)
+            .onTapGesture { revealControls() }
+            .onExitCommand {
+                if showsControls {
+                    withAnimation { showsControls = false }
+                } else {
+                    connection.disconnect()
+                }
+            }
+        #else
+            .onTapGesture { revealControls() }
+            .statusBarHidden()
+        #endif
         .onGeometryChange(for: Bool.self) {
             $0.size.width > $0.size.height
         } action: { landscape in
             connection.viewportChanged(landscape: landscape)
         }
-        .statusBarHidden()
         .persistentSystemOverlays(.hidden)
         .onDisappear { hideTask?.cancel() }
     }
 
     private var controls: some View {
         HStack(spacing: Theme.Spacing.medium) {
-            Toggle(isOn: Bindable(connection.settings).showsStatsOverlay) {
-                Label("pad.viewer.stats", systemImage: Theme.Symbol.statistics)
+            statisticsControl
+                .focused($focusedControl, equals: .statistics)
+            if connection.receivesSound {
+                soundControl
+                    .focused($focusedControl, equals: .sound)
             }
-            .toggleStyle(.button)
             Button(role: .destructive, action: connection.disconnect) {
                 Label("pad.viewer.disconnect", systemImage: Theme.Symbol.disconnect)
             }
+            .focused($focusedControl, equals: .disconnect)
         }
         .buttonStyle(.bordered)
         .padding(Theme.Spacing.small)
         .background(Theme.Viewer.controlBackground, in: Capsule())
+    }
+
+    /// Switches the stats overlay. tvOS has no button-style toggle, so there it is a button.
+    @ViewBuilder private var statisticsControl: some View {
+        #if os(tvOS)
+            Button {
+                connection.settings.showsStatsOverlay.toggle()
+            } label: {
+                Label("pad.viewer.stats", systemImage: Theme.Symbol.statistics)
+            }
+        #else
+            Toggle(isOn: Bindable(connection.settings).showsStatsOverlay) {
+                Label("pad.viewer.stats", systemImage: Theme.Symbol.statistics)
+            }
+            .toggleStyle(.button)
+        #endif
+    }
+
+    /// Mutes the computer's sound here at once, or plays it again.
+    private var soundControl: some View {
+        Button {
+            connection.setSoundMuted(!connection.soundMuted)
+        } label: {
+            Label(
+                connection.soundMuted ? "pad.viewer.unmute" : "pad.viewer.mute",
+                systemImage: connection.soundMuted ? Theme.Symbol.soundMuted : Theme.Symbol.soundOn)
+        }
     }
 
     private var waitingText: String {
@@ -63,12 +114,17 @@ struct ViewerScreen: View {
 
     private func revealControls() {
         withAnimation { showsControls = true }
-        hideTask?.cancel()
-        hideTask = Task { @MainActor in
-            try? await Task.sleep(for: Tunables.Pad.controlsHideDelay)  // cancelled by the next tap
-            guard !Task.isCancelled else { return }
-            withAnimation { showsControls = false }
-        }
+        #if os(tvOS)
+            // The remote's focus moves onto the controls, which stay until Menu.
+            focusedControl = .statistics
+        #else
+            hideTask?.cancel()
+            hideTask = Task { @MainActor in
+                try? await Task.sleep(for: Tunables.Pad.controlsHideDelay)  // cancelled by the next tap
+                guard !Task.isCancelled else { return }
+                withAnimation { showsControls = false }
+            }
+        #endif
     }
 }
 

@@ -17,6 +17,7 @@ internal static class ErrorMessages
         EngineResult.EncoderUnavailable or EngineResult.EncoderFailed => Localization.Strings.ErrorEncoder,
         EngineResult.DecoderUnavailable => Localization.Strings.ErrorDecoder,
         EngineResult.PeerTooOld => Localization.Strings.ErrorSwapUnsupported,
+        EngineResult.SoundUnavailable => Localization.Strings.ErrorSoundUnavailable,
         _ => LocalizedText.Format(Localization.Strings.ErrorEngine, (int)result),
     };
 

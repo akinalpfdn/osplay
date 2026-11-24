@@ -49,6 +49,11 @@
 - **Pencere değil, gerçek ekran.** macOS ve Windows ek bir monitör görür: yerleştirin, pencereleri
   üzerine sürükleyin, çözünürlüğünü ayarlayın.
 - **Her yön.** Mac → Windows, Windows → Mac, Mac → Mac ve Windows → Windows.
+- **Tablet, telefon ve TV de.** iPad, Android telefon ya da tablet, Android TV ya da yakında Apple TV
+  bir Mac'in ya da PC'nin ek ekranı olabilir.
+- **Ses de ekranda.** Genişleyen bilgisayar sesini ekranda çalabilir: bir TV'nin, tabletin ya da
+  başka bir bilgisayarın hoparlöründen. Bu sırada kendi hoparlörü susar; ses tuşları HDMI kablosundaki
+  gibi iki tarafta da çalışır.
 - **Bütün monitörleriniz.** Ekran olarak kullanılan bilgisayar bütün ekranlarını sunar (en fazla
   dört) ve bir bilgisayar aynı anda birden çok bilgisayara genişleyebilir.
 - **Yerel ve gizli.** Bulut ve hesap yok. Cihazlar 6 haneli bir kodla bir kez eşleşir, her bağlantı
@@ -117,8 +122,9 @@ keşfi, eşleşmeyi, şifrelemeyi ve protokolü yürütür; ayrıntılar:
 1. [`Osplay.dmg`](https://github.com/akinalpfdn/osplay/releases/latest/download/Osplay.dmg) dosyasını
    indirin, açın ve Osplay'i Uygulamalar klasörüne sürükleyin.
 2. Osplay'i başlatın; menü çubuğunda durur.
-3. İki bilgisayarın birbirini bulabilmesi için **Yerel Ağ** erişimine, bu Mac'i genişletirken de
-   **Ekran Kaydı**'na izin verin.
+3. İki bilgisayarın birbirini bulabilmesi için **Yerel Ağ** erişimine, bu Mac'i genişletirken
+   **Ekran Kaydı**'na, bu Mac'in sesini bir ekranda çalmak için de **Sistem Sesi Kaydı**'na izin verin
+   (macOS 14.2 ve üzeri).
 
 ### Windows
 

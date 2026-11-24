@@ -27,7 +27,7 @@ internal object Native {
 
     /**
      * monitor: width, height, refresh (mHz), physical width and height (mm), scale (%);
-     * capabilities: max streams, max width, max height, max refresh (Hz). With [accessoryFd] >= 0
+     * capabilities: max streams, max width, max height, max refresh (Hz), plays sound (0 or 1). With [accessoryFd] >= 0
      * the session runs on that USB accessory, which the core owns from here on, instead of [host].
      */
     external fun viewerCreate(
@@ -52,6 +52,9 @@ internal object Native {
     external fun sessionResumeStream(handle: Long, streamId: Int): Int
 
     external fun sessionAnswerRoleSwap(handle: Long, answer: Int): Int
+
+    /** The viewer's live mute: the sound keeps being read and plays as silence. */
+    external fun sessionSetMuted(handle: Long, muted: Boolean)
 
     external fun sessionClose(handle: Long): Int
 

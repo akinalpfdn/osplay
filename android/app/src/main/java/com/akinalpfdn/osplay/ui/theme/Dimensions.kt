@@ -1,5 +1,6 @@
 package com.akinalpfdn.osplay.ui.theme
 
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 
@@ -13,10 +14,13 @@ object Spacing {
 object Sizes {
     val SymbolColumn = 40.dp
     val Symbol = 28.dp
+    /** The ring around what the TV remote has focused. */
+    val FocusRing = 3.dp
 }
 
 object Shapes {
     val Card = RoundedCornerShape(16.dp)
     val Stats = RoundedCornerShape(8.dp)
     val Controls = RoundedCornerShape(28.dp)
+    val Round = CircleShape
 }

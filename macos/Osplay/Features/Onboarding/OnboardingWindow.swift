@@ -5,7 +5,10 @@ import SwiftUI
 @MainActor
 final class OnboardingWindow {
     private var window: NSWindow?
+    private var closeObserver: NSObjectProtocol?
     private let viewModel: OnboardingViewModel
+    /// Called each time the window closes, by its close button or from the view.
+    var onClose: (() -> Void)?
 
     init(viewModel: OnboardingViewModel) {
         self.viewModel = viewModel
@@ -26,6 +29,11 @@ final class OnboardingWindow {
         window.contentView = NSHostingView(rootView: view)
         window.setContentSize(window.contentView?.fittingSize ?? .zero)
         window.center()
+        closeObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.onClose?() }
+        }
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
         window.orderFrontRegardless()
@@ -35,5 +43,7 @@ final class OnboardingWindow {
     func close() {
         window?.close()
         window = nil
+        if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) }
+        closeObserver = nil
     }
 }

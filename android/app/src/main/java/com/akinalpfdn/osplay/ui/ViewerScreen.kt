@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.WindowManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -21,6 +22,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.VolumeOff
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,6 +42,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
@@ -58,39 +64,58 @@ import com.akinalpfdn.osplay.ui.theme.Shapes
 import com.akinalpfdn.osplay.ui.theme.Spacing
 import com.akinalpfdn.osplay.viewer.StatsFigures
 import com.akinalpfdn.osplay.viewer.StreamStage
-import java.util.Locale
 import kotlinx.coroutines.delay
 
 private const val CONTROLS_HIDE_MILLIS = 4_000L
 
-/** The computer's display, full screen with the system bars hidden. A tap shows the controls. */
+/**
+ * The computer's display, full screen with the system bars hidden. A tap, or OK on a TV remote,
+ * shows the controls; the remote's focus moves onto them and they stay while it is there. Back
+ * hides them, or ends the session when they are hidden.
+ */
 @Composable
 fun ViewerScreen(
     state: UiState,
     stage: StreamStage,
     onDisconnect: () -> Unit,
     onShowsStats: (Boolean) -> Unit,
+    onSoundMuted: (Boolean) -> Unit,
     onViewport: (Boolean) -> Unit,
 ) {
     val stream by stage.stream.collectAsStateWithLifecycle()
     val cursor by stage.cursor.collectAsStateWithLifecycle()
     var tapCount by remember { mutableIntStateOf(0) }
     var showsControls by remember { mutableStateOf(false) }
+    var controlsFocused by remember { mutableStateOf(false) }
+    val stageFocus = remember { FocusRequester() }
+    val controlsFocus = remember { FocusRequester() }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     ImmersiveWhileShown()
     LaunchedEffect(landscape) { onViewport(landscape) }
-    LaunchedEffect(tapCount) {
-        if (tapCount == 0) return@LaunchedEffect
-        showsControls = true
+    // With touch nothing takes focus and these requests do nothing.
+    LaunchedEffect(Unit) { stageFocus.requestFocus() }
+    LaunchedEffect(tapCount) { if (tapCount > 0) showsControls = true }
+    LaunchedEffect(tapCount, controlsFocused) {
+        if (tapCount == 0 || controlsFocused) return@LaunchedEffect
         delay(CONTROLS_HIDE_MILLIS)
         showsControls = false
+        stageFocus.requestFocus()
+    }
+    BackHandler {
+        if (showsControls) {
+            showsControls = false
+            stageFocus.requestFocus()
+        } else {
+            onDisconnect()
+        }
     }
 
     Box(
         Modifier
             .fillMaxSize()
             .background(OsplayColors.ViewerBackground)
+            .focusRequester(stageFocus)
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { tapCount++ },
         contentAlignment = Alignment.Center,
     ) {
@@ -130,13 +155,32 @@ fun ViewerScreen(
             modifier = Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(Spacing.Large),
         ) {
             Row(
-                Modifier.background(OsplayColors.ControlsBackground, Shapes.Controls).padding(Spacing.Small),
+                Modifier
+                    .background(OsplayColors.ControlsBackground, Shapes.Controls)
+                    .padding(Spacing.Small)
+                    .onFocusChanged { controlsFocused = it.hasFocus },
                 horizontalArrangement = Arrangement.spacedBy(Spacing.Small),
             ) {
-                FilledTonalIconToggleButton(checked = state.showsStats, onCheckedChange = onShowsStats) {
+                // Once the controls are on screen, the remote's focus moves onto them.
+                LaunchedEffect(Unit) { controlsFocus.requestFocus() }
+                FilledTonalIconToggleButton(
+                    checked = state.showsStats,
+                    onCheckedChange = onShowsStats,
+                    modifier = Modifier.focusRequester(controlsFocus).focusRing(Shapes.Round),
+                ) {
                     Icon(Icons.Outlined.BarChart, contentDescription = stringResource(R.string.viewer_stats))
                 }
-                IconButton(onClick = onDisconnect) {
+                if (state.receivesSound) {
+                    // Mutes the computer's sound here at once; it keeps coming, so it is back at once too.
+                    IconButton(onClick = { onSoundMuted(!state.soundMuted) }, modifier = Modifier.focusRing(Shapes.Round)) {
+                        Icon(
+                            if (state.soundMuted) Icons.AutoMirrored.Outlined.VolumeOff else Icons.AutoMirrored.Outlined.VolumeUp,
+                            contentDescription = stringResource(if (state.soundMuted) R.string.viewer_unmute else R.string.viewer_mute),
+                            tint = OsplayColors.OnViewer,
+                        )
+                    }
+                }
+                IconButton(onClick = onDisconnect, modifier = Modifier.focusRing(Shapes.Round)) {
                     Icon(
                         Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.viewer_disconnect),
@@ -170,15 +214,28 @@ private fun Waiting(screen: Screen) {
 
 @Composable
 private fun StatsLabel(figures: StatsFigures, modifier: Modifier) {
-    Text(
+    // The configuration's locale, so a language change reformats the numbers at once.
+    val locale = LocalConfiguration.current.locales[0]
+    val stream = stringResource(
+        R.string.stats_overlay,
+        figures.framesPerSecond,
+        String.format(locale, "%.1f", figures.bitrateKbps / 1000.0),
+        figures.roundTripMilliseconds,
+        String.format(locale, "%.1f", figures.lossPercent),
+        figures.latencyMilliseconds?.toString() ?: "–",
+    )
+    // While sound plays, a second line: "sound: reserve 40 ms · latency 55 ms · gaps 0 · concealed 0".
+    val sound = figures.sound?.let {
         stringResource(
-            R.string.stats_overlay,
-            figures.framesPerSecond,
-            String.format(Locale.getDefault(), "%.1f", figures.bitrateKbps / 1000.0),
-            figures.roundTripMilliseconds,
-            String.format(Locale.getDefault(), "%.1f", figures.lossPercent),
-            figures.latencyMilliseconds?.toString() ?: "–",
-        ),
+            R.string.stats_overlay_sound,
+            it.reserveMilliseconds,
+            it.latencyMilliseconds?.toString() ?: "–",
+            it.gaps,
+            it.concealedFrames,
+        )
+    }
+    Text(
+        if (sound == null) stream else "$stream\n$sound",
         style = OsplayText.Stats,
         color = OsplayColors.OnViewer,
         modifier = modifier.background(OsplayColors.StatsBackground, Shapes.Stats).padding(Spacing.Small),

@@ -1,3 +1,5 @@
+#include "../audio/host_sound.hpp"
+#include "../audio/wasapi_system_sound.hpp"
 #include "../capture/duplication_pipeline.hpp"
 #include "../display/gdi_display_mode_applier.hpp"
 #include "../display/pipe_helper_channel.hpp"
@@ -29,9 +31,10 @@ using osplay::engine::guarded;
 using osplay::engine::system_random;
 using osplay::engine::to_result;
 
-/// The orchestrator's view of the core session. Detached before the session is destroyed, so the
-/// pipeline thread never reaches a dead session.
-class CapiCorePort final : public osplay::engine::HostCorePort {
+/// The orchestrator's and the sound's view of the core session. Detached before the session is
+/// destroyed, so the pipeline and recorder threads never reach a dead session.
+class CapiCorePort final : public osplay::engine::HostCorePort,
+                           public osplay::engine::SoundReceiver {
 public:
     void attach(osplay_session* session) {
         const std::scoped_lock lock(mutex_);
@@ -92,6 +95,29 @@ public:
         const std::scoped_lock lock(mutex_);
         return session_ == nullptr ? OSPLAY_ERROR_INVALID_STATE
                                    : osplay_session_answer_role_swap(session_, answer);
+    }
+    [[nodiscard]] bool start_audio() override {
+        const osplay_audio_config config{.sample_rate_hz = OSPLAY_AUDIO_SAMPLE_RATE,
+                                         .channels = osplay::engine::kSoundChannels,
+                                         .frame_duration_us = osplay::engine::kSoundFrameUs,
+                                         .bitrate_kbps = osplay::engine::kSoundBitrateKbps};
+        const std::scoped_lock lock(mutex_);
+        return session_ != nullptr && osplay_session_start_audio(session_, &config) == OSPLAY_OK;
+    }
+    void push_audio(std::span<const float> samples, std::uint64_t capture_time_us) override {
+        const std::scoped_lock lock(mutex_);
+        if (session_ != nullptr) {
+            // A full send queue drops the frame; the viewer conceals it.
+            static_cast<void>(osplay_session_push_audio(
+                session_, samples.data(), samples.size() / osplay::engine::kSoundChannels,
+                osplay::engine::kSoundChannels, capture_time_us));
+        }
+    }
+    void stop_audio() override {
+        const std::scoped_lock lock(mutex_);
+        if (session_ != nullptr) {
+            static_cast<void>(osplay_session_stop_audio(session_)); // fails only when closing
+        }
     }
 
 private:
@@ -164,6 +190,46 @@ private:
     osplay_engine_host_callbacks callbacks_;
 };
 
+/// Where the recorder's messages go: the shell log of the session that last turned sound on.
+class SoundLog {
+public:
+    void set(const osplay_engine_host_callbacks& callbacks) {
+        const std::scoped_lock lock(mutex_);
+        callbacks_ = callbacks;
+    }
+    void forget(const void* context) {
+        const std::scoped_lock lock(mutex_);
+        if (callbacks_.context == context) {
+            callbacks_ = {};
+        }
+    }
+    void write(osplay_log_level level, const std::string& message) {
+        const std::scoped_lock lock(mutex_);
+        if (callbacks_.on_log != nullptr) {
+            callbacks_.on_log(callbacks_.context, level, message.c_str());
+        }
+    }
+
+private:
+    std::mutex mutex_;
+    osplay_engine_host_callbacks callbacks_{};
+};
+
+SoundLog& sound_log() {
+    static SoundLog log;
+    return log;
+}
+
+/// The PC's sound, shared by every host session of this process: one display has it at a time.
+osplay::engine::HostSound& system_sound() {
+    static osplay::engine::WasapiSystemSound recorder(
+        [](osplay_log_level level, const std::string& message) {
+            sound_log().write(level, message);
+        });
+    static osplay::engine::HostSound sound(recorder);
+    return sound;
+}
+
 std::unique_ptr<osplay::engine::StreamDump> make_dump(const char* directory_utf8) {
     if (directory_utf8 == nullptr || *directory_utf8 == '\0') {
         return nullptr;
@@ -200,6 +266,21 @@ osplay_engine_host* host_of(void* context) {
     return static_cast<osplay_engine_host*>(context);
 }
 
+/// The viewer's decoder limits; none when the core passes no Capabilities.
+osplay_capabilities viewer_limits(const osplay_capabilities* viewer) {
+    return viewer != nullptr ? *viewer : osplay_capabilities{};
+}
+
+/// The viewer's monitors: the shell learns whether it plays sound, then streams start.
+void viewer_monitors(osplay_engine_host* host, std::span<const osplay_monitor> monitors,
+                     const osplay_capabilities& limits) {
+    if (host->callbacks.on_viewer_plays_audio != nullptr) {
+        const bool plays = (limits.flags & OSPLAY_CAPABILITY_PLAYS_AUDIO) != 0;
+        host->callbacks.on_viewer_plays_audio(host->callbacks.context, plays ? 1 : 0);
+    }
+    host->orchestrator->on_viewer_monitors(monitors, limits);
+}
+
 osplay_session_callbacks core_callbacks(osplay_engine_host* host) {
     osplay_session_callbacks callbacks{};
     callbacks.context = host;
@@ -207,6 +288,7 @@ osplay_session_callbacks core_callbacks(osplay_engine_host* host) {
         auto* self = host_of(context);
         if (state == OSPLAY_SESSION_CLOSED) {
             self->orchestrator->on_session_closed();
+            system_sound().release(self->port); // the speakers play again
         }
         self->callbacks.on_state(self->callbacks.context, state, reason);
     };
@@ -244,8 +326,9 @@ osplay_session_callbacks core_callbacks(osplay_engine_host* host) {
             self->callbacks.on_paired(self->callbacks.context, key);
         }
     };
-    callbacks.on_viewer_monitors = [](void* context, const osplay_monitor* monitors, size_t count) {
-        host_of(context)->orchestrator->on_viewer_monitors(std::span(monitors, count));
+    callbacks.on_viewer_monitors = [](void* context, const osplay_monitor* monitors, size_t count,
+                                      const osplay_capabilities* viewer) {
+        viewer_monitors(host_of(context), std::span(monitors, count), viewer_limits(viewer));
     };
     callbacks.on_keyframe_request = [](void* context, uint8_t stream_id) {
         host_of(context)->orchestrator->on_keyframe_request(stream_id);
@@ -484,6 +567,28 @@ osplay_engine_result osplay_engine_host_answer_role_swap(osplay_engine_host* hos
     });
 }
 
+osplay_engine_result osplay_engine_host_set_sound(osplay_engine_host* host, uint8_t on) {
+    return guarded([&] {
+        if (host == nullptr || on > 1) {
+            return OSPLAY_ENGINE_ERROR_INVALID_ARGUMENT;
+        }
+        if (on == 0) {
+            system_sound().release(host->port);
+            return OSPLAY_ENGINE_OK;
+        }
+        sound_log().set(host->callbacks);
+        return system_sound().route(host->port) ? OSPLAY_ENGINE_OK
+                                                : OSPLAY_ENGINE_ERROR_SOUND_UNAVAILABLE;
+    });
+}
+
+void osplay_engine_restore_speakers(void) {
+    static_cast<void>(guarded([] {
+        osplay::engine::restore_speakers_after_crash();
+        return OSPLAY_ENGINE_OK;
+    }));
+}
+
 osplay_engine_result osplay_engine_host_stop(osplay_engine_host* host) {
     return guarded([&] {
         if (host == nullptr) {
@@ -512,6 +617,8 @@ void osplay_engine_host_destroy(osplay_engine_host* host) {
     }
     static_cast<void>(guarded([&] {
         // Order matters: no pushes into a dying session, no callbacks into a dead orchestrator.
+        system_sound().release(owned->port); // the speakers play again
+        sound_log().forget(owned->callbacks.context);
         osplay_session* session = owned->port.detach();
         osplay_session_destroy(session); // joins the core's I/O thread
         owned->orchestrator.reset();     // stops capture and removes the virtual monitor

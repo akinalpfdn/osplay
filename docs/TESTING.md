@@ -107,6 +107,79 @@ other device joins it (Wi-Fi settings, or the camera on the QR code) and is on n
 | W6 | Stays connected | Join a phone and leave it idle for five minutes, then stream to it | Still joined and streams; Event Viewer › WLAN-AutoConfig shows no "Wireless security stopped" for it |
 | W7 | Settings come back | Note the name in Settings › Mobile hotspot, open and close Osplay's network | The hotspot is off and shows your own name again |
 
+## Android TV
+
+The Android app on an Android TV or Google TV with Android 12 or later, installed with
+`adb install` (BUILDING.md) or from Google Play, driven with the TV's remote. Turn the stats
+overlay on in the app's Settings for TV4.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| TV1 | Launcher | Open the TV's apps row | Osplay's blue banner is there; it opens the list of computers with no USB cable section |
+| TV2 | Mac → TV | Choose the Mac with the remote (each row shows a ring when focused) and confirm the code | A Mac display in the TV's mode (3840×2160 on a 4K TV) that looks like 1920×1080 |
+| TV3 | PC → TV | The same with the PC | A virtual monitor in the TV's mode at 200% in Settings › Display (100% on a 1080p TV) |
+| TV4 | Native stream | On the computer set the stream size to Native, then TV2 | The overlay shows close to 60 fps; on a TV whose decoder stops at 4K30 the stream is smaller instead, still near 60 fps |
+| TV5 | Remote | During TV2 press OK, move along the controls, press Back twice | OK shows the controls with the stats button focused; they stay while focused; the first Back hides them, the second ends the session and shows the list |
+| TV6 | Home button | During TV2 press the remote's Home button, wait 10 s, open Osplay again | The display goes away on the computer and comes back when Osplay opens |
+
+## Apple TV (simulator)
+
+The `OsplayTV` scheme in a tvOS simulator on the Mac (BUILDING.md); the arrow keys, Return and
+Escape (Menu) drive the remote. There is no Apple TV to test on, so the decoder, the HDMI output and
+latency on hardware are not covered.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| ATV1 | Mac → Apple TV 4K | Simulator "Apple TV 4K"; the same Mac shares; choose it and confirm the code on both | A 3840×2160 Mac display that looks like 1920×1080 shows in the simulator |
+| ATV2 | PC → Apple TV | The PC shares; choose it in the simulator | A PC virtual monitor at 200% |
+| ATV3 | Apple TV 1080p | Simulator "Apple TV 4K (at 1080p)"; ATV1 | A 1920×1080 display at full size |
+| ATV4 | Remote | During ATV1 press Return, move along the controls, press Escape twice | Return shows the controls and focuses the statistics button; the first Escape hides them, the second ends the session |
+| ATV5 | Wording | Home screen and Settings | They say Apple TV, never iPad; no USB cable section |
+
+## TVs (simulated)
+
+A Debug build of the Mac app poses as a TV when it is used as a display: menu › Developer tools ›
+**Simulated TV**. It offers one monitor of unknown size at 200% instead of its own displays and
+shows the stream full screen on the first one. Turn the stats overlay on (Settings) to read the
+frame rate and bitrate.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| V1 | Mac → 4K TV | Viewer Mac: **4K TV, 60 Hz**. Host Mac extends onto it | A 3840×2160 display on the host that looks like 1920×1080 (crisp HiDPI); the overlay shows about 60 fps |
+| V2 | PC → 4K TV | V1 with the PC as host | A 3840×2160 virtual monitor at 200% in Settings › Display; the overlay as in V1 |
+| V3 | Decoder limit | Viewer Mac: **4K TV, decoder up to 30 Hz**, stream size Native on the host; repeat V1 and V2 | The display stays 3840×2160 at 60 Hz on the host (System Settings › Displays, Settings › Display); the overlay shows about 30 fps and about half V1's bitrate |
+| V4 | 1080p TV | Viewer Mac: **1080p TV**; Mac and PC host | A 1920×1080 display at 200% (looks like 960×540 on the Mac) |
+| V5 | Back to normal | Viewer Mac: **Off**; connect again | The Mac's own displays are offered, at their own sizes and scales |
+
+## Sound
+
+The Mac sends its sound to a display (AUD-02). Until the viewers play it (AUD-04) the Mac side is
+checked with a Debug build: menu › Developer tools › **Host media test**, which streams to a viewer
+inside the same app and shows what that viewer hears.
+
+| # | Scenario | Steps | Expected |
+|---|----------|-------|----------|
+| S1 | Permission | Fresh install: onboarding › System Audio Recording › Allow | macOS asks once; the row shows a check mark. Osplay works without it; only sound needs it |
+| S2 | Sound to the test viewer | Host media test › Start, then **Send this Mac's sound to the test viewer**; play music | The Mac falls silent; the sound line shows a level (for example −20 dB), about 130 kbps and a 30–50 ms reserve |
+| S3 | Sound back | S2, turn the switch off (or Stop) | The music plays on the Mac again within a second |
+| S4 | Output change | S2, plug in or pick other headphones as output | The Mac stays silent and the level line keeps moving |
+| S5 | Older macOS | On macOS 14.0–14.1, connect a viewer that plays sound | No sound button; the row says sound on the display needs macOS 14.2 |
+| S6 | Mac → PC | UC1; on the Mac, press the speaker button in the PC's row; play music on the Mac | The Mac falls silent and the music plays from the PC's speakers, in step with the picture |
+| S7 | PC speakers change | S6, unplug or switch the PC's default output | The sound continues on the new default output within a second |
+| S8 | Sound back | S6, press the button again, or disconnect | The music plays on the Mac again; the PC releases its speakers |
+| S9 | Mac → Mac, iPad, Apple TV | Connect a second Mac, the iPad or the Apple TV as a display; press the speaker button in its row; play music | The music plays on that device, in step with the picture; with the stats overlay on in that device's settings, it shows a sound line |
+| S10 | iPad interruption | S9 on the iPad, start and end a FaceTime call or Siri | The sound comes back on its own after the interruption |
+| S12 | Mac → Android | Connect the phone or the Android TV as a display; press the speaker button in its row; play music | The music plays on the device, in step with the picture; with its stats overlay on, a sound line shows |
+| S13 | Android output change | S12 on the phone, plug in or pull headphones (or switch Bluetooth) | The sound continues on the new output within a second |
+| S14 | Mute on the display | S6, S9 or S12; on the device that shows the display, press its mute control (PC tray panel, Mac menu, iPad/Apple TV/phone viewer controls), then press it again | The sound stops on that device at once and comes back at once; the other computer stays silent meanwhile |
+| S15 | Sound turned off on the display | On the display device, turn off "Play the other computer's sound" (Settings); connect | The sharing computer shows no speaker button for that device |
+| S16 | Mac volume keys | S6, S9 or S12; on the sharing Mac press the volume keys, then mute | The sound on the display gets quieter and louder with the Mac's volume, and stops on mute; the display's own volume still works on top |
+| S17 | PC → display | Share from the PC to the Mac (or iPad, phone); in the panel row press the speaker button; play music on the PC | The PC's speakers fall silent and the music plays on the display, in step with the picture |
+| S18 | PC volume and mute keys | S17, change the PC's volume, then press the mute key twice | The display's sound follows the volume; the first mute press silences the display (the PC stays silent), the second brings it back |
+| S19 | Sound back to the PC | S17, press the speaker button again, or disconnect | The music plays on the PC again with its mute as before |
+| S20 | Crash while sending | S17, end Osplay in Task Manager, start it again | Right after the start the PC's speakers play again |
+| S11 | Mac viewer output change | S9 on a Mac, switch its output (headphones, display speakers) | The sound continues on the new output within a second |
+
 ## Interruptions
 
 | # | Scenario | Steps | Expected |

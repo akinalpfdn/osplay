@@ -52,6 +52,7 @@ public:
     std::vector<std::uint32_t> pairing_codes;
     std::vector<crypto::Key> paired;
     std::vector<protocol::Monitor> monitors;
+    protocol::Capabilities viewer_capabilities{};
     std::vector<std::string> info_logs;
     std::vector<protocol::StreamConfig> stream_configs;
     int keyframe_requests = 0;
@@ -62,6 +63,8 @@ public:
     std::vector<session::RoleSwapAnswer> role_swap_answers;
     std::optional<crypto::Key> role_swap_peer;
     std::vector<std::uint32_t> bitrate_targets;
+    std::vector<protocol::AudioConfig> audio_configs;
+    int audio_stops = 0;
 
     void on_state(SessionState state, std::optional<Error> reason) override {
         states.push_back(state);
@@ -75,8 +78,10 @@ public:
         pairing_codes.push_back(code);
     }
     void on_paired(const crypto::Key& key) override { paired.push_back(key); }
-    void on_viewer_monitors(const std::vector<protocol::Monitor>& offered) override {
+    void on_viewer_monitors(const std::vector<protocol::Monitor>& offered,
+                            const protocol::Capabilities& viewer) override {
         monitors = offered;
+        viewer_capabilities = viewer;
     }
     void on_stream_config(const protocol::StreamConfig& config) override {
         stream_configs.push_back(config);
@@ -107,6 +112,10 @@ public:
     void on_bitrate_target(std::uint8_t /*stream_id*/, std::uint32_t kbps) override {
         bitrate_targets.push_back(kbps);
     }
+    void on_audio_config(const protocol::AudioConfig& config) override {
+        audio_configs.push_back(config);
+    }
+    void on_audio_stopped() override { ++audio_stops; }
     void on_role_swap_answer(session::RoleSwapAnswer answer, const crypto::Key& key) override {
         role_swap_answers.push_back(answer);
         role_swap_peer = key;

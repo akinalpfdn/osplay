@@ -37,6 +37,10 @@ final class ConnectionViewModel {
         let platform: PeerPlatform
         /// The virtual displays it uses; 0 until its streams run.
         var displayCount = 0
+        /// It can play this Mac's sound (protocol 1.3 and a device with audio output).
+        var playsAudio = false
+        /// This Mac's sound plays there instead of on the Mac.
+        var soundOn = false
     }
 
     /// One host session: the one listening for the next viewer, one trying an iPad or waiting on
@@ -100,6 +104,10 @@ final class ConnectionViewModel {
     private(set) var peers: [TrustedPeer] = []
     private(set) var error: ConnectionError?
     private(set) var hotkeyUnavailable = false
+    #if DEBUG
+        /// Developer tools: the TV this Mac poses as when it views another computer.
+        var simulatedTV: SimulatedTV = .off
+    #endif
     /// This Mac's displays, for the picker of those offered to hosts.
     private(set) var displays: [LocalDisplay] = LocalDisplays.all()
     /// While sharing: the computers this Mac extends onto, in the order they connected.
@@ -134,6 +142,10 @@ final class ConnectionViewModel {
     private var hotkey: HotkeyRegistration?
     private var swapHotkey: HotkeyRegistration?
     private(set) var swapHotkeyUnavailable = false
+    /// While viewing: the other computer sends its sound to this Mac.
+    private(set) var receivesSound = false
+    /// While viewing: this Mac plays the other computer's sound as silence; kept for the next session.
+    private(set) var soundMuted = false
     private var pendingSwap: PendingSwap?
     /// Viewing after a swap: connects to this device as soon as Bonjour finds it.
     private var autoConnectDeviceID: String?
@@ -206,17 +218,24 @@ final class ConnectionViewModel {
             return
         }
         displays = LocalDisplays.all()
-        let offered = offeredDisplays()
+        var offered = offeredDisplays()
         guard !offered.isEmpty else {
             error = displays.isEmpty ? .noDisplay : .noDisplaySelected
             return
         }
+        var viewerDevice = sessionDevice(identity, maximumStreams: offered.count)
+        #if DEBUG
+            offered = simulatedTV.offered(offered)
+            if let decoder = simulatedTV.capabilities(maximumStreams: offered.count) {
+                viewerDevice = SessionDevice(identity: identity, name: deviceName, capabilities: decoder)
+            }
+        #endif
         error = nil
         let peer = SessionPeer()
         let core: CoreSession
         do throws(CoreError) {
             core = try CoreSession.viewer(
-                device: sessionDevice(identity, maximumStreams: offered.count), monitors: offered.map(\.description),
+                device: viewerDevice, monitors: offered.map(\.description),
                 host: device.host, port: device.port, trust: { [trust, peer] key in peer.trust(key, in: trust) })
         } catch {
             self.error = .session(error)
@@ -228,7 +247,9 @@ final class ConnectionViewModel {
             core: core, decoders: dependencies.decoders, presenters: dependencies.presenters,
             power: dependencies.power,
             target: { stream in places[stream.monitorID].map(PresentationTarget.fullScreen) },
+            audioOutputs: dependencies.audioOutputs,
             showsStats: { [settings = dependencies.settings] in await MainActor.run { settings.showsStatsOverlay } })
+        session.setMuted(soundMuted)
         viewer = session
         viewerPeer = peer
         viewerPairingOwner = UUID()
@@ -260,6 +281,50 @@ final class ConnectionViewModel {
                 await session.stop()
             }
             await viewer?.stop()
+        }
+    }
+
+    /// Whether this macOS can send its sound to a display (process taps, macOS 14.2+).
+    var canSendSound: Bool { dependencies.audioCaptures.isAvailable }
+
+    /// Silences the other computer's sound on this Mac while viewing, or plays it again.
+    func setSoundMuted(_ muted: Bool) {
+        soundMuted = muted
+        viewer?.setMuted(muted)
+    }
+
+    /// Plays this Mac's sound on that viewer's display, muted on the Mac, or brings it back to the
+    /// Mac. One display plays it at a time: turning it on elsewhere turns it off here.
+    func setSound(_ connected: ConnectedViewer, _ on: Bool) {
+        guard let connection = hostConnections.first(where: { $0.viewer?.id == connected.id }) else { return }
+        let others = hostConnections.filter { $0 !== connection && $0.viewer?.soundOn == true }.map(\.session)
+        let permission = dependencies.audioPermission
+        Task { [weak self, session = connection.session] in
+            if on {
+                guard await Self.audioAllowed(permission) else {
+                    self?.error = .soundPermissionDenied
+                    if let url = permission.settingsURL { NSWorkspace.shared.open(url) }
+                    return
+                }
+                for other in others {
+                    // Turning sound off only fails if it was off already.
+                    try? await other.setSound(false)
+                }
+            }
+            do throws(HostSoundError) {
+                try await session.setSound(on)
+            } catch {
+                self?.error = .sound(error)
+            }
+        }
+    }
+
+    /// Asks once; when macOS does not say, the capture itself shows the prompt.
+    static func audioAllowed(_ permission: any AudioCapturePermissionChecking) async -> Bool {
+        switch permission.access {
+        case .granted: return true
+        case .denied: return false
+        case .unknown: return await permission.request() || permission.access != .denied
         }
     }
 
@@ -428,7 +493,8 @@ final class ConnectionViewModel {
                 }
             },
             displays: VirtualDisplayLender(provider: dependencies.virtualDisplays), budget: displayBudget,
-            captures: dependencies.captures, encoders: dependencies.encoders, permissions: dependencies.permissions)
+            captures: dependencies.captures, encoders: dependencies.encoders, permissions: dependencies.permissions,
+            audioCaptures: dependencies.audioCaptures)
         let connection = HostConnection(
             session: session, peer: peer, usbDeviceID: usbDeviceID, accessoryID: accessoryID)
         hostConnections.append(connection)
@@ -639,6 +705,12 @@ final class ConnectionViewModel {
             }
         case .roleSwapAnswered(let answer, let key):
             swapAnswered(answer, peer: key, becoming: .viewing, peerName: connection.viewer?.name ?? "")
+        case .viewerPlaysAudio(let plays):
+            connection.viewer?.playsAudio = plays
+            publishViewers()
+        case .sound(let on):
+            connection.viewer?.soundOn = on
+            publishViewers()
         }
     }
 
@@ -749,6 +821,8 @@ final class ConnectionViewModel {
             storePairing(key, name: peerName)
         case .state(let state):
             if state == .streaming { viewerConnected() }
+        case .sound(let on):
+            receivesSound = on
         case .streamAdded, .visibility, .statistics:
             break
         case .roleSwapRequested(let key):
@@ -770,6 +844,7 @@ final class ConnectionViewModel {
         viewerTasks.forEach { $0.cancel() }
         viewerTasks = []
         viewer = nil
+        receivesSound = false
         dropPairing(owner: viewerPairingOwner)
         status = .idle
         let host = viewedHost
@@ -1029,7 +1104,8 @@ final class ConnectionViewModel {
             capabilities: SessionCapabilities(
                 maximumStreams: maximumStreams, maximumWidth: Tunables.Connection.maximumWidth,
                 maximumHeight: Tunables.Connection.maximumHeight,
-                maximumRefreshHz: Tunables.Connection.maximumRefreshHz))
+                maximumRefreshHz: Tunables.Connection.maximumRefreshHz,
+                playsAudio: dependencies.settings.playsSound))
     }
 
     /// Keeps where the viewer's displays sit, so Settings shows them and the next connection reuses it.

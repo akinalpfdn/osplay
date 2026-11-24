@@ -32,11 +32,22 @@ extension Tunables {
         /// Safety-net keyframe interval in seconds; keyframes normally come on request.
         static let maximumKeyframeInterval = 60.0
         static let profile = H264Profile.high
+        /// Frames a P-frame may reference, with low-latency rate control. VideoToolbox's default (12)
+        /// makes decoders that ignore the stream's "no reordering" hint (TV chips) hold 12 frames
+        /// before showing one: about 200 ms at 60 fps, and the last frames of a still screen (the
+        /// cursor) never appear.
+        static let referenceFrames = 1
         /// The boxes a stream is fitted into for each stream size setting (DEVPLAN Phase 13c).
         static let streamBox720 = (width: 1280, height: 720)
         static let streamBox1080 = (width: 1920, height: 1080)
         static let streamBox1440 = (width: 2560, height: 1440)
 
+    }
+
+    enum Menu {
+        /// The menu bar icon appears shortly after launch; opening the menu waits for it this often.
+        static let openAttempts = 20
+        static let openRetry: Duration = .milliseconds(250)
     }
 
     enum Onboarding {
@@ -89,6 +100,9 @@ extension Tunables {
         /// Viewer monitors scaled at least this much start in the crisp HiDPI resolution; others
         /// start at one point per pixel.
         static let hiDPIMinimumScalePercent = 150
+        /// A viewer monitor of unknown size (0 mm: a TV, a projector) is given the size its pixels
+        /// have at this density times its scale, as a desktop monitor at 100% has about 96 dpi.
+        static let unknownSizeDotsPerInch = 96.0
         /// Streams never exceed this rate; 120 Hz capture runs at ~80 fps on a MacBook Air M3.
         static let maximumRefreshMillihertz: UInt32 = 60_000
     }
@@ -105,6 +119,21 @@ extension Tunables {
         static let displayLookupInterval: Duration = .milliseconds(100)
     }
 
+    /// The sound a Mac host sends (AUD-02): stereo Opus in 10 ms frames, as the core recommends
+    /// (DECISIONS.md, 2026-11-20).
+    enum Audio {
+        static let sampleRate = AudioFormat.sampleRate
+        static let channels = 2
+        static let frameDurationMicroseconds = 10_000
+        static let bitrateKbps = 128
+        /// Room for one tap buffer after conversion; taps deliver a few hundred to a few thousand frames.
+        static let conversionCapacityFrames: UInt32 = 16_384
+        static var format: AudioFormat {
+            AudioFormat(
+                channels: channels, frameDurationMicroseconds: frameDurationMicroseconds, bitrateKbps: bitrateKbps)
+        }
+    }
+
     #if DEBUG
         enum Developer {
             /// Peer ID for test displays, so their arrangement persists between debug sessions.
@@ -119,6 +148,9 @@ extension Tunables {
             static let loopbackMonitor = (width: 1920, height: 1080, refreshMillihertz: UInt32(60_000))
             static let loopbackDeviceName = "Osplay Loopback"
             static let freezeDelay: Duration = .seconds(5)
+            /// Simulated TV: a TV's mode and the scale a TV app offers (watched from across a room).
+            static let simulatedTVRefreshMillihertz: UInt32 = 60_000
+            static let simulatedTVScalePercent = 200
             /// Frame intervals the pacing statistics cover (5 s at 60 fps).
             static let pacingWindow = 300
             static let statisticsRefreshInterval: Duration = .milliseconds(500)

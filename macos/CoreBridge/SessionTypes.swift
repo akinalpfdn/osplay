@@ -130,17 +130,44 @@ public struct SessionCapabilities: Sendable, Equatable {
     public let maximumWidth: Int
     public let maximumHeight: Int
     public let maximumRefreshHz: Int
+    /// A viewer that plays the host's sound (protocol 1.3; the core tells only peers that know it).
+    public let playsAudio: Bool
 
-    public init(maximumStreams: Int, maximumWidth: Int, maximumHeight: Int, maximumRefreshHz: Int) {
+    public init(
+        maximumStreams: Int, maximumWidth: Int, maximumHeight: Int, maximumRefreshHz: Int, playsAudio: Bool = false
+    ) {
         self.maximumStreams = maximumStreams
         self.maximumWidth = maximumWidth
         self.maximumHeight = maximumHeight
         self.maximumRefreshHz = maximumRefreshHz
+        self.playsAudio = playsAudio
+    }
+
+    /// A peer that sent no limits (the protocol's 0 means none).
+    public static let unlimited = SessionCapabilities(
+        maximumStreams: 0, maximumWidth: 0, maximumHeight: 0, maximumRefreshHz: 0)
+
+    /// The largest stream it decodes, as a box for `StreamSizing.fit`; nil without a limit.
+    public var decodingBox: (width: Int, height: Int)? {
+        maximumWidth > 0 && maximumHeight > 0 ? (maximumWidth, maximumHeight) : nil
+    }
+
+    /// The highest frame rate it decodes in millihertz; nil without a limit.
+    public var maximumRefreshMillihertz: UInt32? {
+        maximumRefreshHz > 0 ? UInt32(maximumRefreshHz) * 1000 : nil
+    }
+
+    init(_ raw: osplay_capabilities) {
+        self.init(
+            maximumStreams: Int(raw.max_streams), maximumWidth: Int(raw.max_width),
+            maximumHeight: Int(raw.max_height), maximumRefreshHz: Int(raw.max_refresh_hz),
+            playsAudio: raw.flags & UInt8(OSPLAY_CAPABILITY_PLAYS_AUDIO) != 0)
     }
 
     var raw: osplay_capabilities {
         osplay_capabilities(
-            codecs: OSPLAY_CODEC_H264_ANNEX_B, max_streams: UInt8(clamping: maximumStreams), flags: 0,
+            codecs: OSPLAY_CODEC_H264_ANNEX_B, max_streams: UInt8(clamping: maximumStreams),
+            flags: playsAudio ? UInt8(OSPLAY_CAPABILITY_PLAYS_AUDIO) : 0,
             max_width: UInt16(clamping: maximumWidth), max_height: UInt16(clamping: maximumHeight),
             max_refresh_hz: UInt16(clamping: maximumRefreshHz))
     }
@@ -322,12 +349,73 @@ public struct StreamStatistics: Sendable, Equatable {
     }
 }
 
+/// The sound a host sends (protocol 1.3): Opus at 48 kHz.
+public struct AudioFormat: Sendable, Equatable {
+    public static let sampleRate = Int(OSPLAY_AUDIO_SAMPLE_RATE)
+
+    public let channels: Int
+    public let frameDurationMicroseconds: Int
+    public let bitrateKbps: Int
+
+    public init(channels: Int, frameDurationMicroseconds: Int, bitrateKbps: Int) {
+        self.channels = channels
+        self.frameDurationMicroseconds = frameDurationMicroseconds
+        self.bitrateKbps = bitrateKbps
+    }
+
+    init(_ raw: osplay_audio_config) {
+        self.init(
+            channels: Int(raw.channels), frameDurationMicroseconds: Int(raw.frame_duration_us),
+            bitrateKbps: Int(raw.bitrate_kbps))
+    }
+
+    var raw: osplay_audio_config {
+        osplay_audio_config(
+            sample_rate_hz: UInt32(OSPLAY_AUDIO_SAMPLE_RATE), channels: UInt8(clamping: channels),
+            frame_duration_us: UInt16(clamping: frameDurationMicroseconds), bitrate_kbps: UInt16(clamping: bitrateKbps))
+    }
+}
+
+public struct AudioStatistics: Sendable, Equatable {
+    public let bitrateKbps: Int
+    /// Viewer: the reserve held against network jitter, and its target.
+    public let bufferedMicroseconds: Int
+    public let targetMicroseconds: Int
+    /// Viewer: capture to playback, before the device's own latency; 0 if unknown.
+    public let latencyMicroseconds: Int
+    public let concealedFrames: UInt64
+    public let latePackets: UInt64
+    public let underruns: UInt64
+
+    public init(
+        bitrateKbps: Int, bufferedMicroseconds: Int = 0, targetMicroseconds: Int = 0, latencyMicroseconds: Int = 0,
+        concealedFrames: UInt64 = 0, latePackets: UInt64 = 0, underruns: UInt64 = 0
+    ) {
+        self.bitrateKbps = bitrateKbps
+        self.bufferedMicroseconds = bufferedMicroseconds
+        self.targetMicroseconds = targetMicroseconds
+        self.latencyMicroseconds = latencyMicroseconds
+        self.concealedFrames = concealedFrames
+        self.latePackets = latePackets
+        self.underruns = underruns
+    }
+
+    init(_ raw: osplay_audio_stats) {
+        self.init(
+            bitrateKbps: Int(raw.bitrate_kbps), bufferedMicroseconds: Int(raw.buffered_us),
+            targetMicroseconds: Int(raw.target_us), latencyMicroseconds: Int(raw.latency_us),
+            concealedFrames: raw.concealed_frames, latePackets: raw.late_packets, underruns: raw.underruns)
+    }
+}
+
 public struct SessionStatistics: Sendable, Equatable {
     public let roundTripMicroseconds: Int
     /// Peer clock minus local clock.
     public let clockOffsetMicroseconds: Int64
     public let datagramsRejected: UInt64
     public let streams: [StreamStatistics]
+    /// Present while the host sends sound.
+    public var audio: AudioStatistics? = nil
 }
 
 public enum SessionLogLevel: Sendable {
@@ -355,8 +443,9 @@ public enum SessionEvent: Sendable {
     case pairingCode(UInt32, peerPublicKey: [UInt8])
     /// Both users accepted: store the key as trusted.
     case paired(peerPublicKey: [UInt8])
-    /// Host: answer with `configureStreams`.
-    case viewerMonitors([MonitorDescription])
+    /// Host: the viewer's monitors and what it decodes; answer with `configureStreams`, every
+    /// stream within those limits.
+    case viewerMonitors([MonitorDescription], viewer: SessionCapabilities = .unlimited)
     /// Viewer: a stream the host is about to send.
     case streamConfiguration(StreamConfiguration)
     /// Host: encode a keyframe for this stream next.
@@ -378,6 +467,11 @@ public enum SessionEvent: Sendable {
     case roleSwapAnswered(RoleSwapAnswer, peerPublicKey: [UInt8])
     /// Host: encode this stream at this bitrate from now on (adapted to the link).
     case bitrateTarget(streamID: UInt8, kbps: Int)
+    /// Viewer: the host sends sound in this format from now on; open the audio output and fill it
+    /// with `readAudio`. Comes again when the format changes.
+    case audioConfiguration(AudioFormat)
+    /// Viewer: the host stopped sending sound; close the audio output.
+    case audioStopped
 }
 
 /// The outcome of a role swap request.

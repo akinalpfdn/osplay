@@ -7,8 +7,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** The size of the stream on screen and whether the host draws the cursor separately. */
-data class StreamShape(val width: Int, val height: Int, val separateCursor: Boolean)
+/** The size and frame rate of the stream and whether the host draws the cursor separately. */
+data class StreamShape(val width: Int, val height: Int, val separateCursor: Boolean, val frameRate: Int = DEFAULT_FRAME_RATE) {
+    companion object {
+        const val DEFAULT_FRAME_RATE = 60
+    }
+}
 
 /** The host's cursor for separate-cursor streams (Windows hosts), in stream pixels. */
 data class CursorState(val image: Bitmap, val x: Int, val y: Int, val hotspotX: Int, val hotspotY: Int)

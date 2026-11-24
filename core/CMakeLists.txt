@@ -32,6 +32,25 @@ endif()
 add_library(osplay_monocypher STATIC third_party/monocypher/monocypher.c)
 target_include_directories(osplay_monocypher PUBLIC third_party/monocypher)
 
+# libopus, the float build without its machine-learning parts (DNN, DRED, OSCE) and without
+# hand-written SIMD, so one source list builds everywhere; third_party/opus/README.osplay.md lists
+# what was kept. Package.swift builds the same sources.
+file(GLOB _osplay_opus_sources CONFIGURE_DEPENDS
+     third_party/opus/celt/*.c third_party/opus/silk/*.c third_party/opus/silk/float/*.c
+     third_party/opus/src/*.c)
+add_library(osplay_opus STATIC ${_osplay_opus_sources})
+target_include_directories(osplay_opus SYSTEM
+    PUBLIC third_party/opus/include
+    PRIVATE third_party/opus/celt third_party/opus/silk third_party/opus/silk/float
+            third_party/opus/src)
+target_compile_definitions(osplay_opus PRIVATE OPUS_BUILD USE_ALLOCA)
+if(MSVC)
+    target_compile_options(osplay_opus PRIVATE /W0)
+else()
+    target_compile_definitions(osplay_opus PRIVATE HAVE_LRINT HAVE_LRINTF)
+    target_compile_options(osplay_opus PRIVATE -w)
+endif()
+
 add_library(osplay_core STATIC
     src/capi/clock_capi.cpp
     src/capi/discovery_capi.cpp
@@ -44,6 +63,8 @@ add_library(osplay_core STATIC
     src/crypto/media_crypto.cpp
     src/crypto/noise.cpp
     src/crypto/primitives.cpp
+    src/media/audio_encoder.cpp
+    src/media/audio_playout.cpp
     src/media/cursor.cpp
     src/media/packetizer.cpp
     src/media/reassembler.cpp
@@ -70,7 +91,7 @@ target_include_directories(osplay_core
     PRIVATE src)
 target_compile_features(osplay_core PUBLIC cxx_std_20)
 set_target_properties(osplay_core PROPERTIES CXX_EXTENSIONS OFF)
-target_link_libraries(osplay_core PRIVATE osplay_monocypher osplay::warnings)
+target_link_libraries(osplay_core PRIVATE osplay_monocypher osplay_opus osplay::warnings)
 
 # Asio is header-only; SYSTEM keeps its headers out of Osplay's warning policy. The tests use it
 # too (a recording relay), so it is an interface target rather than settings on osplay_core.

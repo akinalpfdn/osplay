@@ -13,7 +13,7 @@ struct AdvertisementTests {
         #expect(record["os"] == "macos")
         #expect(record["roles"] == "host")
         #expect(record["id"] == identity.deviceID)
-        #expect(record["pm"] == "2")
+        #expect(record["pm"] == "3")
         #expect(try Advertisement(txtRecord: record) == advertisement)
     }
 

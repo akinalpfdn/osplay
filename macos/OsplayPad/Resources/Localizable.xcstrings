@@ -73,15 +73,39 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Shows this computer's extra display on the iPad"
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Shows this computer's extra display on this Apple TV"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Shows this computer's extra display on the iPad"
+                }
+              }
+            }
           }
         },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bu bilgisayarın ek ekranını iPad'de gösterir"
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bu bilgisayarın ek ekranını bu Apple TV'de gösterir"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bu bilgisayarın ek ekranını iPad'de gösterir"
+                }
+              }
+            }
           }
         }
       }
@@ -107,15 +131,39 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Update Osplay on this computer to use an iPad"
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Update Osplay on this computer to use an Apple TV"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Update Osplay on this computer to use an iPad"
+                }
+              }
+            }
           }
         },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iPad kullanmak için bu bilgisayardaki Osplay'i güncelleyin"
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Apple TV kullanmak için bu bilgisayardaki Osplay'i güncelleyin"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "iPad kullanmak için bu bilgisayardaki Osplay'i güncelleyin"
+                }
+              }
+            }
           }
         }
       }
@@ -277,15 +325,39 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Osplay on %@ is too old for an iPad. Update it to version 0.2 or later."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Osplay on %@ is too old for an Apple TV. Update it to version 0.2 or later."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Osplay on %@ is too old for an iPad. Update it to version 0.2 or later."
+                }
+              }
+            }
           }
         },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ üzerindeki Osplay iPad için çok eski. 0.2 ya da sonraki bir sürüme güncelleyin."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%@ üzerindeki Osplay Apple TV için çok eski. 0.2 ya da sonraki bir sürüme güncelleyin."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%@ üzerindeki Osplay iPad için çok eski. 0.2 ya da sonraki bir sürüme güncelleyin."
+                }
+              }
+            }
           }
         }
       }
@@ -294,15 +366,39 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Osplay could not read this iPad's screen size."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Osplay could not read this Apple TV's screen size."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Osplay could not read this iPad's screen size."
+                }
+              }
+            }
           }
         },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Osplay bu iPad'in ekran boyutunu okuyamadı."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Osplay bu Apple TV'nin ekran boyutunu okuyamadı."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Osplay bu iPad'in ekran boyutunu okuyamadı."
+                }
+              }
+            }
           }
         }
       }
@@ -379,15 +475,39 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The computer refused this iPad. It may have been removed from its paired devices."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "The computer refused this Apple TV. It may have been removed from its paired devices."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "The computer refused this iPad. It may have been removed from its paired devices."
+                }
+              }
+            }
           }
         },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bilgisayar bu iPad'i reddetti. Eşleşmiş cihazlarından kaldırılmış olabilir."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bilgisayar bu Apple TV'yi reddetti. Eşleşmiş cihazlarından kaldırılmış olabilir."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bilgisayar bu iPad'i reddetti. Eşleşmiş cihazlarından kaldırılmış olabilir."
+                }
+              }
+            }
           }
         }
       }
@@ -481,15 +601,39 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iPadOS could not provide secure random numbers. Restart the iPad and try again."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "tvOS could not provide secure random numbers. Restart the Apple TV and try again."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "iPadOS could not provide secure random numbers. Restart the iPad and try again."
+                }
+              }
+            }
           }
         },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iPadOS güvenli rastgele sayı üretemedi. iPad'i yeniden başlatıp tekrar deneyin."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "tvOS güvenli rastgele sayı üretemedi. Apple TV'yi yeniden başlatıp tekrar deneyin."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "iPadOS güvenli rastgele sayı üretemedi. iPad'i yeniden başlatıp tekrar deneyin."
+                }
+              }
+            }
           }
         }
       }
@@ -549,15 +693,39 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The iPad and the computer must be on the same network. Without a router, join a PC's Osplay network in Settings › Wi-Fi, or scan the code the PC shows with the Camera."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "The Apple TV and the computer must be on the same network. Without a router, join a PC's Osplay network in Settings › Network on this Apple TV."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "The iPad and the computer must be on the same network. Without a router, join a PC's Osplay network in Settings › Wi-Fi, or scan the code the PC shows with the Camera."
+                }
+              }
+            }
           }
         },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iPad ve bilgisayar aynı ağda olmalı. Router yoksa Ayarlar › Wi-Fi'dan bir PC'nin Osplay ağına katılın ya da PC'nin gösterdiği kodu Kamera ile tarayın."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Apple TV ve bilgisayar aynı ağda olmalı. Router yoksa bu Apple TV'de Ayarlar › Ağ'dan bir PC'nin Osplay ağına katılın."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "iPad ve bilgisayar aynı ağda olmalı. Router yoksa Ayarlar › Wi-Fi'dan bir PC'nin Osplay ağına katılın ya da PC'nin gösterdiği kodu Kamera ile tarayın."
+                }
+              }
+            }
           }
         }
       }
@@ -583,15 +751,39 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Use this iPad as an extra display for a Mac or a Windows PC."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Use this Apple TV as an extra display for a Mac or a Windows PC."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Use this iPad as an extra display for a Mac or a Windows PC."
+                }
+              }
+            }
           }
         },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bu iPad'i bir Mac ya da Windows bilgisayar için ek ekran olarak kullanın."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bu Apple TV'yi bir Mac ya da Windows bilgisayar için ek ekran olarak kullanın."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bu iPad'i bir Mac ya da Windows bilgisayar için ek ekran olarak kullanın."
+                }
+              }
+            }
           }
         }
       }
@@ -719,15 +911,39 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iPad name"
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Apple TV name"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "iPad name"
+                }
+              }
+            }
           }
         },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iPad adı"
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Apple TV adı"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "iPad adı"
+                }
+              }
+            }
           }
         }
       }
@@ -736,15 +952,39 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Computers show this iPad by this name."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Computers show this Apple TV by this name."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Computers show this iPad by this name."
+                }
+              }
+            }
           }
         },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bilgisayarlar bu iPad'i bu adla gösterir."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bilgisayarlar bu Apple TV'yi bu adla gösterir."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bilgisayarlar bu iPad'i bu adla gösterir."
+                }
+              }
+            }
           }
         }
       }
@@ -1017,6 +1257,115 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$lld fps · %2$@ Mbit/sn · RTT %3$@ ms · kayıp %%%4$@ · gecikme %5$@ ms"
+          }
+        }
+      }
+    },
+    "stats.overlaySound %@ %@ %lld %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sound: reserve %1$@ ms · latency %2$@ ms · gaps %3$lld · concealed %4$lld"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ses: yedek %1$@ ms · gecikme %2$@ ms · boşluk %3$lld · gizlenen %4$lld"
+          }
+        }
+      }
+    },
+    "pad.viewer.mute": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mute"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessize al"
+          }
+        }
+      }
+    },
+    "pad.viewer.unmute": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unmute"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sesi aç"
+          }
+        }
+      }
+    },
+    "pad.settings.playsSound": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play the computer's sound"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilgisayarın sesini çal"
+          }
+        }
+      }
+    },
+    "pad.settings.playsSoundFooter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "The Mac or PC can send its sound to this Apple TV. Off: it offers no sound for this Apple TV. Applies from the next connection."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "The Mac or PC can send its sound to this iPad. Off: it offers no sound for this iPad. Applies from the next connection."
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Mac veya PC sesini bu Apple TV'ye gönderebilir. Kapalıyken bu Apple TV için ses seçeneği sunulmaz. Bir sonraki bağlantıdan itibaren geçerli olur."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Mac veya PC sesini bu iPad'e gönderebilir. Kapalıyken bu iPad için ses seçeneği sunulmaz. Bir sonraki bağlantıdan itibaren geçerli olur."
+                }
+              }
+            }
           }
         }
       }

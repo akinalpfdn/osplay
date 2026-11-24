@@ -76,6 +76,14 @@ data class UiState(
     val deviceName: String = "",
     val showsStats: Boolean = false,
     val stats: StatsFigures? = null,
+    /** Plays the computer's sound (setting); off, this device does not announce sound. */
+    val playsSound: Boolean = true,
+    /** While viewing: the computer sends its sound. */
+    val receivesSound: Boolean = false,
+    /** While viewing: the sound plays as silence here; kept for the next session. */
+    val soundMuted: Boolean = false,
+    /** The USB cable row; a TV cannot be a USB accessory. */
+    val showsCable: Boolean = true,
 ) {
     val showsViewer: Boolean get() = screen is Screen.Connecting || screen is Screen.Viewing
 }
@@ -87,7 +95,12 @@ data class UiState(
 class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
     private val trust = TrustCache(dependencies.keyStore)
     private val state = MutableStateFlow(
-        UiState(deviceName = dependencies.settings.deviceName, showsStats = dependencies.settings.showsStatsOverlay),
+        UiState(
+            deviceName = dependencies.settings.deviceName,
+            showsStats = dependencies.settings.showsStatsOverlay,
+            playsSound = dependencies.settings.playsSound,
+            showsCable = dependencies.cable.isAvailable,
+        ),
     )
     val uiState: StateFlow<UiState> = state.asStateFlow()
 
@@ -181,10 +194,12 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
             deviceName = protocolDeviceName(),
             monitor = monitor,
             target = SessionTarget.Network(device.host, device.port),
+            playsSound = dependencies.settings.playsSound,
             trust = trust::trust,
             onEvent = ::handle,
         )
         if (started == null) return fail(Failure.Session(error ?: CoreError.Internal))
+        started.setMuted(state.value.soundMuted)
         session = started
         viewedHost = device.advertisement.deviceId to name
         offeredMonitor = monitor
@@ -230,6 +245,7 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
                     deviceName = protocolDeviceName(),
                     monitor = monitor,
                     target = SessionTarget.Cable(opening.fd),
+                    playsSound = dependencies.settings.playsSound,
                     trust = trust::trust,
                     onEvent = ::handle,
                 )
@@ -237,6 +253,7 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
                     state.update { it.copy(screen = Screen.Home) }
                     return fail(Failure.Session(error ?: CoreError.Internal))
                 }
+                started.setMuted(state.value.soundMuted)
                 session = started
                 viaCable = true
                 viewedHost = null
@@ -316,6 +333,7 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
             is ViewerEvent.Paired -> store { trust.paired(event.publicKey, viewedHost?.second.orEmpty()) }
             is ViewerEvent.Seen -> store { trust.seen(event.publicKey) }
             is ViewerEvent.Statistics -> state.update { it.copy(stats = event.figures) }
+            is ViewerEvent.Sound -> state.update { it.copy(receivesSound = event.playing) }
             is ViewerEvent.State -> when (event.state) {
                 SessionState.Streaming -> state.update { it.copy(screen = Screen.Viewing(viewedHost?.second.orEmpty())) }
                 SessionState.Closed -> ended(event.failure)
@@ -330,7 +348,7 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
         val host = viewedHost
         val resumes = resumesAfterClose
         resumesAfterClose = false
-        state.update { it.copy(pairing = null, stats = null) }
+        state.update { it.copy(pairing = null, stats = null, receivesSound = false) }
         val expectedBack = resumes || failure == CoreError.PeerSleeping || failure == CoreError.TimedOut ||
             failure == CoreError.Network
         if (viaCable) {
@@ -381,6 +399,17 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
     fun setShowsStats(shows: Boolean) {
         dependencies.settings.showsStatsOverlay = shows
         state.update { it.copy(showsStats = shows) }
+    }
+
+    fun setPlaysSound(plays: Boolean) {
+        dependencies.settings.playsSound = plays
+        state.update { it.copy(playsSound = plays) }
+    }
+
+    /** Silences the computer's sound here while viewing, or plays it again. */
+    fun setSoundMuted(muted: Boolean) {
+        state.update { it.copy(soundMuted = muted) }
+        session?.setMuted(muted)
     }
 
     fun revoke(peer: TrustedPeer) = store { trust.revoke(peer) }

@@ -4,11 +4,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.DialogProperties
 import com.akinalpfdn.osplay.R
@@ -29,8 +31,16 @@ fun PairingDialog(request: PairingRequest, onAnswer: (Boolean) -> Unit) {
                 Text(stringResource(R.string.pairing_message), style = MaterialTheme.typography.bodyMedium)
             }
         },
-        confirmButton = { Button(onClick = { onAnswer(true) }) { Text(stringResource(R.string.pairing_accept)) } },
-        dismissButton = { TextButton(onClick = { onAnswer(false) }) { Text(stringResource(R.string.action_cancel)) } },
+        confirmButton = {
+            Button(onClick = { onAnswer(true) }, modifier = Modifier.focusRing(ButtonDefaults.shape)) {
+                Text(stringResource(R.string.pairing_accept))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { onAnswer(false) }, modifier = Modifier.focusRing(ButtonDefaults.textShape)) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
     )
 }
 

@@ -6,6 +6,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -65,6 +66,12 @@ public:
         return monitors;
     }
 
+    std::vector<std::pair<std::wstring, std::uint16_t>> scales;
+    win::Status<DisplayError> set_scale(const std::wstring& name, std::uint16_t percent) override {
+        scales.emplace_back(name, percent);
+        return win::Status<DisplayError>::ok();
+    }
+
     win::Expected<std::vector<std::wstring>, DisplayError>
     apply(std::span<const VirtualMonitorConfig> configs,
           std::span<const std::wstring> existing) override {
@@ -115,6 +122,19 @@ TEST(VirtualDisplayHub, CreateConfiguresThenEnablesItsDevices) {
     EXPECT_EQ(f.channel->requests[1].command, helper::Command::Enable);
     EXPECT_EQ(f.channel->requests[1].devices, 0b11);
     EXPECT_EQ(f.applier->applied, (std::vector{config(), config(1920)}));
+}
+
+TEST(VirtualDisplayHub, AScaleGoesToTheUsersDesktopNotTheHelper) {
+    Fixture f;
+    HubVirtualDisplays session(f.hub);
+    ASSERT_TRUE(session.create_monitors(std::vector{config()}).has_value());
+    const std::size_t requests = f.channel->requests.size();
+
+    EXPECT_TRUE(session.set_scale(L"DISPLAY1", 200).has_value());
+
+    EXPECT_EQ(f.applier->scales,
+              (std::vector<std::pair<std::wstring, std::uint16_t>>{{L"DISPLAY1", 200}}));
+    EXPECT_EQ(f.channel->requests.size(), requests) << "scale is a setting of the user's session";
 }
 
 TEST(VirtualDisplayHub, ASecondSessionGetsFreeDevicesAndLeavesTheFirstAlone) {

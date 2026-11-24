@@ -84,6 +84,12 @@ win::Status<DisplayError> VirtualDisplayHub::remove_monitors(const void* owner) 
     return release(owner);
 }
 
+win::Status<DisplayError> VirtualDisplayHub::set_scale(const std::wstring& name,
+                                                       std::uint16_t percent) {
+    const std::scoped_lock lock(mutex_);
+    return mode_applier_->set_scale(name, percent);
+}
+
 win::Expected<VirtualMonitorStatus, DisplayError> VirtualDisplayHub::status() {
     using Result = win::Expected<VirtualMonitorStatus, DisplayError>;
     const std::scoped_lock lock(mutex_);
@@ -192,6 +198,11 @@ HubVirtualDisplays::create_monitors(std::span<const VirtualMonitorConfig> config
 win::Status<DisplayError> HubVirtualDisplays::remove_monitors() {
     own_ = 0;
     return hub_->remove_monitors(this);
+}
+
+win::Status<DisplayError> HubVirtualDisplays::set_scale(const std::wstring& gdi_name,
+                                                        std::uint16_t percent) {
+    return hub_->set_scale(gdi_name, percent);
 }
 
 win::Expected<VirtualMonitorStatus, DisplayError> HubVirtualDisplays::status() {

@@ -11,6 +11,10 @@ internal sealed record StreamFigures(
     byte StreamId, uint FramesPerSecond, uint BitrateKbps, uint RoundTripMicroseconds, ushort LossPermille,
     uint LatencyMicroseconds);
 
+/// <summary>The host's sound on this viewer: the reserve held against jitter and its gaps so far.</summary>
+internal sealed record AudioFigures(
+    uint BufferedMicroseconds, uint LatencyMicroseconds, ulong ConcealedFrames, ulong Underruns);
+
 /// <summary>
 /// One host or viewer session in the engine, started with the stored identity (the engine answers
 /// trust and stores pairings). Every native call runs through <see cref="Native"/>; events arrive
@@ -197,6 +201,9 @@ internal sealed unsafe class EngineHost : EngineSession
     /// <summary>The virtual monitors stream; the argument is how many this viewer got.</summary>
     public event Action<uint>? Streaming;
 
+    /// <summary>The viewer plays sound (true) or not, once it offered its monitors.</summary>
+    public event Action<bool>? ViewerPlaysAudio;
+
     /// <summary>The iPad on the USB cable this session reaches; null for one listening on the network.</summary>
     public uint? UsbDeviceId { get; private set; }
 
@@ -264,6 +271,7 @@ internal sealed unsafe class EngineHost : EngineSession
                     OnPeer = &OnPeer,
                     OnRoleSwapRequest = &OnRoleSwapRequest,
                     OnRoleSwapAnswer = &OnRoleSwapAnswer,
+                    OnViewerPlaysAudio = &OnViewerPlaysAudio,
                 };
                 nint handle;
                 EngineResult result = (created.UsbDeviceId, created.AccessoryId) switch
@@ -305,7 +313,21 @@ internal sealed unsafe class EngineHost : EngineSession
         }
     });
 
+    /// <summary>
+    /// Sends this PC's sound to the viewer, muting the PC's speakers meanwhile, or stops; one
+    /// session has the sound at a time (the engine takes it from another).
+    /// </summary>
+    public Task<EngineResult> SetSoundAsync(bool on) => Native.Run(() =>
+        Handle == 0 ? EngineResult.InvalidArgument : NativeMethods.HostSetSound(Handle, on ? (byte)1 : (byte)0));
+
     protected override void Destroy(nint handle) => NativeMethods.HostDestroy(handle);
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnViewerPlaysAudio(nint context, byte plays)
+    {
+        var self = (EngineHost)From(context);
+        self.Post(() => self.ViewerPlaysAudio?.Invoke(plays == 1));
+    }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void OnStreaming(nint context, uint displayCount, int left, int top, int right, int bottom)
@@ -325,7 +347,7 @@ internal sealed unsafe class EngineHost : EngineSession
 /// <summary>Where and how a viewer session runs.</summary>
 internal sealed record ViewerOptions(
     string DeviceName, string Address, ushort Port, IReadOnlyList<byte> MonitorIds, uint HotkeyModifiers,
-    uint HotkeyKey);
+    uint HotkeyKey, bool PlaysSound);
 
 /// <summary>Windows shows a remote screen on its monitors.</summary>
 internal sealed unsafe class EngineViewer : EngineSession
@@ -340,11 +362,14 @@ internal sealed unsafe class EngineViewer : EngineSession
     /// <summary>The streams were hidden (false) or shown (true), by the hotkey or by the shell.</summary>
     public event Action<bool>? VisibilityChanged;
 
-    /// <summary>The figures of every stream, about once a second.</summary>
-    public event Action<IReadOnlyList<StreamFigures>>? Statistics;
+    /// <summary>The figures of every stream and of the sound (null while none plays), about once a second.</summary>
+    public event Action<IReadOnlyList<StreamFigures>, AudioFigures?>? Statistics;
 
     /// <summary>An offered monitor changed its mode; the session closes so it can start over.</summary>
     public event Action? MonitorsChanged;
+
+    /// <summary>The host sends sound now (true) or stopped (false).</summary>
+    public event Action<bool>? SoundChanged;
 
     public static Task<(EngineResult Result, EngineViewer? Viewer)> StartAsync(
         Dispatcher dispatcher, ViewerOptions options)
@@ -369,6 +394,7 @@ internal sealed unsafe class EngineViewer : EngineSession
                         MonitorIdCount = (nuint)monitors.Length,
                         HotkeyModifiers = options.HotkeyModifiers,
                         HotkeyKey = options.HotkeyKey,
+                        PlaysSound = options.PlaysSound ? (byte)1 : (byte)0,
                     };
                     var callbacks = new NativeViewerCallbacks
                     {
@@ -385,6 +411,7 @@ internal sealed unsafe class EngineViewer : EngineSession
                         OnRoleSwapRequest = &OnRoleSwapRequest,
                         OnRoleSwapAnswer = &OnRoleSwapAnswer,
                         OnMonitorsChanged = &OnMonitorsChanged,
+                        OnSound = &OnSound,
                     };
                     nint handle;
                     EngineResult result = NativeMethods.ViewerStart(&config, &callbacks, &handle);
@@ -428,6 +455,15 @@ internal sealed unsafe class EngineViewer : EngineSession
         if (Handle != 0)
         {
             _ = NativeMethods.ViewerSetVisible(Handle, visible ? (byte)1 : (byte)0);
+        }
+    });
+
+    /// <summary>Plays the host's sound as silence here, at once, or plays it again.</summary>
+    public Task SetMutedAsync(bool muted) => Native.Run(() =>
+    {
+        if (Handle != 0)
+        {
+            _ = NativeMethods.ViewerSetMuted(Handle, muted ? (byte)1 : (byte)0);
         }
     });
 
@@ -475,6 +511,13 @@ internal sealed unsafe class EngineViewer : EngineSession
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void OnSound(nint context, byte playing)
+    {
+        var self = (EngineViewer)From(context);
+        self.Post(() => self.SoundChanged?.Invoke(playing == 1));
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void OnVisibility(nint context, byte visible)
     {
         var self = (EngineViewer)From(context);
@@ -493,6 +536,11 @@ internal sealed unsafe class EngineViewer : EngineSession
                 stream.StreamId, stream.FramesPerSecond, stream.BitrateKbps, stats->RoundTripMicroseconds,
                 stream.LossPermille, stream.LatencyMicroseconds));
         }
-        self.Post(() => self.Statistics?.Invoke(figures));
+        AudioFigures? audio = stats->Audio == null
+            ? null
+            : new AudioFigures(
+                stats->Audio->BufferedMicroseconds, stats->Audio->LatencyMicroseconds,
+                stats->Audio->ConcealedFrames, stats->Audio->Underruns);
+        self.Post(() => self.Statistics?.Invoke(figures, audio));
     }
 }

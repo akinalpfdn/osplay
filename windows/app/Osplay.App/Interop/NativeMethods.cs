@@ -105,6 +105,10 @@ internal static unsafe partial class NativeMethods
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult ViewerSetVisible(nint viewer, byte visible);
 
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_set_muted")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial EngineResult ViewerSetMuted(nint viewer, byte muted);
+
     [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_stop")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult ViewerStop(nint viewer);
@@ -152,6 +156,14 @@ internal static unsafe partial class NativeMethods
     [LibraryImport(_engine, EntryPoint = "osplay_engine_host_suspend")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     public static partial EngineResult HostSuspend(nint host);
+
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_host_set_sound")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial EngineResult HostSetSound(nint host, byte on);
+
+    [LibraryImport(_engine, EntryPoint = "osplay_engine_restore_speakers")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    public static partial void RestoreSpeakers();
 
     [LibraryImport(_engine, EntryPoint = "osplay_engine_viewer_suspend")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]

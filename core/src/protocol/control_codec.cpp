@@ -77,8 +77,8 @@ Check validate(const PairingConfirm& m) {
 
 Check validate(const Capabilities& m) {
     const bool codecs_ok = m.codecs != 0 && (m.codecs & ~kCodecH264AnnexB) == 0;
-    const auto known_flags =
-        static_cast<std::uint8_t>(kCapabilitySendsCursor | kCapabilityRendersCursor);
+    const auto known_flags = static_cast<std::uint8_t>(
+        kCapabilitySendsCursor | kCapabilityRendersCursor | kCapabilityPlaysAudio);
     const bool flags_ok = (m.flags & static_cast<std::uint8_t>(~known_flags)) == 0;
     if (!codecs_ok || !flags_ok || !in_range(m.max_streams, 1, kMaxStreams) ||
         !in_range(m.max_width, 320, 16384) || !in_range(m.max_height, 240, 16384) ||
@@ -192,6 +192,19 @@ Check validate(const RoleSwap& m) {
 
 Check validate(const MediaSetup& m) {
     return m.udp_port != 0 ? ok() : fail(Error::ValueOutOfRange);
+}
+
+Check validate(const AudioConfig& m) {
+    if (m.codec != AudioCodec::Opus || !in_range(m.channels, 1, 2) ||
+        !is_opus_frame_duration(m.frame_duration_us) || m.sample_rate_hz != kAudioSampleRate ||
+        !in_range(m.bitrate_kbps, kMinAudioBitrateKbps, kMaxAudioBitrateKbps)) {
+        return fail(Error::ValueOutOfRange);
+    }
+    return ok();
+}
+
+Check validate(const AudioStop& /*m*/) {
+    return ok();
 }
 
 // --- Decoding ------------------------------------------------------------------------------------
@@ -399,6 +412,17 @@ Decoded read_media_setup(Reader& r) {
     return m;
 }
 
+Decoded read_audio_config(Reader& r) {
+    AudioConfig m;
+    std::uint8_t codec = 0;
+    if (!r.u8(codec) || !r.u8(m.channels) || !r.u16(m.frame_duration_us) ||
+        !r.u32(m.sample_rate_hz) || !r.u16(m.bitrate_kbps)) {
+        return decode_failure(Error::Truncated);
+    }
+    m.codec = static_cast<AudioCodec>(codec);
+    return m;
+}
+
 Decoded read_body(std::uint8_t type, Reader& r) {
     switch (static_cast<ControlType>(type)) {
     case ControlType::Hello:
@@ -441,6 +465,10 @@ Decoded read_body(std::uint8_t type, Reader& r) {
         return read_media_setup(r);
     case ControlType::RoleSwap:
         return read_role_swap(r);
+    case ControlType::AudioConfig:
+        return read_audio_config(r);
+    case ControlType::AudioStop:
+        return AudioStop{};
     }
     return decode_failure(Error::UnknownType);
 }
@@ -548,6 +576,14 @@ void write_body(Writer& w, const ControlMessage& message) {
                        w.u8(static_cast<std::uint8_t>(m.step));
                        w.u8(static_cast<std::uint8_t>(m.refusal));
                    },
+                   [&](const AudioConfig& m) {
+                       w.u8(static_cast<std::uint8_t>(m.codec));
+                       w.u8(m.channels);
+                       w.u16(m.frame_duration_us);
+                       w.u32(m.sample_rate_hz);
+                       w.u16(m.bitrate_kbps);
+                   },
+                   [&](const AudioStop& /*m*/) {},
                },
                message);
 }

@@ -20,6 +20,7 @@ enum class MediaType : std::uint8_t {
     VideoFragment = 0x02,
     CursorPosition = 0x03,
     CursorShapeFragment = 0x04,
+    AudioPacket = 0x05,
 };
 
 inline constexpr std::uint8_t kVideoKeyframe = 1U << 0U;
@@ -68,7 +69,17 @@ struct CursorShapeFragment {
     bool operator==(const CursorShapeFragment& other) const;
 };
 
-using MediaBody = std::variant<UdpHello, VideoFragment, CursorPosition, CursorShapeFragment>;
+/// Protocol 1.3: one encoded audio frame (Opus), never retransmitted; a lost one is concealed.
+struct AudioPacket {
+    static constexpr MediaType kType = MediaType::AudioPacket;
+    std::uint32_t audio_sequence = 0;  ///< +1 per frame since the last AudioConfig
+    std::uint64_t capture_time_us = 0; ///< the frame's first sample, on the host's clock
+    std::span<const std::uint8_t> payload;
+    bool operator==(const AudioPacket& other) const;
+};
+
+using MediaBody =
+    std::variant<UdpHello, VideoFragment, CursorPosition, CursorShapeFragment, AudioPacket>;
 
 struct MediaPacket {
     std::uint64_t sequence = 0;

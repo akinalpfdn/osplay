@@ -50,7 +50,8 @@ typedef enum osplay_engine_result {
     OSPLAY_ENGINE_ERROR_KEY_STORE_UNAVAILABLE = 21, /* %APPDATA%\Osplay cannot be read or written */
     OSPLAY_ENGINE_ERROR_KEY_STORE_DAMAGED = 22, /* a stored identity or peer list is unreadable */
     OSPLAY_ENGINE_ERROR_DISCOVERY_UNAVAILABLE = 23, /* the system DNS-SD service refused */
-    OSPLAY_ENGINE_ERROR_PEER_TOO_OLD = 24, /* the other computer's Osplay lacks this feature */
+    OSPLAY_ENGINE_ERROR_PEER_TOO_OLD = 24,      /* the other computer's Osplay lacks this feature */
+    OSPLAY_ENGINE_ERROR_SOUND_UNAVAILABLE = 25, /* the PC's sound could not be recorded or sent */
     OSPLAY_ENGINE_RESULT_MAX_ENUM = 0x7FFFFFFF
 } osplay_engine_result;
 /* NOLINTEND(cppcoreguidelines-use-enum-class,performance-enum-size) */
@@ -216,6 +217,8 @@ typedef struct osplay_engine_host_callbacks {
      * session closes cleanly. */
     void (*on_role_swap_answer)(void* context, osplay_role_swap_answer answer,
                                 const uint8_t* peer_device_id);
+    /* The viewer plays sound (1) or not (0), once it has offered its monitors. */
+    void (*on_viewer_plays_audio)(void* context, uint8_t plays);
 } osplay_engine_host_callbacks;
 
 /* Connects to the helper service (once for every host session of this process) and starts
@@ -289,6 +292,17 @@ osplay_engine_host_request_role_swap(osplay_engine_host* host);
 OSPLAY_ENGINE_API osplay_engine_result
 osplay_engine_host_answer_role_swap(osplay_engine_host* host, osplay_role_swap_answer answer);
 
+/* Sends the PC's sound to this session's viewer (`on` 1), muting the PC's speakers meanwhile, or
+ * stops (`on` 0) and gives the speakers back. One session has the sound at a time: turning it on
+ * here takes it from another. The mute key mutes the viewer's sound instead of the speakers.
+ * SOUND_UNAVAILABLE when the viewer plays no sound or the speakers cannot be recorded. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_set_sound(osplay_engine_host* host,
+                                                                    uint8_t on);
+
+/* Unmutes speakers that an earlier Osplay muted for a display and could not give back (it
+ * crashed or was ended meanwhile). Call once at startup. */
+OSPLAY_ENGINE_API void osplay_engine_restore_speakers(void);
+
 /* Ends the session with Bye without waiting; on_state reports CLOSED. */
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_host_stop(osplay_engine_host* host);
 
@@ -340,6 +354,8 @@ typedef struct osplay_engine_viewer_config {
     /* Hide/show hotkey: RegisterHotKey MOD_* bits and a virtual-key code; 0 and 0: default. */
     uint32_t hotkey_modifiers;
     uint32_t hotkey_key;
+    /* 1: announce that this PC plays the host's sound, so the host offers it; 0: no sound. */
+    uint8_t plays_sound;
 } osplay_engine_viewer_config;
 
 /* Callbacks run on engine threads and must return quickly; they must not call
@@ -370,6 +386,8 @@ typedef struct osplay_engine_viewer_callbacks {
     /* An offered monitor changed its mode (resolution, refresh rate, scaling): the session is
      * closing so the shell can connect again with the new mode. */
     void (*on_monitors_changed)(void* context);
+    /* The host sends sound now (1) or stopped (0); it plays on the default output. */
+    void (*on_sound)(void* context, uint8_t playing);
 } osplay_engine_viewer_callbacks;
 
 typedef struct osplay_engine_stream_figures {
@@ -394,6 +412,10 @@ osplay_engine_viewer_confirm_pairing(osplay_engine_viewer* viewer, uint8_t accep
 /* Hides (0) or shows (1) every stream, like the hotkey. */
 OSPLAY_ENGINE_API osplay_engine_result
 osplay_engine_viewer_set_visible(osplay_engine_viewer* viewer, uint8_t visible);
+
+/* The viewer's live mute (`muted` is 0 or 1): the sound keeps being read and plays as silence. */
+OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_set_muted(osplay_engine_viewer* viewer,
+                                                                      uint8_t muted);
 
 /* Presentation figures of every running stream; `capacity` must be at least OSPLAY_MAX_STREAMS. */
 OSPLAY_ENGINE_API osplay_engine_result osplay_engine_viewer_stream_stats(

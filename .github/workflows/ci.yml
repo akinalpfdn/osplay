@@ -1,9 +1,11 @@
 name: CI
 
+# Phase branches merge into dev without CI; it runs when a release goes from dev into main.
 on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -49,7 +51,15 @@ jobs:
         run: |
           xcodegen generate
           xcodebuild -project Osplay.xcodeproj -scheme Osplay -destination 'platform=macOS' \
-            -derivedDataPath DerivedData -quiet test
+            -derivedDataPath DerivedData -resultBundlePath MacTests.xcresult -quiet test
+
+      # -quiet names failing tests without their messages; print them from the result bundle.
+      - name: macOS app — failure details
+        if: failure()
+        working-directory: macos
+        run: |
+          xcrun xcresulttool get test-results summary --path MacTests.xcresult \
+            | jq -r '.testFailures[]? | "\(.testName): \(.failureText)"'
 
       - name: iPad app — build, test on a simulator
         working-directory: macos
@@ -65,6 +75,13 @@ jobs:
           fi
           xcodebuild -project Osplay.xcodeproj -scheme OsplayPad -destination "platform=iOS Simulator,id=$simulator" \
             -derivedDataPath DerivedData -quiet test
+
+      # The iPad app's code built for Apple TV; its logic is tested by the iPad step above.
+      - name: Apple TV app — build for the simulator
+        working-directory: macos
+        run: |
+          xcodebuild -project Osplay.xcodeproj -scheme OsplayTV -destination "generic/platform=tvOS Simulator" \
+            -derivedDataPath DerivedData -quiet build
 
   android:
     name: Android

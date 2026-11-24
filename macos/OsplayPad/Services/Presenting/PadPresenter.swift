@@ -44,7 +44,10 @@ final class PadPresenter: FramePresenting {
     }
 
     func showStats(_ figures: StatsFigures?) {
-        view.statsLabel.text = figures.map { " \($0.overlayText) " }
+        // Each line padded on its own: the sound adds a second line.
+        view.statsLabel.text = figures.map {
+            $0.overlayText.split(separator: "\n").map { " \($0) " }.joined(separator: "\n")
+        }
         view.statsLabel.isHidden = figures == nil
         view.setNeedsLayout()
     }
@@ -85,6 +88,7 @@ final class PadPresenterView: UIView {
         layer.addSublayer(displayLayer)
         layer.addSublayer(cursorLayer)
         statsLabel.isHidden = true
+        statsLabel.numberOfLines = 0
         statsLabel.font = .monospacedDigitSystemFont(ofSize: Theme.StatsOverlay.fontSize, weight: .medium)
         statsLabel.textColor = Theme.StatsOverlay.text
         statsLabel.backgroundColor = Theme.StatsOverlay.background

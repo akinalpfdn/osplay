@@ -32,11 +32,13 @@ struct HomeView: View {
                             .disabled(connection.status == .waitingForCable)
                         }
                     }
-                    Text("pad.home.cable")
-                        .font(Theme.Typography.rowTitle)
-                    CableRow(
-                        waiting: connection.status == .waitingForCable, wait: connection.waitForCable,
-                        cancel: connection.disconnect)
+                    #if !os(tvOS)  // an Apple TV has no USB port for a computer
+                        Text("pad.home.cable")
+                            .font(Theme.Typography.rowTitle)
+                        CableRow(
+                            waiting: connection.status == .waitingForCable, wait: connection.waitForCable,
+                            cancel: connection.disconnect)
+                    #endif
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(Theme.Spacing.large)

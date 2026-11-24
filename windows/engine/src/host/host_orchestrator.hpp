@@ -82,7 +82,9 @@ public:
     bool on_peer();
     // Core events, from the core's I/O thread; handled on the orchestrator's worker thread so the
     // I/O thread never waits for the monitor or the encoder.
-    void on_viewer_monitors(std::span<const osplay_monitor> monitors);
+    /// `viewer` is what the viewer decodes (0 means no limit); every stream stays within it.
+    void on_viewer_monitors(std::span<const osplay_monitor> monitors,
+                            const osplay_capabilities& viewer = {});
     void on_keyframe_request(std::uint8_t stream_id);
     /// The core's bitrate target for the stream (adapted from receiver reports).
     void on_bitrate_target(std::uint8_t stream_id, std::uint32_t kbps);
@@ -95,11 +97,13 @@ public:
     /// Blocks until queued work has run (tests).
     void wait_idle();
 
-    /// The stream for a viewer monitor: fitted inside `box`, with a bitrate for the stream's own
-    /// pixels. `bits_per_pixel` is clamped to kMinBitsPerPixel...kMaxBitsPerPixel.
+    /// The stream for a viewer monitor: fitted inside `box` and inside what the viewer decodes
+    /// (size and frame rate; a TV's decoder may stop at 4K30), with a bitrate for the stream's own
+    /// pixels and frame rate. `bits_per_pixel` is clamped to kMinBitsPerPixel...kMaxBitsPerPixel.
     static osplay_stream_config stream_for(const osplay_monitor& monitor,
                                            double bits_per_pixel = kBitsPerPixel,
-                                           StreamBox box = {});
+                                           StreamBox box = {},
+                                           const osplay_capabilities& viewer = {});
 
 private:
     class StreamOutput;
@@ -120,7 +124,7 @@ private:
 
     void post(std::function<void()> task);
     void run();
-    void start(const std::vector<osplay_monitor>& monitors);
+    void start(const std::vector<osplay_monitor>& monitors, const osplay_capabilities& viewer);
     /// Makes one virtual monitor per stream and (re)starts every pipeline on its monitor.
     bool open_streams();
     void stop_stream(std::uint8_t stream_id);

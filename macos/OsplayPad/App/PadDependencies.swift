@@ -10,6 +10,8 @@ final class PadDependencies {
     let discovery: any PeerDiscovering
     let screen: any ScreenDescribing
     let settings: PadSettings
+    /// Plays the host's sound.
+    let audioOutputs: any AudioOutputMaking
 
     init(
         decoders: any VideoDecoderMaking = VideoToolboxDecoderFactory(),
@@ -18,8 +20,10 @@ final class PadDependencies {
         keyStore: any KeyStoring = KeychainKeyStore(),
         discovery: any PeerDiscovering = DNSServiceDiscovery(),
         screen: any ScreenDescribing = SceneScreen(),
-        settings: PadSettings = PadSettings()
+        settings: PadSettings = PadSettings(),
+        audioOutputs: any AudioOutputMaking = EngineAudioOutputs()
     ) {
+        self.audioOutputs = audioOutputs
         self.decoders = decoders
         self.presenters = presenters
         self.power = power

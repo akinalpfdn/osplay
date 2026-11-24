@@ -21,7 +21,8 @@ struct OsplayApp: App {
         _connection = State(initialValue: connection)
         let onboardingModel = OnboardingViewModel(
             permissions: dependencies.permissions, localNetworkCheck: BonjourLocalNetworkCheck(),
-            settings: dependencies.settings)
+            settings: dependencies.settings, audioPermission: dependencies.audioPermission,
+            offersSystemAudio: dependencies.audioCaptures.isAvailable)
         let onboarding = OnboardingWindow(viewModel: onboardingModel)
         self.onboarding = onboarding
         _settings = State(
@@ -30,8 +31,12 @@ struct OsplayApp: App {
                 hotkeys: dependencies.hotkeys, logs: UnifiedLogExporter(), showPermissions: onboarding.show))
         let updates = UpdatesViewModel(settings: dependencies.settings, checker: GitHubUpdateChecker())
         _updates = State(initialValue: updates)
+        let firstLaunchMenu = FirstLaunchMenu(settings: dependencies.settings, openMenu: MenuWindow.open)
+        onboarding.onClose = { firstLaunchMenu.onboardingClosed() }
         AppDelegate.onLaunch = {
-            if onboardingModel.needsAttention { onboarding.show() }
+            let showsOnboarding = onboardingModel.needsAttention
+            if showsOnboarding { onboarding.show() }
+            firstLaunchMenu.launched(showsOnboarding: showsOnboarding)
             Task { await updates.checkIfDue() }
         }
         #if DEBUG
@@ -39,7 +44,8 @@ struct OsplayApp: App {
             _developerHostTest = State(
                 initialValue: DeveloperHostTestViewModel(
                     provider: dependencies.virtualDisplays, captures: dependencies.captures,
-                    encoders: dependencies.encoders, permissions: dependencies.permissions))
+                    encoders: dependencies.encoders, permissions: dependencies.permissions,
+                    audioCaptures: dependencies.audioCaptures, audioPermission: dependencies.audioPermission))
             _developerLoopback = State(initialValue: DeveloperLoopbackViewModel(dependencies: dependencies))
         #endif
     }
@@ -73,17 +79,26 @@ struct OsplayApp: App {
                 DeveloperHostTestView(viewModel: developerHostTest)
                 Divider()
                 DeveloperLoopbackView(viewModel: developerLoopback)
+                Divider()
+                SimulatedTVView(connection: connection)
             }
         }
     #endif
 }
 
-/// Opens the permissions window at launch when something is missing.
+/// Opens the permissions window at launch when something is missing, and the menu when Osplay is
+/// opened again while it runs (as the Windows shell opens its panel).
 final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor static var onLaunch: (() -> Void)?
 
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.onLaunch?()
+    }
+
+    @MainActor
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        MenuWindow.open()
+        return false
     }
 }

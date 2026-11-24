@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -31,6 +32,16 @@ protocol::Capabilities capabilities() {
             .max_refresh_hz = 240};
 }
 
+/// A viewer that decodes less than the host could send, like a TV's decoder, and plays sound.
+protocol::Capabilities viewer_capabilities() {
+    protocol::Capabilities limits = capabilities();
+    limits.flags = protocol::kCapabilityPlaysAudio;
+    limits.max_width = 3840;
+    limits.max_height = 2160;
+    limits.max_refresh_hz = 30;
+    return limits;
+}
+
 /// `paced` false sends every frame in one burst, so a loss window covers whole frames only.
 session::SessionConfig host_config(bool paced = true) {
     session::SessionConfig config{.role = protocol::Role::Host,
@@ -38,7 +49,8 @@ session::SessionConfig host_config(bool paced = true) {
                                   .device_name = "Test Host",
                                   .capabilities = capabilities(),
                                   .monitors = {},
-                                  .tunables = {}};
+                                  .tunables = {},
+                                  .protocol_minor = protocol::kMinorVersion};
     if (!paced) {
         config.tunables.pacing_minimum_fragments = std::numeric_limits<std::size_t>::max();
     }
@@ -49,9 +61,10 @@ session::SessionConfig viewer_config(std::uint8_t monitor_count = 1) {
     session::SessionConfig config{.role = protocol::Role::Viewer,
                                   .platform = protocol::Platform::Windows,
                                   .device_name = "Test Viewer",
-                                  .capabilities = capabilities(),
+                                  .capabilities = viewer_capabilities(),
                                   .monitors = {},
-                                  .tunables = {}};
+                                  .tunables = {},
+                                  .protocol_minor = protocol::kMinorVersion};
     for (std::uint8_t id = 0; id < monitor_count; ++id) {
         config.monitors.push_back({.monitor_id = id,
                                    .width_px = 2560,
@@ -78,6 +91,55 @@ struct Simulation {
         viewer.observer.trust = viewer_trust;
     }
 
+    Simulation(session::SessionConfig host_settings, session::SessionConfig viewer_settings)
+        : host(network, SimulatedNetwork::kHost, std::move(host_settings), 1),
+          viewer(network, SimulatedNetwork::kViewer, std::move(viewer_settings), 2) {
+        network.attach(&host, &viewer);
+    }
+
+    [[nodiscard]] std::uint64_t now_us() const {
+        return static_cast<std::uint64_t>(
+            std::chrono::duration_cast<Microseconds>(network.now.time_since_epoch()).count());
+    }
+
+    /// Host: a 1 kHz tone in 5 ms pushes once streaming; viewer: a device reading 10 ms buffers.
+    void exchange_audio() {
+        if (!audio || host.engine.state() != SessionState::Streaming) {
+            return;
+        }
+        if (!audio_started) {
+            audio_started = true;
+            EXPECT_TRUE(host.engine.start_audio(kAudio, network.now).has_value());
+            next_audio = network.now;
+        }
+        while (audio_running && network.now >= next_audio) {
+            std::vector<float> samples(240 * 2);
+            for (std::size_t i = 0; i < 240; ++i) {
+                const double t = static_cast<double>(audio_samples + i) / 48'000.0;
+                const auto value =
+                    static_cast<float>(0.5 * std::sin(2.0 * 3.14159265358979 * 1'000.0 * t));
+                samples[2 * i] = value;
+                samples[(2 * i) + 1] = value;
+            }
+            const auto capture = static_cast<std::uint64_t>(
+                std::chrono::duration_cast<Microseconds>(next_audio.time_since_epoch()).count());
+            EXPECT_TRUE(host.engine.push_audio(samples, 2, capture, network.now).has_value());
+            audio_samples += 240;
+            next_audio += Microseconds{5'000};
+        }
+        if (!viewer.observer.audio_configs.empty() && network.now >= next_read) {
+            next_read = network.now + Microseconds{10'000};
+            std::vector<float> out(480 * 2);
+            const std::uint64_t capture = viewer.engine.audio_playout()->read(out, 2, network.now);
+            if (capture != 0) {
+                sound_started = true;
+                played.insert(played.end(), out.begin(), out.end());
+            } else if (sound_started) {
+                ++silent_reads_after_sound;
+            }
+        }
+    }
+
     void connect() {
         host.engine.on_connected(network.now);
         viewer.engine.on_connected(network.now);
@@ -92,6 +154,7 @@ struct Simulation {
     }
 
     void react() {
+        exchange_audio();
         const auto encrypted = [](SessionState state) {
             return state != SessionState::Connecting && state != SessionState::Handshaking;
         };
@@ -128,7 +191,7 @@ struct Simulation {
                 host.engine.push_access_unit({.stream_id = 0,
                                               .keyframe = keyframe_pending,
                                               .codec_config = keyframe_pending,
-                                              .capture_time_us = 0,
+                                              .capture_time_us = now_us(),
                                               .data = bytes},
                                              network.now);
             EXPECT_TRUE(pushed_result.has_value());
@@ -155,7 +218,27 @@ struct Simulation {
     std::uint32_t next_index = 0;
     osplay::TimePoint next_frame{};
     std::vector<std::uint32_t> pushed;
+
+    static constexpr protocol::AudioConfig kAudio{};
+    bool audio = false;        ///< the host sends sound once streaming
+    bool audio_running = true; ///< false: the host's pushes stop
+    bool audio_started = false;
+    std::uint64_t audio_samples = 0;
+    osplay::TimePoint next_audio{};
+    osplay::TimePoint next_read{};
+    bool sound_started = false;
+    int silent_reads_after_sound = 0;
+    std::vector<float> played;
 };
+
+double rms(const std::vector<float>& samples, std::size_t skip) {
+    double sum = 0.0;
+    for (std::size_t i = skip; i < samples.size(); ++i) {
+        sum += static_cast<double>(samples[i]) * static_cast<double>(samples[i]);
+    }
+    return samples.size() <= skip ? 0.0
+                                  : std::sqrt(sum / static_cast<double>(samples.size() - skip));
+}
 
 TEST(SessionEngine, TrustedPeersReachStreamingAndDeliverEveryFrameOnACleanLink) {
     Simulation sim;
@@ -173,6 +256,15 @@ TEST(SessionEngine, TrustedPeersReachStreamingAndDeliverEveryFrameOnACleanLink) 
     ASSERT_TRUE(sim.viewer.observer.stats.has_value());
     EXPECT_EQ(sim.viewer.observer.stats->streams.at(0).frames_dropped, 0U);
     EXPECT_GT(sim.viewer.observer.stats->rtt_us, 0U);
+}
+
+TEST(SessionEngine, TheHostLearnsWhatTheViewerCanDecodeWithItsMonitors) {
+    Simulation sim;
+    sim.connect();
+    sim.run_for(seconds(1));
+
+    ASSERT_FALSE(sim.host.observer.monitors.empty());
+    EXPECT_EQ(sim.host.observer.viewer_capabilities, viewer_capabilities());
 }
 
 TEST(SessionEngine, RecoversFromFivePercentDatagramLossThroughNacksAndKeyframes) {
@@ -782,6 +874,100 @@ TEST(SessionEngine, AViewerCanStopOneStreamAndTheHostIsTold) {
               Error::InvalidState);
     EXPECT_EQ(sim.host.engine.state(), SessionState::Paused) << "the session stays up";
     EXPECT_EQ(sim.viewer.engine.stop_stream(0, sim.network.now).error(), Error::InvalidState);
+}
+
+TEST(SessionEngine, SoundReachesTheViewerWithoutGapsOnACleanLink) {
+    Simulation sim;
+    sim.audio = true;
+    sim.connect();
+    sim.run_for(seconds(6));
+
+    ASSERT_EQ(sim.viewer.observer.audio_configs.size(), 1U);
+    EXPECT_EQ(sim.viewer.observer.audio_configs.front(), Simulation::kAudio);
+    EXPECT_TRUE(sim.sound_started);
+    EXPECT_EQ(sim.silent_reads_after_sound, 0);
+    EXPECT_NEAR(rms(sim.played, 48'000), 0.5 / std::sqrt(2.0), 0.05) << "the tone, at its level";
+    ASSERT_TRUE(sim.viewer.observer.stats.has_value());
+    ASSERT_TRUE(sim.viewer.observer.stats->audio.has_value());
+    EXPECT_EQ(sim.viewer.observer.stats->audio->concealed_frames, 0U);
+    EXPECT_EQ(sim.viewer.observer.stats->audio->underruns, 0U);
+    ASSERT_TRUE(sim.host.observer.stats.has_value());
+    ASSERT_TRUE(sim.host.observer.stats->audio.has_value());
+    EXPECT_GT(sim.host.observer.stats->audio->bitrate_kbps, 64U);
+}
+
+TEST(SessionEngine, SoundConcealsFivePercentLossWithoutGaps) {
+    Simulation sim;
+    sim.audio = true;
+    sim.network.media_loss = 0.05;
+    sim.connect();
+    sim.run_for(seconds(10));
+
+    EXPECT_TRUE(sim.sound_started);
+    EXPECT_EQ(sim.silent_reads_after_sound, 0);
+    ASSERT_TRUE(sim.viewer.observer.stats.has_value());
+    ASSERT_TRUE(sim.viewer.observer.stats->audio.has_value());
+    EXPECT_GT(sim.viewer.observer.stats->audio->concealed_frames, 0U);
+    EXPECT_EQ(sim.viewer.observer.stats->audio->underruns, 0U);
+}
+
+TEST(SessionEngine, SoundStaysWithinAHundredMillisecondsOfThePicture) {
+    Simulation sim;
+    sim.audio = true;
+    sim.network.latency = Microseconds{15'000};
+    sim.connect();
+    sim.run_for(seconds(6));
+
+    ASSERT_TRUE(sim.viewer.observer.stats.has_value());
+    const auto& stats = *sim.viewer.observer.stats;
+    ASSERT_TRUE(stats.audio.has_value());
+    const auto audio = static_cast<std::int64_t>(stats.audio->latency_us);
+    const auto video = static_cast<std::int64_t>(stats.streams.at(0).latency_us);
+    EXPECT_GT(audio, 15'000) << "at least the network's latency";
+    EXPECT_GT(video, 15'000);
+    EXPECT_LT(std::abs(audio - video), 100'000) << "audio " << audio << " us, video " << video;
+}
+
+TEST(SessionEngine, StoppingTheSoundSilencesTheViewer) {
+    Simulation sim;
+    sim.audio = true;
+    sim.connect();
+    sim.run_for(seconds(3));
+    ASSERT_TRUE(sim.sound_started);
+    ASSERT_TRUE(sim.host.engine.stop_audio(sim.network.now).has_value());
+    sim.audio_running = false;
+    sim.run_for(seconds(1));
+
+    EXPECT_EQ(sim.viewer.observer.audio_stops, 1);
+    std::vector<float> out(960, 1.0F);
+    EXPECT_EQ(sim.viewer.engine.audio_playout()->read(out, 2, sim.network.now), 0U);
+    EXPECT_TRUE(std::ranges::all_of(out, [](float sample) { return sample == 0.0F; }));
+    EXPECT_FALSE(sim.host.engine.stop_audio(sim.network.now).has_value()) << "already stopped";
+}
+
+TEST(SessionEngine, AViewerThatPlaysNoSoundGetsNone) {
+    session::SessionConfig viewer = viewer_config();
+    viewer.capabilities.flags = 0;
+    Simulation sim(host_config(), viewer);
+    sim.connect();
+    sim.run_for(seconds(2));
+    ASSERT_EQ(sim.host.engine.state(), SessionState::Streaming);
+
+    const auto started = sim.host.engine.start_audio(Simulation::kAudio, sim.network.now);
+    ASSERT_FALSE(started.has_value());
+    EXPECT_EQ(started.error(), Error::InvalidState);
+}
+
+TEST(SessionEngine, AnOlderHostIsNeverToldTheViewerPlaysSound) {
+    session::SessionConfig host = host_config();
+    host.protocol_minor = 2; // Osplay before audio, whose decoder refuses unknown flags
+    Simulation sim(host, viewer_config());
+    sim.connect();
+    sim.run_for(seconds(2));
+
+    EXPECT_EQ(sim.viewer.engine.state(), SessionState::Streaming) << "the session works";
+    EXPECT_EQ(sim.host.observer.viewer_capabilities.flags & protocol::kCapabilityPlaysAudio, 0);
+    EXPECT_FALSE(sim.host.engine.start_audio(Simulation::kAudio, sim.network.now).has_value());
 }
 
 } // namespace

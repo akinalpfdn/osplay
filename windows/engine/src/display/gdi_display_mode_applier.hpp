@@ -13,6 +13,7 @@ public:
     win::Expected<std::vector<std::wstring>, DisplayError>
     apply(std::span<const VirtualMonitorConfig> configs,
           std::span<const std::wstring> existing) override;
+    win::Status<DisplayError> set_scale(const std::wstring& name, std::uint16_t percent) override;
 };
 
 } // namespace osplay::engine

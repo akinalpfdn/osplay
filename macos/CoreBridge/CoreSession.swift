@@ -175,6 +175,44 @@ public final class CoreSession: Sendable {
         try check(handle.withPointer { osplay_session_push_cursor_position($0, &raw) })
     }
 
+    /// Host: sends this Mac's sound from now on; `.invalidState` when the viewer plays none.
+    public func startAudio(_ format: AudioFormat) throws(CoreError) {
+        var raw = format.raw
+        try check(handle.withPointer { osplay_session_start_audio($0, &raw) })
+    }
+
+    /// Host: whole sample frames of interleaved 48 kHz PCM in [-1, 1]; copied, returns at once.
+    /// `captureTimeMicroseconds` is the first frame's capture time on the core clock.
+    public func pushAudio(
+        _ samples: UnsafeBufferPointer<Float>, channels: Int, captureTimeMicroseconds: UInt64
+    ) throws(CoreError) {
+        guard channels > 0 else { throw .invalidArgument }
+        try check(
+            handle.withPointer {
+                osplay_session_push_audio(
+                    $0, samples.baseAddress, samples.count / channels, UInt8(clamping: channels),
+                    captureTimeMicroseconds)
+            })
+    }
+
+    /// Host: stops sending sound.
+    public func stopAudio() throws(CoreError) {
+        try check(handle.withPointer { osplay_session_stop_audio($0) })
+    }
+
+    /// Viewer: fills `buffer` with the host's sound (interleaved, `channels` channels, 48 kHz), from
+    /// the audio device's thread. Silence while there is none. Returns the host capture time of the
+    /// first sample frame, 0 for silence.
+    public func readAudio(into buffer: UnsafeMutableBufferPointer<Float>, channels: Int) -> UInt64 {
+        guard channels > 0, let base = buffer.baseAddress else { return 0 }
+        var capture: UInt64 = 0
+        let result = handle.withPointer {
+            osplay_session_read_audio($0, base, buffer.count / channels, UInt8(clamping: channels), &capture)
+        }
+        if result != OSPLAY_OK { buffer.update(repeating: 0) }
+        return capture
+    }
+
     /// Viewer: the decoder failed; asks the host for a keyframe (rate-limited by the core).
     public func requestKeyframe(_ streamID: UInt8) throws(CoreError) {
         try check(handle.withPointer { osplay_session_request_keyframe($0, streamID) })
@@ -284,9 +322,10 @@ private final class CallbackBox: Sendable {
         callbacks.on_paired = { context, key in
             CallbackBox.from(context)?.continuation.yield(.paired(peerPublicKey: keyBytes(key)))
         }
-        callbacks.on_viewer_monitors = { context, monitors, count in
+        callbacks.on_viewer_monitors = { context, monitors, count, viewer in
             let list = UnsafeBufferPointer(start: monitors, count: count).map(MonitorDescription.init)
-            CallbackBox.from(context)?.continuation.yield(.viewerMonitors(list))
+            let limits = viewer.map { SessionCapabilities($0.pointee) } ?? .unlimited
+            CallbackBox.from(context)?.continuation.yield(.viewerMonitors(list, viewer: limits))
         }
         callbacks.on_stream_config = { context, config in
             guard let config = config?.pointee else { return }
@@ -327,8 +366,9 @@ private final class CallbackBox: Sendable {
             let statistics = SessionStatistics(
                 roundTripMicroseconds: Int(stats.rtt_us), clockOffsetMicroseconds: stats.clock_offset_us,
                 datagramsRejected: stats.datagrams_rejected,
-                streams: UnsafeBufferPointer(start: stats.streams, count: stats.stream_count).map(StreamStatistics.init)
-            )
+                streams: UnsafeBufferPointer(start: stats.streams, count: stats.stream_count).map(
+                    StreamStatistics.init),
+                audio: stats.audio.map { AudioStatistics($0.pointee) })
             CallbackBox.from(context)?.continuation.yield(.statistics(statistics))
         }
         callbacks.on_role_swap_request = { context, key in
@@ -340,6 +380,13 @@ private final class CallbackBox: Sendable {
         }
         callbacks.on_bitrate_target = { context, streamID, kbps in
             CallbackBox.from(context)?.continuation.yield(.bitrateTarget(streamID: streamID, kbps: Int(kbps)))
+        }
+        callbacks.on_audio_config = { context, config in
+            guard let config = config?.pointee else { return }
+            CallbackBox.from(context)?.continuation.yield(.audioConfiguration(AudioFormat(config)))
+        }
+        callbacks.on_audio_stopped = { context in
+            CallbackBox.from(context)?.continuation.yield(.audioStopped)
         }
         callbacks.on_log = { context, level, message in
             let text = message.map { String(cString: $0) } ?? ""

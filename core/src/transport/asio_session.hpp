@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -116,6 +117,15 @@ public:
     [[nodiscard]] Status<Error> resume_stream(std::uint8_t stream_id);
     [[nodiscard]] Status<Error> request_role_swap();
     [[nodiscard]] Status<Error> answer_role_swap(session::RoleSwapAnswer answer);
+    [[nodiscard]] Status<Error> start_audio(const protocol::AudioConfig& config);
+    [[nodiscard]] Status<Error> stop_audio();
+
+    /// Copies the samples and queues them; returns without waiting.
+    void push_audio(std::span<const float> samples, std::uint8_t channels,
+                    std::uint64_t capture_time_us);
+    /// Viewer: the host's sound, read from the platform's audio thread (null on a host). Safe from
+    /// any thread for the session's lifetime.
+    [[nodiscard]] std::shared_ptr<media::AudioPlayout> audio_playout() const;
 
     /// Copies the access unit and queues it; returns without waiting for the network.
     void push_access_unit(const media::AccessUnit& unit);

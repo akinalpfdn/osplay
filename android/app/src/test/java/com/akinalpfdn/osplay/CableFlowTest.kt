@@ -59,16 +59,20 @@ class CableFlowTest {
         val targets = mutableListOf<SessionTarget>()
         var onEvent: (ViewerEvent) -> Unit = {}
         var stops = 0
+        val playsSound = mutableListOf<Boolean>()
+        val mutes = mutableListOf<Boolean>()
 
         override fun start(
             identity: Identity,
             deviceName: String,
             monitor: MonitorDescription,
             target: SessionTarget,
+            playsSound: Boolean,
             trust: (ByteArray) -> Trust,
             onEvent: (ViewerEvent) -> Unit,
         ): Pair<ViewerSessionHandle?, CoreError?> {
             targets += target
+            this.playsSound += playsSound
             this.onEvent = onEvent
             return object : ViewerSessionHandle {
                 override fun confirmPairing(accepted: Boolean) = Unit
@@ -78,6 +82,10 @@ class CableFlowTest {
                 }
 
                 override fun stopForSleep() = Unit
+
+                override fun setMuted(muted: Boolean) {
+                    mutes += muted
+                }
             } to null
         }
 
@@ -109,6 +117,7 @@ class CableFlowTest {
                 settings = object : SettingsStoring {
                     override var deviceName = "Tablet"
                     override var showsStatsOverlay = false
+                    override var playsSound = true
                 },
                 stage = StreamStage { _, _, _ -> error("no decoder in this test") },
                 sessions = sessions,
@@ -195,4 +204,30 @@ class CableFlowTest {
         runCurrent()
         assertTrue(sessions.targets.isEmpty())
     }
+
+    @Test
+    fun `should show the mute control while the computer sends sound and mute the session at once`() = runTest(dispatcher) {
+        cable.openings += CableOpening.Opened(fd = 11)
+        model.connectCable()
+        assertEquals(listOf(true), sessions.playsSound)
+        assertEquals(listOf(false), sessions.mutes)
+
+        sessions.onEvent(ViewerEvent.Sound(true))
+        assertTrue(model.uiState.value.receivesSound)
+        model.setSoundMuted(true)
+        assertEquals(listOf(false, true), sessions.mutes)
+        assertTrue(model.uiState.value.soundMuted)
+
+        sessions.onEvent(ViewerEvent.Sound(false))
+        assertEquals(false, model.uiState.value.receivesSound)
+    }
+
+    @Test
+    fun `should announce no sound when the user turned it off`() = runTest(dispatcher) {
+        model.setPlaysSound(false)
+        cable.openings += CableOpening.Opened(fd = 12)
+        model.connectCable()
+        assertEquals(listOf(false), sessions.playsSound)
+    }
+
 }

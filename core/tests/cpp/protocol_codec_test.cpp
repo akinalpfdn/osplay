@@ -84,6 +84,12 @@ std::vector<ControlMessage> boundary_messages() {
         protocol::MediaSetup{.udp_port = 65535, .session_token = token},
         protocol::RoleSwap{.step = protocol::RoleSwapStep::Refuse,
                            .refusal = protocol::RoleSwapRefusal::Busy},
+        protocol::AudioConfig{.codec = protocol::AudioCodec::Opus,
+                              .channels = 1,
+                              .frame_duration_us = 60'000,
+                              .sample_rate_hz = 48'000,
+                              .bitrate_kbps = 510},
+        protocol::AudioStop{},
     };
 }
 
@@ -144,6 +150,32 @@ TEST(ControlCodec, EncoderRefusesWhatTheDecoderWouldReject) {
               Error::ValueOutOfRange);
     EXPECT_EQ(error(protocol::RoleSwap{.step = protocol::RoleSwapStep::Refuse}),
               Error::ValueOutOfRange);
+    EXPECT_EQ(error(protocol::AudioConfig{.channels = 3}), Error::ValueOutOfRange);
+    EXPECT_EQ(error(protocol::AudioConfig{.frame_duration_us = 15'000}), Error::ValueOutOfRange);
+    EXPECT_EQ(error(protocol::AudioConfig{.sample_rate_hz = 44'100}), Error::ValueOutOfRange);
+    EXPECT_EQ(error(protocol::AudioConfig{.bitrate_kbps = 5}), Error::ValueOutOfRange);
+    EXPECT_EQ(error(protocol::AudioConfig{.bitrate_kbps = 511}), Error::ValueOutOfRange);
+    EXPECT_EQ(error(protocol::AudioConfig{.codec = static_cast<protocol::AudioCodec>(2)}),
+              Error::ValueOutOfRange);
+}
+
+TEST(ControlCodec, ThePlaysAudioCapabilityIsAKnownFlag) {
+    const ControlMessage capabilities =
+        protocol::Capabilities{.codecs = protocol::kCodecH264AnnexB,
+                               .max_streams = 1,
+                               .flags = protocol::kCapabilityPlaysAudio,
+                               .max_width = 1920,
+                               .max_height = 1080,
+                               .max_refresh_hz = 60};
+    const auto encoded = protocol::encode_control(capabilities);
+    ASSERT_TRUE(encoded.has_value());
+    const auto decoded = protocol::decode_control(encoded.value());
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_EQ(decoded.value(), capabilities);
+
+    auto unknown = std::get<protocol::Capabilities>(capabilities);
+    unknown.flags = 1U << 3U;
+    EXPECT_FALSE(protocol::encode_control(unknown).has_value());
 }
 
 TEST(MediaCodec, FramesSplitIntoFullFragmentsRoundTrip) {
@@ -222,6 +254,29 @@ TEST(MediaCodec, CursorPositionAndUdpHelloRoundTrip) {
         ASSERT_TRUE(decoded.has_value());
         EXPECT_EQ(decoded.value(), packet);
     }
+}
+
+TEST(MediaCodec, AudioPacketsRoundTripUpToTheLargestPayload) {
+    const std::vector<std::uint8_t> largest(protocol::kMaxAudioPayload, 0xA5);
+    const std::vector<std::uint8_t> smallest(1, 0x01);
+    for (const auto* payload : {&largest, &smallest}) {
+        const MediaPacket packet{.sequence = 77,
+                                 .body = protocol::AudioPacket{.audio_sequence = 0xFFFF'FFFF,
+                                                               .capture_time_us = 123'456'789,
+                                                               .payload = *payload}};
+        std::array<std::uint8_t, protocol::kMaxMediaPlaintextSize> buffer{};
+        const auto written = protocol::encode_media(packet, buffer);
+        ASSERT_TRUE(written.has_value());
+        EXPECT_LE(written.value() + protocol::kAeadTagSize, protocol::kMaxDatagramSize);
+        const auto decoded = protocol::decode_media(std::span(buffer).first(written.value()));
+        ASSERT_TRUE(decoded.has_value());
+        EXPECT_EQ(decoded.value(), packet);
+    }
+    std::array<std::uint8_t, protocol::kMaxMediaPlaintextSize> buffer{};
+    const MediaPacket empty{.sequence = 1, .body = protocol::AudioPacket{}};
+    const auto refused = protocol::encode_media(empty, buffer);
+    ASSERT_FALSE(refused.has_value());
+    EXPECT_EQ(refused.error(), Error::ValueOutOfRange);
 }
 
 TEST(MediaCodec, CursorShapeFragmentSizes) {

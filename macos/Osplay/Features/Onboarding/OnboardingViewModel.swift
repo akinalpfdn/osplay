@@ -8,13 +8,24 @@ import Observation
 final class OnboardingViewModel {
     private(set) var screenRecording = false
     private(set) var localNetwork: LocalNetworkAccess = .unknown
+    /// Optional (AUD-02): only sound on a display needs it, so it does not count for `isComplete`.
+    private(set) var systemAudio: AudioCaptureAccess = .unknown
+    /// Hidden before macOS 14.2, which cannot send its sound.
+    let offersSystemAudio: Bool
 
     private let permissions: any PermissionChecking
     private let localNetworkCheck: any LocalNetworkChecking
     private let settings: AppSettings
+    private let audioPermission: any AudioCapturePermissionChecking
     private var tasks: [Task<Void, Never>] = []
 
-    init(permissions: any PermissionChecking, localNetworkCheck: any LocalNetworkChecking, settings: AppSettings) {
+    init(
+        permissions: any PermissionChecking, localNetworkCheck: any LocalNetworkChecking, settings: AppSettings,
+        audioPermission: any AudioCapturePermissionChecking, offersSystemAudio: Bool
+    ) {
+        self.audioPermission = audioPermission
+        self.offersSystemAudio = offersSystemAudio
+        systemAudio = audioPermission.access
         self.permissions = permissions
         self.localNetworkCheck = localNetworkCheck
         self.settings = settings
@@ -59,6 +70,18 @@ final class OnboardingViewModel {
         refreshScreenRecording()
     }
 
+    /// Asks once; afterwards only System Settings can change it.
+    func allowSystemAudio() {
+        guard systemAudio != .denied else {
+            if let url = audioPermission.settingsURL { NSWorkspace.shared.open(url) }
+            return
+        }
+        Task { [weak self, audioPermission] in
+            _ = await audioPermission.request()
+            self?.systemAudio = audioPermission.access
+        }
+    }
+
     func openLocalNetworkSettings() {
         guard let url = permissions.localNetworkSettingsURL else { return }
         NSWorkspace.shared.open(url)
@@ -71,5 +94,6 @@ final class OnboardingViewModel {
 
     private func refreshScreenRecording() {
         screenRecording = permissions.hasScreenRecordingAccess
+        systemAudio = audioPermission.access
     }
 }

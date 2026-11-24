@@ -664,3 +664,129 @@ choices the plan leaves open are logged here.
 **Why:** The user wants a download in the repository before the Play listing exists. Without R8 most of the APK was unused library code (material icons).
 **Trade-offs:** Every committed APK stays in git history (about 4.5 MB each). R8 can break code reached by name: the JNI callbacks are kept by `proguard-rules.pro`; AGP 8.13's R8 warns that it cannot read Kotlin 2.3 metadata, which matters only for kotlin-reflect, not used here. The user opened the 0.1.1 APK and it worked; a full Wi-Fi and cable pass is not recorded.
 **Revisit if:** The app is published on Google Play, or the repository grows uncomfortably from APKs.
+
+## 2026-11-01 — User decision: three TV phases, hosts first
+**Chosen:** DEVPLAN Phase 16 in three parts: TV-01 makes the Mac and PC hosts ready for TV viewers (decoder limits, unknown size, scale, 4K60, a simulated TV in the developer tools), TV-02 an Apple TV app, TV-03 Android TV in the existing Android app.
+**Alternatives:** One phase per TV with the host work inside the first; Android TV before Apple TV.
+**Why:** The user has no Apple TV and never will, and the 4K Android TV is not at hand, so neither TV can be tested now. The host work is shared by both TVs and testable from a Mac viewer posing as a TV. Apple TV is verified in the tvOS simulator only and ships as an experimental TestFlight build.
+**Trade-offs:** Apple TV latency, hardware decoding and HDMI 4K are never measured by the maintainer; they surface only through TestFlight users.
+**Revisit if:** An Apple TV becomes available for testing.
+
+## 2026-11-01 — Hosts honour the viewer's decoder limits
+**Chosen:** The core passes the viewer's Capabilities to the host with its monitors (a new `osplay_capabilities*` in `on_viewer_monitors`); Mac and PC fit each stream inside both the host's stream-size setting and the viewer's max_width × max_height, and cap its frame rate at max_refresh_hz. The virtual display keeps the viewer monitor's resolution and refresh rate; on the PC it no longer takes the stream's rate.
+**Alternatives:** The core clamping StreamConfig itself (the host's encoder and capture would disagree with it); lowering the virtual display's refresh rate with the stream's (the driver's mode list may not have 30 Hz).
+**Why:** Until now the host ignored the limits every viewer already sends. TV chips often decode H.264 4K only at 30 Hz, so a 4K60 stream would fail there.
+**Trade-offs:** Capabilities hold one size and one rate, so a decoder that does 1080p60 or 4K30 must pick one of the two.
+**Revisit if:** The protocol gains per-size decoder limits or a second codec.
+
+## 2026-11-01 — User decision: the PC sets each virtual monitor's scale to the viewer's
+**Chosen:** After creating its virtual monitors, and before capture starts, the Windows host sets each one's display scale to the Windows step closest to the viewer monitor's `scale_percent` (a Retina Mac or a 4K TV at 200%), through `DisplayConfigGetDeviceInfo`/`DisplayConfigSetDeviceInfo` with the undocumented request types -3 and -4 that Settings › Display uses (layout as in the Unlicense windows-DPI-scaling-sample). A refusal leaves the scale Windows chose and the session continues.
+**Alternatives:** Writing `PerMonitorSettings\…\DpiValue` in the registry before the monitor appears (also undocumented, needs the monitor's ID in advance); leaving the scale to Windows and the user.
+**Why:** The Mac host already starts each virtual display at the viewer's scale. On the PC, Windows picked a scale from the driver's fixed EDID, and the same driver device serves different viewers, so a remembered scale was right for one viewer and wrong for the next; a 4K TV would open at an unreadable 100%.
+**Trade-offs:** An undocumented API can change in a Windows update; the code checks the structure sizes and the reported range and falls back to Windows' choice. A scale the user changes by hand is replaced at the next session.
+**Revisit if:** Windows documents a per-monitor scale API, or the requests stop working on a Windows release.
+
+## 2026-11-01 — A viewer monitor of unknown size gets a size from its pixels
+**Chosen:** A monitor that sends 0 mm gets, on a Mac host, the size its pixels have at 96 dpi × scale_percent / 100.
+**Alternatives:** Assuming a typical TV size (a 55-inch panel); refusing the monitor.
+**Why:** `CGVirtualDisplay` needs a size and the Mac host refused 0 mm, so PC → Mac failed for Windows monitors without a size in their EDID; tvOS gives no size at all. The starting resolution follows scale_percent, so the assumed size changes nothing a user sees.
+**Trade-offs:** macOS shows a made-up diagonal for such displays.
+**Revisit if:** macOS starts deriving behaviour from the size that users notice.
+
+## 2026-11-11 — User decision: Android TV before Apple TV, on Android 12 and later
+**Chosen:** Phase 16's Android TV part comes second (TV-02) and Apple TV last (TV-03). Android TV support goes into the existing Android app and keeps its minimum, Android 12 (minSdk 31). TV-01's acceptance is run on the user's Vestel Android TV (Android 14) instead of with the simulated TV.
+**Alternatives:** Apple TV first (simulator only); lowering the minimum for TVs on Android 9–11; closing TV-01 with the simulated TV first.
+**Why:** The user now has an Android TV at hand and will never have an Apple TV, so Android TV is the part that can be verified on hardware, and it verifies the host work too. Most TVs sold since Android TV 12 (late 2022) run 12 or later.
+**Trade-offs:** TVs that stayed on Android 9–11 cannot install Osplay.
+**Revisit if:** Users ask for older TVs.
+
+## 2026-11-20 — Encoders reference one frame
+**Chosen:** The Mac (`kVTCompressionPropertyKey_ReferenceBufferCount`) and PC (`CODECAPI_AVEncVideoMaxNumRefFrame`) encoders reference one frame.
+**Alternatives:** Rewriting the SPS on the viewer to claim a smaller decoder buffer (invalid while the stream may reference 12 frames); viewer-side flushing.
+**Why:** VideoToolbox's default stream declared 12 reference frames and a 12-frame decoder buffer. The Arçelik TV's MediaTek decoder held that many frames before showing one: half a second of lag, and on a still screen the last frames (with the cursor) never appeared. Screen content gains little from more references, and every encoder honours the setting or ignores it harmlessly.
+**Trade-offs:** Slightly larger P-frames for content that would reuse older frames. On the Mac the setting goes only to an encoder with low-latency rate control outside a virtual machine: CI's virtual encoder accepted it and then dropped half the frames, so VMs keep VideoToolbox's default.
+**Revisit if:** Bitrate at equal quality drops noticeably with more references on some encoder, or a real Mac's encoder drops frames with it.
+
+## 2026-11-20 — Android builds for 32-bit ARM too
+**Chosen:** The APK carries `armeabi-v7a` next to `arm64-v8a` and `x86_64`.
+**Alternatives:** 64-bit only, as before.
+**Why:** The user's Android TV (MediaTek MT5867) runs a 32-bit system, as many TV chips do; the app did not install there.
+**Trade-offs:** About 2.6 MB more per APK.
+**Revisit if:** Google Play requires splitting by ABI (an app bundle does that by itself).
+
+## 2026-11-20 — Sound is Opus in the core, trimmed libopus vendored
+**Chosen:** The core encodes and decodes sound with libopus 1.5.2, vendored in `core/third_party/opus` with only the float codec (no DNN/DRED/OSCE models, no hand-written SIMD), built by CMake (Windows, Android, tests) and SwiftPM (Apple apps).
+**Alternatives:** Platform codecs (AAC through AudioToolbox, Media Foundation and MediaCodec); uncompressed PCM; libopus with its machine-learning parts; Opus from each platform's package manager.
+**Why:** One implementation on every host and viewer, like the rest of the wire protocol. Opus has built-in loss concealment and 2.5–10 ms frames, where AAC's frames and encoder delay are longer and differ per platform. PCM (1.5 Mbit/s stereo) would cost Wi-Fi airtime the video needs. The ML parts add 17 MB of model data for gains (DRED, deep PLC) that need more delay than a display can spend; the generic C code encodes a 10 ms stereo frame in a fraction of a millisecond.
+**Trade-offs:** About 2 MB more source in the repository and a BSD notice every app must ship (THIRD_PARTY.md). Updates are manual.
+**Revisit if:** Deep packet loss concealment becomes cheap enough for 10 ms frames, or a platform needs SIMD to keep up.
+
+## 2026-11-20 — Audio is CELT-only 10 ms frames without retransmission
+**Chosen:** Hosts send stereo 48 kHz Opus in restricted low-delay mode (CELT only), 10 ms frames at 128 kbps. Packets are never retransmitted; a lost one is concealed by the decoder. "Plays audio" is a Capabilities flag sent only to peers of protocol 1.3 or later.
+**Alternatives:** Opus' audio mode (SILK/hybrid with in-band FEC, 6.5 ms look-ahead); 20 ms frames; NACK-based retransmission like video; sending each frame twice.
+**Why:** Desktop sound is mostly music and video, which CELT carries well at this bitrate, with 2.5 ms of look-ahead. A retransmitted frame arrives after its turn to play unless the reserve grows by an RTT, and the jitter buffer already holds 40 ms. In-band FEC works only in SILK modes. Older peers refuse unknown Capabilities flags, so the flag has to follow the peer's minor version.
+**Trade-offs:** A burst of loss is heard as a short fade instead of being recovered. CELT's concealment is weaker on speech than SILK's.
+**Revisit if:** Field reports show audible gaps on Wi-Fi (then: redundancy of the previous frame, or retransmission with a larger reserve).
+
+## 2026-11-20 — The viewer's audio device pulls from the core's jitter buffer
+**Chosen:** The viewer's platform reads PCM from the core (`osplay_session_read_audio`) on its audio device's own thread. The jitter buffer behind it starts at a 40 ms reserve, grows by 20 ms when the reserve runs dry (to 200 ms), lowers it every 10 s towards the least the network needed, and holds it against clock drift by resampling up to 0.2 % (Catmull-Rom, exact while the reserve is within 8 ms of its target).
+**Alternatives:** The core pushing decoded PCM to a callback on the I/O thread, with each platform keeping its own ring buffer and drift handling; a fixed reserve; dropping or repeating whole frames for drift.
+**Why:** Only the device knows when it needs samples, so a pull keeps the buffer on the device's clock and puts drift handling in one tested place instead of four platforms. Network jitter differs widely between Ethernet, Wi-Fi and Wi-Fi with AWDL, so the reserve adapts instead of being sized for the worst case. Dropping whole frames for drift clicks; 0.2 % of pitch is inaudible and corrects 2 ms per second.
+**Trade-offs:** The device thread takes a mutex shared with the I/O thread (held for microseconds). The adaptive reserve can grow after a single stall and takes 10 s to shrink.
+**Revisit if:** A platform's audio thread shows priority-inversion glitches, or users notice audio running behind the picture.
+
+## 2026-11-20 — The Mac host taps the whole mix and mutes it while tapped
+**Chosen:** A global stereo Core Audio process tap (`CATapDescription(stereoGlobalTapButExcludeProcesses: [])`, `muteBehavior = .mutedWhenTapped`) read through a private aggregate device on the default output device, rebuilt when the default output changes. The System Audio Recording permission is read and requested through TCC's `TCCAccessPreflight`/`TCCAccessRequest` (dlsym), offered as optional in onboarding and asked again when the user turns sound on for a display.
+**Alternatives:** ScreenCaptureKit audio (keeps playing on the Mac, tied to a display capture); a Core Audio HAL plug-in as a real output device (installer, admin rights); asking for the permission only by starting a capture.
+**Why:** The user wants the sound on the display instead of the Mac; only the tap's muted mode does that without a driver. macOS has no public call that reads or asks for the AudioCapture permission without capturing, and a denied tap delivers silence instead of an error, so the app could not tell the user why the TV stays silent. The app already depends on private API for virtual displays.
+**Trade-offs:** TCC's functions are private and may change; then the status reads unknown and the first capture shows the prompt. Every app's sound goes to the display, including notifications.
+**Revisit if:** Apple adds a public AudioCapture authorization API, or users ask to keep some apps on the Mac.
+
+## 2026-11-23 — The viewer's sound reserve starts at 30 ms; the PC's device buffer is 10 ms
+**Chosen:** User decision after the first Mac → PC listening test (reserve 50 ms, 60 ms capture to device, about 90–100 ms to the ear): the jitter buffer's least reserve drops from 40 to 30 ms, and the WASAPI buffer from 20 to 10 ms. The reserve still grows by 20 ms after it runs dry.
+**Alternatives:** A 20 ms reserve; only the smaller device buffer; a "low latency / smooth sound" setting.
+**Why:** The reserve was half of the delay. At 20 ms only one 10 ms frame is left as slack, so a single reordered or 10 ms late packet is concealed every time, and concealment does not grow the reserve (core tests showed it). 30 ms keeps one frame of jitter without concealment.
+**Trade-offs:** On Wi-Fi the reserve runs dry once or twice more before it settles; each time is a short audible gap.
+**Revisit if:** Listening tests on Wi-Fi show more gaps than before, or users still hear the sound behind the picture.
+
+## 2026-11-23 — Apple viewers play sound through an AVAudioEngine source node
+**Chosen:** Mac, iPad and Apple TV share one output: an `AVAudioSourceNode` whose render block reads interleaved PCM from the core (`readAudio`) and splits it into the node's channel buffers, connected to the engine's main mixer on the default output. The engine is restarted after a configuration change; iPad and Apple TV set the `.playback` category with a 5 ms preferred buffer and restart after an interruption ends.
+**Alternatives:** An `AVAudioPlayerNode` fed with scheduled buffers; a raw AudioUnit (RemoteIO / HAL output) with its own render callback.
+**Why:** A pull keeps the jitter buffer on the device's clock, like the PC's WASAPI thread, so drift handling stays in the core. Scheduling player buffers would push from another thread and add a queue. A source node is a render callback with AVAudioEngine handling device and format changes, and the same code builds for macOS, iOS and tvOS.
+**Trade-offs:** The main mixer may add a buffer of its own; the render block takes the core's audio mutex (held for microseconds).
+**Revisit if:** Measured latency on Apple viewers is clearly above the PC's, or the render thread shows glitches.
+
+## 2026-11-23 — Android plays sound in the JNI layer through AAudio
+**Chosen:** The JNI bridge owns an `AudioPlayer`: an AAudio output stream (shared mode, low-latency performance mode, float, 48 kHz, two bursts of buffer) whose data callback calls `osplay_session_read_audio`. A lost output is reopened by the player's own thread, since AAudio forbids closing a stream inside its error callback. Kotlin only gets the sound's figures with the stats.
+**Alternatives:** `AudioTrack` written from a Kotlin thread; Oboe (Google's C++ wrapper over AAudio/OpenSL ES); exclusive sharing mode.
+**Why:** A data callback pulls on the device's clock like the PC and Apple outputs, so drift stays in the core, and keeping the sound in C++ avoids JNI calls and garbage collection on the audio path. The app's minSdk is 31, so AAudio is always there and Oboe's OpenSL ES fallback buys nothing for a new dependency. Exclusive mode fails or steals the device from other apps on many phones and TVs.
+**Trade-offs:** No audio focus: other apps' music keeps playing alongside. Bluetooth outputs add their own latency, which the overlay does not show.
+**Revisit if:** Users hear other apps over the host's sound, or a device's AAudio low-latency path glitches.
+
+## 2026-11-23 — A viewer mutes the host's sound by playing silence, not by stopping it
+**Chosen:** User decision: every viewer has a live mute in its viewing controls and a setting "Play the other computer's sound". The live mute keeps reading the sound from the core and writes silence to the output; the setting decides whether the viewer announces sound (capabilities flag), so with it off the host offers no sound button. Changing the setting applies from the next connection.
+**Alternatives:** A protocol message asking the host to stop sending; closing the output while muted; a setting only, or a mute only.
+**Why:** Reading on keeps the jitter buffer drained and on the device's clock, so unmuting is instant and the reserve does not jump; a new message would need protocol 1.4 for something the viewer can do alone. The host keeps the sound off its own speakers while a display has it, which is what the host's button means; the display's mute only quiets that display.
+**Trade-offs:** A muted viewer still receives about 130 kbit/s of sound. The host is not told about the mute, so its own speakers stay silent until its button is pressed.
+**Revisit if:** Users expect the display's mute to bring the sound back to the host.
+
+## 2026-11-23 — The sharing Mac's volume applies to the sound it sends
+**Chosen:** User decision: like a TV over HDMI, both the sharing computer's volume and the display's own volume change what the display plays. The Mac reads the default output's mute and volume (`kAudioDevicePropertyVolumeDecibels`, else the virtual main volume scalar), follows changes with property listeners, and scales the tapped samples before they are encoded. An output without a volume control sends the sound unchanged.
+**Alternatives:** Only the display's volume; sending the volume as a protocol message for the viewer to apply.
+**Why:** The process tap captures the mix before the device's volume, so without this the volume keys did nothing to the display. Scaling before encoding needs no protocol change and works with every viewer.
+**Trade-offs:** At very low volumes the encoder spends its bits on a quiet signal; a volume step is applied at once, without a ramp.
+**Revisit if:** Volume changes click audibly, or users want the two volumes independent.
+
+## 2026-11-24 — The PC sends its sound through WASAPI loopback with its speakers muted
+**Chosen:** User decision after the experiment (OsplayAudioTest on the user's PC): WASAPI loopback of the default speakers, with the endpoint muted while a display has the sound. Loopback keeps the full level while muted and follows the endpoint's volume, so the volume keys work on the display without extra code. The mute key would unmute the speakers; an `IAudioEndpointVolumeCallback` catches changes that are not Osplay's (an event-context GUID marks Osplay's own), mutes the speakers again and toggles the display's sound. The user's own mute is restored on stop; a marker file lets the next start unmute speakers left muted by a crash.
+**Alternatives:** A virtual audio driver set as the default device; process loopback (Windows 10 2004+) without muting; loopback with the sound on both the PC and the display.
+**Why:** No driver to sign, install and remove, and it matches the Mac's process tap with mutedWhenTapped. Process loopback cannot silence the speakers either.
+**Trade-offs:** A mute-key press can let a moment of sound out of the speakers before they are muted again. Windows' volume mixer still shows the speakers muted while sending. A crash leaves the speakers muted until Osplay starts again.
+**Revisit if:** Users notice the moment of sound on the mute key, or loopback misses sound on some drivers (exclusive-mode apps are not in the loopback mix).
+
+## 2026-11-23 — The menu and the tray panel open by themselves after the first launch
+**Chosen:** User decision: after installing, people did not notice Osplay had started. The Mac menu bar window and the Windows tray panel open once by themselves at the first launch (on the Mac after the permissions window closes, which would otherwise take focus and close the menu), and whenever Osplay is opened again while it runs (Windows already did this; the Mac now does it through `applicationShouldHandleReopen`). SwiftUI's `MenuBarExtra` has no call to open its window, so the Mac clicks its own status item's button (`NSStatusBarButton.performClick`), retrying until the icon exists.
+**Alternatives:** Opening only at the first launch; at every launch except at login; a notification pointing at the icon; replacing `MenuBarExtra` with an own `NSStatusItem` and panel.
+**Why:** A window next to the icon shows where the app lives and that it runs, without asking anything. A login launch must stay quiet, and telling it apart is unreliable with `SMAppService`, so only the first launch and explicit reopens qualify. Clicking the status item keeps SwiftUI's window and behaviour instead of rebuilding the menu.
+**Trade-offs:** Finding the status item's button relies on AppKit's view hierarchy; if a macOS release changes it, the menu just does not open by itself (a log line says so). Existing users see the menu or panel once after updating.
+**Revisit if:** A macOS release breaks the status item lookup, or SwiftUI adds a way to open a `MenuBarExtra`.

@@ -18,5 +18,6 @@ extension Tunables {
         /// UserDefaults keys.
         static let deviceNameKey = "deviceName"
         static let statsOverlayKey = "showsStatsOverlay"
+        static let playsSoundKey = "playsSound"
     }
 }

@@ -22,6 +22,7 @@ struct AppSettingsTests {
         #expect(settings.streamSize == .hd1080)
         #expect(settings.viewerHotkey == Tunables.Viewer.toggleHotkey)
         #expect(!settings.showsStatsOverlay)
+        #expect(settings.playsSound, "a Mac plays the other computer's sound unless the user turns it off")
         #expect(settings.hiDPIChoice(for: "abc") == .automatic)
     }
 
@@ -54,6 +55,13 @@ struct AppSettingsTests {
         let ultra = QualityPreset.ultra.bitrateKbps(width: 2560, height: 1440, frameRate: 60)
         #expect(balanced < high && high < ultra)
         #expect(QualityPreset.ultra.bitrateKbps(width: 7680, height: 4320, frameRate: 240) == 80_000)
+    }
+
+    @Test("A 4K TV at 60 Hz gets its preset's bitrate, below the encoder's ceiling")
+    func presetsAt4K60() {
+        #expect(QualityPreset.balanced.bitrateKbps(width: 3840, height: 2160, frameRate: 60) == 29_859)
+        #expect(QualityPreset.high.bitrateKbps(width: 3840, height: 2160, frameRate: 60) == 49_766)
+        #expect(QualityPreset.ultra.bitrateKbps(width: 3840, height: 2160, frameRate: 60) == 79_626)
     }
 
     @Test("A shortcut needs ⌃, ⌥ or ⌘; modifier keys alone are not shortcuts")

@@ -26,8 +26,14 @@ enum Theme {
         static let secondary = Color.secondary
         static let error = Color.red
         static let warning = Color.orange
-        static let card = Color(.secondarySystemGroupedBackground)
-        static let background = Color(.systemGroupedBackground)
+        #if os(tvOS)
+            // tvOS draws its own backdrop; cards are a light veil over it.
+            static let card = Color.primary.opacity(0.08)
+            static let background = Color.clear
+        #else
+            static let card = Color(.secondarySystemGroupedBackground)
+            static let background = Color(.systemGroupedBackground)
+        #endif
     }
 
     enum Radius {
@@ -35,7 +41,12 @@ enum Theme {
     }
 
     enum Size {
-        static let symbolColumn: CGFloat = 44
+        #if os(tvOS)
+            // tvOS draws symbols and text about twice as large, for viewing from across a room.
+            static let symbolColumn: CGFloat = 88
+        #else
+            static let symbolColumn: CGFloat = 44
+        #endif
     }
 
     enum Symbol {
@@ -45,6 +56,9 @@ enum Theme {
         static let settings = "gearshape"
         static let disconnect = "xmark"
         static let statistics = "chart.bar.xaxis"
+        /// The computer's sound plays here / is muted here.
+        static let soundOn = "speaker.wave.2.fill"
+        static let soundMuted = "speaker.slash.fill"
         static let searching = "dot.radiowaves.left.and.right"
         static let update = "arrow.triangle.2.circlepath"
         static let cable = "cable.connector"

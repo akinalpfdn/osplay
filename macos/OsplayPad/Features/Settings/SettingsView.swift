@@ -21,26 +21,35 @@ struct SettingsView: View {
                     Toggle("pad.settings.stats", isOn: Bindable(connection.settings).showsStatsOverlay)
                 }
                 Section {
+                    Toggle("pad.settings.playsSound", isOn: Bindable(connection.settings).playsSound)
+                } footer: {
+                    Text("pad.settings.playsSoundFooter")
+                }
+                Section {
                     if connection.peers.isEmpty {
                         Text("pad.settings.noPaired")
                             .foregroundStyle(Theme.Colors.secondary)
                     }
                     ForEach(connection.peers) { peer in
-                        VStack(alignment: .leading, spacing: Theme.Spacing.small) {
-                            Text(peer.name)
-                                .font(Theme.Typography.body)
-                            if peer.revoked {
-                                Text("pad.settings.revoked")
-                                    .font(Theme.Typography.caption)
-                                    .foregroundStyle(Theme.Colors.warning)
+                        #if os(tvOS)
+                            // No swipe on a remote: the actions are buttons in the row.
+                            HStack(spacing: Theme.Spacing.medium) {
+                                peerName(peer)
+                                Spacer()
+                                if !peer.revoked {
+                                    Button("pad.settings.revoke") { connection.revoke(peer) }
+                                }
+                                Button("pad.settings.remove", role: .destructive) { connection.remove(peer) }
                             }
-                        }
-                        .swipeActions {
-                            Button("pad.settings.remove", role: .destructive) { connection.remove(peer) }
-                            if !peer.revoked {
-                                Button("pad.settings.revoke") { connection.revoke(peer) }
-                            }
-                        }
+                        #else
+                            peerName(peer)
+                                .swipeActions {
+                                    Button("pad.settings.remove", role: .destructive) { connection.remove(peer) }
+                                    if !peer.revoked {
+                                        Button("pad.settings.revoke") { connection.revoke(peer) }
+                                    }
+                                }
+                        #endif
                     }
                 } header: {
                     Text("pad.settings.paired")
@@ -56,6 +65,18 @@ struct SettingsView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("pad.settings.done") { dismiss() }
                 }
+            }
+        }
+    }
+
+    private func peerName(_ peer: TrustedPeer) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.small) {
+            Text(peer.name)
+                .font(Theme.Typography.body)
+            if peer.revoked {
+                Text("pad.settings.revoked")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Colors.warning)
             }
         }
     }

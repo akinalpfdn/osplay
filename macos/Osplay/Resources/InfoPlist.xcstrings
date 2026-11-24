@@ -1,6 +1,23 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "NSAudioCaptureUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay plays this Mac's sound on the display you choose."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osplay, bu Mac'in sesini seçtiğiniz ekranda çalar."
+          }
+        }
+      }
+    },
     "NSLocalNetworkUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {

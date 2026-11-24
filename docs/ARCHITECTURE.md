@@ -48,7 +48,12 @@ Virtual display ─► Capture ─► Encoder ─► core: packetize ──UDP�
   window (`media_crypto`). Randomness comes from the platform through `crypto::RandomSource`.
 - `core/src/media/` splits access units into fragments (`packetizer`), keeps recent frames for
   retransmission (`retransmit_cache`) and rebuilds frames on the viewer (`reassembler`: in-order
-  delivery, NACK, deadline, wait for keyframe).
+  delivery, NACK, deadline, wait for keyframe). Sound (protocol 1.3): the host's PCM becomes 10 ms
+  Opus frames (`audio_encoder`); the viewer's `audio_playout` is a jitter buffer that the platform's
+  audio device reads on its own thread, through `osplay_session_read_audio`, without passing the
+  I/O thread. It conceals lost frames, adapts its reserve (30–200 ms) to the network and resamples
+  by up to 0.2 % to follow the device's clock. libopus is vendored, trimmed, in
+  `core/third_party/opus` and built by CMake and SwiftPM as its own target.
 - `core/src/session/` is the session protocol without I/O (`SessionEngine`): bytes, datagrams,
   time and commands go in; bytes, datagrams and observer callbacks come out. Tests drive it with a
   simulated lossy network and clock. Every tunable is in `session_config.hpp`.
@@ -101,8 +106,15 @@ ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─�
   HiDPI resolution, so the capture backing equals the remote monitor's pixels. A session returns its
   own displays when it ends; the other viewers keep theirs.
 - **Stream size.** Each stream is fitted inside the user's stream size setting (720p, 1080p by
-  default, 1440p or Native) with `osplay_fit_stream_size`, so a large monitor is captured from its
-  full-size virtual display and encoded smaller; the bitrate follows the stream's pixels.
+  default, 1440p or Native) and then inside the viewer's decoder limits (its Capabilities, which
+  arrive with its monitors) with `osplay_fit_stream_size`, so a large monitor is captured from its
+  full-size virtual display and encoded smaller; the frame rate stops at the viewer's limit (a TV
+  chip that decodes 4K only at 30 Hz) and the bitrate follows the stream's pixels and frame rate.
+- **Monitors of unknown size.** A monitor that sends 0 mm (a TV, a projector) gets the size its
+  pixels have at 96 dpi × its scale; the starting resolution follows its scale either way.
+- **Simulated TV** (Debug). Menu › Developer tools › Simulated TV makes this Mac, when it is used
+  as a display, offer one 4K or 1080p monitor of unknown size at 200% with a TV's decoder limits
+  (`Features/Developer/SimulatedTV.swift`), to test both hosts without a TV (TESTING.md V1–V5).
 - **Capture** (`Services/ScreenCapture/`). One `SCStream` per display at the stream's pixel size
   and refresh rate, 420v pixel format, BT.709, cursor composited. Only samples with status
   complete or started are frames; an unchanged screen produces nothing and the viewer keeps its
@@ -122,6 +134,18 @@ ViewerMonitors ─► VirtualDisplayLender ─► StreamConfig per display ─�
   `osplay-<time>-stream<N>-<W>x<H>.h264` on a background queue (playable with IINA, VLC, ffplay).
   The debug menu's "Host media test" runs the whole pipeline over loopback into an in-process
   viewer and shows pacing, bitrate and latency per stream.
+- **Sound (AUD-02, macOS 14.2+).** For a viewer that plays sound, the menu row offers "play this
+  Mac's sound on this display", one viewer at a time. `ProcessTapCapture` creates a global stereo
+  Core Audio process tap with `mutedWhenTapped`, so the Mac falls silent while it is tapped, and
+  reads it through a private aggregate device clocked by the default output device (rebuilt when
+  that changes). `AVAudioConverter` turns the tap's format into interleaved 48 kHz stereo; host
+  times become core-clock capture times as for video. `HostSession` pushes the PCM into the core
+  (`startAudio`/`pushAudio`/`stopAudio`), which encodes it. Turning the choice off, or the session
+  ending, destroys the tap and the Mac plays its sound again. The System Audio Recording permission
+  is read and requested through TCC's functions (`SystemAudioPermission`); onboarding offers it as
+  optional. The tap captures the mix before the output device's volume, so `OutputVolume` reads
+  the default output's mute and volume (decibels, else its scalar) and follows their changes; the
+  captured samples are scaled by it, and the volume keys work on the display as over HDMI.
 
 ## macOS app UI
 
@@ -181,6 +205,14 @@ core cursor shape/position ─► main actor ─► cursor layer above the video
   on the main run loop, which no frame work touches, so it works even when frames stop.
 - **Power.** While a stream is visible, an `IOPMAssertion` prevents display sleep and a
   latency-critical activity disables App Nap.
+- **Sound (AUD-04).** The Mac, iPad and Apple TV viewers announce that they play sound and share
+  `Shared/Media/AudioOutput.swift`: on AudioConfig an `AVAudioEngine` source node pulls PCM from
+  the core with `readAudio` on the render thread, in chunks of 1024 frames split into the node's
+  channel buffers, on the default output. A configuration change (another output device) restarts
+  the engine; iPad and Apple TV use the `.playback` session with a 5 ms buffer and restart after
+  an interruption. The output stops before the core session goes. The stats overlay adds a sound
+  line under the first stream. While sound plays, the menu offers a live mute, and Settings has
+  "Play the other computer's sound" (iPad and Apple TV: the viewer controls and Settings).
 - **Debug loopback.** The menu's "Viewer loopback" hosts a 1920×1080 virtual display and views
   it on the same Mac (window or full screen), with corruption injection and a frame freeze.
 
@@ -224,6 +256,22 @@ sample-buffer rendering helpers and the shared tunables — compiled into both a
   installer's self-signed driver package binds to `USB\VID_18D1&PID_2D00`. A device's switch is
   counted until its accessory is opened, and given up after three.
 
+## Apple TV app
+
+The iPad app's code, built for tvOS (`OsplayTV` target, tvOS 18). Only what tvOS lacks or does
+differently is conditional:
+
+- **One monitor at the output mode.** An Apple TV offers its output mode (3840×2160 on a 4K TV)
+  with no physical size and the interface's scale (200% at 4K, 100% at 1080p), as an Android TV
+  does (TV-01).
+- **The remote.** In the viewer, select shows the controls and moves focus onto them; they stay
+  until Menu, and Menu with no controls showing ends the session. Paired computers have row buttons
+  instead of swipe actions, and the USB cable section is gone (an Apple TV has no USB port).
+- **Wording.** The iPad's String Catalog carries Apple TV variations of the strings that name the
+  device, so neither target has keys of its own.
+- **Distribution.** Same bundle identifier as the iPad app: one App Store record, and TestFlight
+  ships both. Checked in the tvOS simulator only; the maintainer has no Apple TV.
+
 ## Android app
 
 Also a viewer only. The C++ core is compiled by the NDK into `libosplay_jni.so` together with a thin
@@ -237,11 +285,27 @@ the JVM once and its callbacks go to a Kotlin `SessionListener`.
   mode decodes onto a SurfaceView and renders every frame at once. The stage starts the decoder
   when both the surface and the stream exist; after a codec error it starts over at the next
   keyframe and asks the host for one. Windows hosts' separate cursor is drawn above the video.
+- **Sound (AUD-04)** (`cpp/audio_player.cpp`). The viewer announces that it plays sound. On
+  AudioConfig the JNI bridge opens an AAudio output stream (shared, low-latency, float, 48 kHz,
+  media usage) whose data callback pulls PCM from the core with `osplay_session_read_audio`; the
+  sound never passes through Kotlin. The device buffer is two bursts. When the output is lost
+  (headphones pulled, HDMI changed) a thread of the player reopens it on the new default after
+  200 ms. The player shuts down before the session is destroyed. The stats overlay adds a sound
+  line, and the app ships the Opus license as `assets/licenses/Opus-LICENSE.txt`. The viewer
+  controls offer a live mute while sound plays, and Settings has "Play the computer's sound".
 - **Keys** (`storage/`). The identity's secret key is encrypted with an AES key that stays in the
   Android Keystore; paired computers are JSON in app-private preferences.
 - **Lifecycle.** The activity handles rotation itself, so the session restarts with the new shape
   instead of the activity being recreated; `onStop` ends the session cleanly and `onStart`
   reconnects. The screen stays on and the system bars are hidden while viewing.
+- **Android TV** (`screen/Television.kt`). The same APK has a TV launcher entry and banner and needs
+  no touchscreen. A TV offers its panel's display mode (4K on a 4K TV, whose interface is drawn at
+  1080p while the SurfaceView's video plane runs at the mode), no physical size, and the scale of
+  its own interface (200% on a 4K TV). Its Capabilities are the largest size the H.264 decoder plays
+  at the mode's rate, from the mode down to 720p, then the same at 30 Hz (`video/DecodingLimits.kt`);
+  phones and tablets announce generous limits. Every control shows a focus ring for the remote, and
+  in the viewer OK shows the controls and Back hides them, then ends the session. The USB cable
+  section is hidden: a TV is a USB host only.
 
 ## Discovery and pairing
 
@@ -414,11 +478,15 @@ VDD monitor ─► Desktop Duplication ─► BGRA copy ─► video processor (
 - **Convert and encode** (`src/encode/`). The D3D11 video processor converts BGRA to NV12 at the
   stream size, BT.709 studio range. The virtual monitor keeps the viewer monitor's mode while the
   stream is fitted inside the shell's stream size setting (`max_stream_width/height` in the host
-  config, `osplay_fit_stream_size`), so the processor scales it down. The first
+  config, `osplay_fit_stream_size`) and inside the viewer's decoder limits, frame rate included,
+  so the processor scales it down. The first
   hardware H.264 MFT from `MFTEnumEx` runs in async mode with a DXGI device manager, low-latency
   mode, CBR, no B-frames and an endless GOP; `CODECAPI_AVEncVideoForceKeyFrame` answers keyframe
   requests. Output keyframes get SPS/PPS put in front when the encoder omits them
   (`media/h264_stream.cpp`).
+- **Scale.** Before capture starts, each virtual monitor is set to the Windows display scale
+  closest to the viewer monitor's (`display/dpi_scaling.cpp`, the undocumented CCD requests
+  Settings › Display uses; DECISIONS.md 2026-11-01). A refusal keeps Windows' own choice.
 - **Cursor.** Desktop Duplication reports the pointer apart from the image. Shapes (monochrome,
   colour, masked colour) become premultiplied BGRA (`media/pointer_shape.cpp`; screen-inverting
   pixels become black with a white outline, larger than 256 px are cropped around the hotspot),
@@ -426,6 +494,17 @@ VDD monitor ─► Desktop Duplication ─► BGRA copy ─► video processor (
   hotspot in stream pixels.
 - **Clocks.** Capture times come from `LastPresentTime` (QPC) and are converted to the core's clock
   by their age.
+- **Sound (AUD-03).** For a viewer that plays sound, the panel row offers a speaker button
+  (`osplay_engine_host_set_sound`); one display has the sound at a time. `WasapiSystemSound`
+  records the default speakers through WASAPI loopback (48 kHz stereo converted by Windows, or the
+  mix format converted by `StereoResampler`), which keeps the full level while the endpoint is
+  muted and already follows its volume, so the volume keys work on the display. The speakers are
+  muted while recording; the mute key, which would unmute them, is caught through
+  `IAudioEndpointVolumeCallback`, undone, and mutes the display's sound instead (`HostSound`).
+  A new default output is recorded after 300 ms. A marker file
+  (`%LOCALAPPDATA%\Osplay\speakers-muted`) names speakers Osplay muted, and
+  `osplay_engine_restore_speakers` unmutes them at the next start after a crash.
+  `OsplayAudioTest.exe` measures the loopback level normally, muted and at 10 % volume.
 - **Debug tool.** `OsplayHostTest.exe` runs a host session with an in-process core viewer, a moving
   pattern on the virtual monitor and a per-second report (BUILDING.md).
 
@@ -466,6 +545,15 @@ core ─► access unit ─► decode thread: MF H.264 decoder (D3D11, NV12) ─
   without it frames go straight into the swap chain as before.
 - **Debug tool.** `OsplayViewerTest.exe` lists the monitors, views a remote host by address or runs
   a loopback with the Windows host pipeline (BUILDING.md).
+- **Sound (AUD-04).** The viewer announces sound when the shell's "Play the other computer's sound"
+  setting is on (`plays_sound` in the viewer config). On AudioConfig, `ViewerAudio` opens
+  a `WasapiAudioOutput`: shared mode on the default render device, event driven with a 10 ms buffer,
+  in the host's 48 kHz float format with Windows converting rate and channels. Its thread (MMCSS
+  "Pro Audio") pulls PCM from the core with `osplay_session_read_audio`; a lost device is opened
+  again on the new default after half a second. AudioStop, the session's end and
+  `osplay_engine_viewer_destroy` close it, the last one before the core session goes. `on_sound`
+  tells the shell while sound plays, so the tray panel offers a live mute
+  (`osplay_engine_viewer_set_muted`: the sound keeps being read and plays as silence).
 
 ## Windows app UI
 

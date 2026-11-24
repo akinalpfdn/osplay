@@ -33,6 +33,19 @@
                     StreamRowView(row: row)
                 }
 
+                Toggle(
+                    "developer.hostTest.sound",
+                    isOn: Binding(get: { viewModel.soundOn }, set: { viewModel.setSound($0) })
+                )
+                .disabled(!viewModel.isRunning)
+                if let sound = viewModel.soundLine {
+                    Text(
+                        "developer.hostTest.soundLine \(sound.levelDecibels.map { $0.formatted(.number.precision(.fractionLength(0))) } ?? "–") \(sound.bitrateKbps) \(sound.reserveMilliseconds.formatted(.number.precision(.fractionLength(0)))) \(sound.latencyMilliseconds.formatted(.number.precision(.fractionLength(0)))) \(sound.concealedFrames)"
+                    )
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(.secondary)
+                }
+
                 if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)
                         .font(Theme.Typography.caption)

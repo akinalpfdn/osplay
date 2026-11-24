@@ -170,6 +170,7 @@ $licenses = [ordered]@{
     'LICENSE.txt'                     = Join-Path $repo 'LICENSE'
     'Monocypher-LICENSE.txt'          = Join-Path $repo 'core\third_party\monocypher\LICENCE.md'
     'Asio-LICENSE.txt'                = Join-Path $repo 'core\third_party\asio\LICENSE_1_0.txt'
+    'Opus-LICENSE.txt'                = Join-Path $repo 'core\third_party\opus\COPYING'
     'dotnet-LICENSE.txt'              = Join-Path $dotnetRoot 'LICENSE.txt'
     'dotnet-ThirdPartyNotices.txt'    = Join-Path $dotnetRoot 'ThirdPartyNotices.txt'
 }
