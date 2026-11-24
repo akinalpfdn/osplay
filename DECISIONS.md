@@ -783,3 +783,10 @@ choices the plan leaves open are logged here.
 **Why:** No driver to sign, install and remove, and it matches the Mac's process tap with mutedWhenTapped. Process loopback cannot silence the speakers either.
 **Trade-offs:** A mute-key press can let a moment of sound out of the speakers before they are muted again. Windows' volume mixer still shows the speakers muted while sending. A crash leaves the speakers muted until Osplay starts again.
 **Revisit if:** Users notice the moment of sound on the mute key, or loopback misses sound on some drivers (exclusive-mode apps are not in the loopback mix).
+
+## 2026-11-23 — The menu and the tray panel open by themselves after the first launch
+**Chosen:** User decision: after installing, people did not notice Osplay had started. The Mac menu bar window and the Windows tray panel open once by themselves at the first launch (on the Mac after the permissions window closes, which would otherwise take focus and close the menu), and whenever Osplay is opened again while it runs (Windows already did this; the Mac now does it through `applicationShouldHandleReopen`). SwiftUI's `MenuBarExtra` has no call to open its window, so the Mac clicks its own status item's button (`NSStatusBarButton.performClick`), retrying until the icon exists.
+**Alternatives:** Opening only at the first launch; at every launch except at login; a notification pointing at the icon; replacing `MenuBarExtra` with an own `NSStatusItem` and panel.
+**Why:** A window next to the icon shows where the app lives and that it runs, without asking anything. A login launch must stay quiet, and telling it apart is unreliable with `SMAppService`, so only the first launch and explicit reopens qualify. Clicking the status item keeps SwiftUI's window and behaviour instead of rebuilding the menu.
+**Trade-offs:** Finding the status item's button relies on AppKit's view hierarchy; if a macOS release changes it, the menu just does not open by itself (a log line says so). Existing users see the menu or panel once after updating.
+**Revisit if:** A macOS release breaks the status item lookup, or SwiftUI adds a way to open a `MenuBarExtra`.

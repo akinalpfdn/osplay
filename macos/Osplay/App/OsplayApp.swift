@@ -31,8 +31,12 @@ struct OsplayApp: App {
                 hotkeys: dependencies.hotkeys, logs: UnifiedLogExporter(), showPermissions: onboarding.show))
         let updates = UpdatesViewModel(settings: dependencies.settings, checker: GitHubUpdateChecker())
         _updates = State(initialValue: updates)
+        let firstLaunchMenu = FirstLaunchMenu(settings: dependencies.settings, openMenu: MenuWindow.open)
+        onboarding.onClose = { firstLaunchMenu.onboardingClosed() }
         AppDelegate.onLaunch = {
-            if onboardingModel.needsAttention { onboarding.show() }
+            let showsOnboarding = onboardingModel.needsAttention
+            if showsOnboarding { onboarding.show() }
+            firstLaunchMenu.launched(showsOnboarding: showsOnboarding)
             Task { await updates.checkIfDue() }
         }
         #if DEBUG
@@ -82,12 +86,19 @@ struct OsplayApp: App {
     #endif
 }
 
-/// Opens the permissions window at launch when something is missing.
+/// Opens the permissions window at launch when something is missing, and the menu when Osplay is
+/// opened again while it runs (as the Windows shell opens its panel).
 final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor static var onLaunch: (() -> Void)?
 
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.onLaunch?()
+    }
+
+    @MainActor
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        MenuWindow.open()
+        return false
     }
 }

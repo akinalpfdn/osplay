@@ -12,6 +12,32 @@ enum MenuWindow {
         window?.close()
     }
 
+    /// Opens the menu bar window as a click on Osplay's menu bar icon does, once the icon is there.
+    /// SwiftUI has no call for it, so this clicks the status item's button.
+    static func open() {
+        Task {
+            for _ in 0..<Tunables.Menu.openAttempts {
+                if window?.isVisible == true { return }
+                if let button = statusItemButton() {
+                    button.performClick(nil)
+                    return
+                }
+                try? await Task.sleep(for: Tunables.Menu.openRetry)  // cancelled only with the app
+            }
+            Log.connection.error("The menu could not be opened: no menu bar icon")
+        }
+    }
+
+    /// The button of Osplay's own status item; the app's windows include the one it sits in.
+    private static func statusItemButton() -> NSStatusBarButton? {
+        NSApp.windows.lazy.compactMap { $0.contentView.flatMap(statusItemButton(in:)) }.first
+    }
+
+    private static func statusItemButton(in view: NSView) -> NSStatusBarButton? {
+        if let button = view as? NSStatusBarButton { return button }
+        return view.subviews.lazy.compactMap(statusItemButton(in:)).first
+    }
+
     fileprivate static func attached(_ window: NSWindow) {
         self.window = window
         closesOnClicksElsewhere()

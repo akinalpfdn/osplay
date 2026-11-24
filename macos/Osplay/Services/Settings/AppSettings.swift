@@ -55,6 +55,11 @@ final class AppSettings {
         didSet { defaults.set(playsSound, forKey: Key.playsSound) }
     }
 
+    /// The menu opened by itself once, after the first launch, to show where Osplay lives.
+    var hasShownMenu: Bool {
+        didSet { defaults.set(hasShownMenu, forKey: Key.shownMenu) }
+    }
+
     /// This Mac's displays not offered to hosts, by `LocalDisplay.key`.
     var excludedDisplays: Set<String> {
         didSet { save(excludedDisplays, forKey: Key.excludedDisplays) }
@@ -79,6 +84,7 @@ final class AppSettings {
         lastUpdateCheck = defaults.object(forKey: Key.lastUpdateCheck) as? Date
         hasCompletedOnboarding = defaults.bool(forKey: Key.onboarding)
         playsSound = defaults.object(forKey: Key.playsSound) as? Bool ?? true
+        hasShownMenu = defaults.bool(forKey: Key.shownMenu)
         excludedDisplays = Self.load(Set<String>.self, from: defaults, forKey: Key.excludedDisplays) ?? []
         hiDPIChoices = Self.load([String: HiDPIChoice].self, from: defaults, forKey: Key.hiDPIChoices) ?? [:]
         arrangements = Self.load([String: [ArrangedMonitor]].self, from: defaults, forKey: Key.arrangements) ?? [:]
@@ -131,6 +137,7 @@ final class AppSettings {
         static let hiDPIChoices = "hiDPIChoices"
         static let onboarding = "hasCompletedOnboarding"
         static let playsSound = "playsSound"
+        static let shownMenu = "hasShownMenu"
         static let arrangements = "displayArrangements"
         static let excludedDisplays = "excludedViewerDisplays"
         static let checksForUpdates = "checksForUpdates"

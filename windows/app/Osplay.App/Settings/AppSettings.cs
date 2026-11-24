@@ -54,6 +54,10 @@ public sealed partial class AppSettings : ObservableObject
     [ObservableProperty]
     private bool _playsSound = true;
 
+    /// <summary>The panel opened by itself once, after the first launch, to show where Osplay lives.</summary>
+    [ObservableProperty]
+    private bool _hasShownPanel;
+
     /// <summary>Monitors not offered to hosts, by <see cref="MonitorKey"/>.</summary>
     [ObservableProperty]
     private IReadOnlyList<string> _excludedMonitors = [];
@@ -115,6 +119,7 @@ public sealed partial class AppSettings : ObservableObject
             PcNetworkName = stored.PcNetworkName ?? string.Empty;
             PcNetworkPassword = stored.PcNetworkPassword ?? string.Empty;
             PlaysSound = stored.PlaysSound;
+            HasShownPanel = stored.HasShownPanel;
         }
         finally
         {
@@ -128,7 +133,7 @@ public sealed partial class AppSettings : ObservableObject
             Quality, ViewerHotkey.Modifiers, ViewerHotkey.VirtualKey, ShowsStatsOverlay, ChecksForUpdates, LastUpdateCheck,
             [.. ExcludedMonitors], SwapHotkey.Modifiers, SwapHotkey.VirtualKey,
             StatsHotkey.Modifiers, StatsHotkey.VirtualKey, StreamSize, PcNetworkName, PcNetworkPassword,
-            PlaysSound);
+            PlaysSound, HasShownPanel);
         try
         {
             _ = Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
@@ -145,5 +150,5 @@ public sealed partial class AppSettings : ObservableObject
         DateTimeOffset? LastUpdateCheck, List<string>? ExcludedMonitors,
         uint SwapModifiers = 0, uint SwapKey = 0, uint StatsModifiers = 0, uint StatsKey = 0,
         StreamSizePreset StreamSize = StreamSizePreset.Hd1080, string? PcNetworkName = null,
-        string? PcNetworkPassword = null, bool PlaysSound = true);
+        string? PcNetworkPassword = null, bool PlaysSound = true, bool HasShownPanel = false);
 }

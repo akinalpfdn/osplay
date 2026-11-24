@@ -44,6 +44,12 @@ extension Tunables {
 
     }
 
+    enum Menu {
+        /// The menu bar icon appears shortly after launch; opening the menu waits for it this often.
+        static let openAttempts = 20
+        static let openRetry: Duration = .milliseconds(250)
+    }
+
     enum Onboarding {
         /// How often the permissions window rereads Screen Recording access.
         static let pollInterval: Duration = .seconds(1)
