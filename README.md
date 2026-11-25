@@ -33,6 +33,12 @@
 </p>
 
 <p align="center">
+  <img src="https://raw.githubusercontent.com/akinalpfdn/osdrop/main/macos/Osdrop/Resources/Assets.xcassets/AppIcon.appiconset/icon_32x32@2x.png" width="20" align="absmiddle" alt="Osdrop app icon">&nbsp;
+  From the same developer: <a href="https://github.com/akinalpfdn/osdrop"><b>Osdrop</b></a>, one keyboard and mouse for your Macs and PCs,
+  with files dragged across the screen edge. Osplay forwards no input; Osdrop does.
+</p>
+
+<p align="center">
   <img src="artwork/readme/setup.jpg" width="100%" alt="A MacBook using both monitors of a Windows PC as its own displays">
   <br><sub>A MacBook using both monitors of a Windows PC as its own displays.</sub>
 </p>
