@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/akinalpfdn/osdrop/main/macos/Osdrop/Resources/Assets.xcassets/AppIcon.appiconset/icon_32x32@2x.png" width="20" align="absmiddle" alt="Osdrop app icon">&nbsp;
+  <a href="https://github.com/akinalpfdn/osdrop"><img src="https://raw.githubusercontent.com/akinalpfdn/osdrop/main/macos/Osdrop/Resources/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" width="64" alt="Osdrop app icon"></a><br>
   From the same developer: <a href="https://github.com/akinalpfdn/osdrop"><b>Osdrop</b></a>, one keyboard and mouse for your Macs and PCs,
   with files dragged across the screen edge. Osplay forwards no input; Osdrop does.
 </p>

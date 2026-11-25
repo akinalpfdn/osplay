@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/akinalpfdn/osdrop/main/macos/Osdrop/Resources/Assets.xcassets/AppIcon.appiconset/icon_32x32@2x.png" width="20" align="absmiddle" alt="Osdrop uygulama simgesi">&nbsp;
+  <a href="https://github.com/akinalpfdn/osdrop"><img src="https://raw.githubusercontent.com/akinalpfdn/osdrop/main/macos/Osdrop/Resources/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" width="64" alt="Osdrop uygulama simgesi"></a><br>
   Aynı geliştiriciden: <a href="https://github.com/akinalpfdn/osdrop"><b>Osdrop</b></a>, Mac'lerin ve PC'lerin için tek klavye ve fare;
   dosyaları ekran kenarından sürükleyerek taşır. Osplay girdi iletmez, Osdrop iletir.
 </p>
