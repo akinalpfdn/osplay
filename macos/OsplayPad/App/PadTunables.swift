@@ -15,6 +15,10 @@ extension Tunables {
         static let reconnectDelay: Duration = .seconds(2)
         /// The viewer's controls hide again after this long.
         static let controlsHideDelay: Duration = .seconds(4)
+        /// Where Osplay for the Mac and Windows is downloaded: the README's install section.
+        static let downloadsAddress = "https://github.com/akinalpfdn/osplay#install"
+        /// The same page as Apple TV shows it under its QR code, short enough to type.
+        static let downloadsShortAddress = "github.com/akinalpfdn/osplay"
         /// UserDefaults keys.
         static let deviceNameKey = "deviceName"
         static let statsOverlayKey = "showsStatsOverlay"

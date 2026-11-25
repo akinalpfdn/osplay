@@ -57,6 +57,13 @@ struct SettingsView: View {
                     Text("pad.settings.pairedFooter")
                 }
                 Section {
+                    DownloadsRow()
+                } header: {
+                    Text("pad.settings.downloads")
+                } footer: {
+                    Text("pad.settings.downloadsFooter")
+                }
+                Section {
                     LabeledContent("pad.settings.version", value: Self.version)
                 }
             }

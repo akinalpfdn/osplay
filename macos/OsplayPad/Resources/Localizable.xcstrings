@@ -1369,6 +1369,98 @@
           }
         }
       }
+    },
+    "pad.settings.downloads": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay for Mac and Windows"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac ve Windows için Osplay"
+          }
+        }
+      }
+    },
+    "pad.settings.downloadsLink": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download for Mac or Windows"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac ya da Windows için indir"
+          }
+        }
+      }
+    },
+    "pad.settings.downloadsCode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QR code of the Osplay download page"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay indirme sayfasının QR kodu"
+          }
+        }
+      }
+    },
+    "pad.settings.downloadsFooter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "This Apple TV shows the screen of a Mac or PC that runs Osplay too. Scan the code with your phone to open the download page."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "This iPad shows the screen of a Mac or PC that runs Osplay too. It is free from the download page."
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bu Apple TV, Osplay'in çalıştığı bir Mac ya da PC'nin ekranını gösterir. İndirme sayfasını açmak için kodu telefonunla tara."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bu iPad, Osplay'in çalıştığı bir Mac ya da PC'nin ekranını gösterir. İndirme sayfasından ücretsiz indirilebilir."
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "version": "1.0"

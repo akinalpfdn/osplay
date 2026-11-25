@@ -44,9 +44,18 @@ enum Theme {
         #if os(tvOS)
             // tvOS draws symbols and text about twice as large, for viewing from across a room.
             static let symbolColumn: CGFloat = 88
+            /// The download page's QR code, big enough to scan from a sofa.
+            static let downloadsCode: CGFloat = 280
         #else
             static let symbolColumn: CGFloat = 44
         #endif
+    }
+
+    /// The download page's QR code: dark modules on a light quiet zone, as scanners expect.
+    enum DownloadsCode {
+        static let modules = Color.black
+        static let background = Color.white
+        static let quietZone: CGFloat = 16
     }
 
     enum Symbol {
