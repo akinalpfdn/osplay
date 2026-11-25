@@ -1,5 +1,5 @@
 # Phase 034 (STORE-02) — App Store listing and review
-Status: PENDING
+Status: ACTIVE
 
 Depends on: PHASE-033.
 
