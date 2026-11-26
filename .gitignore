@@ -51,3 +51,8 @@ android/.kotlin/
 android/.idea/
 # Android Studio's "Generate Signed APK" output; released APKs go to android/release/.
 android/app/release/
+
+# App Store Connect API keys never belong in the repo
+*.p8
+# App Store listing work (fastlane deliver, listing text, store artwork) stays local
+fastlane/
