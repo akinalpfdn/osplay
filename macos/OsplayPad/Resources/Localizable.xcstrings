@@ -1027,15 +1027,39 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Swipe left on a computer to revoke or remove it. A revoked computer is refused; a removed one asks for a pairing code again."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Revoke refuses a computer; Remove makes it ask for a pairing code again."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Swipe left on a computer to revoke or remove it. A revoked computer is refused; a removed one asks for a pairing code again."
+                }
+              }
+            }
           }
         },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bir bilgisayarı iptal etmek ya da kaldırmak için sola kaydırın. İptal edilen bilgisayar reddedilir; kaldırılan bilgisayar yeniden eşleşme kodu ister."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "İptal et bilgisayarı reddeder; Kaldır yeniden eşleşme kodu istemesini sağlar."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bir bilgisayarı iptal etmek ya da kaldırmak için sola kaydırın. İptal edilen bilgisayar reddedilir; kaldırılan bilgisayar yeniden eşleşme kodu ister."
+                }
+              }
+            }
           }
         }
       }

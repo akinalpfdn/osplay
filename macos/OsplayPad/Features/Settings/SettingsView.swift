@@ -17,6 +17,11 @@ struct SettingsView: View {
                 } footer: {
                     Text("pad.settings.nameFooter")
                 }
+                #if os(tvOS)
+                    // The QR code first: an Apple TV is useless without Osplay on a computer, and the
+                    // code should not need scrolling to.
+                    downloads
+                #endif
                 Section {
                     Toggle("pad.settings.stats", isOn: Bindable(connection.settings).showsStatsOverlay)
                 }
@@ -56,13 +61,9 @@ struct SettingsView: View {
                 } footer: {
                     Text("pad.settings.pairedFooter")
                 }
-                Section {
-                    DownloadsRow()
-                } header: {
-                    Text("pad.settings.downloads")
-                } footer: {
-                    Text("pad.settings.downloadsFooter")
-                }
+                #if !os(tvOS)
+                    downloads
+                #endif
                 Section {
                     LabeledContent("pad.settings.version", value: Self.version)
                 }
@@ -73,6 +74,17 @@ struct SettingsView: View {
                     Button("pad.settings.done") { dismiss() }
                 }
             }
+        }
+    }
+
+    /// Where Osplay for the Mac and Windows comes from.
+    private var downloads: some View {
+        Section {
+            DownloadsRow()
+        } header: {
+            Text("pad.settings.downloads")
+        } footer: {
+            Text("pad.settings.downloadsFooter")
         }
     }
 
