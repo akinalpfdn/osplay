@@ -51,12 +51,20 @@ struct HomeView: View {
                         showsSettings = true
                     } label: {
                         Label("pad.settings.title", systemImage: Theme.Symbol.settings)
+                            .labelStyle(.iconOnly)  // tvOS cut the title to "Se…gs" in the toolbar
                     }
                 }
             }
-            .sheet(isPresented: $showsSettings) {
-                SettingsView(connection: connection)
-            }
+            #if os(tvOS)
+                // tvOS shows a sheet as a small card that the settings form does not fit.
+                .fullScreenCover(isPresented: $showsSettings) {
+                    SettingsView(connection: connection)
+                }
+            #else
+                .sheet(isPresented: $showsSettings) {
+                    SettingsView(connection: connection)
+                }
+            #endif
         }
         .onAppear(perform: connection.start)
     }
