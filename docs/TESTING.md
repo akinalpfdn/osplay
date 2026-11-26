@@ -66,6 +66,7 @@ Run the iPad app from Xcode (BUILDING.md) or TestFlight. The computer runs Ospla
 | T4 | Background | During T1, go to the Home Screen, wait 10 s, open Osplay again | The Mac display goes away while Osplay is in the background and comes back by itself |
 | T5 | Old computer | A computer with Osplay 0.1.1 shares its screen | Listed with "Update Osplay on this computer"; tapping it explains, no connection attempt |
 | T6 | Revoke | iPad Settings › Paired computers → swipe → Revoke, then connect | Refused at once without a code; Remove makes it ask for a code again |
+| T7 | Download link | iPad Settings › Osplay for Mac and Windows › Download for Mac or Windows | Safari opens the README at its install section |
 
 The same cases apply to the Android app (A1–A6 for T1–T6), run from Android Studio or Google Play
 on a phone or tablet with Android 12 or later.
@@ -135,6 +136,7 @@ latency on hardware are not covered.
 | ATV3 | Apple TV 1080p | Simulator "Apple TV 4K (at 1080p)"; ATV1 | A 1920×1080 display at full size |
 | ATV4 | Remote | During ATV1 press Return, move along the controls, press Escape twice | Return shows the controls and focuses the statistics button; the first Escape hides them, the second ends the session |
 | ATV5 | Wording | Home screen and Settings | They say Apple TV, never iPad; no USB cable section |
+| ATV6 | Download code | Settings › Osplay for Mac and Windows; scan the QR code with a phone | The phone opens the README at its install section; the short address is readable under the code |
 
 ## TVs (simulated)
 

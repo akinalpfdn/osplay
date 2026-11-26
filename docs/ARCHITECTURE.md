@@ -269,8 +269,11 @@ differently is conditional:
   instead of swipe actions, and the USB cable section is gone (an Apple TV has no USB port).
 - **Wording.** The iPad's String Catalog carries Apple TV variations of the strings that name the
   device, so neither target has keys of its own.
+- **Downloads.** Settings tells where Osplay for the Mac and Windows comes from: a link on iPad;
+  on Apple TV, which cannot open links, a QR code (Core Image's generator) and a short address.
 - **Distribution.** Same bundle identifier as the iPad app: one App Store record, and TestFlight
-  ships both. Checked in the tvOS simulator only; the maintainer has no Apple TV.
+  ships both. The iPad and Apple TV apps go to the App Store; the Mac app stays on GitHub, since
+  extending a Mac needs private API (DECISIONS.md, 2026-11-26). Checked in the tvOS simulator only; the maintainer has no Apple TV.
 
 ## Android app
 

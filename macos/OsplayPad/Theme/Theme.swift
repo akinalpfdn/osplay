@@ -30,9 +30,14 @@ enum Theme {
             // tvOS draws its own backdrop; cards are a light veil over it.
             static let card = Color.primary.opacity(0.08)
             static let background = Color.clear
+            /// A full-screen cover has no backdrop of its own: without one the screen below shows.
+            static let coverBackground = Color.black
+            /// Explanations under settings: the system's secondary grey is too faint across a room.
+            static let detail = Color.white.opacity(0.8)
         #else
             static let card = Color(.secondarySystemGroupedBackground)
             static let background = Color(.systemGroupedBackground)
+            static let detail = Color.secondary
         #endif
     }
 
@@ -44,9 +49,18 @@ enum Theme {
         #if os(tvOS)
             // tvOS draws symbols and text about twice as large, for viewing from across a room.
             static let symbolColumn: CGFloat = 88
+            /// The download page's QR code, big enough to scan from a sofa.
+            static let downloadsCode: CGFloat = 280
         #else
             static let symbolColumn: CGFloat = 44
         #endif
+    }
+
+    /// The download page's QR code: dark modules on a light quiet zone, as scanners expect.
+    enum DownloadsCode {
+        static let modules = Color.black
+        static let background = Color.white
+        static let quietZone: CGFloat = 16
     }
 
     enum Symbol {

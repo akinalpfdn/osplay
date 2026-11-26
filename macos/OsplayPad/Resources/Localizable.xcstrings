@@ -1027,15 +1027,39 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Swipe left on a computer to revoke or remove it. A revoked computer is refused; a removed one asks for a pairing code again."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Select a computer to revoke or remove it."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Swipe left on a computer to revoke or remove it. A revoked computer is refused; a removed one asks for a pairing code again."
+                }
+              }
+            }
           }
         },
         "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bir bilgisayarı iptal etmek ya da kaldırmak için sola kaydırın. İptal edilen bilgisayar reddedilir; kaldırılan bilgisayar yeniden eşleşme kodu ister."
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "İptal etmek ya da kaldırmak için bir bilgisayarı seç."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bir bilgisayarı iptal etmek ya da kaldırmak için sola kaydırın. İptal edilen bilgisayar reddedilir; kaldırılan bilgisayar yeniden eşleşme kodu ister."
+                }
+              }
+            }
           }
         }
       }
@@ -1366,6 +1390,132 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "pad.settings.downloads": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay for Mac and Windows"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac ve Windows için Osplay"
+          }
+        }
+      }
+    },
+    "pad.settings.downloadsLink": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download for Mac or Windows"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac ya da Windows için indir"
+          }
+        }
+      }
+    },
+    "pad.settings.downloadsCode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QR code of the Osplay download page"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osplay indirme sayfasının QR kodu"
+          }
+        }
+      }
+    },
+    "pad.settings.downloadsFooter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "This Apple TV shows the screen of a Mac or PC that runs Osplay too. Scan the code with your phone to open the download page."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "This iPad shows the screen of a Mac or PC that runs Osplay too. It is free from the download page."
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "variations": {
+            "device": {
+              "appletv": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bu Apple TV, Osplay'in çalıştığı bir Mac ya da PC'nin ekranını gösterir. İndirme sayfasını açmak için kodu telefonunla tara."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bu iPad, Osplay'in çalıştığı bir Mac ya da PC'nin ekranını gösterir. İndirme sayfasından ücretsiz indirilebilir."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "pad.settings.manage": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revoke: this computer is refused from now on. Remove: it is forgotten and asks for a pairing code next time."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İptal et: bu bilgisayar bundan sonra reddedilir. Kaldır: unutulur ve bir dahaki sefere eşleşme kodu ister."
+          }
+        }
+      }
+    },
+    "pad.settings.manageRevoked": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This computer is revoked and refused. Remove it to pair it again with a code."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu bilgisayar iptal edildi ve reddediliyor. Kodla yeniden eşleştirmek için kaldır."
           }
         }
       }
