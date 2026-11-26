@@ -30,6 +30,8 @@ enum Theme {
             // tvOS draws its own backdrop; cards are a light veil over it.
             static let card = Color.primary.opacity(0.08)
             static let background = Color.clear
+            /// A full-screen cover has no backdrop of its own: without one the screen below shows.
+            static let coverBackground = Color.black
         #else
             static let card = Color(.secondarySystemGroupedBackground)
             static let background = Color(.systemGroupedBackground)

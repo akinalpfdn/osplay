@@ -59,6 +59,7 @@ struct HomeView: View {
                 // tvOS shows a sheet as a small card that the settings form does not fit.
                 .fullScreenCover(isPresented: $showsSettings) {
                     SettingsView(connection: connection)
+                    .background(Theme.Colors.coverBackground)
                 }
             #else
                 .sheet(isPresented: $showsSettings) {
@@ -66,7 +67,15 @@ struct HomeView: View {
                 }
             #endif
         }
-        .onAppear(perform: connection.start)
+        .onAppear {
+            connection.start()
+            #if DEBUG
+                // Screenshots and checks without a remote: `-OsplayOpensSettings` starts in Settings.
+                if ProcessInfo.processInfo.arguments.contains("-OsplayOpensSettings") {
+                    showsSettings = true
+                }
+            #endif
+        }
     }
 }
 
