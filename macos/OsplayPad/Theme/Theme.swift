@@ -32,9 +32,12 @@ enum Theme {
             static let background = Color.clear
             /// A full-screen cover has no backdrop of its own: without one the screen below shows.
             static let coverBackground = Color.black
+            /// Explanations under settings: the system's secondary grey is too faint across a room.
+            static let detail = Color.white.opacity(0.8)
         #else
             static let card = Color(.secondarySystemGroupedBackground)
             static let background = Color(.systemGroupedBackground)
+            static let detail = Color.secondary
         #endif
     }
 

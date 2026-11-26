@@ -1032,7 +1032,7 @@
               "appletv": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Revoke refuses a computer; Remove makes it ask for a pairing code again."
+                  "value": "Select a computer to revoke or remove it."
                 }
               },
               "other": {
@@ -1050,7 +1050,7 @@
               "appletv": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "İptal et bilgisayarı reddeder; Kaldır yeniden eşleşme kodu istemesini sağlar."
+                  "value": "İptal etmek ya da kaldırmak için bir bilgisayarı seç."
                 }
               },
               "other": {
@@ -1482,6 +1482,40 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "pad.settings.manage": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revoke: this computer is refused from now on. Remove: it is forgotten and asks for a pairing code next time."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İptal et: bu bilgisayar bundan sonra reddedilir. Kaldır: unutulur ve bir dahaki sefere eşleşme kodu ister."
+          }
+        }
+      }
+    },
+    "pad.settings.manageRevoked": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This computer is revoked and refused. Remove it to pair it again with a code."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu bilgisayar iptal edildi ve reddediliyor. Kodla yeniden eşleştirmek için kaldır."
           }
         }
       }

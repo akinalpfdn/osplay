@@ -4,6 +4,9 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var connection: PadConnectionViewModel
     @Environment(\.dismiss) private var dismiss
+    /// Apple TV: the paired computer whose actions are shown; the remote cannot reach buttons inside
+    /// a row, so a row opens them.
+    @State private var managedPeer: TrustedPeer?
 
     var body: some View {
         NavigationStack {
@@ -13,9 +16,9 @@ struct SettingsView: View {
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
                 } header: {
-                    Text("pad.settings.name")
+                    Text("pad.settings.name").foregroundStyle(Theme.Colors.detail)
                 } footer: {
-                    Text("pad.settings.nameFooter")
+                    Text("pad.settings.nameFooter").foregroundStyle(Theme.Colors.detail)
                 }
                 #if os(tvOS)
                     // The QR code first: an Apple TV is useless without Osplay on a computer, and the
@@ -28,7 +31,7 @@ struct SettingsView: View {
                 Section {
                     Toggle("pad.settings.playsSound", isOn: Bindable(connection.settings).playsSound)
                 } footer: {
-                    Text("pad.settings.playsSoundFooter")
+                    Text("pad.settings.playsSoundFooter").foregroundStyle(Theme.Colors.detail)
                 }
                 Section {
                     if connection.peers.isEmpty {
@@ -37,14 +40,11 @@ struct SettingsView: View {
                     }
                     ForEach(connection.peers) { peer in
                         #if os(tvOS)
-                            // No swipe on a remote: the actions are buttons in the row.
-                            HStack(spacing: Theme.Spacing.medium) {
+                            // No swipe on a remote: selecting the row offers revoke and remove.
+                            Button {
+                                managedPeer = peer
+                            } label: {
                                 peerName(peer)
-                                Spacer()
-                                if !peer.revoked {
-                                    Button("pad.settings.revoke") { connection.revoke(peer) }
-                                }
-                                Button("pad.settings.remove", role: .destructive) { connection.remove(peer) }
                             }
                         #else
                             peerName(peer)
@@ -57,9 +57,9 @@ struct SettingsView: View {
                         #endif
                     }
                 } header: {
-                    Text("pad.settings.paired")
+                    Text("pad.settings.paired").foregroundStyle(Theme.Colors.detail)
                 } footer: {
-                    Text("pad.settings.pairedFooter")
+                    Text("pad.settings.pairedFooter").foregroundStyle(Theme.Colors.detail)
                 }
                 #if !os(tvOS)
                     downloads
@@ -69,6 +69,21 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("pad.settings.title")
+            #if os(tvOS)
+                .confirmationDialog(
+                    managedPeer?.name ?? "",
+                    isPresented: Binding(get: { managedPeer != nil }, set: { if !$0 { managedPeer = nil } }),
+                    titleVisibility: .visible, presenting: managedPeer
+                ) { peer in
+                    if !peer.revoked {
+                        Button("pad.settings.revoke") { connection.revoke(peer) }
+                    }
+                    Button("pad.settings.remove", role: .destructive) { connection.remove(peer) }
+                    Button("pad.action.cancel", role: .cancel) {}
+                } message: { peer in
+                    Text(peer.revoked ? "pad.settings.manageRevoked" : "pad.settings.manage")
+                }
+            #endif
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("pad.settings.done") { dismiss() }
@@ -82,9 +97,9 @@ struct SettingsView: View {
         Section {
             DownloadsRow()
         } header: {
-            Text("pad.settings.downloads")
+            Text("pad.settings.downloads").foregroundStyle(Theme.Colors.detail)
         } footer: {
-            Text("pad.settings.downloadsFooter")
+            Text("pad.settings.downloadsFooter").foregroundStyle(Theme.Colors.detail)
         }
     }
 
@@ -96,6 +111,13 @@ struct SettingsView: View {
                 Text("pad.settings.revoked")
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.warning)
+            } else {
+                #if os(tvOS)
+                    // Both states named, so a revoke shows at once.
+                    Text("pad.device.paired")
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Colors.detail)
+                #endif
             }
         }
     }
