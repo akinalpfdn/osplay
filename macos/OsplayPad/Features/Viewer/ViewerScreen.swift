@@ -18,6 +18,40 @@ struct ViewerScreen: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
+            picture
+            if showsControls || connection.stage == nil {
+                controls
+                    .padding(Theme.Spacing.large)
+                    .transition(.opacity)
+            }
+        }
+        #if os(tvOS)
+            .onExitCommand {
+                if showsControls {
+                    withAnimation { showsControls = false }
+                } else {
+                    connection.disconnect()
+                }
+            }
+        #else
+            .contentShape(Rectangle())
+            .onTapGesture { revealControls() }
+            .statusBarHidden()
+        #endif
+        .onGeometryChange(for: Bool.self) {
+            $0.size.width > $0.size.height
+        } action: { landscape in
+            connection.viewportChanged(landscape: landscape)
+        }
+        .persistentSystemOverlays(.hidden)
+        .onDisappear { hideTask?.cancel() }
+    }
+
+    /// The stream, or the wait for it. On Apple TV it alone takes focus while the controls are hidden,
+    /// so select reveals them. It is the controls' sibling, not their parent: a focusable parent
+    /// would make the remote unable to move between the buttons.
+    private var picture: some View {
+        ZStack {
             Theme.Viewer.background.ignoresSafeArea()
             if let stage = connection.stage {
                 StageView(stage: stage).ignoresSafeArea()
@@ -30,34 +64,12 @@ struct ViewerScreen: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            if showsControls || connection.stage == nil {
-                controls
-                    .padding(Theme.Spacing.large)
-                    .transition(.opacity)
-            }
         }
-        .contentShape(Rectangle())
         #if os(tvOS)
+            .contentShape(Rectangle())
             .focusable(!showsControls)
             .onTapGesture { revealControls() }
-            .onExitCommand {
-                if showsControls {
-                    withAnimation { showsControls = false }
-                } else {
-                    connection.disconnect()
-                }
-            }
-        #else
-            .onTapGesture { revealControls() }
-            .statusBarHidden()
         #endif
-        .onGeometryChange(for: Bool.self) {
-            $0.size.width > $0.size.height
-        } action: { landscape in
-            connection.viewportChanged(landscape: landscape)
-        }
-        .persistentSystemOverlays(.hidden)
-        .onDisappear { hideTask?.cancel() }
     }
 
     private var controls: some View {
@@ -76,6 +88,9 @@ struct ViewerScreen: View {
         .buttonStyle(.bordered)
         .padding(Theme.Spacing.small)
         .background(Theme.Viewer.controlBackground, in: Capsule())
+        #if os(tvOS)
+            .focusSection()  // left and right stay among the buttons
+        #endif
     }
 
     /// Switches the stats overlay. tvOS has no button-style toggle, so there it is a button.

@@ -790,3 +790,10 @@ choices the plan leaves open are logged here.
 **Why:** A window next to the icon shows where the app lives and that it runs, without asking anything. A login launch must stay quiet, and telling it apart is unreliable with `SMAppService`, so only the first launch and explicit reopens qualify. Clicking the status item keeps SwiftUI's window and behaviour instead of rebuilding the menu.
 **Trade-offs:** Finding the status item's button relies on AppKit's view hierarchy; if a macOS release changes it, the menu just does not open by itself (a log line says so). Existing users see the menu or panel once after updating.
 **Revisit if:** A macOS release breaks the status item lookup, or SwiftUI adds a way to open a `MenuBarExtra`.
+
+## 2026-11-26 — The Mac app stays on GitHub; iPad and Apple TV go to the App Store
+**Chosen:** User decision: only the iPad and Apple TV apps (one App Store record, `com.akinalpfdn.osplay.ipad`) are submitted to the App Store. The Mac app stays a notarized DMG on GitHub with both roles. The store apps link to the Mac and Windows downloads (a QR code on Apple TV, which cannot open links).
+**Alternatives:** A sandboxed, display-only Mac App Store build next to the GitHub one; the full Mac app in the store.
+**Why:** Extending a Mac needs virtual displays, which macOS offers only through the private `CGVirtualDisplay` class, and the sound permission check uses private TCC functions; App Review rejects private API (guideline 2.5.1). Store apps must be sandboxed, which very likely blocks the usbmuxd socket the iPad cable uses. A display-only Mac build would split the Mac app in two and raise "why can't it extend" questions.
+**Trade-offs:** Mac users find Osplay only through GitHub and the README.
+**Revisit if:** macOS gains a public virtual display API, or users ask for a store Mac app that only acts as a display.
